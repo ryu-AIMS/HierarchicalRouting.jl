@@ -1,0 +1,10 @@
+[deps]
+ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
+Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+GeoDataFrames = "62cb38b5-d8d2-4862-a48e-6a340996859f"
+GeoInterface = "cf35fbd7-0cd7-5166-be24-54bfbe79505f"
+GeometryOps = "3251bfac-6a57-4b6d-aa61-ac1fef2975ab"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
+Rasters = "a3a2b9e3-a471-40c9-b274-f788e487c689"
