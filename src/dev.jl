@@ -28,10 +28,13 @@ clustered_targets = cluster_targets(suitable_targets_subset, k)
 write("../outputs/clustered_targets.tif", clustered_targets; force=true)
 plot(clustered_targets)
 
-cluster_centroids = calc_cluster_centroids(clustered_targets)
+cluster_centroids = calc_cluster_centroids(clustered_targets, depot)
 
 # Generate initial mothership route
-cluster_sequence, total_distance, mothership_waypoints, mothership_dist = nearest_neighbour(cluster_centroids, depot)
+cluster_sequence, mothership_dist = nearest_neighbour(cluster_centroids)
 
 # Plot mothership route
-plot_mothership_route(clustered_targets, cluster_centroids, mothership_waypoints, depot)
+plot_mothership_route(clustered_targets, cluster_centroids, cluster_sequence)
+
+# calc waypoints
+waypoints = calc_waypoints(cluster_centroids, cluster_sequence)

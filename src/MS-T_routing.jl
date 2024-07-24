@@ -63,7 +63,7 @@ function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
     return cluster_raster#, cluster_df
 end
 
-function calc_cluster_centroids(cluster_raster::Raster{Int16, 2})
+function calc_cluster_centroids(cluster_raster::Raster{Int16, 2}, depot::Tuple{Float64, Float64})
     # Extract the unique cluster IDs
     unique_clusters = unique(cluster_raster)
 
@@ -80,6 +80,8 @@ function calc_cluster_centroids(cluster_raster::Raster{Int16, 2})
     # Extracting coordinates using DimensionalData
     coordinates = [(x, y) for x in X_dim, y in Y_dim]
 
+    # Add depot as cluster 0
+    push!(cluster_centroids, (0, depot[1], depot[2]))
     for cluster_id in unique_clusters
         # Find the indices of the current cluster_id
         indices = findall(x -> x == cluster_id, cluster_raster)
@@ -91,31 +93,25 @@ function calc_cluster_centroids(cluster_raster::Raster{Int16, 2})
         # Add the centroid to the DataFrame
         push!(cluster_centroids, (cluster_id, lat, lon))
     end
-
+    # sort the cluster centroids by cluster_id
+    sort!(cluster_centroids, :cluster_id)
     return cluster_centroids
 end
 
-function distance_matrix(cluster_centroids::DataFrame, depot::Tuple{Float64, Float64})
+function distance_matrix(cluster_centroids::DataFrame)
     # Number of centroids
     num_centroids = nrow(cluster_centroids)
 
     # Initialize the distance matrix
-    dist_matrix = Matrix{Float64}(undef, num_centroids + 1, num_centroids + 1)
+    dist_matrix = Matrix{Float64}(undef, num_centroids, num_centroids)
 
     # Get the coordinates of the centroids
     centroid_coords = [(row.lat, row.lon) for row in eachrow(cluster_centroids)]
 
-    # Compute distances from the depot to each centroid
-    dist_matrix[1, 1] = 0.0  # depot to depot distance
-    for i in 1:num_centroids
-        dist_matrix[1, i + 1] = dist_matrix[i + 1, 1] = haversine(depot, centroid_coords[i])
-        # haversine(depot, centroid_coords[i])
-    end
-
     # Compute distances between centroids
     for i in 1:num_centroids
         for j in 1:num_centroids
-            dist_matrix[i + 1, j + 1] = haversine(centroid_coords[i], centroid_coords[j])
+            dist_matrix[i, j] = haversine(centroid_coords[i], centroid_coords[j])
         end
     end
 
@@ -127,9 +123,9 @@ end
 
 Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to the depot.
 """
-function nearest_neighbour(cluster_centroids::DataFrame, depot::Tuple{Float64, Float64})
+function nearest_neighbour(cluster_centroids::DataFrame)
 
-    dist_matrix = distance_matrix(cluster_centroids, depot)
+    dist_matrix = distance_matrix(cluster_centroids)
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -162,38 +158,58 @@ function nearest_neighbour(cluster_centroids::DataFrame, depot::Tuple{Float64, F
     cluster_sequence = tour .- 1
 
     # Generate mothership waypoints
-    cluster_centroids = vcat(DataFrame(cluster_id = [0], lat = [depot[1]], lon = [depot[2]]), sort!(cluster_centroids, :cluster_id))
+    # cluster_centroids = vcat(DataFrame(cluster_id = [0], lat = [depot[1]], lon = [depot[2]]), sort!(cluster_centroids, :cluster_id))
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in cluster_sequence], :]
-    mothership_waypoints = [(row.lat, row.lon) for row in eachrow(ordered_centroids)]
+    # mothership_waypoints = [(row.lat, row.lon) for row in eachrow(ordered_centroids)]
 
-    mothership_dist = 0.0
-    for i in 1:length(mothership_waypoints) - 1
-        mothership_dist += haversine(mothership_waypoints[i], mothership_waypoints[i + 1])
-    end
-
-    return cluster_sequence, total_distance, mothership_waypoints, mothership_dist
+    return ordered_centroids, total_distance
 end
 
-function plot_mothership_route(clustered_targets::Raster{Int16, 2}, cluster_centroids::DataFrame, mothership_waypoints::Vector{Tuple{Float64, Float64}}, depot::Tuple{Float64, Float64})
-    fig = Figure()
+function plot_mothership_route(clustered_targets::Raster{Int16, 2}, cluster_centroids::DataFrame, cluster_sequence::DataFrame)
+    fig = Figure(resolution = (800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route", xlabel = "Longitude", ylabel = "Latitude")
 
     # Plot the clustered targets
-    image!(ax, clustered_targets, colormap=:viridis)
+    image!(ax, clustered_targets, colormap = :viridis)
 
     # Plot the cluster centroids
-    scatter!(ax, cluster_centroids.lon, cluster_centroids.lat, color=:red, markersize=25, label="Cluster Centroids")
+    scatter!(ax, cluster_centroids.lon, cluster_centroids.lat, markersize = 5, color = :red, label = "Cluster Centroids")
 
-    # Plot the depot
-    scatter!(ax, [depot[2]], [depot[1]], color=:black, markersize=25, label="Depot")
+    # Annotate the cluster centroids with their cluster_id
+    for i in 1:nrow(cluster_centroids)
+        text!(ax, cluster_centroids.lon[i]+0.001, cluster_centroids.lat[i], text = string(cluster_centroids.cluster_id[i]), align = (:center, :center), color = :black)
+    end
 
-    # Extract latitude and longitude from mothership waypoints
-    route_lats = [wp[1] for wp in mothership_waypoints]
-    route_lons = [wp[2] for wp in mothership_waypoints]
+    # Generate the mothership route from the cluster sequence
+    mothership_route = [(cluster_centroids.lon[findfirst(==(id), cluster_centroids.cluster_id)], cluster_centroids.lat[findfirst(==(id), cluster_centroids.cluster_id)]) for id in cluster_sequence.cluster_id]
+
+    # Extract latitude and longitude from mothership route
+    route_lats = [wp[2] for wp in mothership_route]
+    route_lons = [wp[1] for wp in mothership_route]
 
     # Plot the mothership route
-    lines!(ax, route_lons, route_lats, color=:black, linewidth=2, label="Mothership Route")
+    lines!(ax, route_lons, route_lats, color = :blue, linewidth = 2, label = "Mothership Route")
 
     axislegend(ax)
     display(fig)
+end
+
+function calc_waypoints(cluster_centroids::DataFrame, cluster_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
+    # Ensure cluster_sequence is a vector of cluster IDs
+    cluster_ids = cluster_sequence.cluster_id
+
+    # Generate waypoints for each cluster in the sequence
+    waypoints = Vector{Tuple{Float64, Float64}}()
+    # # Add the depot as the first waypoint
+    # push!(waypoints, (cluster_centroids.lat[1], cluster_centroids.lon[1]))
+    for i in 1:length(cluster_ids)-1
+        current_centroid = cluster_centroids[findfirst(x -> x == cluster_ids[i], cluster_centroids.cluster_id), :]
+        next_centroid = cluster_centroids[findfirst(x -> x == cluster_ids[i + 1], cluster_centroids.cluster_id), :]
+        # Calculate the centroid between the current and next cluster
+        centroid = ((current_centroid.lat + next_centroid.lat) / 2, (current_centroid.lon + next_centroid.lon) / 2)
+        push!(waypoints, centroid)
+    end
+    # # Add the depot as the last waypoint
+    # push!(waypoints, (cluster_centroids.lat[1], cluster_centroids.lon[1]))
+    return waypoints
 end
