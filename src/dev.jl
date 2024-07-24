@@ -38,3 +38,5 @@ plot_mothership_route(clustered_targets, cluster_centroids, cluster_sequence)
 
 # calc waypoints
 waypoints = calc_waypoints(cluster_centroids, cluster_sequence)
+
+plot_mothership_route(clustered_targets, waypoints, cluster_sequence)
