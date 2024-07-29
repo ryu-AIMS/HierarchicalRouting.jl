@@ -1,9 +1,14 @@
-import ArchGDAL as AG
+import ArchGDAL# as AG
 using Rasters
 using DataFrames
 using Statistics
 using Distances
 using Clustering
+
+using GeometryOps
+using GeoInterface
+
+using GeometryBasics
 
 """
     extract_subset(spatial_dataset::Raster, subset::GeoDataFrame)
@@ -20,20 +25,20 @@ end
 
 Cluster the targets in a GeoDataFrame based on their geometry.
 """
-function cluster_targets(df::DataFrame, num_clust::Int64)
-    # Calculate centroid of geometry for each row
-    centroid_shp = [AG.centroid(row.geom) for row in eachrow(df)]
-    centroid_coords = [(AG.getx(centroid,0), AG.gety(centroid,0)) for centroid in centroid_shp]
+# function cluster_targets(df::DataFrame, num_clust::Int64)
+#     # Calculate centroid of geometry for each row
+#     centroid_shp = [AG.centroid(row.geom) for row in eachrow(df)]
+#     centroid_coords = [(AG.getx(centroid,0), AG.gety(centroid,0)) for centroid in centroid_shp]
 
-    # Convert the coordinates to a format suitable for clustering (e.g., an array)
-    coordinates_array = hcat([collect(c) for c in centroid_coords]...)
+#     # Convert the coordinates to a format suitable for clustering (e.g., an array)
+#     coordinates_array = hcat([collect(c) for c in centroid_coords]...)
 
-    # Cluster centroids using kmeans
-    clustering = kmeans(coordinates_array, num_clust)
+#     # Cluster centroids using kmeans
+#     clustering = kmeans(coordinates_array, num_clust)
 
-    df.cluster_id = clustering.assignments
-    return df
-end
+#     df.cluster_id = clustering.assignments
+#     return df
+# end
 function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
     # Extract the coordinates of non-zero values
     indices = findall(x -> x != 0, raster)
@@ -63,14 +68,18 @@ function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
     return cluster_raster#, cluster_df
 end
 
+function create_exclusion_zones(target_bathy::Raster, ms_depth)
+    # Create exclusion zones based on the bathymetry data
+    exclusion_zones = target_bathy .<= ms_depth
+    return exclusion_zones
+end
+
 function calc_cluster_centroids(cluster_raster::Raster{Int16, 2}, depot::Tuple{Float64, Float64})
-    # Extract the unique cluster IDs
     unique_clusters = unique(cluster_raster)
 
     # Remove the zero cluster ID (if present)
     unique_clusters = unique_clusters[unique_clusters .!= 0]
 
-    # Initialize the DataFrame for cluster centroids
     cluster_centroids = DataFrame(cluster_id = Int[], lat = Float64[], lon = Float64[])
 
     # Get the latitude and longitude coordinates
@@ -162,7 +171,7 @@ function nearest_neighbour(cluster_centroids::DataFrame)
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in cluster_sequence], :]
     # mothership_waypoints = [(row.lat, row.lon) for row in eachrow(ordered_centroids)]
 
-    return ordered_centroids, total_distance
+    return ordered_centroids, total_distance, dist_matrix
 end
 
 function plot_mothership_route(clustered_targets::Raster{Int16, 2}, cluster_centroids::DataFrame, cluster_sequence::DataFrame)

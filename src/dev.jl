@@ -1,10 +1,13 @@
+using Revise, Infiltrator
+
 import GeoDataFrames as GDF
 using Rasters
 using GLMakie
 
 crs = 7844
-depot = (-16.9, 146.15)#(-16.92, 145.78) # (lat, long)
+depot = (-16.9, 146.15)  #(-16.92, 145.78) # (lat, long)
 k = 3
+ms_depth = -10
 
 subset = GDF.read("../data/site/Moore_2024-02-14b_v060_rc1.gpkg")
 bathy_dataset = Raster("../data/bathy/Cairns-Cooktown/Cairns-Cooktown_bathy.tif", mappedcrs=EPSG(crs))
@@ -13,25 +16,47 @@ suitable_targets_all = Raster("../data/targets/Cairns-Cooktown_suitable_slopes.t
 # Read/mask/trim targets to deployment scale
 
 # Read deployment locations
-suitable_targets_subset = extract_subset(suitable_targets_all, subset)
+if isfile("../outputs/target_subset.tif")
+    suitable_targets_subset = Raster("../outputs/target_subset.tif", mappedcrs=EPSG(crs))
+else
+    suitable_targets_subset = extract_subset(suitable_targets_all, subset)
+    write("../outputs/target_subset.tif", suitable_targets_subset; force=true)
+end
 plot(suitable_targets_subset)
-write("../outputs/target_subset.tif", suitable_targets_subset; force=true)
 
 # Environmental constraints
 # Bathymetry
-target_bathy = extract_subset(bathy_dataset, subset)
+if isfile("../outputs/bathy_subset.tif")
+    target_bathy = Raster("../outputs/bathy_subset.tif", mappedcrs=EPSG(crs))
+else
+    target_bathy = extract_subset(bathy_dataset, subset)
+    write("../outputs/bathy_subset.tif", target_bathy; force=true)
+end
 plot(target_bathy)
-write("../outputs/bathy_subset.tif", target_bathy; force=true)
 
 # Cluster targets
-clustered_targets = cluster_targets(suitable_targets_subset, k)
-write("../outputs/clustered_targets.tif", clustered_targets; force=true)
+if isfile("../outputs/clustered_targets.tif")
+    clustered_targets = Raster("../outputs/clustered_targets.tif", mappedcrs=EPSG(crs))
+else
+    clustered_targets = cluster_targets(suitable_targets_subset, k)
+    write("../outputs/clustered_targets.tif", clustered_targets; force=true)
+end
 plot(clustered_targets)
+
+# Create exclusion zones from environmental constraints
+if isfile("../outputs/ms_exclusion.tif")
+    ms_exclusion_zones = Raster("../outputs/ms_exclusion.tif", mappedcrs=EPSG(crs))
+else
+    ms_exclusion_zones = create_exclusion_zones(target_bathy, ms_depth)
+    write("../outputs/ms_exclusion_rev.tif", convert.(Int16, ms_exclusion_zones); force=true)
+end
 
 cluster_centroids = calc_cluster_centroids(clustered_targets, depot)
 
+########
+
 # Generate initial mothership route
-cluster_sequence, mothership_dist = nearest_neighbour(cluster_centroids)
+cluster_sequence, mothership_dist, clust_matrix = nearest_neighbour(cluster_centroids)
 
 # Plot mothership route
 plot_mothership_route(clustered_targets, cluster_centroids, cluster_sequence)
