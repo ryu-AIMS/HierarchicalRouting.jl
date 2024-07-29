@@ -74,6 +74,59 @@ function create_exclusion_zones(target_bathy::Raster, ms_depth)
     return exclusion_zones
 end
 
+########
+
+function plot_polygons(multipolygon::GeoInterface.Wrappers.MultiPolygon)
+    fig = Figure(resolution = (800, 600))
+    ax = Axis(fig[1, 1], title = "Polygonized Raster Data")
+
+    for polygon in GeoInterface.coordinates(multipolygon)
+        for ring in polygon
+            xs = [point[1] for point in ring]
+            ys = [point[2] for point in ring]
+            lines!(ax, xs, ys, color = :blue)
+            # Optionally close the polygon by connecting the last point to the first
+            lines!(ax, [xs..., xs[1]], [ys..., ys[1]], color = :blue)
+        end
+    end
+
+    display(fig)
+end
+
+"""
+    multipolygon_to_dataframe(multipolygon::GeoInterface.Wrappers.MultiPolygon)
+
+Convert multipolygons to a GeoDataFrame.
+
+# Arguments
+- `multipolygon` :
+"""
+function multipolygon_to_dataframe(multipolygon::GeoInterface.Wrappers.MultiPolygon)
+    data = Vector(undef, length(GeoInterface.coordinates(multipolygon)))
+
+    # Extract coordinates from the MultiPolygon
+    for (polygon_id, polygon) in enumerate(GeoInterface.coordinates(multipolygon))
+        # Convert coordinates to a Polygon object
+        rings = [Point(coord...) for coord in polygon[1]]
+        poly = Polygon(rings)
+        data[polygon_id] = (polygon_id, poly)
+    end
+
+    return DataFrame(data, [:polygon_id, :geometry])
+end
+
+function convert_raster_to_polygon(raster::Raster{Bool,2})
+    multipolygon = polygonize(raster)
+    multipolygon = GeoInterface.MultiPolygon(GeoInterface.coordinates(multipolygon))
+
+    # Convert the MultiPolygon to a DataFrame
+    multipolygon_df = multipolygon_to_dataframe(multipolygon)
+    # plot_polygons(multipolygon)
+    return multipolygon_df
+end
+
+########
+
 function calc_cluster_centroids(cluster_raster::Raster{Int16, 2}, depot::Tuple{Float64, Float64})
     unique_clusters = unique(cluster_raster)
 
@@ -126,6 +179,40 @@ function distance_matrix(cluster_centroids::DataFrame)
 
     return dist_matrix
 end
+
+function is_feasible_path(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrame)
+    # Create a line from start_pt to end_pt
+    line = GeoInterface.LineString([start_pt, end_pt])
+
+    # Check if the line intersects with any polygon in the env_constraint
+    for row in eachrow(env_constraint)
+        polygon = row.geometry
+        if GeoInterface.intersects(line, polygon)
+            return false
+        end
+    end
+    return true
+end
+function apply_constraints(waypoints::Vector{Tuple{Float64, Float64}}, target_bathy::Raster{Int16, 2})
+    # Initialize the total distance
+    total_distance = 0.0
+
+    # Iterate over the waypoints and calculate the distance between them
+    for i in 1:length(waypoints)-1
+        # Check if the path between the waypoints is feasible
+        if !is_feasible_path(waypoints[i], waypoints[i+1], target_bathy)
+            # find shortest path around constraint
+        else
+            # Calculate the distance between the waypoints
+            distance = haversine(waypoints[i], waypoints[i+1])
+        end
+        total_distance += distance
+    end
+
+    return total_distance
+end
+
+########
 
 """
     nearest_neighbour(dist_matrix::Matrix{Float64})

@@ -51,6 +51,20 @@ else
     write("../outputs/ms_exclusion_rev.tif", convert.(Int16, ms_exclusion_zones); force=true)
 end
 
+########
+
+ms_exclusion_polygons = convert_raster_to_polygon(ms_exclusion_zones)
+GDF.write(
+    "../outputs/ms_exclusion_gpkg.gpkg",
+    ms_exclusion_polygons[:, [:geometry]];
+    crs=EPSG(crs)
+)
+
+# Apply environmental constraints to the mothership route
+apply_constraints(waypoints, target_bathy)
+
+########
+
 cluster_centroids = calc_cluster_centroids(clustered_targets, depot)
 
 ########
@@ -65,3 +79,6 @@ plot_mothership_route(clustered_targets, cluster_centroids, cluster_sequence)
 waypoints = calc_waypoints(cluster_centroids, cluster_sequence)
 
 plot_mothership_route(clustered_targets, waypoints, cluster_sequence)
+
+# # Apply 2-opt to improve the mothership route
+# cluster_sequence, mothership_waypoints, mothership_dist = two_opt(cluster_centroids, depot, cluster_sequence)
