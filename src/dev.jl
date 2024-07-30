@@ -51,10 +51,10 @@ end
 
 ########
 
-
 mp = to_multipolygon(ms_exclusion_zones)
 exclusion_zones = to_dataframe(mp)
 
+# Example pipeline
 # ms_exclusion_zones |> to_multipolygon |> to_dataframe |> x -> poly(x.geometry)
 
 # Generate initial mothership route
