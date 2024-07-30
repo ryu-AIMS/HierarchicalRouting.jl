@@ -50,8 +50,6 @@ else
 end
 
 ########
-
-
 mp = to_multipolygon(ms_exclusion_zones)
 exclusion_zones = to_dataframe(mp)
 

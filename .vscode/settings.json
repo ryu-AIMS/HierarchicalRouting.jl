@@ -1,0 +1,45 @@
+{
+    "workbench.colorTheme": "Visual Studio Dark",
+    "terminal.integrated.commandsToSkipShell": [
+        "language-julia.interrupt"
+    ],
+    "julia.symbolCacheDownload": true,
+    "julia.enableTelemetry": false,
+            "[julia]": {
+            "editor.detectIndentation": false,
+            "editor.insertSpaces": true,
+            "editor.tabSize": 4,
+            "files.insertFinalNewline": true,
+            "files.trimFinalNewlines": true,
+            "files.trimTrailingWhitespace": true,
+            "editor.rulers": [
+                92
+            ],
+            "editor.defaultFormatter": "julialang.language-julia",
+        },
+        "editor.defaultFormatter": "julialang.language-julia",
+        "editor.rulers": [
+            92
+        ],
+        "julia.inlayHints.static.parameterNames.enabled": "all",
+        "julia-format.flag": "style=BlueStyle(), indent=4, margin=92, always_for_in=true, for_in_replacement=\"∈\", whitespace_typedefs=false, import_to_using=true, align_struct_field=true, align_assignment=false, align_conditional=true, align_pair_arrow=false, normalize_line_endings=\"unix\", align_matrix=true, join_lines_based_on_source=true, indent_submodule=true, surround_whereop_typeparameters=false, yas_style_nesting=true, trailing_comma=false",
+        "julia-format.tabs": 0,
+        "files.trimFinalNewlines": true,
+        "files.trimTrailingWhitespace": true,
+        "julia.NumThreads": "auto",
+        "github.copilot.editor.enableAutoCompletions": true,
+        "explorer.confirmDelete": false,
+        "security.workspace.trust.untrustedFiles": "open",
+        "github.copilot.enable": {
+            "*": true,
+            "plaintext": false,
+            "markdown": false,
+            "scminput": false,
+            "julia": true
+        },
+        "github.copilot.preferredAccount": "ryulippmann",
+        "githubPullRequests.assignCreated": "ryu-AIMS",
+        "editor.mouseWheelZoom": true,
+        "explorer.confirmDragAndDrop": false
+
+}
