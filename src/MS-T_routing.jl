@@ -252,7 +252,7 @@ function nearest_neighbour(cluster_centroids::DataFrame)
 end
 
 function plot_mothership_route(clustered_targets::Raster{Int16, 2}, cluster_centroids::DataFrame, cluster_sequence::DataFrame)
-    fig = Figure(resolution = (800, 600))
+    fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route", xlabel = "Longitude", ylabel = "Latitude")
 
     # Plot the clustered targets
