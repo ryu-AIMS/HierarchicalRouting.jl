@@ -6,7 +6,7 @@ using GLMakie
 
 crs = 7844
 depot = (-16.9, 146.15)  #(-16.92, 145.78) # (lat, long)
-k = 3
+k = 10
 ms_depth = -10
 
 subset = GDF.read("../data/site/Moore_2024-02-14b_v060_rc1.gpkg")
@@ -36,19 +36,20 @@ plot(target_bathy)
 
 # Cluster targets
 if isfile("../outputs/clustered_targets.tif")
-    clustered_targets = Raster("../outputs/clustered_targets.tif", mappedcrs=EPSG(crs))
+    clustered_targets = Raster("../outputs/clustered_targets$(k).tif", mappedcrs=EPSG(crs))
 else
     clustered_targets = cluster_targets(suitable_targets_subset, k)
-    write("../outputs/clustered_targets.tif", clustered_targets; force=true)
+    write("../outputs/clustered_targets_k=$(k).tif", clustered_targets; force=true)
 end
 plot(clustered_targets)
 
 # Create exclusion zones from environmental constraints
 if isfile("../outputs/ms_exclusion.tif")
-    ms_exclusion_zones = Raster("../outputs/ms_exclusion.tif", mappedcrs=EPSG(crs))
+    ms_exclusion_zones_int = Raster("../outputs/ms_exclusion.tif", mappedcrs=EPSG(crs))
+    ms_exclusion_zones = Raster(ms_exclusion_zones_int .!= 0, dims(ms_exclusion_zones_int))
 else
     ms_exclusion_zones = create_exclusion_zones(target_bathy, ms_depth)
-    write("../outputs/ms_exclusion_rev.tif", convert.(Int16, ms_exclusion_zones); force=true)
+    write("../outputs/ms_exclusion.tif", convert.(Int16, ms_exclusion_zones); force=true)
 end
 
 ########
