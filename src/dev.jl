@@ -54,15 +54,16 @@ end
 
 ########
 
-ms_exclusion_polygons = convert_raster_to_polygon(ms_exclusion_zones)
-GDF.write(
-    "../outputs/ms_exclusion_gpkg.gpkg",
-    ms_exclusion_polygons[:, [:geometry]];
-    crs=EPSG(crs)
-)
-
-# Apply environmental constraints to the mothership route
-apply_constraints(waypoints, target_bathy)
+if isfile("../outputs/ms_exclusion_gpkg.gpkg")
+    ms_exclusion_polygons = GDF.read("../outputs/ms_exclusion_gpkg.gpkg")
+else
+    ms_exclusion_polygons = convert_raster_to_polygon(ms_exclusion_zones)
+    GDF.write(
+        "../outputs/ms_exclusion_gpkg.gpkg",
+        ms_exclusion_polygons[:, [:geometry]];
+        crs=EPSG(crs)
+    )
+end
 
 ########
 
