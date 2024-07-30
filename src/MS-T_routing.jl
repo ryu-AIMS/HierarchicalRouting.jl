@@ -30,26 +30,13 @@ end
 
 Cluster the targets in a GeoDataFrame based on their geometry.
 """
-# function cluster_targets(df::DataFrame, num_clust::Int64)
-#     # Calculate centroid of geometry for each row
-#     centroid_shp = [AG.centroid(row.geom) for row in eachrow(df)]
-#     centroid_coords = [(AG.getx(centroid,0), AG.gety(centroid,0)) for centroid in centroid_shp]
-
-#     # Convert the coordinates to a format suitable for clustering (e.g., an array)
-#     coordinates_array = hcat([collect(c) for c in centroid_coords]...)
-
-#     # Cluster centroids using kmeans
-#     clustering = kmeans(coordinates_array, num_clust)
-
-#     df.cluster_id = clustering.assignments
-#     return df
-# end
 function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
     # Extract the coordinates of non-zero values
     indices = findall(x -> x != 0, raster)
 
     # Convert the indices to coordinates (tuples)
     coordinates = [(Tuple(index)[1], Tuple(index)[2]) for index in indices]
+
     # Convert the coordinates to a format suitable for clustering (e.g., an array)
     coordinates_array = hcat([collect(c) for c in coordinates]...)
 
@@ -70,7 +57,7 @@ function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
         cluster_raster[rows[i], cols[i]] = clustering.assignments[i]
     end
 
-    return cluster_raster#, cluster_df
+    return cluster_raster
 end
 
 function create_exclusion_zones(target_bathy::Raster, ms_depth)
