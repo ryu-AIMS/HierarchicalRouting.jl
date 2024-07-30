@@ -21,9 +21,39 @@ using GLMakie, GeoMakie
 Extract a subset of a raster dataset based on a GeoDataFrame.
 """
 function extract_subset(spatial_dataset::Raster, subset)
-    result_raster = Rasters.trim(mask(spatial_dataset; with=subset.geom))
-    return result_raster
+    return Rasters.trim(mask(spatial_dataset; with=subset.geom))
 end
+
+"""
+    to_multipolygon(raster::Raster{T, 2}) where {T<:Union{Bool,Int16}}
+
+Convert raster to multipolygons.
+"""
+function to_multipolygon(
+    raster::Raster{T, 2}
+)::GI.Wrappers.MultiPolygon where {T<:Union{Bool,Int16}}
+    return polygonize(.==(0), raster[:, end:-1:1])
+end
+
+"""
+    to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
+
+Create a DataFrame from multipolygons
+
+## Notes:
+
+Write out with:
+
+```julia
+GDF.write("<path.gpkg>", df, crs=EPSG(7844))
+```
+
+Where `crs` can be any valid EPSG code.
+"""
+function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
+    return DataFrame(geometry=mp.geom)
+end
+
 
 """
     cluster_targets(df::DataFrame, num_clust::Int64)
@@ -83,38 +113,6 @@ function plot_polygons(multipolygon::GI.Wrappers.MultiPolygon)
     end
 
     display(fig)
-end
-
-"""
-    multipolygon_to_dataframe(multipolygon::GeoInterface.Wrappers.MultiPolygon)
-
-Convert multipolygons to a GeoDataFrame.
-
-# Arguments
-- `multipolygon` :
-"""
-function multipolygon_to_dataframe(multipolygon::GeoInterface.Wrappers.MultiPolygon)
-    data = Vector(undef, length(GeoInterface.coordinates(multipolygon)))
-
-    # Extract coordinates from the MultiPolygon
-    for (polygon_id, polygon) in enumerate(GeoInterface.coordinates(multipolygon))
-        # Convert coordinates to a Polygon object
-        rings = [Point(coord...) for coord in polygon[1]]
-        poly = Polygon(rings)
-        data[polygon_id] = (polygon_id, poly)
-    end
-
-    return DataFrame(data, [:polygon_id, :geometry])
-end
-
-function convert_raster_to_polygon(raster::Raster{Bool,2})
-    multipolygon = polygonize(raster)
-    multipolygon = GeoInterface.MultiPolygon(GeoInterface.coordinates(multipolygon))
-
-    # Convert the MultiPolygon to a DataFrame
-    multipolygon_df = multipolygon_to_dataframe(multipolygon)
-    # plot_polygons(multipolygon)
-    return multipolygon_df
 end
 
 ########
