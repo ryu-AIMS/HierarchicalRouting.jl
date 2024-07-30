@@ -4,7 +4,7 @@ Some description of what the code in this repo does.
 
 ## Setup
 
-Go through the Usual Julia project set up by instantiating the project.
+Go through the usual Julia project set up by instantiating the project.
 
 ```julia
 ]instantiate
