@@ -1,14 +1,19 @@
-import ArchGDAL# as AG
+using Statistics
+
+import ArchGDAL as AG
+import GeoInterface as GI
+import GeometryOps as GO
+using GeometryBasics
+using CoordinateTransformations
+
 using Rasters
 using DataFrames
-using Statistics
-using Distances
-using Clustering
+import GeoDataFrames as GDF
 
-using GeometryOps
-using GeoInterface
+using Clustering, Distances
 
-using GeometryBasics
+using GLMakie, GeoMakie
+
 
 """
     extract_subset(spatial_dataset::Raster, subset::GeoDataFrame)
@@ -16,35 +21,52 @@ using GeometryBasics
 Extract a subset of a raster dataset based on a GeoDataFrame.
 """
 function extract_subset(spatial_dataset::Raster, subset)
-    result_raster = Rasters.trim(mask(spatial_dataset; with=subset.geom))
-    return result_raster
+    return Rasters.trim(mask(spatial_dataset; with=subset.geom))
 end
+
+"""
+    to_multipolygon(raster::Raster{T, 2}) where {T<:Union{Bool,Int16}}
+
+Convert raster to multipolygons.
+"""
+function to_multipolygon(
+    raster::Raster{T, 2}
+)::GI.Wrappers.MultiPolygon where {T<:Union{Bool,Int16}}
+    return polygonize(.==(0), raster[:, end:-1:1])
+end
+
+"""
+    to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
+
+Create a DataFrame from multipolygons
+
+## Notes:
+
+Write out with:
+
+```julia
+GDF.write("<path.gpkg>", df, crs=EPSG(7844))
+```
+
+Where `crs` can be any valid EPSG code.
+"""
+function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
+    return DataFrame(geometry=mp.geom)
+end
+
 
 """
     cluster_targets(df::DataFrame, num_clust::Int64)
 
 Cluster the targets in a GeoDataFrame based on their geometry.
 """
-# function cluster_targets(df::DataFrame, num_clust::Int64)
-#     # Calculate centroid of geometry for each row
-#     centroid_shp = [AG.centroid(row.geom) for row in eachrow(df)]
-#     centroid_coords = [(AG.getx(centroid,0), AG.gety(centroid,0)) for centroid in centroid_shp]
-
-#     # Convert the coordinates to a format suitable for clustering (e.g., an array)
-#     coordinates_array = hcat([collect(c) for c in centroid_coords]...)
-
-#     # Cluster centroids using kmeans
-#     clustering = kmeans(coordinates_array, num_clust)
-
-#     df.cluster_id = clustering.assignments
-#     return df
-# end
 function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
     # Extract the coordinates of non-zero values
     indices = findall(x -> x != 0, raster)
 
     # Convert the indices to coordinates (tuples)
     coordinates = [(Tuple(index)[1], Tuple(index)[2]) for index in indices]
+
     # Convert the coordinates to a format suitable for clustering (e.g., an array)
     coordinates_array = hcat([collect(c) for c in coordinates]...)
 
@@ -65,7 +87,7 @@ function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
         cluster_raster[rows[i], cols[i]] = clustering.assignments[i]
     end
 
-    return cluster_raster#, cluster_df
+    return cluster_raster
 end
 
 function create_exclusion_zones(target_bathy::Raster, ms_depth)
@@ -76,11 +98,11 @@ end
 
 ########
 
-function plot_polygons(multipolygon::GeoInterface.Wrappers.MultiPolygon)
+function plot_polygons(multipolygon::GI.Wrappers.MultiPolygon)
     fig = Figure(resolution = (800, 600))
     ax = Axis(fig[1, 1], title = "Polygonized Raster Data")
 
-    for polygon in GeoInterface.coordinates(multipolygon)
+    for polygon in GI.coordinates(multipolygon)
         for ring in polygon
             xs = [point[1] for point in ring]
             ys = [point[2] for point in ring]
@@ -91,38 +113,6 @@ function plot_polygons(multipolygon::GeoInterface.Wrappers.MultiPolygon)
     end
 
     display(fig)
-end
-
-"""
-    multipolygon_to_dataframe(multipolygon::GeoInterface.Wrappers.MultiPolygon)
-
-Convert multipolygons to a GeoDataFrame.
-
-# Arguments
-- `multipolygon` :
-"""
-function multipolygon_to_dataframe(multipolygon::GeoInterface.Wrappers.MultiPolygon)
-    data = Vector(undef, length(GeoInterface.coordinates(multipolygon)))
-
-    # Extract coordinates from the MultiPolygon
-    for (polygon_id, polygon) in enumerate(GeoInterface.coordinates(multipolygon))
-        # Convert coordinates to a Polygon object
-        rings = [Point(coord...) for coord in polygon[1]]
-        poly = Polygon(rings)
-        data[polygon_id] = (polygon_id, poly)
-    end
-
-    return DataFrame(data, [:polygon_id, :geometry])
-end
-
-function convert_raster_to_polygon(raster::Raster{Bool,2})
-    multipolygon = polygonize(raster)
-    multipolygon = GeoInterface.MultiPolygon(GeoInterface.coordinates(multipolygon))
-
-    # Convert the MultiPolygon to a DataFrame
-    multipolygon_df = multipolygon_to_dataframe(multipolygon)
-    # plot_polygons(multipolygon)
-    return multipolygon_df
 end
 
 ########
@@ -182,12 +172,12 @@ end
 
 function is_feasible_path(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrame)
     # Create a line from start_pt to end_pt
-    line = GeoInterface.LineString([start_pt, end_pt])
+    line = GI.LineString([start_pt, end_pt])
 
     # Check if the line intersects with any polygon in the env_constraint
     for row in eachrow(env_constraint)
         polygon = row.geometry
-        if GeoInterface.intersects(line, polygon)
+        if GI.intersects(line, polygon)
             return false
         end
     end
@@ -262,7 +252,7 @@ function nearest_neighbour(cluster_centroids::DataFrame)
 end
 
 function plot_mothership_route(clustered_targets::Raster{Int16, 2}, cluster_centroids::DataFrame, cluster_sequence::DataFrame)
-    fig = Figure(resolution = (800, 600))
+    fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route", xlabel = "Longitude", ylabel = "Latitude")
 
     # Plot the clustered targets
