@@ -1,11 +1,10 @@
 using Revise, Infiltrator
 
-import GeoDataFrames as GDF
-using Rasters
-using GLMakie
+includet("MS-T_routing.jl")
+
 
 crs = 7844
-depot = (-16.9, 146.15)  #(-16.92, 145.78) # (lat, long)
+depot = (-16.9, 146.15)  # (-16.92, 145.78) # (lat, long)
 k = 10
 ms_depth = -10
 
@@ -14,6 +13,7 @@ bathy_dataset = Raster("../data/bathy/Cairns-Cooktown/Cairns-Cooktown_bathy.tif"
 suitable_targets_all = Raster("../data/targets/Cairns-Cooktown_suitable_slopes.tif", mappedcrs=EPSG(crs))
 
 # Read/mask/trim targets to deployment scale
+# TODO: Separate data loading.
 
 # Read deployment locations
 if isfile("../outputs/target_subset.tif")
@@ -22,9 +22,8 @@ else
     suitable_targets_subset = extract_subset(suitable_targets_all, subset)
     write("../outputs/target_subset.tif", suitable_targets_subset; force=true)
 end
-plot(suitable_targets_subset)
 
-# Environmental constraints
+# Load environmental constraints
 # Bathymetry
 if isfile("../outputs/bathy_subset.tif")
     target_bathy = Raster("../outputs/bathy_subset.tif", mappedcrs=EPSG(crs))
@@ -32,7 +31,6 @@ else
     target_bathy = extract_subset(bathy_dataset, subset)
     write("../outputs/bathy_subset.tif", target_bathy; force=true)
 end
-plot(target_bathy)
 
 # Cluster targets
 if isfile("../outputs/clustered_targets.tif")
@@ -41,7 +39,6 @@ else
     clustered_targets = cluster_targets(suitable_targets_subset, k)
     write("../outputs/clustered_targets_k=$(k).tif", clustered_targets; force=true)
 end
-plot(clustered_targets)
 
 # Create exclusion zones from environmental constraints
 if isfile("../outputs/ms_exclusion.tif")
