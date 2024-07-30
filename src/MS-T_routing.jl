@@ -1,14 +1,19 @@
-import ArchGDAL# as AG
+using Statistics
+
+import ArchGDAL as AG
+import GeoInterface as GI
+import GeometryOps as GO
+using GeometryBasics
+using CoordinateTransformations
+
 using Rasters
 using DataFrames
-using Statistics
-using Distances
-using Clustering
+import GeoDataFrames as GDF
 
-using GeometryOps
-using GeoInterface
+using Clustering, Distances
 
-using GeometryBasics
+using GLMakie, GeoMakie
+
 
 """
     extract_subset(spatial_dataset::Raster, subset::GeoDataFrame)
@@ -76,11 +81,11 @@ end
 
 ########
 
-function plot_polygons(multipolygon::GeoInterface.Wrappers.MultiPolygon)
+function plot_polygons(multipolygon::GI.Wrappers.MultiPolygon)
     fig = Figure(resolution = (800, 600))
     ax = Axis(fig[1, 1], title = "Polygonized Raster Data")
 
-    for polygon in GeoInterface.coordinates(multipolygon)
+    for polygon in GI.coordinates(multipolygon)
         for ring in polygon
             xs = [point[1] for point in ring]
             ys = [point[2] for point in ring]
@@ -182,12 +187,12 @@ end
 
 function is_feasible_path(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrame)
     # Create a line from start_pt to end_pt
-    line = GeoInterface.LineString([start_pt, end_pt])
+    line = GI.LineString([start_pt, end_pt])
 
     # Check if the line intersects with any polygon in the env_constraint
     for row in eachrow(env_constraint)
         polygon = row.geometry
-        if GeoInterface.intersects(line, polygon)
+        if GI.intersects(line, polygon)
             return false
         end
     end
