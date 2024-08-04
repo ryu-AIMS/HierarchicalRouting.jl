@@ -25,3 +25,5 @@ Manifest.toml
 
 # Ignore data files
 data/*
+
+.vscode/
