@@ -50,45 +50,6 @@ function shortest_path(waypoints::Vector{Tuple{Float64, Float64}}, exclusions::R
     return total_distance
 end
 
-"""
-    get_waypoints(cluster_centroids::DataFrame, cluster_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
-
-Calculate mothership waypoints between sequential clusters based on ____ calculation.
-
-# Arguments
-- `cluster_centroids` :
-- `cluster_sequence` :
-
-# Returns
-"""
-function get_waypoints(cluster_centroids::DataFrame, cluster_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
-    # Ensure cluster_sequence is a vector of cluster IDs
-    cluster_seq_ids = cluster_sequence.cluster_id
-    n_cluster_seqs = length(cluster_seq_ids)
-
-    # Generate waypoints for each cluster in the sequence
-    _waypoints = Vector{Tuple{Float64, Float64}}(undef, n_cluster_seqs)
-
-    # Add the depot as the first waypoint
-    _waypoints[1] = (cluster_centroids.lat[1], cluster_centroids.lon[1])
-    for i in 1:(n_cluster_seqs - 1)
-        current_centroid = cluster_centroids[cluster_centroids.cluster_id .== cluster_seq_ids[i], :]
-        next_centroid = cluster_centroids[cluster_centroids.cluster_id .== cluster_seq_ids[i+1], :]
-
-        # Calculate the centroid between the current and next cluster
-        centroid = (
-            first(current_centroid.lat + next_centroid.lat) / 2,
-            first(current_centroid.lon + next_centroid.lon) / 2
-        )
-        _waypoints[i+1] = centroid
-    end
-
-    # Add the depot as the last waypoint
-    _waypoints[n_cluster_seqs] = (cluster_centroids.lat[1], cluster_centroids.lon[1])
-
-    return _waypoints
-end
-
 function distance_matrix(cluster_centroids::DataFrame)
     # Number of centroids
     num_centroids = nrow(cluster_centroids)
@@ -154,4 +115,43 @@ function nearest_neighbour(cluster_centroids::DataFrame)
     # mothership_waypoints = [(row.lat, row.lon) for row in eachrow(ordered_centroids)]
 
     return ordered_centroids, total_distance, dist_matrix
+end
+
+"""
+    get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
+
+Calculate mothership waypoints between sequential clusters.
+Based on calc: midpoint of current and next cluster.
+
+# Arguments
+- `centroid_sequence` :  centroid lat long coordinates in sequence; including depot as the first and last cluster.
+
+# Returns
+Route as vector of lat long tuples.
+"""
+function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
+    cluster_seq_ids = centroid_sequence.cluster_id
+    n_cluster_seqs = length(cluster_seq_ids)
+
+    waypoints = Vector{Tuple{Float64, Float64}}(undef, n_cluster_seqs)
+
+    # Add the depot as the first waypoint
+    waypoints[1] = (centroid_sequence.lat[1], centroid_sequence.lon[1])
+
+    for i in 1:(n_cluster_seqs - 1)
+        current_centroid = first(centroid_sequence[centroid_sequence.cluster_id .== cluster_seq_ids[i], :])
+        next_centroid = first(centroid_sequence[centroid_sequence.cluster_id .== cluster_seq_ids[i+1], :])
+
+        # Calculate the midpoint between the current and next cluster centroids
+        centroid = (
+            (current_centroid.lat + next_centroid.lat) / 2,
+            (current_centroid.lon + next_centroid.lon) / 2
+        )
+        waypoints[i+1] = centroid
+    end
+
+    # Add the depot as the last waypoint
+    waypoints[n_cluster_seqs] = (centroid_sequence.lat[n_cluster_seqs], centroid_sequence.lon[n_cluster_seqs])
+
+    return waypoints
 end
