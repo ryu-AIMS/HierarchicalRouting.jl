@@ -12,7 +12,8 @@ using Rasters
 using DataFrames
 import GeoDataFrames as GDF
 
-using Clustering, Distances
+using Clustering
+using Distances: haversine
 
 
 """
@@ -54,9 +55,9 @@ include("plotting/plots.jl")
 
 
 export
-    centroids,
+    extract_subset,
     cluster_targets,
-    extract_subset
+    centroids
 
 export
     to_multipolygon,
@@ -64,9 +65,9 @@ export
 
 export
     create_exclusion_zones,
-    shortest_path,
+    nearest_neighbour,
     get_waypoints,
-    nearest_neighbour
+    get_feasible_matrix
 
 export
     plot_polygons,

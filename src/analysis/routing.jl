@@ -5,71 +5,6 @@ function create_exclusion_zones(target_bathy::Raster, ms_depth)
     return exclusion_zones
 end
 
-function is_feasible_path(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrame)
-    # Create a line from start_pt to end_pt
-    line = GI.LineString([start_pt, end_pt])
-
-    # Check if the line intersects with any polygon in the env_constraint
-    for row in eachrow(env_constraint)
-        polygon = row.geometry
-        if GI.intersects(line, polygon)
-            return false
-        end
-    end
-    return true
-end
-
-"""
-    shortest_path(waypoints::Vector{Tuple{Float64, Float64}}, exclusions::Raster{Int16, 2})
-
-Determine the shortest path between waypoints accounting for exclusion zones.
-
-# Arguments
-- `waypoints` : Path of waypoints to visit.
-- `exclusions` : Exclusion zones of all environmental constraints.
-
-# Returns
-The identified shortest path.
-"""
-function shortest_path(waypoints::Vector{Tuple{Float64, Float64}}, exclusions::Raster{Int16, 2})
-    # Initialize the total distance
-    total_distance = 0.0
-
-    # Iterate over the waypoints and calculate the distance between them
-    for i in 1:length(waypoints)-1
-        # Check if the path between the waypoints is feasible
-        if !is_feasible_path(waypoints[i], waypoints[i+1], exclusions)
-            # find shortest path around constraint
-        else
-            # Calculate the distance between the waypoints
-            distance = haversine(waypoints[i], waypoints[i+1])
-        end
-        total_distance += distance
-    end
-
-    return total_distance
-end
-
-function distance_matrix(cluster_centroids::DataFrame)
-    # Number of centroids
-    num_centroids = nrow(cluster_centroids)
-
-    # Initialize the distance matrix
-    dist_matrix = Matrix{Float64}(undef, num_centroids, num_centroids)
-
-    # Get the coordinates of the centroids
-    centroid_coords = [(row.lat, row.lon) for row in eachrow(cluster_centroids)]
-
-    # Compute distances between centroids
-    for i in 1:num_centroids
-        for j in 1:num_centroids
-            dist_matrix[i, j] = haversine(centroid_coords[i], centroid_coords[j])
-        end
-    end
-
-    return dist_matrix
-end
-
 """
     nearest_neighbour(dist_matrix::Matrix{Float64})
 
@@ -117,6 +52,26 @@ function nearest_neighbour(cluster_centroids::DataFrame)
     return ordered_centroids, total_distance, dist_matrix
 end
 
+function distance_matrix(cluster_centroids::DataFrame)
+    # Number of centroids
+    num_centroids = nrow(cluster_centroids)
+
+    # Initialize the distance matrix
+    dist_matrix = Matrix{Float64}(undef, num_centroids, num_centroids)
+
+    # Get the coordinates of the centroids
+    centroid_coords = [(row.lat, row.lon) for row in eachrow(cluster_centroids)]
+
+    # Compute distances between centroids
+    for i in 1:num_centroids
+        for j in 1:num_centroids
+            dist_matrix[i, j] = haversine(centroid_coords[i], centroid_coords[j])
+        end
+    end
+
+    return dist_matrix
+end
+
 """
     get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
 
@@ -154,4 +109,109 @@ function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Floa
     waypoints[n_cluster_seqs] = (centroid_sequence.lat[n_cluster_seqs], centroid_sequence.lon[n_cluster_seqs])
 
     return waypoints
+end
+
+"""
+    get_feasible_matrix(waypoints::Vector{Tuple{Float64, Float64}}, exclusions::DataFrame)
+
+Create a distance matrix between waypoints accounting for environmental constraints.
+"""
+function get_feasible_matrix(waypoints::Vector{Tuple{Float64, Float64}}, exclusions::DataFrames.DataFrame)::Matrix{Float64}
+    n_waypoints = length(waypoints)-1
+    feasible_matrix = zeros(Float64, n_waypoints, n_waypoints)
+
+    for j in 1:n_waypoints
+        for i in 1:n_waypoints
+            if i != j
+                println(i,j)
+                feasible_matrix[i, j] = min_feasible_dist(waypoints[i], waypoints[j], exclusions)   # haversine(waypoints[i], waypoints[j])
+            end
+        end
+    end
+
+    return feasible_matrix
+end
+
+function min_feasible_dist(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrames.DataFrame)::Float64
+    line = LineString([Point2f(start_pt), Point2f(end_pt)])
+
+    # If the line intersects with any polygon in env_constraint, find shortest path around polygon
+    for row in eachrow(env_constraint)
+        polygon = row.geometry
+        if GO.intersects(line, polygon)
+            int1, int2 = GO.intersection_points(line, polygon)       # If polygon is not 'closed', this will return only return one point
+
+            vertices = extract_vertices(polygon)
+
+            path_trav_anti, path_trav_clock = paths_around_poly(line, vertices, polygon)
+            println(line)
+            min(dist_traverse_path(line, path_trav_anti), dist_traverse_path(line, path_trav_clock))
+
+            return min(dist_clock, dist_anti)  # Use Inf or a large value to indicate infeasibility
+        end
+    end
+    return haversine(start_pt, end_pt)
+end
+
+function extract_vertices(polygon::Polygon)
+    vertices = Any[]#Vector{Any}(undef, length(polygon.exterior))
+    for line in polygon.exterior
+        push!(vertices, Point2f(line[1]))#vertices[i] = Point2f(line[1])
+    end
+    return vertices
+end
+
+"""
+    path_around_poly(side_idx::Int, polygon::Polygon)
+
+Find the two paths around a polygon.
+
+"""
+function paths_around_poly(line, vertices, polygon::Polygon)
+    side_idx = Int[] #Tuple{LineString, LineString}[]
+    # find which side line intersects with polygon
+    for s in 1:length(polygon.exterior)    # for side in polygon.exterior
+        if GO.intersects(line, polygon.exterior[s])
+            push!(side_idx, s)
+        end
+    end
+
+    # Find vertex at end of side in side_idx
+    side_enter = polygon.exterior[minimum(side_idx)]
+    side_exit = polygon.exterior[maximum(side_idx)]
+
+    vert_start_anti = side_enter[2]
+    vert_start_clock = side_enter[1]
+
+    vert_end_anti = side_exit[1]
+    vert_end_clock = side_exit[2]
+
+    path_anti = trav_vert_path(vert_start_anti, vert_end_anti, vertices, true)
+    path_clock = trav_vert_path(vert_start_clock, vert_end_clock, vertices, false)
+
+    return path_anti, path_clock
+end
+
+function trav_vert_path(vert_start::Point{2, Float32}, vert_end::Point{2, Float32}, vertices::Vector{Point{2, Float32}}, direction_flag::Bool)
+        # add all vertices between start_vertex_idx and end_vertex_idx to side_int
+        vert_start_idx = findfirst(x -> x == vert_start, vertices)
+        vert_end_idx = findfirst(x -> x == vert_end, vertices)
+
+        if direction_flag
+            path = [vertices[i] for i in vert_start_idx:vert_end_idx]
+        else
+            path = [vertices[i] for i in vert_start_idx:-1:vert_end_idx]
+        end
+    return path
+end
+
+function dist_traverse_path(line, trav_path)
+    dist = haversine(line[1][1], trav_path[1])
+
+    for i in 1:length(trav_path)-1
+        dist += haversine(trav_path[i], trav_path[i+1])
+    end
+    dist += haversine(trav_path[end], line[1][2])
+
+    return dist
 end
