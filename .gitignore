@@ -29,3 +29,5 @@ data/*
 .vscode/
 
 sandbox/
+
+outputs/
