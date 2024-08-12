@@ -11,7 +11,7 @@ Create exclusion zones based on environmental raster data and vessel threshold.
 # Returns
 Exclusion zones for environmental constraint and vessel threshold provided.
 """
-function create_exclusion_zones(env_constraint::Raster, threshold::Float)
+function create_exclusion_zones(env_constraint::Raster, threshold::Float32)
     # Create exclusion zones based on the bathymetry data
     exclusion_zones = env_constraint .<= threshold
     return exclusion_zones
@@ -156,8 +156,7 @@ function get_feasible_matrix(waypoints::Vector{Tuple{Float64, Float64}}, exclusi
     for j in 1:n_waypoints
         for i in 1:n_waypoints
             if i != j
-                println(i,j)
-                feasible_matrix[i, j] = min_feasible_dist(waypoints[i], waypoints[j], exclusions)   # haversine(waypoints[i], waypoints[j])
+                feasible_matrix[i, j] = min_feasible_dist(waypoints[i], waypoints[j], exclusions)
             end
         end
     end
@@ -179,6 +178,7 @@ Calculate the minimum distance between two points, avoiding exclusion zones, acc
 Minimum feasible distance between two points.
 """
 function min_feasible_dist(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrames.DataFrame)::Float64
+    dist = 0.0
     line = LineString([Point2f(start_pt), Point2f(end_pt)])
 
     for row in eachrow(env_constraint)
@@ -187,17 +187,15 @@ function min_feasible_dist(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Floa
         # If the line intersects with any polygon in env_constraint, find shortest path around polygon
         if GO.intersects(line, polygon)
             # TODO If polygon is not 'closed', this will return only return one point
-            # int1, int2 = GO.intersection_points(line, polygon)
 
-            vertices = extract_vertices(polygon)
+            # TODO: if line intersects with multiple polygons, find shortest cumulative path around all!
 
-            path_trav_anti, path_trav_clock = paths_around_poly(line, vertices, polygon)
-
-            return min(dist_traverse_path(line, path_trav_anti), dist_traverse_path(line, path_trav_clock))
+            dist += min_dist_around_poly(line, polygon)
         else
-            return haversine(start_pt, end_pt)
+            dist += haversine(start_pt, end_pt)
         end
     end
+    return dist
 end
 
 """
@@ -232,30 +230,31 @@ Find the two paths around a polygon.
 # Returns
 Two paths (anti- and clockwise) around polygon.
 """
-function paths_around_poly(line, vertices, polygon::Polygon)
-    side_idx = Int[] #Tuple{LineString, LineString}[]
+function min_dist_around_poly(line, polygon::Polygon)
+    side_ints_idx = Vector{Int}(undef,2)    #Tuple{Int, Int}[]
+    int_pts = GO.intersection_points(line, polygon)
 
-    # find which side line intersects with polygon
-    for s in 1:length(polygon.exterior)    # for side in polygon.exterior
-        if GO.intersects(line, polygon.exterior[s])
-            push!(side_idx, s)
-        end
+    # Find start and end indices of sides intersecting with line
+    start_side_idx = argmin([haversine(line[1][1], int_pt) for int_pt in int_pts])
+    side_ints_idx[1] = [i for i in 1:length(polygon.exterior) if GO.distance(int_pts[start_side_idx], polygon.exterior[i]) < 0.01][1]
+    side_ints_idx[2] = [i for i in 1:length(polygon.exterior) if GO.distance(int_pts[3-start_side_idx], polygon.exterior[i]) < 0.01][1]
+
+    vertices = extract_vertices(polygon)
+    vert_start_idx = findfirst(x -> x == polygon.exterior[side_ints_idx[1]][2], vertices)
+    vert_end_idx = findlast(x -> x == polygon.exterior[side_ints_idx[2]][1], vertices)
+
+    path_a = trav_vert_path(vert_start_idx, vert_end_idx, vertices)
+    path_b = append!([i for i in path_a[end]:length(vertices) if i ∉ path_a], [i for i in 1:path_a[1] if i ∉ path_a])
+
+    # Reverse if first point in path is not closest point to start
+    if argmin([haversine(line[1][1], vertices[i]) for i in path_a]) != 1
+        path_a = reverse(path_a)
+    end
+    if argmin([haversine(line[1][1], vertices[i]) for i in path_b]) != 1
+        path_b = reverse(path_b)
     end
 
-    # Find vertex at end of side in side_idx
-    side_enter = polygon.exterior[minimum(side_idx)]
-    side_exit = polygon.exterior[maximum(side_idx)]
-
-    vert_start_anti = side_enter[2]
-    vert_start_clock = side_enter[1]
-
-    vert_end_anti = side_exit[1]
-    vert_end_clock = side_exit[2]
-
-    path_anti = trav_vert_path(vert_start_anti, vert_end_anti, vertices, true)
-    path_clock = trav_vert_path(vert_start_clock, vert_end_clock, vertices, false)
-
-    return path_anti, path_clock
+    return min(dist_traverse_path(line, [vertices[i] for i in path_anti]), dist_traverse_path(line, [vertices[i] for i in path_clock]))
 end
 
 """
@@ -272,14 +271,11 @@ Traverse a path between two vertices.
 # Returns
 Sequence of vertices representing path between two vertices.
 """
-function trav_vert_path(vert_start::Point{2, Float32}, vert_end::Point{2, Float32}, vertices::Vector{Point{2, Float32}}, direction_flag::Bool)
-    vert_start_idx = findfirst(x -> x == vert_start, vertices)
-    vert_end_idx = findfirst(x -> x == vert_end, vertices)
-
-    if direction_flag
-        return [vertices[i] for i in vert_start_idx:vert_end_idx]
+function trav_vert_path(vert_start_idx::Point{2, Float32}, vert_end_idx::Point{2, Float32}, vertices::Vector{Point{2, Float32}})
+    if vert_start_idx == vert_end_idx
+        return [vert_start]
     else
-        return [vertices[i] for i in vert_start_idx:-1:vert_end_idx]
+        return [vertices[i] for i in vert_start_idx:vert_end_idx]
     end
 end
 
