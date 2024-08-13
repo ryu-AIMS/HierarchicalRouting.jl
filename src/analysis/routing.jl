@@ -138,7 +138,7 @@ function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Floa
 end
 
 """
-    get_feasible_matrix(waypoints::Vector{Tuple{Float64, Float64}}, exclusions::DataFrame)
+    get_feasible_matrix(waypoints::Vector{Point{2, Float32}}, exclusions::DataFrame)
 
 Create a distance matrix between waypoints accounting for environmental constraints.
 
@@ -149,13 +149,14 @@ Create a distance matrix between waypoints accounting for environmental constrai
 # Returns
 Feasible distance matrix between waypoints.
 """
-function get_feasible_matrix(waypoints::Vector{Tuple{Float64, Float64}}, exclusions::DataFrames.DataFrame)::Matrix{Float64}
+function get_feasible_matrix(waypoints::Vector{Point{2, Float32}}, exclusions::DataFrames.DataFrame)::Matrix{Float64}
     n_waypoints = length(waypoints)-1
     feasible_matrix = zeros(Float64, n_waypoints, n_waypoints)
 
     for j in 1:n_waypoints
         for i in 1:n_waypoints
             if i != j
+                println("($i, $j)")
                 feasible_matrix[i, j] = min_feasible_dist(waypoints[i], waypoints[j], exclusions)
             end
         end
@@ -165,37 +166,76 @@ function get_feasible_matrix(waypoints::Vector{Tuple{Float64, Float64}}, exclusi
 end
 
 """
-    min_feasible_dist(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrames.DataFrame)::Float64
+    min_feasible_dist(start_pt::Point{2, Float32}, end_pt::Point{2, Float32}, env_constraint::DataFrames.DataFrame)::Float64
 
-Calculate the minimum distance between two points, avoiding exclusion zones, accounting for environmental constraints.
+Calculate the minimum distance between two points, avoiding exclusion zones, representing environmental constraints.
 
 # Arguments
-- `start_pt` : Tuple of lat long coordinates.
-- `end_pt` : Tuple of lat long coordinates.
+- `start_pt` : Lat long point coordinates.
+- `end_pt` : Lat long point coordinates.
 - `env_constraint` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
 
 # Returns
 Minimum feasible distance between two points.
 """
-function min_feasible_dist(start_pt::Tuple{Float64, Float64}, end_pt::Tuple{Float64, Float64}, env_constraint::DataFrames.DataFrame)::Float64
+function min_feasible_dist(start_pt::Point{2, Float32}, end_pt::Point{2, Float32}, env_constraint::DataFrames.DataFrame)::Float64
     dist = 0.0
     line = LineString([Point2f(start_pt), Point2f(end_pt)])
+    all_intersections = get_all_intersections(line, env_constraint)
+
+    if (length(all_intersections) == 0)
+        # No intersections
+        return haversine(start_pt, end_pt)
+    elseif (length(all_intersections) == 1)
+        # Single intersection pair
+        int_polygon = [j for i in all_intersections for j in eachrow(env_constraint).geometry if GO.distance(i[1], j) < 0.01][1]
+        return min_dist_around_poly(line, int_polygon)
+    else
+        # Arrange intersections in order of distance from start point
+        sort!(all_intersections, by = x -> haversine(start_pt, x[1]))
+
+        # get vector of polygons in env_constraint ordered by intersection with all_intersections
+        current_loc = start_pt
+        int_polygons = [j for i in all_intersections for j in eachrow(env_constraint).geometry if GO.distance(i[1], j) < 0.01]
+        next_loc = all_intersections[2][1]
+
+        for poly_id in 1:length(int_polygons) - 1
+            # TODO If polygon is not 'closed', this will return only return one point
+            vertices = extract_vertices(int_polygons[poly_id])
+
+            poly_dist, next_loc_idx = min_dist_around_polys(current_loc, next_loc, vertices, int_polygons[poly_id])
+            dist += poly_dist
+
+            current_loc = vertices[next_loc_idx] # all_intersections[poly_id + 1][1] # vertices[temp_loc]
+            if poly_id != length(int_polygons) - 1
+                # TODO: Correct this next_loc to account for mismatched polygon and intersection order
+                next_loc = all_intersections[poly_id+2][1]
+            end
+        end
+
+        vertices = extract_vertices(int_polygons[end])
+        poly_dist, next_loc_idx = min_dist_around_polys(current_loc, end_pt, vertices, int_polygons[end])
+        dist += poly_dist
+
+        dist += haversine(vertices[next_loc_idx], end_pt)
+
+        return dist
+    end
+end
+
+function get_all_intersections(line::LineString{2, Float32}, env_constraint::DataFrame)
+    all_intersections = []
 
     for row in eachrow(env_constraint)
-        # TODO navigate around multiple polygons
         polygon = row.geometry
-        # If the line intersects with any polygon in env_constraint, find shortest path around polygon
-        if GO.intersects(line, polygon)
-            # TODO If polygon is not 'closed', this will return only return one point
+        intersections = GO.intersection_points(line, polygon)
 
-            # TODO: if line intersects with multiple polygons, find shortest cumulative path around all!
-
-            dist += min_dist_around_poly(line, polygon)
-        else
-            dist += haversine(start_pt, end_pt)
+        if !isempty(intersections)
+            push!(all_intersections, [Point{2, Float32}(intersection[1],intersection[2]) for intersection in intersections])
         end
     end
-    return dist
+
+    return all_intersections
 end
 
 """
@@ -210,6 +250,7 @@ Extract vector of polygon's vertices.
 Vector of all vertices of polygon.
 """
 function extract_vertices(polygon::Polygon)
+    # TODO: Pre-allocate vector size
     vertices = Any[]#Vector{Any}(undef, length(polygon.exterior))
     for line in polygon.exterior
         push!(vertices, Point2f(line[1]))#vertices[i] = Point2f(line[1])
@@ -217,19 +258,55 @@ function extract_vertices(polygon::Polygon)
     return vertices
 end
 
-"""
-    paths_around_poly(line, vertices, polygon::Polygon)
 
-Find the two paths around a polygon.
+"""
+    min_dist_around_polys(current_loc::Point{2, Float32}, next_loc::Point{2, Float32}, vertices::Vector{Any}, polygon::Polygon)
+
+Find shortest detour path from the start and end points of a line around an exclusion polygon.
 
 # Arguments
-- `line` : LineString intersecting with polygon.
-- `vertices` : Vector of polygon vertices.
+- `current_loc` : Current location.
+- `next_loc` : Next location.
+- `vertices` : Vector of all vertices.
 - `polygon` : Polygon to find paths around.
 
 # Returns
-Two paths (anti- and clockwise) around polygon.
+- Min dist around polygon.
+- Last index of path.
 """
+function min_dist_around_polys(current_loc::Point{2, Float32}, next_loc::Point{2, Float32}, vertices::Vector{Any}, polygon::Polygon)
+    side_idx = Vector{Int}(undef,2)
+    # find which side line intersects with polygon
+    int_pts = GO.intersection_points(LineString([Point2f(current_loc), Point2f(next_loc)]), polygon)
+
+    # find which int_pt is closest to the start of the line
+    start_side_idx = argmin([haversine(current_loc, int_pt) for int_pt in int_pts])
+
+    # min dist threshold to replace intersection for rounding errors
+    side_idx[1] = [i for i in 1:length(polygon.exterior) if GO.distance(int_pts[start_side_idx], polygon.exterior[i]) < 0.01][1]
+    side_idx[2] = [i for i in 1:length(polygon.exterior) if GO.distance(int_pts[3-start_side_idx], polygon.exterior[i]) < 0.01][1]
+
+    vert_start_idx = findfirst(x -> x == polygon.exterior[side_idx[1]][2], vertices)
+    vert_end_idx = findlast(x -> x == polygon.exterior[side_idx[2]][1], vertices)
+
+    path_a = trav_vert_path(vert_start_idx, vert_end_idx, vertices)
+    path_b = append!([i for i in path_a[end]:length(vertices) if i ∉ path_a], [i for i in 1:path_a[1] if i ∉ path_a])
+
+    # Check if first point in path is the closest point to line start
+    if argmin([haversine(current_loc, vertices[i]) for i in path_a]) != 1
+        path_a = reverse(path_a)
+    end
+    if argmin([haversine(current_loc, vertices[i]) for i in path_b]) != 1
+        path_b = reverse(path_b)
+    end
+
+    paths = [path_a, path_b]
+    min_dist = minimum([dist_traverse_path(current_loc, [vertices[i] for i in path]) for path in paths])
+    last_idx = [stop for path in paths for stop in path if dist_traverse_path(current_loc, [vertices[i] for i in path]) == min_dist][end]
+
+    return min_dist, last_idx
+end
+
 function min_dist_around_poly(line, polygon::Polygon)
     side_ints_idx = Vector{Int}(undef,2)    #Tuple{Int, Int}[]
     int_pts = GO.intersection_points(line, polygon)
@@ -254,35 +331,59 @@ function min_dist_around_poly(line, polygon::Polygon)
         path_b = reverse(path_b)
     end
 
-    return min(dist_traverse_path(line, [vertices[i] for i in path_anti]), dist_traverse_path(line, [vertices[i] for i in path_clock]))
+    return min(dist_traverse_path(line, [vertices[i] for i in path_a]), dist_traverse_path(line, [vertices[i] for i in path_b]))
 end
 
 """
-    trav_vert_path(vert_start::Point{2, Float32}, vert_end::Point{2, Float32}, vertices::Vector{Point{2, Float32}}, direction_flag::Bool)
+    trav_vert_path(vert_start_idx::Int64, vert_end_idx::Int64, vertices::Vector{Any})
 
-Traverse a path between two vertices.
+Traverse a path of vartices between two vertices.
 
 # Arguments
-- `vert_start` : Starting vertex.
-- `vert_end` : Ending vertex.
+- `vert_start_idx` : Starting vertex index.
+- `vert_end_idx` : Ending vertex index.
 - `vertices` : Vector of all vertices.
-- `direction_flag` : Direction of traversal. 1 = anti-clockwise, 0 = clockwise.
 
 # Returns
-Sequence of vertices representing path between two vertices.
+Vector sequence of vertices representing path between two vertices.
 """
-function trav_vert_path(vert_start_idx::Point{2, Float32}, vert_end_idx::Point{2, Float32}, vertices::Vector{Point{2, Float32}})
+function trav_vert_path(vert_start_idx::Int64, vert_end_idx::Int64, vertices::Vector{Any})
     if vert_start_idx == vert_end_idx
-        return [vert_start]
+        return [vert_start_idx]
+    elseif vert_start_idx < vert_end_idx
+        return [i for i in vert_start_idx:vert_end_idx]
     else
-        return [vertices[i] for i in vert_start_idx:vert_end_idx]
+        return vcat(vert_start_idx:length(vertices), 1:vert_end_idx)
     end
 end
 
 """
-    dist_traverse_path(line, trav_path)
+    dist_traverse_path(current_loc::Point{2, Float32}, trav_path::Vector{Vector{Point{2, Float32}}})
 
-Calculate the distance of traversing a path.
+Calculate the distance of traversing a path from current location to the final vertex on the path.
+
+# Arguments
+- `current_loc` : Current location.
+- `trav_path` : Sequence of vertices representing path between two vertices.
+
+# Returns
+Haversine distance of traversing the path.
+"""
+function dist_traverse_path(current_loc::Point{2, Float32}, trav_path::Vector{Point{2, Float32}})
+    # TODO: Check first point in path is the closest to line start
+    dist = haversine(current_loc, trav_path[1])
+
+    for i in 1:length(trav_path)-1
+        dist += haversine(trav_path[i], trav_path[i+1])
+    end
+
+    return dist
+end
+
+"""
+    dist_traverse_path(line::LineString{2, Float32}, trav_path::Vector{Point{2, Float32}})
+
+Calculate the full distance of traversing a path from start of line through vertices to end of line.
 
 # Arguments
 - `line` : LineString intersecting with polygon.
@@ -291,7 +392,7 @@ Calculate the distance of traversing a path.
 # Returns
 Haversine distance of traversing the path.
 """
-function dist_traverse_path(line, trav_path)
+function dist_traverse_path(line::LineString{2, Float32}, trav_path::Vector{Point{2, Float32}})
     dist = haversine(line[1][1], trav_path[1])
 
     for i in 1:length(trav_path)-1
