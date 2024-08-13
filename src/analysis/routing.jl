@@ -258,6 +258,7 @@ function extract_vertices(polygon::Polygon)
     return vertices
 end
 
+
 """
     min_dist_around_polys(current_loc::Point{2, Float32}, next_loc::Point{2, Float32}, vertices::Vector{Any}, polygon::Polygon)
 
