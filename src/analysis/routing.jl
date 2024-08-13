@@ -11,7 +11,7 @@ Create exclusion zones based on environmental raster data and vessel threshold.
 # Returns
 Exclusion zones for environmental constraint and vessel threshold provided.
 """
-function create_exclusion_zones(env_constraint::Raster, threshold::Float32)
+function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
     # Create exclusion zones based on the bathymetry data
     exclusion_zones = env_constraint .<= threshold
     return exclusion_zones
