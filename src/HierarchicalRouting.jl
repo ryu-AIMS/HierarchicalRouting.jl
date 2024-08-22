@@ -32,16 +32,6 @@ end
     to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
 
 Create a DataFrame from multipolygons
-
-## Notes:
-
-Write out with:
-
-```julia
-GDF.write("<path.gpkg>", df, crs=EPSG(7844))
-```
-
-Where `crs` can be any valid EPSG code.
 """
 function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
     return DataFrame(geometry=mp.geom)

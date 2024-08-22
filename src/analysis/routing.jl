@@ -12,7 +12,6 @@ Create exclusion zones based on environmental raster data and vessel threshold.
 Exclusion zones for environmental constraint and vessel threshold provided.
 """
 function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
-    # Create exclusion zones based on the bathymetry data
     exclusion_zones = env_constraint .<= threshold
     return exclusion_zones
 end
@@ -39,18 +38,15 @@ function nearest_neighbour(cluster_centroids::DataFrame)
     tour = Int[]
     total_distance = 0.0
 
-    # Start at depot
     current_location = 1
     push!(tour, current_location)
     visited[current_location] = true
 
     while length(tour) <= num_clusters
-        # Find the nearest unvisited neighbor
         distances = dist_matrix[current_location, :]
         distances[visited] .= Inf
         nearest_idx = argmin(distances)
 
-        # Update tour and total distance
         push!(tour, nearest_idx)
         total_distance += dist_matrix[current_location, nearest_idx]
         visited[nearest_idx] = true
@@ -64,10 +60,7 @@ function nearest_neighbour(cluster_centroids::DataFrame)
     # Adjust cluster_sequence to zero-based indexing
     cluster_sequence = tour .- 1
 
-    # Generate mothership waypoints
-    # cluster_centroids = vcat(DataFrame(cluster_id = [0], lat = [depot[1]], lon = [depot[2]]), sort!(cluster_centroids, :cluster_id))
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in cluster_sequence], :]
-    # mothership_waypoints = [(row.lat, row.lon) for row in eachrow(ordered_centroids)]
 
     return ordered_centroids, total_distance, dist_matrix
 end
@@ -108,7 +101,7 @@ Based on calc: midpoint of current and next cluster.
 - `centroid_sequence` :  centroid lat long coordinates in sequence; including depot as the first and last cluster.
 
 # Returns
-Route as vector of lat long tuples.
+Route as vector of lat long tuples. Depot is first and last waypoints.
 """
 function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
     cluster_seq_ids = centroid_sequence.cluster_id
@@ -116,14 +109,12 @@ function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Floa
 
     waypoints = Vector{Tuple{Float64, Float64}}(undef, n_cluster_seqs)
 
-    # Add the depot as the first waypoint
     waypoints[1] = (centroid_sequence.lat[1], centroid_sequence.lon[1])
 
     for i in 1:(n_cluster_seqs - 1)
         current_centroid = first(centroid_sequence[centroid_sequence.cluster_id .== cluster_seq_ids[i], :])
         next_centroid = first(centroid_sequence[centroid_sequence.cluster_id .== cluster_seq_ids[i+1], :])
 
-        # Calculate the midpoint between the current and next cluster centroids
         centroid = (
             (current_centroid.lat + next_centroid.lat) / 2,
             (current_centroid.lon + next_centroid.lon) / 2
@@ -131,7 +122,6 @@ function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Floa
         waypoints[i+1] = centroid
     end
 
-    # Add the depot as the last waypoint
     waypoints[n_cluster_seqs] = (centroid_sequence.lat[n_cluster_seqs], centroid_sequence.lon[n_cluster_seqs])
 
     return waypoints
@@ -165,7 +155,6 @@ function shortest_feasible_path(line::LineString{2, Float32, Point{2, Float32}},
 
     g = build_graph(points, exclusions)
 
-    # TODO: Convert to haversine distances
     path = a_star(g, 1, length(points), weights(g))
     dist = sum([g.weights[path[i].src, path[i].dst] for i in 1:length(path)])
     return dist, path
@@ -175,7 +164,6 @@ function extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32
     vertices = Set{Point{2, Float32}}()
 
     for row in eachrow(exclusions)
-
         for line in row.geometry.exterior
             for point in line
                 if !(point in vertices)
@@ -185,7 +173,7 @@ function extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32
         end
     end
 
-    return collect(vertices)  # Convert the Set back to a Vector
+    return collect(vertices)
 end
 
 function build_graph(vertices::Vector{Point{2, Float32}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
