@@ -14,7 +14,7 @@ import GeoDataFrames as GDF
 
 using Clustering
 using Distances: haversine
-
+using Graphs, SimpleWeightedGraphs
 
 """
     to_multipolygon(raster::Raster{T, 2}) where {T<:Union{Bool,Int16}}
