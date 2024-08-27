@@ -101,9 +101,9 @@ Based on calc: midpoint of current and next cluster.
 - `centroid_sequence` :  centroid lat long coordinates in sequence; including depot as the first and last cluster.
 
 # Returns
-Route as vector of lat long tuples. Depot is first and last waypoints.
+Route as vector of lat long points. Depot is first and last waypoints.
 """
-function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
+function get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float32}}
     cluster_seq_ids = centroid_sequence.cluster_id
     n_cluster_seqs = length(cluster_seq_ids)
 
@@ -124,7 +124,7 @@ function get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Floa
 
     waypoints[n_cluster_seqs] = (centroid_sequence.lat[n_cluster_seqs], centroid_sequence.lon[n_cluster_seqs])
 
-    return waypoints
+    return [GeometryBasics.Point{2, Float32}(wp...) for wp in waypoints]
 end
 
 """
@@ -139,50 +139,60 @@ Create a distance matrix between waypoints accounting for environmental constrai
 # Returns
 Feasible distance matrix between waypoints.
 """
-function get_feasible_matrix(waypoints::Vector{Point{2, Float32}}, exclusions::DataFrames.DataFrame)::Matrix{Float64}
-    n_waypoints = length(waypoints)-1
-    feasible_matrix = zeros(Float64, n_waypoints, n_waypoints)
-
-    return [i != j ? shortest_feasible_path(LineString([waypoints[i], waypoints[j]]), exclusions)[1] : 0.0 for j in 1:n_waypoints, i in 1:n_waypoints]
+function get_feasible_matrix(waypoints::Vector{Point{2, Float32}}, exclusions::DataFrame)::Matrix{Float64}
+    n_waypoints = length(waypoints) - 1
+    return [i != j ? shortest_feasible_path((waypoints[i], waypoints[j]), exclusions)[1] : 0.0 for j in 1:n_waypoints, i in 1:n_waypoints]
 end
 
-function shortest_feasible_path(line::LineString{2, Float32, Point{2, Float32}}, exclusions::DataFrame)
-    points = Vector{Point{2, Float32}}(undef, sum([length(row.geometry.exterior.points) for row in eachrow(exclusions)]) + 2)
+function shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}, exclusions::DataFrame)
+    pts = extract_unique_vertices(exclusions)
+    insert!(pts, 1, line_pts[1])
+    push!(pts, line_pts[2])
 
-    points[2:end-1] = extract_unique_vertices(exclusions)
-    points[1] = line.points[1][1]
-    points[end] = line.points[1][2]
+    g = build_graph(pts, exclusions)
 
-    g = build_graph(points, exclusions)
-
-    path = a_star(g, 1, length(points), weights(g))
+    path = a_star(g, 1, length(pts), weights(g))
     dist = sum([g.weights[path[i].src, path[i].dst] for i in 1:length(path)])
+
     return dist, path
 end
 
 function extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32}}
-    vertices = Set{Point{2, Float32}}()
+    unique_vertices = Set{Point{2, Float32}}()
 
     for row in eachrow(exclusions)
-        for line in row.geometry.exterior
-            for point in line
-                if !(point in vertices)
-                    push!(vertices, point)
-                end
+        polygon = row.geometry
+
+        exterior_ring = AG.getgeom(polygon, 0)
+        n_pts = AG.ngeom(exterior_ring)
+
+        for i in 0:n_pts - 1
+            x, y, _ = AG.getpoint(exterior_ring, i)
+            point = Point{2, Float32}(x, y)
+
+            if !(point in unique_vertices)
+                push!(unique_vertices, point)
             end
         end
     end
 
-    return collect(vertices)
+    return collect(unique_vertices)  # Convert the Set back to a Vector
 end
 
-function build_graph(vertices::Vector{Point{2, Float32}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
-    g = SimpleWeightedGraph(length(vertices))
+function build_graph(pts::Vector{Point{2, Float32}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
+    g = SimpleWeightedGraph(length(pts))
 
-    for j in 1:length(vertices)
+    for j in 1:length(pts)
         for i in 1:j-1
-            if !intersects_polygon(LineString([vertices[i], vertices[j]]), exclusions)
-                add_edge!(g, i, j, haversine(vertices[i], vertices[j]))
+            line = LineString([pts[i], pts[j]])
+
+            # TODO Eliminate pairs of points that do not intersect with any polygon using bounding box checks
+            # if !can_intersect_bounding_box(pts[i], pts[j], exclusions)
+
+            if !intersects_polygon(line, exclusions)
+                dist = haversine(pts[i], pts[j])
+                add_edge!(g, i, j, dist)
+                # println(i, '\t', j, '\t', dist)
             end
         end
     end
@@ -191,32 +201,48 @@ function build_graph(vertices::Vector{Point{2, Float32}}, exclusions::DataFrame)
 end
 
 function intersects_polygon(line::LineString{2, Float32}, exclusions::DataFrame)::Bool
-
     for row in eachrow(exclusions)
         polygon = row.geometry
-        ints = GO.intersection_points(line, polygon)
+        intersections = [Point{2, Float32}(float(x), float(y)) for (x, y) in GO.intersection_points(line, polygon)]
 
-        if !isempty(ints) && !is_tangent(line, polygon) && !only_vertex_int([Point{2, Float32}(Float32(x), Float32(y)) for (x, y) in ints], polygon)
+        is_tangent, only_vertex_intersection = check_tangency_and_vertex_intersection(line, polygon, intersections)
+
+        if !isempty(intersections) && !is_tangent && !only_vertex_intersection
             return true
         end
     end
     return false
 end
 
-function is_tangent(line::LineString, polygon::Polygon)
-    for edge in polygon.exterior
+function check_tangency_and_vertex_intersection(line::LineString{2, Float32}, polygon::AG.IGeometry, intersections::Vector{Point{2, Float32}})::Tuple{Bool, Bool}
+    exterior_ring = AG.getgeom(polygon, 0)  # 0 indicates the exterior ring
+    n_points = AG.ngeom(exterior_ring)
+
+    verts = Set{Point{2, Float32}}()
+
+    is_tangent = false
+    only_vertex_intersection = true
+
+    for i in 0:n_points - 2
+        x1, y1, _ = AG.getpoint(exterior_ring, i)
+        x2, y2, _ = AG.getpoint(exterior_ring, i+1)
+        edge = LineString(Point{2, Float32}[(x1, y1), (x2, y2)])
+
         if length(GO.intersection_points(line, edge)) > 1
-            return true
+            is_tangent = true
         end
-   end
-    return false
-end
 
-function only_vertex_int(ints::Vector{Point{2, Float32}}, polygon::Polygon)
-    for int in ints
-        if !any([int in pt for pt in [line for line in polygon.exterior]])
-            return false
+        push!(verts, Point{2, Float32}(x1, y1))
+    end
+
+    x, y, _ = AG.getpoint(exterior_ring, n_points - 1)
+    push!(verts, Point{2, Float32}(x, y))
+
+    for intersection in intersections
+        if !(intersection in verts)
+            only_vertex_intersection = false
         end
     end
-    return true
+
+    return is_tangent, only_vertex_intersection
 end
