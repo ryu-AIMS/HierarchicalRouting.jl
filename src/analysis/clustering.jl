@@ -1,8 +1,15 @@
 
 """
-    extract_subset(spatial_dataset::Raster, subset::GeoDataFrame)
+    extract_subset(spatial_dataset::Raster, subset)
 
-Extract a subset of a raster dataset based on a GeoDataFrame.
+Extract a subset from the given `spatial_dataset` raster based on the specified `subset`.
+
+# Arguments
+- `spatial_dataset::Raster`: The spatial dataset from which to extract the subset.
+- `subset`: The subset criteria to apply.
+
+# Returns
+A new raster containing the subset of the original raster.
 """
 function extract_subset(spatial_dataset::Raster, subset)
     return Rasters.trim(mask(spatial_dataset; with=subset.geom))
@@ -12,6 +19,13 @@ end
     cluster_targets(df::DataFrame, num_clust::Int64)
 
 Cluster the targets in a GeoDataFrame based on their geometry.
+
+# Arguments
+- `raster::Raster{Int16, 2}` : Raster containing the target geometries.
+- `num_clust::Int64` : Number of clusters to create.
+
+# Returns
+A DataFrame containing the cluster ID and the target geometries.
 """
 function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
     indices = findall(x -> x != 0, raster)

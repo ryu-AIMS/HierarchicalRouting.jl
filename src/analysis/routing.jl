@@ -92,7 +92,7 @@ function distance_matrix(cluster_centroids::DataFrame)
 end
 
 """
-    get_waypoints(centroid_sequence::DataFrame)::Vector{Tuple{Float64, Float64}}
+    get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float32}
 
 Calculate mothership waypoints between sequential clusters.
 Based on calc: midpoint of current and next cluster.
@@ -133,8 +133,8 @@ end
 Create a distance matrix between waypoints accounting for environmental constraints.
 
 # Arguments
-- `waypoints` : Vector of lat long tuples.
-- `exclusions` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+- `waypoint::Vector{Point{2, Float32}s` : Vector of lat long tuples.
+- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
 
 # Returns
 Feasible distance matrix between waypoints.
@@ -144,6 +144,19 @@ function get_feasible_matrix(waypoints::Vector{Point{2, Float32}}, exclusions::D
     return [i != j ? shortest_feasible_path((waypoints[i], waypoints[j]), exclusions)[1] : 0.0 for j in 1:n_waypoints, i in 1:n_waypoints]
 end
 
+"""
+    shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}, exclusions::DataFrame)
+
+This function calculates the shortest feasible path between two points on a line, considering exclusions.
+
+# Arguments
+- `line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}`: A tuple containing two points on a line.
+- `exclusions::DataFrame`: A DataFrame containing exclusions.
+
+# Returns
+- `dist::Float64`: The distance of the shortest feasible path.
+- `path::Vector{SimpleWeightedGraph{Int64, Float64}.Edge}`: The shortest feasible path as a vector of edges.
+"""
 function shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}, exclusions::DataFrame)
     pts = extract_unique_vertices(exclusions)
     insert!(pts, 1, line_pts[1])
@@ -157,6 +170,17 @@ function shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Floa
     return dist, path
 end
 
+"""
+    extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32}}
+
+Extracts unique vertices from the given DataFrame of exclusions.
+
+# Arguments
+- `exclusions::DataFrame`: The DataFrame containing exclusions.
+
+# Returns
+- `Vector{Point{2, Float32}}`: A vector of unique vertices.
+"""
 function extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32}}
     unique_vertices = Set{Point{2, Float32}}()
 
@@ -179,15 +203,28 @@ function extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32
     return collect(unique_vertices)  # Convert the Set back to a Vector
 end
 
+"""
+    build_graph(pts::Vector{Point{2, Float32}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
+
+Construct a simple weighted graph between given points that do not intersect exclusions.
+
+# Arguments
+- `pts::Vector{Point{2, Float32}`: A vector of 2D points.
+- `exclusions::DataFrame`: A DataFrame containing exclusions.
+
+# Returns
+Simple weighted graph with distances between points.
+"""
 function build_graph(pts::Vector{Point{2, Float32}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
     g = SimpleWeightedGraph(length(pts))
 
+    # TODO: Optimise loop and avoid redundant calcs
     for j in 1:length(pts)
         for i in 1:j-1
             line = LineString([pts[i], pts[j]])
 
-            # TODO Eliminate pairs of points that do not intersect with any polygon using bounding box checks
-            # if !can_intersect_bounding_box(pts[i], pts[j], exclusions)
+            # TODO Eliminate pairs of points that do not intersect with any polygon
+            # if !intersects_bounding_box(pts[i], pts[j], exclusions)
 
             if !intersects_polygon(line, exclusions)
                 dist = haversine(pts[i], pts[j])
@@ -200,6 +237,18 @@ function build_graph(pts::Vector{Point{2, Float32}}, exclusions::DataFrame)::Sim
     return g
 end
 
+"""
+    intersects_polygon(line::LineString{2, Float32}, exclusions::DataFrame)::Bool
+
+Check if a line intersects with polygons in a dataframe.
+
+# Arguments
+- `line::LineString{2, Float32}`: The line to check for intersection.
+- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+
+# Returns
+- `Bool`: `true` if the line intersects with any polygon in the dataframe, `false` otherwise.
+"""
 function intersects_polygon(line::LineString{2, Float32}, exclusions::DataFrame)::Bool
     for row in eachrow(exclusions)
         polygon = row.geometry
@@ -214,6 +263,20 @@ function intersects_polygon(line::LineString{2, Float32}, exclusions::DataFrame)
     return false
 end
 
+"""
+    check_tangency_and_vertex_intersection(line::LineString{2, Float32}, polygon::AG.IGeometry, intersections::Vector{Point{2, Float32}})::Tuple{Bool, Bool}
+
+Check if a line intersects with a polygon and if the line is a tangent to the polygon.
+
+# Arguments
+- `line::LineString{2, Float32}`: The line to check for intersection and tangency.
+- `polygon::AG.IGeometry`: The polygon to check for intersection and tangency.
+- `intersections::Vector{Point{2, Float32}}`: The intersection points between the line and the polygon.
+
+# Returns
+- `is_tangent::Bool`: If line is a tangent to polygon.
+- `only_vertex_intersection::Bool`: If intersection is only at polygon vertices.
+"""
 function check_tangency_and_vertex_intersection(line::LineString{2, Float32}, polygon::AG.IGeometry, intersections::Vector{Point{2, Float32}})::Tuple{Bool, Bool}
     exterior_ring = AG.getgeom(polygon, 0)  # 0 indicates the exterior ring
     n_points = AG.ngeom(exterior_ring)
