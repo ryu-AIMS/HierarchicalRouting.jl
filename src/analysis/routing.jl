@@ -141,7 +141,16 @@ Feasible distance matrix between waypoints.
 """
 function get_feasible_matrix(waypoints::Vector{Point{2, Float32}}, exclusions::DataFrame)::Matrix{Float64}
     n_waypoints = length(waypoints) - 1
-    return [i != j ? shortest_feasible_path((waypoints[i], waypoints[j]), exclusions)[1] : 0.0 for j in 1:n_waypoints, i in 1:n_waypoints]
+    feasible_matrix = zeros(Float64, n_waypoints, n_waypoints)
+
+    for j in 1:n_waypoints
+        for i in 1:j-1
+            feasible_matrix[i, j] = shortest_feasible_path((waypoints[i], waypoints[j]), exclusions)[1]
+            feasible_matrix[j, i] = feasible_matrix[i, j]
+        end
+    end
+
+    return feasible_matrix
 end
 
 """
