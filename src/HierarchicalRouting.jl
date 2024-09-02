@@ -37,6 +37,23 @@ function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
     return DataFrame(geometry=mp.geom)
 end
 
+"""
+    process_exclusions(exclusions::DataFrame, buffer_dist=1.0, simplify_tol=0.1)::DataFrame
+
+Process exclusions by applying buffer, convex hull, and simplification operations to exclusion zones.
+
+# Arguments
+- `exclusions::DataFrame`: The DataFrame containing exclusion zones.
+- `buffer_dist::Real`: The buffer distance to apply to the exclusion polygons. Default = 1.0
+- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons. Default = 0.1
+"""
+function process_exclusions(exclusions::DataFrame; buffer_dist::Real=1.0, simplify_tol::Real=0.7)
+    exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
+    exclusions.geometry .= AG.convexhull.(exclusions.geometry)
+    exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
+    return
+end
+
 
 include("analysis/clustering.jl")
 include("analysis/routing.jl")
@@ -51,7 +68,8 @@ export
 
 export
     to_multipolygon,
-    to_dataframe
+    to_dataframe,
+    process_exclusions
 
 export
     create_exclusion_zones,
