@@ -221,15 +221,11 @@ function build_graph(pts::Vector{Point{2, Float32}}, exclusions::DataFrame)::Sim
     # TODO: Optimise loop and avoid redundant calcs
     for j in 1:length(pts)
         for i in 1:j-1
-            line = LineString([pts[i], pts[j]])
 
-            # TODO Eliminate pairs of points that do not intersect with any polygon
-            # if !intersects_bounding_box(pts[i], pts[j], exclusions)
+            # TODO: if distance between points is less than distance to closest vertex, skip
 
-            if !intersects_polygon(line, exclusions)
-                dist = haversine(pts[i], pts[j])
-                add_edge!(g, i, j, dist)
-                # println(i, '\t', j, '\t', dist)
+            if !intersects_polygon(pts[i], pts[j], exclusions)
+                add_edge!(g, i, j, haversine(pts[i], pts[j]))
             end
         end
     end
@@ -243,69 +239,19 @@ end
 Check if a line intersects with polygons in a dataframe.
 
 # Arguments
-- `line::LineString{2, Float32}`: The line to check for intersection.
+- `pt_a::Point{2, Float32}`: The start point of the line.
+- `pt_b::Point{2, Float32}`: The end point of the line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
 
 # Returns
 - `Bool`: `true` if the line intersects with any polygon in the dataframe, `false` otherwise.
 """
-function intersects_polygon(line::LineString{2, Float32}, exclusions::DataFrame)::Bool
+function intersects_polygon(pt_a::Point{2, Float32}, pt_b::Point{2, Float32}, exclusions::DataFrame)::Bool
+    # TODO: Parallelise loop?
     for row in eachrow(exclusions)
-        polygon = row.geometry
-        intersections = [Point{2, Float32}(float(x), float(y)) for (x, y) in GO.intersection_points(line, polygon)]
-
-        is_tangent, only_vertex_intersection = check_tangency_and_vertex_intersection(line, polygon, intersections)
-
-        if !isempty(intersections) && !is_tangent && !only_vertex_intersection
+        if AG.crosses(AG.createlinestring([[pt_a[1], pt_a[2]], [pt_b[1], pt_b[2]]]), row.geometry)
             return true
         end
     end
     return false
-end
-
-"""
-    check_tangency_and_vertex_intersection(line::LineString{2, Float32}, polygon::AG.IGeometry, intersections::Vector{Point{2, Float32}})::Tuple{Bool, Bool}
-
-Check if a line intersects with a polygon and if the line is a tangent to the polygon.
-
-# Arguments
-- `line::LineString{2, Float32}`: The line to check for intersection and tangency.
-- `polygon::AG.IGeometry`: The polygon to check for intersection and tangency.
-- `intersections::Vector{Point{2, Float32}}`: The intersection points between the line and the polygon.
-
-# Returns
-- `is_tangent::Bool`: If line is a tangent to polygon.
-- `only_vertex_intersection::Bool`: If intersection is only at polygon vertices.
-"""
-function check_tangency_and_vertex_intersection(line::LineString{2, Float32}, polygon::AG.IGeometry, intersections::Vector{Point{2, Float32}})::Tuple{Bool, Bool}
-    exterior_ring = AG.getgeom(polygon, 0)  # 0 indicates the exterior ring
-    n_points = AG.ngeom(exterior_ring)
-
-    verts = Set{Point{2, Float32}}()
-
-    is_tangent = false
-    only_vertex_intersection = true
-
-    for i in 0:n_points - 2
-        x1, y1, _ = AG.getpoint(exterior_ring, i)
-        x2, y2, _ = AG.getpoint(exterior_ring, i+1)
-        edge = LineString(Point{2, Float32}[(x1, y1), (x2, y2)])
-
-        if length(GO.intersection_points(line, edge)) > 1
-            is_tangent = true
-        end
-
-        push!(verts, Point{2, Float32}(x1, y1))
-    end
-
-    x, y, _ = AG.getpoint(exterior_ring, n_points - 1)
-    push!(verts, Point{2, Float32}(x, y))
-
-    for intersection in intersections
-        if !(intersection in verts)
-            only_vertex_intersection = false
-        end
-    end
-
-    return is_tangent, only_vertex_intersection
 end
