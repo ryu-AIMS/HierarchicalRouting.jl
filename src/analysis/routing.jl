@@ -226,16 +226,21 @@ Simple weighted graph with distances between points.
 """
 function build_graph(pts::Vector{Point{2, Float32}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
     g = SimpleWeightedGraph(length(pts))
+    local_graphs = [SimpleWeightedGraph{Int64, Float64}(length(pts)) for _ in 1:nthreads()]
 
-    # TODO: Optimise loop and avoid redundant calcs
-    for j in 1:length(pts)
+    @floop for j in 1:length(pts)
+        local_g = local_graphs[threadid()]
+
         for i in 1:j-1
-
-            # TODO: if distance between points is less than distance to closest vertex, skip
-
             if !intersects_polygon(pts[i], pts[j], exclusions)
-                add_edge!(g, i, j, haversine(pts[i], pts[j]))
+                add_edge!(local_g, i, j, haversine(pts[i], pts[j]))
             end
+        end
+    end
+
+    for local_g in local_graphs
+        for e in edges(local_g)
+            add_edge!(g, src(e), dst(e), weight(e))
         end
     end
 

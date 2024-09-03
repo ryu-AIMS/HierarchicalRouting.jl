@@ -1,5 +1,6 @@
 module HierarchicalRouting
 
+using Base.Threads
 using Statistics
 
 import ArchGDAL as AG
@@ -13,6 +14,7 @@ using DataFrames
 import GeoDataFrames as GDF
 
 using Clustering
+using FLoops
 using Distances: haversine
 using Graphs, SimpleWeightedGraphs
 
