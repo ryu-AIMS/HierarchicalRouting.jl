@@ -167,14 +167,29 @@ This function calculates the shortest feasible path between two points on a line
 - `path::Vector{SimpleWeightedGraph{Int64, Float64}.Edge}`: The shortest feasible path as a vector of edges.
 """
 function shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}, exclusions::DataFrame)
-    pts = extract_unique_vertices(exclusions)
-    insert!(pts, 1, line_pts[1])
+    pts = Set([line_pts[1]])
+
+    new_pts = extract_unique_vertices(line_pts, exclusions)
+
+    if new_pts !== nothing
+        union!(pts, new_pts)
+    end
+
+    while !isempty(new_pts)
+        temp_pts = new_pts
+
+        extracted_pts = unique(vcat([extract_unique_vertices((p, line_pts[2]), exclusions) for p in temp_pts]...))
+
+        new_pts = [pt for pt in extracted_pts if !(pt in pts) && pt !== nothing]
+
+        union!(pts, new_pts)
+    end
     push!(pts, line_pts[2])
 
-    g = build_graph(pts, exclusions)
+    g = build_graph(pts, exclusions) # collect(pts) ?
 
     path = a_star(g, 1, length(pts), weights(g))
-    dist = sum([g.weights[path[i].src, path[i].dst] for i in 1:length(path)])
+    dist = sum(g.weights[path[i].src, path[i].dst] for i in eachindex(path)) # 1:length(path)])
 
     return dist, path
 end
@@ -185,16 +200,18 @@ end
 Extracts unique vertices from the given DataFrame of exclusions.
 
 # Arguments
+- `line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}`: A tuple containing start/emd points of a line.
 - `exclusions::DataFrame`: The DataFrame containing exclusions.
 
 # Returns
 - `Vector{Point{2, Float32}}`: A vector of unique vertices.
 """
-function extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32}}
+function extract_unique_vertices(line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}, exclusions::DataFrame)::Union{Nothing, Vector{Point{2, Float32}}}
     unique_vertices = Set{Point{2, Float32}}()
 
-    for row in eachrow(exclusions)
-        polygon = row.geometry
+    polygons = intersecting_polygons(line_pts, exclusions)
+
+    for polygon in polygons
 
         exterior_ring = AG.getgeom(polygon, 0)
         n_pts = AG.ngeom(exterior_ring)
@@ -209,7 +226,37 @@ function extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float32
         end
     end
 
-    return collect(unique_vertices)  # Convert the Set back to a Vector
+    if isempty(unique_vertices)
+        return nothing
+    else
+    return collect(unique_vertices)
+    end
+end
+
+"""
+    intersecting_polygons(pt_a::Point{2, Float32}, pt_b::Point{2, Float32}, exclusions::DataFrame)
+
+Find polygons that intersect with a line segment.
+
+# Arguments
+-
+- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+
+# Returns
+- `crossed_polygons`: A list of polygons that intersect with the line segment.
+"""
+function intersecting_polygons(line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}, exclusions::DataFrame)
+    crossed_polygons = []
+
+    line = AG.createlinestring([[line_pts[1][1], line_pts[1][2]], [line_pts[2][1], line_pts[2][2]]])
+
+    for (i, row) in enumerate(eachrow(exclusions))
+        if AG.crosses(line, row.geometry)
+            push!(crossed_polygons, row.geometry)
+        end
+    end
+
+    return crossed_polygons
 end
 
 """
