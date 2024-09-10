@@ -49,11 +49,11 @@ Process exclusions by applying buffer, convex hull, and simplification operation
 - `buffer_dist::Real`: The buffer distance to apply to the exclusion polygons. Default = 1.0
 - `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons. Default = 0.1
 """
-function process_exclusions(exclusions::DataFrame; buffer_dist::Real=1.0, simplify_tol::Real=0.7)
+function process_exclusions(exclusions::DataFrame; buffer_dist::Real=1.0, simplify_tol::Real=10)#0.7)
     exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
     exclusions.geometry .= AG.convexhull.(exclusions.geometry)
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
-    return
+    return exclusions
 end
 
 function unionize_overlaps(exclusions::DataFrame)
