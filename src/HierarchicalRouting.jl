@@ -58,7 +58,7 @@ end
 
 
 include("analysis/clustering.jl")
-include("analysis/waypoint_routing.jl")
+include("analysis/routing_heuristics.jl")
 include("analysis/feasible_paths.jl")
 
 include("plotting/plots.jl")
