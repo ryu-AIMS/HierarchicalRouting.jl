@@ -28,7 +28,8 @@ end
 """
     shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}, exclusions::DataFrame)
 
-This function calculates the shortest feasible path between two points on a line, considering exclusions.
+Find the shortest feasible path between two points.
+Use A* between all vertices on polygons that intersect with straight line to finish, from start pt and any other intersecting polygons.
 
 # Arguments
 - `line_pts::Tuple{Point{2, Float32}, Point{2, Float32}}`: A tuple containing two points on a line.
@@ -43,16 +44,11 @@ function shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Floa
 
     new_pts = extract_unique_vertices(line_pts, exclusions)
 
-    if new_pts !== nothing
+    while new_pts !== nothing
         union!(pts, new_pts)
-    end
 
-    while !isempty(new_pts)
         extracted_pts = unique(vcat([extract_unique_vertices((p, line_pts[2]), exclusions) for p in new_pts]...))
-
         new_pts = [pt for pt in extracted_pts if !(pt in pts) && pt !== nothing]
-
-        union!(pts, new_pts)
     end
 
     pts = collect(pts)
