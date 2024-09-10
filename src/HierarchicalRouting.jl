@@ -3,17 +3,17 @@ module HierarchicalRouting
 using Base.Threads
 using Statistics
 
+using Clustering
+using CoordinateTransformations
+using GeometryBasics
+using Rasters
+using DataFrames
+
 import ArchGDAL as AG
 import GeoInterface as GI
 import GeometryOps as GO
-using GeometryBasics
-using CoordinateTransformations
-
-using Rasters
-using DataFrames
 import GeoDataFrames as GDF
 
-using Clustering
 using FLoops
 using Distances: haversine
 using Graphs, SimpleWeightedGraphs
@@ -24,9 +24,8 @@ using Graphs, SimpleWeightedGraphs
 Convert raster to multipolygons.
 Invert vertical axis.
 """
-function to_multipolygon(
-    raster::Raster{T, 2}
-)::GI.Wrappers.MultiPolygon where {T<:Union{Bool,Int16}}
+# TODO: Check polygonize coordinates output
+function to_multipolygon(raster::Raster{T, 2})::GI.Wrappers.MultiPolygon where {T<:Union{Bool,Int16}}
     return GO.polygonize(.==(0), raster[:, end:-1:1])
 end
 
