@@ -48,20 +48,20 @@ function shortest_feasible_path(line_pts::Tuple{Point{2, Float32}, Point{2, Floa
     end
 
     while !isempty(new_pts)
-        temp_pts = new_pts
-
-        extracted_pts = unique(vcat([extract_unique_vertices((p, line_pts[2]), exclusions) for p in temp_pts]...))
+        extracted_pts = unique(vcat([extract_unique_vertices((p, line_pts[2]), exclusions) for p in new_pts]...))
 
         new_pts = [pt for pt in extracted_pts if !(pt in pts) && pt !== nothing]
 
         union!(pts, new_pts)
     end
+
+    pts = collect(pts)
     push!(pts, line_pts[2])
 
-    g = build_graph(pts, exclusions) # collect(pts) ?
+    g = build_graph(pts, exclusions)
 
     path = a_star(g, 1, length(pts), weights(g))
-    dist = sum(g.weights[path[i].src, path[i].dst] for i in eachindex(path)) # 1:length(path)])
+    dist = sum(g.weights[p.src, p.dst] for p in path)
 
     return dist, path
 end
