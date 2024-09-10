@@ -79,3 +79,35 @@ function plot_mothership_route(clustered_targets::Raster{Int16, 2}, waypoints::V
     axislegend(ax)
     display(fig)
 end
+function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float32}}, exclusions::DataFrame)
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], title = "Mothership Route", xlabel = "Longitude", ylabel = "Latitude")
+
+    waypoint_lons = [wp[1] for wp in waypoints]
+    waypoint_lats = [wp[2] for wp in waypoints]
+
+    # Plot cluster centroids
+    scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Cluster Centroids")
+
+    # Annotate centroids with cluster_ids
+    for i in 1:length(waypoints)-1
+        text!(ax, waypoint_lons[i], waypoint_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
+    end
+
+    # MS route lat and longs
+    route_lats = [wp[2] for wp in waypoints]
+    route_lons = [wp[1] for wp in waypoints]
+
+    # Exclusion zones
+    for zone in eachrow(exclusions)
+        polygon = zone[:geometry]
+        for ring in GeoInterface.coordinates(polygon)
+            xs = [coord[1] for coord in ring]
+            ys = [coord[2] for coord in ring]
+            poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+        end
+    end
+
+    # axislegend(ax)
+    display(fig)
+end
