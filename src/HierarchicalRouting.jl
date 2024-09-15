@@ -125,6 +125,7 @@ export
 export
     plot_polygons,
     plot_mothership_route,
+    plot_route_w_exclusions,
     plot_waypoints_and_exclusions
 
 export EPSG
