@@ -75,7 +75,7 @@ function plot_mothership_route(clustered_targets::Raster{Int16, 2}, waypoints::V
     display(fig)
 end
 
-function plot_route_w_exclusions(clustered_targets::Raster{Int16, 2}, waypoints::Vector{Point{2, Float32}}, ms_exclusion_zones::DataFrame)
+function plot_route_w_exclusions(clustered_targets::Raster{Int16, 2}, waypoints::Vector{Point{2, Float64}}, ms_exclusion_zones::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route with Exclusions", xlabel = "Longitude", ylabel = "Latitude")
 
@@ -108,7 +108,7 @@ function plot_route_w_exclusions(clustered_targets::Raster{Int16, 2}, waypoints:
     display(fig)
 
 end
-function plot_route_w_exclusions(clustered_targets::Raster{Int16, 2}, waypoints::Vector{Point{2, Float32}}, ms_exclusions::Raster{Bool, 2})
+function plot_route_w_exclusions(clustered_targets::Raster{Int16, 2}, waypoints::Vector{Point{2, Float64}}, ms_exclusions::Raster{Bool, 2})
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route with Exclusions", xlabel = "Longitude", ylabel = "Latitude")
 
@@ -136,7 +136,7 @@ function plot_route_w_exclusions(clustered_targets::Raster{Int16, 2}, waypoints:
 
 end
 
-function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float32}}, exclusions::DataFrame)
+function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route", xlabel = "Longitude", ylabel = "Latitude")
 
