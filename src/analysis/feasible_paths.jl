@@ -17,7 +17,7 @@ function get_feasible_matrix(waypoints::Vector{Point{2, Float64}}, exclusions::D
 
     for j in 1:n_waypoints
         for i in 1:j-1
-            feasible_matrix[i, j] = shortest_feasible_path((waypoints[i], waypoints[j]), exclusions)[1]
+            feasible_matrix[i, j] = shortest_feasible_path(waypoints[i], waypoints[j], exclusions)[1]
             feasible_matrix[j, i] = feasible_matrix[i, j]
         end
     end
@@ -26,83 +26,112 @@ function get_feasible_matrix(waypoints::Vector{Point{2, Float64}}, exclusions::D
 end
 
 """
-    shortest_feasible_path(line_pts::Tuple{Point{2, Float64}, Point{2, Float64}}, exclusions::DataFrame)
+    shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame)
 
 Find the shortest feasible path between two points.
 Use A* between all vertices on polygons that intersect with straight line to finish, from start pt and any other intersecting polygons.
 
 # Arguments
-- `line_pts::Tuple{Point{2, Float64}, Point{2, Float64}}`: A tuple containing two points on a line.
-- `exclusions::DataFrame`: A DataFrame containing exclusions.
+- `initial_point::Point{2, Float64}`: Starting point of path.
+- `final_point::Point{2, Float64}`: Ending point of path.
+- `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
 
 # Returns
 - `dist::Float64`: The distance of the shortest feasible path.
 - `path::Vector{SimpleWeightedGraph{Int64, Float64}.Edge}`: The shortest feasible path as a vector of edges.
 """
-function shortest_feasible_path(line_pts::Tuple{Point{2, Float64}, Point{2, Float64}}, exclusions::DataFrame)
-    pts = Set([line_pts[1]])
+function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame)
+    points = [initial_point]
+    parent_points = [initial_point]
+    current_node_idx = 1
+    n_final = 0
+    exclusion_idx = [0]
 
-    new_pts = extract_unique_vertices(line_pts, exclusions)
+    # TODO: If no polygon vertices within BBox of line, ignore
+    while current_node_idx <= length(points) - n_final
+        current_point = points[current_node_idx]
 
-    while new_pts !== nothing
-        union!(pts, new_pts)
+        # Find edge points of next intersecting exclusion polygon, and polygon index
+        (left_point, right_point), current_exclusion_idx = find_next_points(current_point, final_point, exclusions, exclusion_idx[current_node_idx])
+        new_points = [pt for pt in (left_point, right_point) if pt !== nothing]
 
-        extracted_pts = unique(vcat([extract_unique_vertices((p, line_pts[2]), exclusions) for p in new_pts]...))
-        new_pts = [pt for pt in extracted_pts if !(pt in pts) && pt !== nothing]
+        append!(points, new_points)
+        append!(parent_points, fill(current_point, length(new_points)))
+        append!(exclusion_idx, fill(current_exclusion_idx, length(new_points)))
+
+        # If at final point, add counter to n_of_final
+        if left_point == final_point || right_point == final_point
+            n_final += 1
+        end
+
+        current_node_idx += 1
     end
 
-    pts = collect(pts)
-    push!(pts, line_pts[2])
+    g, idx_to_point = build_graph(points, parent_points)
+    # plot_graph(g, idx_to_point)
 
-    g = build_graph(pts, exclusions)
-
-    path = a_star(g, 1, length(pts), weights(g))
+    path = a_star(g, 1, length(idx_to_point), g.weights)
     dist = sum(g.weights[p.src, p.dst] for p in path)
 
     return dist, path
 end
 
 """
-    extract_unique_vertices(exclusions::DataFrame)::Vector{Point{2, Float64}}
+    find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Int) #::Union{Nothing, Tuple}
 
-Extracts unique vertices from the given DataFrame of exclusions.
+Find the widest vertices on each (left/right) side of the line to the final point.
 
 # Arguments
-- `line_pts::Tuple{Point{2, Float64}, Point{2, Float64}}`: A tuple containing start/emd points of a line.
-- `exclusions::DataFrame`: The DataFrame containing exclusions.
+- `current_point::Point{2, Float64}`: The current point marking start of line.
+- `final_point::Point{2, Float64}`: The final point marking end of line.
+- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+- `current_exclusions_idx::Int`: The index of the current exclusion polygon, to disregard for crossing.
 
 # Returns
-- `Vector{Point{2, Float64}}`: A vector of unique vertices.
+- `furthest_vert_L::Union{Nothing, Point{2, Float64}}`: The furthest point on the left side of the line.
+- `furthest_vert_R::Union{Nothing, Point{2, Float64}}`: The furthest point on the right side of the line.
+- `polygon_idx::Int`: The index of the polygon crossed.
 """
-function extract_unique_vertices(line_pts::Tuple{Point{2, Float64}, Point{2, Float64}}, exclusions::DataFrame)::Union{Nothing, Vector{Point{2, Float64}}}
-    unique_vertices = Set{Point{2, Float64}}()
+function find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Int) #::Union{Nothing, Tuple}
+    max_dist_L, max_dist_R = -Inf32, -Inf32
+    furthest_vert_L, furthest_vert_R = nothing, nothing # Set{Point{2, Float64}}()
 
-    polygons = intersecting_polygons(line_pts, exclusions)
+    # TODO: Allow for multiple equidistant furthest points
 
-    for polygon in polygons
+    # Next polygon crossed by line to end point
+    polygon, polygon_idx = closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
+    if polygon === nothing
+        return (final_point, nothing), 0
+    end
 
-        exterior_ring = AG.getgeom(polygon, 0)
-        n_pts = AG.ngeom(exterior_ring)
+    # Geometry of polygon and number of vertices
+    exterior_ring = AG.getgeom(polygon, 0)
+    n_pts = AG.ngeom(exterior_ring)
 
-        for i in 0:n_pts - 1
-            x, y, _ = AG.getpoint(exterior_ring, i)
-            point = Point{2, Float64}(x, y)
+    # For each polygon vertex, find the furthest points on the left and right side of line
+    for i in 0:n_pts - 1
+        x, y, _ = AG.getpoint(exterior_ring, i)
+        pt = Point{2, Float64}(x, y)
 
-            if !(point in unique_vertices)
-                push!(unique_vertices, point)
-            end
+        # Perp dist of point to line
+        dist = GO.distance(pt, LineString([current_point, final_point]))
+        side = (final_point[1] - current_point[1]) * (pt[2] - current_point[2]) - (final_point[2] - current_point[2]) * (pt[1] - current_point[1])
+
+        # Check side (L/R) and update furthest points
+        if side > 0 && dist > max_dist_L
+                max_dist_L = dist
+                furthest_vert_L = pt #Set([pt])
+        elseif side < 0 && dist > max_dist_R
+                max_dist_R = dist
+                furthest_vert_R = pt #Set([pt])
         end
     end
 
-    if isempty(unique_vertices)
-        return nothing
-    else
-    return collect(unique_vertices)
-    end
+    return (furthest_vert_L, furthest_vert_R), polygon_idx
 end
 
 """
-    intersecting_polygons(pt_a::Point{2, Float64}, pt_b::Point{2, Float64}, exclusions::DataFrame)
+    crossing_polygons(pt_a::Point{2, Float64}, pt_b::Point{2, Float64}, exclusions::DataFrame)
 
 Find polygons that intersect with a line segment.
 
@@ -113,18 +142,31 @@ Find polygons that intersect with a line segment.
 # Returns
 - `crossed_polygons`: A list of polygons that intersect with the line segment.
 """
-function intersecting_polygons(line_pts::Tuple{Point{2, Float64}, Point{2, Float64}}, exclusions::DataFrame)
-    crossed_polygons = []
+function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Int)
+    closest_polygon = nothing
+    min_dist = Inf
+    polygon_idx = nothing
 
-    line = AG.createlinestring([[line_pts[1][1], line_pts[1][2]], [line_pts[2][1], line_pts[2][2]]])
+    line = AG.createlinestring([current_point[1], current_point[2]], [final_point[1], final_point[2]])
 
     for (i, row) in enumerate(eachrow(exclusions))
+        # Skip current polygon
+        if i == current_exclusions_idx
+            continue
+        end
+
         if AG.crosses(line, row.geometry)
-            push!(crossed_polygons, row.geometry)
+            dist = GO.distance(current_point, row.geometry)
+
+            if dist < min_dist
+                min_dist = dist
+                closest_polygon = row.geometry
+                polygon_idx = i
+            end
         end
     end
 
-    return crossed_polygons
+    return closest_polygon, polygon_idx
 end
 
 """
@@ -133,54 +175,38 @@ end
 Construct a simple weighted graph between given points that do not intersect exclusions.
 
 # Arguments
-- `pts::Vector{Point{2, Float64}`: A vector of 2D points.
-- `exclusions::DataFrame`: A DataFrame containing exclusions.
+- `points::Vector{Point{2, Float64}`: A vector of points respresenting ordered end points.
+- `parent_points::Vector{Point{2, Float64}`: A vector of points representing ordered start points.
 
 # Returns
 Simple weighted graph with distances between points.
 """
-function build_graph(pts::Vector{Point{2, Float64}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
-    g = SimpleWeightedGraph(length(pts))
-    local_graphs = [SimpleWeightedGraph{Int64, Float64}(length(pts)) for _ in 1:nthreads()]
+function build_graph(points::Vector{Point{2, Float64}}, parent_points::Vector{Point{2, Float64}})#::SimpleWeightedGraph{Int64, Float64}
+    # Dictionaries to map unique points and their indices
+    point_to_idx = Dict{Point{2, Float64}, Int64}()
+    idx_to_point = Dict{Int64, Point{2, Float64}}()
+    idx_counter = 1
 
-    @floop for j in 1:length(pts)
-        local_g = local_graphs[threadid()]
-
-        for i in 1:j-1
-            if !intersects_polygon(pts[i], pts[j], exclusions)
-                add_edge!(local_g, i, j, haversine(pts[i], pts[j]))
-            end
+    for pt in points
+        if !haskey(point_to_idx, pt)
+            point_to_idx[pt] = idx_counter
+            idx_to_point[idx_counter] = pt
+            idx_counter += 1
         end
     end
 
-    for local_g in local_graphs
-        for e in edges(local_g)
-            add_edge!(g, src(e), dst(e), weight(e))
-        end
+    g = SimpleWeightedGraph(idx_counter - 1)
+
+    # Add edges between points & parents (from 2 because first point has no parent)
+    for i in 2:length(points)
+        pt_i = points[i]
+        parent_pt = parent_points[i]
+
+        idx_pt = point_to_idx[pt_i]
+        idx_parent = point_to_idx[parent_pt]
+
+        add_edge!(g, idx_parent, idx_pt, haversine(pt_i, parent_pt))
     end
 
-    return g
-end
-
-"""
-    intersects_polygon(line::LineString{2, Float64}, exclusions::DataFrame)::Bool
-
-Check if a line intersects with polygons in a dataframe.
-
-# Arguments
-- `pt_a::Point{2, Float64}`: The start point of the line.
-- `pt_b::Point{2, Float64}`: The end point of the line.
-- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-
-# Returns
-- `Bool`: `true` if the line intersects with any polygon in the dataframe, `false` otherwise.
-"""
-function intersects_polygon(pt_a::Point{2, Float64}, pt_b::Point{2, Float64}, exclusions::DataFrame)::Bool
-    # TODO: Parallelise loop?
-    for row in eachrow(exclusions)
-        if AG.crosses(AG.createlinestring([[pt_a[1], pt_a[2]], [pt_b[1], pt_b[2]]]), row.geometry)
-            return true
-        end
-    end
-    return false
+    return g, idx_to_point
 end
