@@ -147,11 +147,42 @@ function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::
     min_dist = Inf
     polygon_idx = nothing
 
-    line = AG.createlinestring([current_point[1], current_point[2]], [final_point[1], final_point[2]])
+    line = AG.createlinestring([current_point[1], final_point[1]], [current_point[2], final_point[2]])
+
+    # Define bounding box for line to exclude polygons that do not intersect
+    line_min_x, line_max_x = min(current_point[1], final_point[1]), max(current_point[1], final_point[1])
+    line_min_y, line_max_y = min(current_point[2], final_point[2]), max(current_point[2], final_point[2])
 
     for (i, row) in enumerate(eachrow(exclusions))
         # Skip current polygon
         if i == current_exclusions_idx
+            continue
+        end
+
+        # Check if any vertices of the polygon are inside the bounding box
+        exterior_ring = AG.getgeom(row.geometry, 0)
+        n_pts = AG.ngeom(exterior_ring)
+
+        # Check if any vertices of the polygon are inside the bounding box of line
+        has_vertex_in_bbox = false
+        for j in 0:n_pts - 1
+            x, y, _ = AG.getpoint(exterior_ring, j)
+
+            if line_min_x <= x <= line_max_x && line_min_y <= y <= line_max_y
+                has_vertex_in_bbox = true
+                break
+            end
+        end
+
+        # Check if line crosses bounding box
+        polygon_points = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
+        poly_xs = [p[1] for p in polygon_points]
+        poly_ys = [p[2] for p in polygon_points]
+
+        crosses_bbox = line_min_x <= maximum(poly_xs) && line_max_x >= minimum(poly_xs) && line_min_y <= maximum(poly_ys) && line_max_y >= minimum(poly_ys)
+
+        # Skip polygons with no vertices in or crossing bounding box
+        if !has_vertex_in_bbox && !crosses_bbox
             continue
         end
 
