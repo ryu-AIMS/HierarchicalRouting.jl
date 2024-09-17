@@ -47,7 +47,6 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     n_final = 0
     exclusion_idx = [0]
 
-    # TODO: If no polygon vertices within BBox of line, ignore
     while current_node_idx <= length(points) - n_final
         current_point = points[current_node_idx]
 
@@ -149,9 +148,32 @@ function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::
 
     line = AG.createlinestring([current_point[1], current_point[2]], [final_point[1], final_point[2]])
 
+    # Define bounding box for line to exclude polygons that do not intersect
+    min_x, max_x = min(current_point[1], final_point[1]), max(current_point[1], final_point[1])
+    min_y, max_y = min(current_point[2], final_point[2]), max(current_point[2], final_point[2])
+
     for (i, row) in enumerate(eachrow(exclusions))
         # Skip current polygon
         if i == current_exclusions_idx
+            continue
+        end
+
+        # Check if any vertices of the polygon are inside the bounding box
+        exterior_ring = AG.getgeom(row.geometry, 0)
+        n_pts = AG.ngeom(exterior_ring)
+
+        has_vertex_in_bbox = false
+        for j in 0:n_pts - 1
+            x, y, _ = AG.getpoint(exterior_ring, j)
+
+            if min_x <= x <= max_x && min_y <= y <= max_y
+                has_vertex_in_bbox = true
+                break
+            end
+        end
+
+        # Skip polygons with no vertices in the bounding box
+        if !has_vertex_in_bbox
             continue
         end
 
