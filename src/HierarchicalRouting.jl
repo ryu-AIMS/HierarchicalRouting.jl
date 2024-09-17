@@ -39,19 +39,31 @@ function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
 end
 
 """
-    process_exclusions(exclusions::DataFrame, buffer_dist=1.0, simplify_tol=0.1)::DataFrame
+    simplify_exclusions!(exclusions::DataFrame, buffer_dist=1.0, simplify_tol=0.1)::DataFrame
 
-Process exclusions by applying buffer, convex hull, and simplification operations to exclusion zones.
+Simplify exclusions by applying convex hull, and simplification operations to polygons.
 
 # Arguments
 - `exclusions::DataFrame`: The DataFrame containing exclusion zones.
-- `buffer_dist::Real`: The buffer distance to apply to the exclusion polygons. Default = 1.0
 - `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons. Default = 0.1
 """
-function process_exclusions(exclusions::DataFrame; buffer_dist::Real=1.0, simplify_tol::Real=10)#0.7)
-    exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
+function simplify_exclusions!(exclusions::DataFrame; simplify_tol::Real=10)#0.7)
     exclusions.geometry .= AG.convexhull.(exclusions.geometry)
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
+    return exclusions
+end
+
+"""
+    buffer_exclusions!(exclusions::DataFrame, buffer_dist=1.0)::DataFrame
+
+Buffer exclusion zones by a specified distance.
+
+# Arguments
+- `exclusions::DataFrame`: The DataFrame containing exclusion zones.
+- `buffer_dist::Real`: The buffer distance. Default = 1.0
+"""
+function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Real=1.0)
+    exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
     return exclusions
 end
 
@@ -113,7 +125,8 @@ export
 export
     to_multipolygon,
     to_dataframe,
-    process_exclusions,
+    simplify_exclusions!,
+    buffer_exclusions!,
     unionize_overlaps
 
 export
