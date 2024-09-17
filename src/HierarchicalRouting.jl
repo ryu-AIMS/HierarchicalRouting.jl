@@ -67,6 +67,14 @@ function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Real=1.0)
     return exclusions
 end
 
+"""
+    unionize_overlaps(exclusions::DataFrame)::DataFrame
+
+Unionize overlapping exclusion zones.
+
+# Arguments
+- `exclusions::DataFrame`: The DataFrame containing exclusion zones.
+"""
 function unionize_overlaps(exclusions::DataFrame)
     geometries = exclusions.geometry
     n = length(geometries)
@@ -85,7 +93,7 @@ function unionize_overlaps(exclusions::DataFrame)
 
             geom2 = geometries[j]
             if AG.overlaps(geom1, geom2)
-                println("Overlap between $i and $j")
+                # @info "Overlap between $i and $j"
 
                 union_geom = AG.union(geom1, geom2)
 
