@@ -156,12 +156,15 @@ function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float64}}, exc
     route_lons = [wp[1] for wp in waypoints]
 
     # Exclusion zones
-    for zone in eachrow(exclusions)
+    for (i, zone) in enumerate(eachrow(exclusions))
         polygon = zone[:geometry]
         for ring in GeoInterface.coordinates(polygon)
             xs = [coord[1] for coord in ring]
             ys = [coord[2] for coord in ring]
             poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+
+            centroid_x, centroid_y = mean(xs), mean(ys)
+            text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
         end
     end
 
