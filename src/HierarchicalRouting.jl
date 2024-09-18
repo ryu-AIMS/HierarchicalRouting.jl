@@ -75,38 +75,35 @@ Unionize overlapping exclusion zones.
 # Arguments
 - `exclusions::DataFrame`: The DataFrame containing exclusion zones.
 """
-function unionize_overlaps(exclusions::DataFrame)
+function unionize_overlaps!(exclusions::DataFrame)
     geometries = exclusions.geometry
     n = length(geometries)
-    processed = falses(n)
 
     for i in 1:n
-        if processed[i]
-            continue
-        end
-
         geom1 = geometries[i]
+
         for j in i+1:n
-            if processed[j]
-                continue
-            end
-
             geom2 = geometries[j]
+
             if AG.overlaps(geom1, geom2)
-                # @info "Overlap between $i and $j"
-
+                # @info "Partial overlap: $i and $j"
                 union_geom = AG.union(geom1, geom2)
-
                 exclusions.geometry[i] = union_geom
                 exclusions.geometry[j] = union_geom
 
                 for k in 1:n
-                    if AG.overlaps(union_geom, geometries[k]) && !processed[k]
+                    if AG.overlaps(union_geom, geometries[k])
                         exclusions.geometry[k] = union_geom
-                        processed[k] = true
                     end
                 end
+            end
 
+            if AG.contains(geom1, geom2)
+                # @info "Full overlap: $i contains $j"
+                exclusions.geometry[j] = geom1
+            elseif AG.contains(geom2, geom1)
+                # @info "Full overlap: $j contains $i"
+                exclusions.geometry[i] = geom2
             end
         end
     end
@@ -126,16 +123,16 @@ include("plotting/plots.jl")
 
 
 export
-    extract_subset,
-    cluster_targets,
-    centroids
-
-export
     to_multipolygon,
     to_dataframe,
     simplify_exclusions!,
     buffer_exclusions!,
-    unionize_overlaps
+    unionize_overlaps!
+
+export
+    extract_subset,
+    cluster_targets,
+    centroids
 
 export
     create_exclusion_zones,
