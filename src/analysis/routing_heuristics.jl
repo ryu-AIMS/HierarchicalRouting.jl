@@ -117,7 +117,7 @@ function distance_matrix(cluster_centroids::DataFrame)
 
     for i in 1:num_centroids
         for j in 1:num_centroids
-            dist_matrix[i, j] = haversine(centroid_coords[i], centroid_coords[j])
+            dist_matrix[i, j] = euclidean(centroid_coords[i], centroid_coords[j])
         end
     end
 
@@ -159,4 +159,102 @@ function get_waypoints(sequence::DataFrame)::Vector{Point{2, Float64}}
     waypoints[n_cluster_seqs+1] = (sequence.lat[n_cluster_seqs], sequence.lon[n_cluster_seqs])
 
     return [GeometryBasics.Point{2, Float64}(wp...) for wp in waypoints]
+end
+
+"""
+    two_opt(waypoints::Vector{Point{2, Float64}}, dist_matrix::Matrix{Float64})
+
+Apply 2-opt heuristic to improve the current route (by uncrossing crossed links).
+
+# Arguments
+- `waypoints` : Vector of lat long tuples to be visited. Depot is the first and last point.
+- `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
+
+# Returns
+- `best_route` : Improved return route to/from depot.
+- `best_distance` : Total distance of the best route.
+"""
+function two_opt(waypoints::Vector{Point{2, Float64}}, dist_matrix::Matrix{Float64})
+    # Initialize route as ordered waypoints
+    # Remove the last point (depot) from route
+    best_route = collect(1:length(waypoints)-1)
+    best_distance = return_route_distance(best_route, dist_matrix)
+    improved = true
+
+    while improved
+        improved = false
+        for i in 1:(length(best_route) - 1)
+            for j in (i + 1):length(best_route)
+                new_route = two_opt_swap(best_route, i, j)
+                new_distance = return_route_distance(new_route, dist_matrix)
+
+                if new_distance < best_distance
+                    best_route = new_route
+                    best_distance = new_distance
+                    improved = true
+                end
+            end
+        end
+    end
+
+    # Re-orient route to start from the depot (1), and add the depot as final point
+    best_route = orient_route(best_route)
+    push!(best_route, best_route[1])
+
+    return best_route, best_distance
+end
+
+"""
+    return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})
+
+Calculate the total distance of a route starting from index 1, and returning to index 1.
+
+# Arguments
+- `route` : Vector of cluster indices.
+- `dist_matrix` : Distance matrix between clusters.
+
+# Returns
+Total distance of the return route.
+"""
+function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})
+    total_dist = 0.0
+    n = length(route)  # Adjust for duplicate last point as the start point)
+
+    total_dist = sum([dist_matrix[route[i], route[i + 1]] for i in 1:n-1])
+
+    total_dist += dist_matrix[route[n], route[1]]
+    return total_dist
+end
+
+"""
+    two_opt_swap(route::Vector{Int64}, i::Int, j::Int)
+
+Swap two points in a route.
+
+# Arguments
+- `route` : Vector of cluster indices.
+- `i` : Index of the first point to swap.
+- `j` : Index of the second point to swap.
+
+# Returns
+Route with swapped points.
+"""
+function two_opt_swap(route::Vector{Int64}, i::Int, j::Int)
+    return vcat(route[1:(i-1)], reverse(route[i:j]), route[(j+1):end])
+end
+
+"""
+    orient_route(route::Vector{Int64})
+
+Orient the route such that it starts with the depot (1).
+
+# Arguments
+- `route` : Vector of cluster indices.
+
+# Returns
+Route starting with the depot.
+"""
+function orient_route(route::Vector{Int64})
+    idx = findfirst(==(1), route)
+    return vcat(route[idx:end], route[1:idx-1])
 end

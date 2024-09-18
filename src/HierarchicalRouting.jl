@@ -138,6 +138,11 @@ export
     create_exclusion_zones,
     nearest_neighbour,
     get_waypoints,
+    two_opt,
+    return_route_distance,
+    two_opt_swap
+
+export
     get_feasible_matrix,
     shortest_feasible_path
 
