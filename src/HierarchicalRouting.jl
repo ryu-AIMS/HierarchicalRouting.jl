@@ -141,7 +141,8 @@ export
     create_exclusion_zones,
     nearest_neighbour,
     get_waypoints,
-    get_feasible_matrix
+    get_feasible_matrix,
+    shortest_feasible_path
 
 export
     plot_polygons,
