@@ -171,3 +171,59 @@ function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float64}}, exc
     # axislegend(ax)
     display(fig)
 end
+
+function plot_waypoints_and_exclusions_with_graph(g::SimpleWeightedGraph{Int64, Float64},
+    idx_to_point::Dict{Int64, Point{2, Float64}},
+    waypoints::Vector{Point{2, Float64}},
+    exclusions::DataFrame)
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], title = "Mothership Route with Graph", xlabel = "Longitude", ylabel = "Latitude")
+
+    # Waypoints
+    waypoint_lons = [wp[1] for wp in waypoints]
+    waypoint_lats = [wp[2] for wp in waypoints]
+    scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Waypoints")
+    for i in 1:length(waypoints)
+        text!(ax, waypoint_lons[i], waypoint_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
+    end
+
+    # Exclusion zones (polygons)
+    for (i, zone) in enumerate(eachrow(exclusions))
+        polygon = zone[:geometry]
+        for ring in GeoInterface.coordinates(polygon)
+            xs = [coord[1] for coord in ring]
+            ys = [coord[2] for coord in ring]
+            poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+
+            centroid_x, centroid_y = mean(xs), mean(ys)
+            text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+        end
+    end
+
+    # Weighted graph
+    x_coords = [idx_to_point[i][1] for i in 1:nv(g)]
+    y_coords = [idx_to_point[i][2] for i in 1:nv(g)]
+
+    scatter!(ax, x_coords, y_coords, markersize = 6, color = :blue, label = "Graph Nodes")
+    [text!(ax, x_coords[i], y_coords[i], text = string(i), align = (:center, :center), color = :red) for i in 1:nv(g)]
+
+    for e in edges(g)
+        x1, y1 = idx_to_point[e.src][1], idx_to_point[e.src][2]
+        x2, y2 = idx_to_point[e.dst][1], idx_to_point[e.dst][2]
+        lines!(ax, [x1, x2], [y1, y2], color = :green)
+    end
+
+    edge_weights = [g.weights[e.src, e.dst] for e in edges(g)]
+    for (e, weight) in zip(edges(g), edge_weights)
+        x1, y1 = idx_to_point[e.src][1], idx_to_point[e.src][2]
+        x2, y2 = idx_to_point[e.dst][1], idx_to_point[e.dst][2]
+
+        lines!(ax, [x1, x2], [y1, y2], color = :green)
+
+        # # Add edge weights
+        # mid_x, mid_y = (x1 + x2) / 2, (y1 + y2) / 2
+        # text!(ax, mid_x, mid_y, text = string(round(weight, digits = 2)), align = (:center, :center), color = :purple)
+    end
+
+    display(fig)
+end
