@@ -125,29 +125,29 @@ function distance_matrix(cluster_centroids::DataFrame)
 end
 
 """
-    get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float32}
+    get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float64}
 
 Calculate mothership waypoints between sequential clusters.
 Based on calc: midpoint of current and next cluster.
 
 # Arguments
-- `centroid_sequence` :  centroid lat long coordinates in sequence; including depot as the first and last cluster.
+- `sequence` :  centroid lat long coordinates in sequence; including depot as the first and last cluster.
 
 # Returns
 Route as vector of lat long points. Depot is first and last waypoints.
 """
 #TODO: Implement convex hull exclusion zones
-function get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float32}}
-    cluster_seq_ids = centroid_sequence.cluster_id
+function get_waypoints(sequence::DataFrame)::Vector{Point{2, Float64}}
+    cluster_seq_ids = sequence.cluster_id
     n_cluster_seqs = length(cluster_seq_ids)
 
-    waypoints = Vector{Tuple{Float64, Float64}}(undef, n_cluster_seqs)
+    waypoints = Vector{Tuple{Float64, Float64}}(undef, n_cluster_seqs+1)
 
-    waypoints[1] = (centroid_sequence.lat[1], centroid_sequence.lon[1])
+    waypoints[1] = (sequence.lat[1], sequence.lon[1])
 
     for i in 1:(n_cluster_seqs - 1)
-        current_centroid = first(centroid_sequence[centroid_sequence.cluster_id .== cluster_seq_ids[i], :])
-        next_centroid = first(centroid_sequence[centroid_sequence.cluster_id .== cluster_seq_ids[i+1], :])
+        current_centroid = first(sequence[sequence.cluster_id .== cluster_seq_ids[i], :])
+        next_centroid = first(sequence[sequence.cluster_id .== cluster_seq_ids[i+1], :])
 
         centroid = (
             (current_centroid.lat + next_centroid.lat) / 2,
@@ -156,7 +156,7 @@ function get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float32}}
         waypoints[i+1] = centroid
     end
 
-    waypoints[n_cluster_seqs] = (centroid_sequence.lat[n_cluster_seqs], centroid_sequence.lon[n_cluster_seqs])
+    waypoints[n_cluster_seqs+1] = (sequence.lat[n_cluster_seqs], sequence.lon[n_cluster_seqs])
 
-    return [GeometryBasics.Point{2, Float32}(wp...) for wp in waypoints]
+    return [GeometryBasics.Point{2, Float64}(wp...) for wp in waypoints]
 end
