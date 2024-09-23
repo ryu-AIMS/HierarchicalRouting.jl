@@ -133,16 +133,18 @@ function find_next_points(current_point::Point{2, Float64}, final_point::Point{2
 end
 
 """
-    crossing_polygons(pt_a::Point{2, Float64}, pt_b::Point{2, Float64}, exclusions::DataFrame)
+    closest_crossed_polygon(pt_a::Point{2, Float64}, pt_b::Point{2, Float64}, exclusions::DataFrame)
 
 Find polygons that intersect with a line segment.
 
 # Arguments
--
+- `current_point::Point{2, Float64}`: The current point marking start of line.
+- `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
 
 # Returns
-- `crossed_polygons`: A list of polygons that intersect with the line segment.
+- `closest_polygon`: The first/closest polygon that intersects with the line segment.
+- `polygon_idx`: The index of the(first) polygon crossed.
 """
 function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Int)
     closest_polygon = nothing
@@ -166,7 +168,7 @@ function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::
         n_pts = AG.ngeom(exterior_ring)
 
         # Check if any vertices of the polygon are inside the bounding box of line
-        has_vertex_in_bbox = false
+        has_vertex_in_bbox, crosses_bbox = false, false
         for j in 0:n_pts - 1
             x, y, _ = AG.getpoint(exterior_ring, j)
 
@@ -176,12 +178,19 @@ function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::
             end
         end
 
-        # Check if line crosses bounding box
-        polygon_points = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
-        poly_xs = [p[1] for p in polygon_points]
-        poly_ys = [p[2] for p in polygon_points]
+        if !has_vertex_in_bbox
+            # Check if line crosses bounding box
+            polygon_points = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
+            poly_xs = [p[1] for p in polygon_points]
+            poly_ys = [p[2] for p in polygon_points]
 
-        crosses_bbox = line_min_x <= maximum(poly_xs) && line_max_x >= minimum(poly_xs) && line_min_y <= maximum(poly_ys) && line_max_y >= minimum(poly_ys)
+            crosses_bbox = (
+                line_min_x <= maximum(poly_xs) &&
+                line_max_x >= minimum(poly_xs) &&
+                line_min_y <= maximum(poly_ys) &&
+                line_max_y >= minimum(poly_ys)
+            )
+        end
 
         # Skip polygons with no vertices in or crossing bounding box
         if !has_vertex_in_bbox && !crosses_bbox
