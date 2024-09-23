@@ -11,14 +11,16 @@ Create a distance matrix between waypoints accounting for environmental constrai
 # Returns
 Feasible distance matrix between waypoints.
 """
-function get_feasible_matrix(waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)::Matrix{Float64}
-    n_waypoints = length(waypoints) - 1
-    feasible_matrix = zeros(Float64, n_waypoints, n_waypoints)
+function get_feasible_matrix(points::Vector{Point{2, Float64}}, exclusions::DataFrame)::Matrix{Float64}
+    n_points = length(points)
+    feasible_matrix = zeros(Float64, n_points, n_points)
 
-    for j in 1:n_waypoints
+    for j in 1:n_points
         for i in 1:j-1
-            feasible_matrix[i, j] = shortest_feasible_path(waypoints[i], waypoints[j], exclusions)[1]
-            feasible_matrix[j, i] = feasible_matrix[i, j]
+            if points[i] != points[j]
+                feasible_matrix[i, j] = shortest_feasible_path(points[i], points[j], exclusions)[1]
+                feasible_matrix[j, i] = feasible_matrix[i, j]
+            end
         end
     end
 
