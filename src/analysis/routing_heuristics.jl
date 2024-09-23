@@ -114,17 +114,18 @@ end
 Apply 2-opt heuristic to improve the current route (by uncrossing crossed links).
 
 # Arguments
-- `waypoints` : Vector of lat long tuples to be visited. Depot is the first and last point.
+- `cluster_centroids` : DataFrame (cluster_id, lat, lon) incl depot as cluster 0 in row 1. NOTE: Remove depot as final pt
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
 
 # Returns
-- `best_route` : Improved return route to/from depot.
+- `ordered_centroids` : Improved return route to/from depot.
 - `best_distance` : Total distance of the best route.
 """
-function two_opt(waypoints::Vector{Point{2, Float64}}, dist_matrix::Matrix{Float64})
+function two_opt(cluster_centroids::DataFrame, dist_matrix::Matrix{Float64})
+    points = [Point(row.lat, row.lon) for row in eachrow(cluster_centroids)]
     # Initialize route as ordered waypoints
     # Remove the last point (depot) from route
-    best_route = collect(1:length(waypoints)-1)
+    best_route = [row.cluster_id+1 for row in eachrow(cluster_centroids)]
     best_distance = return_route_distance(best_route, dist_matrix)
     improved = true
 
@@ -148,7 +149,11 @@ function two_opt(waypoints::Vector{Point{2, Float64}}, dist_matrix::Matrix{Float
     best_route = orient_route(best_route)
     push!(best_route, best_route[1])
 
-    return best_route, best_distance
+    best_route .-= 1
+
+    ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in best_route], :]
+
+    return ordered_centroids, best_distance
 end
 
 """
