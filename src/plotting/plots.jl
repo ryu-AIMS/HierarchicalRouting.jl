@@ -147,7 +147,7 @@ function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float64}}, exc
     scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Cluster Centroids")
 
     # Annotate centroids with cluster_ids
-    for i in 1:length(waypoints)-1
+    for i in 1:length(waypoints)
         text!(ax, waypoint_lons[i], waypoint_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
     end
 
