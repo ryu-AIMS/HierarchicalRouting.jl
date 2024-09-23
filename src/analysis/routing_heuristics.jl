@@ -99,32 +99,6 @@ function nearest_neighbour(dist_matrix::Matrix{Float64})
 end
 
 """
-    distance_matrix(cluster_centroids::DataFrame)
-
-Calculate the haversine distance matrix between cluster centroids.
-
-# Arguments
-- `cluster_centroids` : DataFrame containing cluster_id, lat, lon.
-
-# Returns
-Distance matrix between cluster centroids.
-"""
-function distance_matrix(cluster_centroids::DataFrame)
-    num_centroids = nrow(cluster_centroids)
-    dist_matrix = Matrix{Float64}(undef, num_centroids, num_centroids)
-
-    centroid_coords = [(row.lat, row.lon) for row in eachrow(cluster_centroids)]
-
-    for i in 1:num_centroids
-        for j in 1:num_centroids
-            dist_matrix[i, j] = euclidean(centroid_coords[i], centroid_coords[j])
-        end
-    end
-
-    return dist_matrix
-end
-
-"""
     get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float64}
 
 Calculate mothership waypoints between sequential clusters.
