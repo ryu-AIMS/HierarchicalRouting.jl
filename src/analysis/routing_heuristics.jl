@@ -77,28 +77,35 @@ Based on calc: midpoint of current and next cluster.
 Route as vector of lat long points. Depot is first and last waypoints.
 """
 #TODO: Implement convex hull exclusion zones
-function get_waypoints(sequence::DataFrame)::Vector{Point{2, Float64}}
-    cluster_seq_ids = sequence.cluster_id
-    n_cluster_seqs = length(cluster_seq_ids)
+function get_waypoints(sequence::DataFrame)::DataFrame
+    n_cluster_seqs = nrow(sequence)
 
-    waypoints = Vector{Tuple{Float64, Float64}}(undef, n_cluster_seqs+1)
+    waypoints = Vector{Point{2, Float64}}(undef, n_cluster_seqs+1)
+    connecting_clusters = Vector{NTuple{2, Int64}}(undef, n_cluster_seqs+1)
 
     waypoints[1] = (sequence.lat[1], sequence.lon[1])
+    connecting_clusters[1] = (sequence.cluster_id[1], sequence.cluster_id[1])
 
     for i in 1:(n_cluster_seqs - 1)
-        current_centroid = first(sequence[sequence.cluster_id .== cluster_seq_ids[i], :])
-        next_centroid = first(sequence[sequence.cluster_id .== cluster_seq_ids[i+1], :])
+        current_lat, current_lon, current_clust = sequence.lat[i], sequence.lon[i], sequence.cluster_id[i] #first(sequence[sequence.cluster_id .== cluster_seq_ids[i], :])
+        next_lat, next_lon, next_clust = sequence.lat[i+1], sequence.lon[i+1], sequence.cluster_id[i+1] #first(sequence[sequence.cluster_id .== cluster_seq_ids[i+1], :])
 
         centroid = (
-            (current_centroid.lat + next_centroid.lat) / 2,
-            (current_centroid.lon + next_centroid.lon) / 2
+            (current_lat + next_lat) / 2,
+            (current_lon + next_lon) / 2
         )
         waypoints[i+1] = centroid
+        connecting_clusters[i+1] = (current_clust, next_clust)
     end
 
-    waypoints[n_cluster_seqs+1] = (sequence.lat[n_cluster_seqs], sequence.lon[n_cluster_seqs])
+    waypoints[n_cluster_seqs+1] = (sequence.lat[end], sequence.lon[end])
+    connecting_clusters[n_cluster_seqs+1] = (sequence.cluster_id[end], sequence.cluster_id[end])
 
-    return [GeometryBasics.Point{2, Float64}(wp...) for wp in waypoints]
+    centroid_df = DataFrame(
+        waypoint = waypoints,
+        connecting_clusters = connecting_clusters
+    )
+    return centroid_df
 end
 
 """
