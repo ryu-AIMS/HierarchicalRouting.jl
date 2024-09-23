@@ -23,14 +23,14 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
 
 # Arguments
 - `cluster_centroids` : DataFrame containing cluster_id, lat, lon. Depot is cluster 0 in row 1.
-
+- `exclusions` : DataFrame containing exclusion zones.
 # Returns
 - `ordered_centroids` : Centroid sequence DataFrame (containing cluster_id, lat, lon).
 - `total_distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
 """
-function nearest_neighbour(cluster_centroids::DataFrame)
-    dist_matrix = distance_matrix(cluster_centroids)
+function nearest_neighbour(cluster_centroids::DataFrame, exclusions::DataFrame)
+    dist_matrix = get_feasible_matrix([Point(row.lat, row.lon) for row in eachrow(cluster_centroids)], exclusions)
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -62,40 +62,6 @@ function nearest_neighbour(cluster_centroids::DataFrame)
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in cluster_sequence], :]
 
     return ordered_centroids, total_distance, dist_matrix
-end
-
-function nearest_neighbour(dist_matrix::Matrix{Float64})
-    num_pts = size(dist_matrix, 1) - 1  # excludes the depot
-    visited = falses(num_pts + 1)
-    total_distance = 0.0
-    current_location = 1
-    tour = Vector{Int}(undef, num_pts + 2)
-
-    tour[1] = current_location
-    visited[current_location] = true
-    tour_idx = 2
-
-    while tour_idx <= num_pts + 1 #length(tour) <= num_pts
-        distances = dist_matrix[current_location, :]
-        distances[visited] .= Inf
-        nearest_idx = argmin(distances)
-
-        total_distance += dist_matrix[current_location, nearest_idx]
-
-        tour[tour_idx] = nearest_idx
-        visited[nearest_idx] = true
-        current_location = nearest_idx
-        tour_idx += 1
-    end
-
-    # Return to the depot
-    tour[tour_idx] = 1 # push!(tour, 1)
-    total_distance += dist_matrix[current_location, 1]
-
-    # Adjust waypt_sequence to zero-based indexing
-    waypt_sequence = tour .- 1
-
-    return waypt_sequence, total_distance
 end
 
 """

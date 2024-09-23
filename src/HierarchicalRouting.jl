@@ -143,10 +143,6 @@ export
     two_opt_swap
 
 export
-    get_feasible_matrix,
-    shortest_feasible_path
-
-export
     plot_polygons,
     plot_mothership_route,
     plot_route_w_exclusions,
