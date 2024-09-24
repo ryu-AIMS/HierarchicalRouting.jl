@@ -28,9 +28,10 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
 - `ordered_centroids` : Centroid sequence DataFrame (containing cluster_id, lat, lon).
 - `total_distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
+- `waypoints` : DataFrame of waypoints on the route.
 """
 function nearest_neighbour(cluster_centroids::DataFrame, exclusions::DataFrame)
-    dist_matrix = get_feasible_matrix([Point(row.lat, row.lon) for row in eachrow(cluster_centroids)], exclusions)
+    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lat, row.lon) for row in eachrow(cluster_centroids)], exclusions)
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -61,7 +62,7 @@ function nearest_neighbour(cluster_centroids::DataFrame, exclusions::DataFrame)
 
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in cluster_sequence], :]
 
-    return ordered_centroids, total_distance, dist_matrix
+    return ordered_centroids, total_distance, dist_matrix, get_waypoints(ordered_centroids)
 end
 
 """
@@ -129,6 +130,7 @@ Apply 2-opt heuristic to improve the current route (by uncrossing crossed links)
 # Returns
 - `ordered_centroids` : Improved return route to/from depot.
 - `best_distance` : Total distance of the best route.
+- `waypoints` : DataFrame of waypoints on the route.
 """
 function two_opt(cluster_centroids::DataFrame, dist_matrix::Matrix{Float64})
     points = [Point(row.lat, row.lon) for row in eachrow(cluster_centroids)]
@@ -162,7 +164,7 @@ function two_opt(cluster_centroids::DataFrame, dist_matrix::Matrix{Float64})
 
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in best_route], :]
 
-    return ordered_centroids, best_distance
+    return ordered_centroids, best_distance, get_waypoints(ordered_centroids)
 end
 
 """
