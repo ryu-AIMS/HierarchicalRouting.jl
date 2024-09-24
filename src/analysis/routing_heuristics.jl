@@ -124,7 +124,7 @@ end
 Apply 2-opt heuristic to improve the current route (by uncrossing crossed links).
 
 # Arguments
-- `cluster_centroids` : DataFrame (cluster_id, lat, lon) incl depot as cluster 0 in row 1. NOTE: Remove depot as final pt
+- `cluster_centroids` : DataFrame (cluster_id, lat, lon) incl depot as cluster 0 in row 1.
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
 
 # Returns
@@ -133,18 +133,21 @@ Apply 2-opt heuristic to improve the current route (by uncrossing crossed links)
 - `waypoints` : DataFrame of waypoints on the route.
 """
 function two_opt(cluster_centroids::DataFrame, dist_matrix::Matrix{Float64})
-    points = [Point(row.lat, row.lon) for row in eachrow(cluster_centroids)]
+    # If depot is last row, remove
+    if cluster_centroids.cluster_id[1] == cluster_centroids.cluster_id[end]
+        cluster_centroids = cluster_centroids[1:end-1, :]
+    end
+
     # Initialize route as ordered waypoints
-    # Remove the last point (depot) from route
     best_route = [row.cluster_id+1 for row in eachrow(cluster_centroids)]
     best_distance = return_route_distance(best_route, dist_matrix)
     improved = true
 
     while improved
         improved = false
-        for i in 1:(length(best_route) - 1)
-            for j in (i + 1):length(best_route)
-                new_route = two_opt_swap(best_route, i, j)
+        for j in 1:(length(best_route) - 1)
+            for i in (j + 1):length(best_route)
+                new_route = two_opt_swap(best_route, j, i)
                 new_distance = return_route_distance(new_route, dist_matrix)
 
                 if new_distance < best_distance
@@ -160,6 +163,7 @@ function two_opt(cluster_centroids::DataFrame, dist_matrix::Matrix{Float64})
     best_route = orient_route(best_route)
     push!(best_route, best_route[1])
 
+    # Adjust cluster_sequence to zero-based indexing where depot = 0
     best_route .-= 1
 
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in best_route], :]
