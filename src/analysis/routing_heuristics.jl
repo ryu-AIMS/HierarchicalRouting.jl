@@ -68,44 +68,53 @@ end
     get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float64}
 
 Calculate mothership waypoints between sequential clusters.
-Based on calc: midpoint of current and next cluster.
+For each cluster, waypoint 1/3 dist before and after cluster centroid.
 
 # Arguments
-- `sequence` :  centroid lat long coordinates in sequence; including depot as the first and last cluster.
+- `sequence` : cluster_id, amd centroid lat, long coordinates in sequence; including depot as the first and last rows wwith cluster_id=0.
 
 # Returns
-Route as vector of lat long points. Depot is first and last waypoints.
+- `waypoint_df` : DataFrame for each waypoint on route.
+                    Cols: waypoint::Point{2, Float64}, connecting_clusters::NTuple{2, Int64} reference to previous and next cluster_id.
+                    Depot is included as first and last rows.
 """
-#TODO: Implement convex hull exclusion zones
+# TODO: Implement convex hull exclusion zones
+# TODO: Use graph to determine feasible paths and waypoints along path
 function get_waypoints(sequence::DataFrame)::DataFrame
     n_cluster_seqs = nrow(sequence)
 
-    waypoints = Vector{Point{2, Float64}}(undef, n_cluster_seqs+1)
-    connecting_clusters = Vector{NTuple{2, Int64}}(undef, n_cluster_seqs+1)
+    waypoints = Vector{Point{2, Float64}}(undef, 2*(n_cluster_seqs-2)+2)
+    connecting_clusters = Vector{NTuple{2, Int64}}(undef, 2*(n_cluster_seqs-2)+2)
 
     waypoints[1] = (sequence.lat[1], sequence.lon[1])
     connecting_clusters[1] = (sequence.cluster_id[1], sequence.cluster_id[1])
 
-    for i in 1:(n_cluster_seqs - 1)
+    for i in 2:(n_cluster_seqs - 1)
+        prev_lat, prev_lon, prev_clust = sequence.lat[i-1], sequence.lon[i-1], sequence.cluster_id[i-1]
         current_lat, current_lon, current_clust = sequence.lat[i], sequence.lon[i], sequence.cluster_id[i] #first(sequence[sequence.cluster_id .== cluster_seq_ids[i], :])
         next_lat, next_lon, next_clust = sequence.lat[i+1], sequence.lon[i+1], sequence.cluster_id[i+1] #first(sequence[sequence.cluster_id .== cluster_seq_ids[i+1], :])
 
-        centroid = (
-            (current_lat + next_lat) / 2,
-            (current_lon + next_lon) / 2
-        )
-        waypoints[i+1] = centroid
-        connecting_clusters[i+1] = (current_clust, next_clust)
+        prev_waypoint_lat = (2/3 * (current_lat) + 1/3 * (prev_lat))
+        prev_waypoint_lon = (2/3 * (current_lon) + 1/3 * (prev_lon))
+
+        next_waypoint_lat = (2/3 * (current_lat) + 1/3 * (next_lat))
+        next_waypoint_lon = (2/3 * (current_lon) + 1/3 * (next_lon))
+
+        waypoints[2*i-2] = (prev_waypoint_lat, prev_waypoint_lon)
+        connecting_clusters[2*i-2] = (prev_clust, current_clust)
+
+        waypoints[2*i-1] = (next_waypoint_lat, next_waypoint_lon)
+        connecting_clusters[2*i-1] = (current_clust, next_clust)
     end
 
-    waypoints[n_cluster_seqs+1] = (sequence.lat[end], sequence.lon[end])
-    connecting_clusters[n_cluster_seqs+1] = (sequence.cluster_id[end], sequence.cluster_id[end])
+    waypoints[2*(n_cluster_seqs-2)+2] = (sequence.lat[end], sequence.lon[end])
+    connecting_clusters[2*(n_cluster_seqs-2)+2] = (sequence.cluster_id[end], sequence.cluster_id[end])
 
-    centroid_df = DataFrame(
+    waypoint_df = DataFrame(
         waypoint = waypoints,
         connecting_clusters = connecting_clusters
     )
-    return centroid_df
+    return waypoint_df
 end
 
 """
