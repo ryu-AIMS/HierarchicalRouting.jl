@@ -131,6 +131,7 @@ export
 
 export
     extract_subset,
+    target_threshold,
     cluster_targets,
     centroids
 

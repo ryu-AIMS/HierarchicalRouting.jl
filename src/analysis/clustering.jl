@@ -16,6 +16,22 @@ function extract_subset(spatial_dataset::Raster, subset)
 end
 
 """
+    target_threshold(target_bathy::Raster, ms_depth)
+
+Mask the target environmental raster based on the minimum threshold value.
+
+# Arguments
+- `target_bathy::Raster`: The target bathymetry raster.
+- `ms_depth`: The minimum depth threshold.
+"""
+function target_threshold(targets::Raster, threshold::Float64)
+    # TODO: add min/max argument flag, or use a range
+    # TODO: include masks for other environmental constraints
+    masked_raster = targets .* (targets .>= threshold)
+    return masked_raster
+end
+
+"""
     cluster_targets(df::DataFrame, num_clust::Int64)
 
 Cluster the targets in a GeoDataFrame based on their geometry.
