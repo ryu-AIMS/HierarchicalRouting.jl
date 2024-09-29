@@ -1,6 +1,6 @@
 
 """
-    create_exclusion_zones(target_bathy::Raster, ms_depth)
+    create_exclusion_zones(env_constraint::Raster, threshold::Float64)
 
 Create exclusion zones based on environmental raster data and vessel threshold.
 
@@ -17,21 +17,21 @@ function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
 end
 
 """
-    nearest_neighbour(dist_matrix::Matrix{Float64})
+    nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
 
 Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to the depot.
 
 # Arguments
-- `cluster_centroids` : DataFrame containing cluster_id, lat, lon. Depot is cluster 0 in row 1.
+- `nodes` : DataFrame containing id, lat, lon. Depot is cluster 0 in row 1.
 - `exclusions` : DataFrame containing exclusion zones.
 # Returns
-- `ordered_centroids` : Centroid sequence DataFrame (containing cluster_id, lat, lon).
+- `ordered_nodes` : Centroid sequence DataFrame (containing id, lat, lon).
 - `total_distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
 - `waypoints` : DataFrame of waypoints on the route.
 """
-function nearest_neighbour(cluster_centroids::DataFrame, exclusions::DataFrame)
-    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lat, row.lon) for row in eachrow(cluster_centroids)], exclusions)
+function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
+    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lat, row.lon) for row in eachrow(nodes)], exclusions)
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -60,40 +60,40 @@ function nearest_neighbour(cluster_centroids::DataFrame, exclusions::DataFrame)
     # Adjust cluster_sequence to zero-based indexing
     cluster_sequence = tour .- 1
 
-    ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in cluster_sequence], :]
+    ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
 
-    return ordered_centroids, total_distance, dist_matrix, get_waypoints(ordered_centroids)
+    return ordered_nodes, total_distance, dist_matrix, get_waypoints(ordered_nodes)
 end
 
 """
-    get_waypoints(centroid_sequence::DataFrame)::Vector{Point{2, Float64}
+    get_waypoints(sequence::DataFrame)::Vector{Point{2, Float64}
 
 Calculate mothership waypoints between sequential clusters.
 For each cluster, waypoint 1/3 dist before and after cluster centroid.
 
 # Arguments
-- `sequence` : cluster_id, amd centroid lat, long coordinates in sequence; including depot as the first and last rows wwith cluster_id=0.
+- `sequence` : id, amd centroid lat, long coordinates in sequence; including depot as the first and last rows wwith id=0.
 
 # Returns
 - `waypoint_df` : DataFrame for each waypoint on route.
-                    Cols: waypoint::Point{2, Float64}, connecting_clusters::NTuple{2, Int64} reference to previous and next cluster_id.
+                    Cols: waypoint::Point{2, Float64}, connecting_clusters::NTuple{2, Int64} reference to previous and next id.
                     Depot is included as first and last rows.
 """
-# TODO: Implement convex hull exclusion zones
-# TODO: Use graph to determine feasible paths and waypoints along path
 function get_waypoints(sequence::DataFrame)::DataFrame
+    # TODO: Implement convex hull exclusion zones
+    # TODO: Use graph to determine feasible paths and waypoints along path
     n_cluster_seqs = nrow(sequence)
 
     waypoints = Vector{Point{2, Float64}}(undef, 2*(n_cluster_seqs-2)+2)
     connecting_clusters = Vector{NTuple{2, Int64}}(undef, 2*(n_cluster_seqs-2)+2)
 
     waypoints[1] = (sequence.lat[1], sequence.lon[1])
-    connecting_clusters[1] = (sequence.cluster_id[1], sequence.cluster_id[1])
+    connecting_clusters[1] = (sequence.id[1], sequence.id[1])
 
     for i in 2:(n_cluster_seqs - 1)
-        prev_lat, prev_lon, prev_clust = sequence.lat[i-1], sequence.lon[i-1], sequence.cluster_id[i-1]
-        current_lat, current_lon, current_clust = sequence.lat[i], sequence.lon[i], sequence.cluster_id[i] #first(sequence[sequence.cluster_id .== cluster_seq_ids[i], :])
-        next_lat, next_lon, next_clust = sequence.lat[i+1], sequence.lon[i+1], sequence.cluster_id[i+1] #first(sequence[sequence.cluster_id .== cluster_seq_ids[i+1], :])
+        prev_lat, prev_lon, prev_clust = sequence.lat[i-1], sequence.lon[i-1], sequence.id[i-1]
+        current_lat, current_lon, current_clust = sequence.lat[i], sequence.lon[i], sequence.id[i] #first(sequence[sequence.id .== cluster_seq_ids[i], :])
+        next_lat, next_lon, next_clust = sequence.lat[i+1], sequence.lon[i+1], sequence.id[i+1] #first(sequence[sequence.id .== cluster_seq_ids[i+1], :])
 
         prev_waypoint_lat = (2/3 * (current_lat) + 1/3 * (prev_lat))
         prev_waypoint_lon = (2/3 * (current_lon) + 1/3 * (prev_lon))
@@ -109,7 +109,7 @@ function get_waypoints(sequence::DataFrame)::DataFrame
     end
 
     waypoints[2*(n_cluster_seqs-2)+2] = (sequence.lat[end], sequence.lon[end])
-    connecting_clusters[2*(n_cluster_seqs-2)+2] = (sequence.cluster_id[end], sequence.cluster_id[end])
+    connecting_clusters[2*(n_cluster_seqs-2)+2] = (sequence.id[end], sequence.id[end])
 
     waypoint_df = DataFrame(
         waypoint = waypoints,
@@ -119,12 +119,12 @@ function get_waypoints(sequence::DataFrame)::DataFrame
 end
 
 """
-    two_opt(waypoints::Vector{Point{2, Float64}}, dist_matrix::Matrix{Float64})
+    two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
 
-Apply 2-opt heuristic to improve the current route (by uncrossing crossed links).
+Apply two-opt heuristic to improve the current route (by uncrossing crossed links).
 
 # Arguments
-- `cluster_centroids` : DataFrame (cluster_id, lat, lon) incl depot as cluster 0 in row 1.
+- `nodes` : DataFrame (id, lat, lon) incl depot as node 0 in row 1.
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
 
 # Returns
@@ -132,14 +132,14 @@ Apply 2-opt heuristic to improve the current route (by uncrossing crossed links)
 - `best_distance` : Total distance of the best route.
 - `waypoints` : DataFrame of waypoints on the route.
 """
-function two_opt(cluster_centroids::DataFrame, dist_matrix::Matrix{Float64})
+function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
     # If depot is last row, remove
-    if cluster_centroids.cluster_id[1] == cluster_centroids.cluster_id[end]
-        cluster_centroids = cluster_centroids[1:end-1, :]
+    if nodes.id[1] == nodes.id[end]
+        nodes = nodes[1:end-1, :]
     end
 
     # Initialize route as ordered waypoints
-    best_route = [row.cluster_id+1 for row in eachrow(cluster_centroids)]
+    best_route = [row.id+1 for row in eachrow(nodes)]
     best_distance = return_route_distance(best_route, dist_matrix)
     improved = true
 
@@ -163,10 +163,10 @@ function two_opt(cluster_centroids::DataFrame, dist_matrix::Matrix{Float64})
     best_route = orient_route(best_route)
     push!(best_route, best_route[1])
 
-    # Adjust cluster_sequence to zero-based indexing where depot = 0
+    # Adjust sequence to zero-based indexing where depot = 0
     best_route .-= 1
 
-    ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.cluster_id) for id in best_route], :]
+    ordered_centroids = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
     return ordered_centroids, best_distance, get_waypoints(ordered_centroids)
 end
