@@ -18,6 +18,8 @@ using FLoops
 using Distances: haversine
 using Graphs, SimpleWeightedGraphs
 
+include("problem_setup.jl")
+
 include("analysis/processing.jl")
 include("analysis/clustering.jl")
 include("analysis/routing_heuristics.jl")
@@ -25,6 +27,9 @@ include("analysis/feasible_paths.jl")
 
 include("plotting/plots.jl")
 
+
+export
+    load_problem
 
 export
     to_multipolygon,
