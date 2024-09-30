@@ -87,7 +87,7 @@ function get_waypoints(sequence::DataFrame)::DataFrame
     waypoints = Vector{Point{2, Float64}}(undef, 2*(n_cluster_seqs-2)+2)
     connecting_clusters = Vector{NTuple{2, Int64}}(undef, 2*(n_cluster_seqs-2)+2)
 
-    waypoints[1] = (sequence.lat[1], sequence.lon[1])
+    waypoints[1] = (sequence.lon[1], sequence.lat[1])
     connecting_clusters[1] = (sequence.id[1], sequence.id[1])
 
     for i in 2:(n_cluster_seqs - 1)
@@ -101,14 +101,14 @@ function get_waypoints(sequence::DataFrame)::DataFrame
         next_waypoint_lat = (2/3 * (current_lat) + 1/3 * (next_lat))
         next_waypoint_lon = (2/3 * (current_lon) + 1/3 * (next_lon))
 
-        waypoints[2*i-2] = (prev_waypoint_lat, prev_waypoint_lon)
+        waypoints[2*i-2] = (prev_waypoint_lon, prev_waypoint_lat)
         connecting_clusters[2*i-2] = (prev_clust, current_clust)
 
-        waypoints[2*i-1] = (next_waypoint_lat, next_waypoint_lon)
+        waypoints[2*i-1] = (next_waypoint_lon, next_waypoint_lat)
         connecting_clusters[2*i-1] = (current_clust, next_clust)
     end
 
-    waypoints[2*(n_cluster_seqs-2)+2] = (sequence.lat[end], sequence.lon[end])
+    waypoints[2*(n_cluster_seqs-2)+2] = (sequence.lon[end], sequence.lat[end])
     connecting_clusters[2*(n_cluster_seqs-2)+2] = (sequence.id[end], sequence.id[end])
 
     waypoint_df = DataFrame(
