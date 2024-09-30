@@ -136,26 +136,79 @@ function plot_route_w_exclusions(clustered_targets::Raster{Int16, 2}, waypoints:
 
 end
 
-function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
+function plot_centroids_and_exclusions(cluster_centroids_df::DataFrame, exclusions::DataFrame, cluster_radius = 100)
     fig = Figure(size = (800, 600))
-    ax = Axis(fig[1, 1], title = "Mothership Route", xlabel = "Longitude", ylabel = "Latitude")
+    ax = Axis(fig[1, 1], title = "Clusters", xlabel = "Longitude", ylabel = "Latitude")
 
+    centroid_lons = [row.lon for row in eachrow(cluster_centroids_df)]
+    centroid_lats = [row.lat for row in eachrow(cluster_centroids_df)]
+    centroid_id = [row.id for row in eachrow(cluster_centroids_df)]
+
+    # Plot cluster centroids
+    scatter!(ax, centroid_lons, centroid_lats, markersize = 5, color = :red, label = "Cluster Centroids")
+
+    # Annotate cluster centroids
+    for i in 2:length(centroid_lons)
+        # clusters with cluster_id
+        scatter!(ax, [centroid_lons[i]], [centroid_lats[i]], markersize = 10, color = (:red, 0.2), strokewidth = 0)
+        text!(ax, centroid_lons[i], centroid_lats[i] + 0.01, text = string(centroid_id[i]), align = (:center, :center), color = :black)
+
+        # cluster circles
+        circle_lons = [centroid_lons[i] + cluster_radius * cos(θ) for θ in range(0, 2π, length=100)]
+        circle_lats = [centroid_lats[i] + cluster_radius * sin(θ) for θ in range(0, 2π, length=100)]
+        poly!(ax, circle_lons, circle_lats, color = (:red, 0.2), strokecolor = :red)
+    end
+
+    # Overlay exclusions
+    for zone in eachrow(exclusions)
+        polygon = zone[:geometry]
+        for ring in GeoInterface.coordinates(polygon)
+            xs = [coord[1] for coord in ring]
+            ys = [coord[2] for coord in ring]
+            poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+        end
+    end
+
+    display(fig)
+end
+
+function plot_waypoints_and_exclusions(route_df::DataFrame, exclusions::DataFrame,
+    cluster_sequence::DataFrame, cluster_radius=100)
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], title = "Mothership Route with Cluster Centroids", xlabel = "Longitude", ylabel = "Latitude")
+
+    waypoints = route_df[:,:waypoint]
     waypoint_lons = [wp[1] for wp in waypoints]
     waypoint_lats = [wp[2] for wp in waypoints]
 
     # Plot cluster centroids
     scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Cluster Centroids")
 
-    # Annotate centroids with cluster_ids
-    for i in 1:length(waypoints)
+    # Annotate waypoints by sequence
+    for i in 1:length(waypoint_lons)-1
         text!(ax, waypoint_lons[i], waypoint_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
     end
 
-    # MS route lat and longs
-    route_lats = [wp[2] for wp in waypoints]
-    route_lons = [wp[1] for wp in waypoints]
+    # Annotate centroids with cluster_ids
+    cluster_lons = [row.lon for row in eachrow(cluster_sequence[2:end-1,:])]
+    cluster_lats = [row.lat for row in eachrow(cluster_sequence[2:end-1,:])]
+    cluster_ids = [row.id for row in eachrow(cluster_sequence[2:end-1,:])]
 
-    # Exclusion zones
+    for i in 1:length(cluster_lons)
+        text!(ax, cluster_lons[i], cluster_lats[i] + 0.01, text = string(cluster_ids[i]), align = (:center, :center), color = :black)
+
+        # cluster circles
+        scatter!(ax, [cluster_lons[i]], [cluster_lats[i]], markersize = 10, color = (:red, 0.2), strokewidth = 0)
+
+        circle_lons = [cluster_lons[i] + cluster_radius * cos(θ) for θ in range(0, 2π, length=100)]
+        circle_lats = [cluster_lats[i] + cluster_radius * sin(θ) for θ in range(0, 2π, length=100)]
+        poly!(ax, circle_lons, circle_lats, color = (:red, 0.2), strokecolor = :red)
+    end
+
+    # Connect cluster centroids with a line
+    lines!(ax, waypoint_lons, waypoint_lats, color = :black, label = "Cluster Path")
+
+    # Plot exclusion zones
     for (i, zone) in enumerate(eachrow(exclusions))
         polygon = zone[:geometry]
         for ring in GeoInterface.coordinates(polygon)
@@ -168,7 +221,6 @@ function plot_waypoints_and_exclusions(waypoints::Vector{Point{2, Float64}}, exc
         end
     end
 
-    # axislegend(ax)
     display(fig)
 end
 
