@@ -1,13 +1,43 @@
+# TODO: Adapt code to use/incorporate the MSTProblem struct
 
-function load_problem(path::String="")
-    EPSG_code = 7844
-    depot = Point{2, Float64}(0.0, 0.0)
-    suitable_threshold = 50.0
-    k = 4
-    ms_depth = -10.0
+struct Threshold
+    min::Float64
+    max::Float64
+
+    Threshold(; min::Float64=-Inf, max::Float64=Inf) = new(min, max)
+end
+
+struct Constraint
+    name::String
+    threshold::Threshold
+    file_path::String
+end
+
+struct Vessel
+    speed::Float64
+    capacity::Int64
+    env_constraint::Vector{Constraint}
+
+    # Vessel(speed::Float64, capacity::Int; env_constraints::Constraints=Constraints()) = new(speed, capacity, env_constraints)
+end
+
+struct MSTProblem
+    data_file_path::String
+    depot::Point{2, Float64}
+    ms::Vessel
+    tender::Vessel
+end
+
+# TODO: Remove hard-coded dir paths!!
+function load_problem(;path::String="",
+    EPSG_code::Int=7844,
+    depot::Point{2, Float64}=Point{2, Float64}(0.0, 0.0),
+    suitable_threshold::Float64=50.0,
+    k::Int=4,
+    ms_depth::Float64=-10.0)
 
     # target site area location
-    subset = define_site() #GDF.read("data/site/Moore_2024-02-14b_v060_rc1.gpkg")
+    subset = define_site()
 
     suitable_targets_all_path = joinpath(path, "data/targets/Cairns-Cooktown_suitable_slopes.tif")
 
