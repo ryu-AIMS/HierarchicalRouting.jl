@@ -1,4 +1,16 @@
 
+mutable struct ClusterFields
+    centroid::Point{2, Float64}
+    # TODO: Add nodes and waypoints
+    # nodes::Vector{Point{2, Float64}}
+    # waypoints::NTuple{2, Point{2, Float64}}
+end
+
+struct Cluster
+    id::Int
+    attributes::ClusterFields
+end
+
 """
     cluster_targets(df::DataFrame, num_clust::Int64)
 
@@ -71,26 +83,24 @@ function centroids(clusters::Raster{Int16, 2}, depot::Tuple{Float64, Float64})
     return cluster_centroids
 end
 function centroids(clusters::Raster{Int16, 2})
-    unique_clusters = unique(clusters)
+    unique_clusters = sort(unique(clusters))
 
     # Remove the zero cluster ID (if present)
     unique_clusters = unique_clusters[unique_clusters .!= 0]
 
     coordinates = [(x, y) for x in clusters.dims[1], y in clusters.dims[2]]
 
-    cluster_centroids = DataFrame(id = Int[], lat = Float64[], lon = Float64[])
+    cluster_centroids = Cluster[]
 
-    # Add each cluster centroid to the DataFrame
+    # Push Cluster object to cluster centroid vector
     for id in unique_clusters
-        indices = findall(x -> x == id, clusters)
+        nodes = [(i[1], i[2]) for i in findall(==(id), clusters)]
 
-        lat = mean([coordinates[i][2] for i in indices])
-        lon = mean([coordinates[i][1] for i in indices])
+        lon = mean([coordinates[i[1]][1] for i in nodes])
+        lat = mean([coordinates[i[1]][2] for i in nodes])
 
-        push!(cluster_centroids, (id, lat, lon))
+        push!(cluster_centroids, Cluster(id, ClusterFields(Point{2, Float64}(lon, lat))))
     end
 
-    # Sort the centroids by id
-    sort!(cluster_centroids, :id)
     return cluster_centroids
 end
