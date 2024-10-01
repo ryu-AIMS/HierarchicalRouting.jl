@@ -20,16 +20,19 @@ function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
 end
 
 """
-    simplify_exclusions!(exclusions::DataFrame, simplify_tol=0.1)::DataFrame
+    simplify_exclusions!(exclusions::DataFrame; min_area::Real=200, simplify_tol::Real=10)::DataFrame
 
-Simplify exclusions by applying convex hull, and simplification operations to polygons.
+Simplify exclusions by applying a convex hull, removing small polygons, and simplifying.
 
 # Arguments
 - `exclusions::DataFrame`: The DataFrame containing exclusion zones.
-- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons. Default = 0.1
+- `min_area::Real`: The minimum area for exclusion polygons. Default = 200
+- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons. Default = 10
 """
-function simplify_exclusions!(exclusions::DataFrame; simplify_tol::Real=10)#0.7)
+function simplify_exclusions!(exclusions::DataFrame; min_area::Real=200, simplify_tol::Real=10)
+    # TODO: Update default args
     exclusions.geometry .= AG.convexhull.(exclusions.geometry)
+    exclusions = exclusions[AG.geomarea.(exclusions.geometry) .>= min_area, :]
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
     return exclusions
 end
