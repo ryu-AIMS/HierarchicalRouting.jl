@@ -1,4 +1,10 @@
 
+struct MSRoutingSolution
+    cluster_sequence::DataFrame
+    route::DataFrame
+    distance::Float64
+end
+
 """
     create_exclusion_zones(env_constraint::Raster, threshold::Float64)
 
@@ -25,10 +31,11 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
 - `nodes` : DataFrame containing id, lat, lon. Depot is cluster 0 in row 1.
 - `exclusions` : DataFrame containing exclusion zones.
 # Returns
-- `ordered_nodes` : Centroid sequence DataFrame (containing id, lat, lon).
-- `total_distance` : Total distance of the route.
+- `solution` : MSRoutingSolution object containing:
+    - `cluster_sequence` : Centroid sequence DataFrame (containing id, lat, lon).
+    - `route` : DataFrame of waypoints on the route.
+    - `distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
-- `waypoints` : DataFrame of waypoints on the route.
 """
 function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lat, row.lon) for row in eachrow(nodes)], exclusions)
@@ -62,7 +69,7 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
 
-    return ordered_nodes, total_distance, dist_matrix, get_waypoints(ordered_nodes)
+    return MSRoutingSolution(ordered_nodes, get_waypoints(ordered_nodes), total_distance), dist_matrix
 end
 
 """
@@ -128,9 +135,10 @@ Apply two-opt heuristic to improve the current route (by uncrossing crossed link
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
 
 # Returns
-- `ordered_centroids` : Improved return route to/from depot.
-- `best_distance` : Total distance of the best route.
-- `waypoints` : DataFrame of waypoints on the route.
+- `solution` : MSRoutingSolution object containing:
+    - `ordered_centroids` : Improved return route to/from depot.
+    - `waypoints` : DataFrame of waypoints on the route.
+    - `best_distance` : Total distance of the best route.
 """
 function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
     # If depot is last row, remove
@@ -168,7 +176,7 @@ function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
 
     ordered_centroids = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
-    return ordered_centroids, best_distance, get_waypoints(ordered_centroids)
+    return MSRoutingSolution(ordered_centroids, get_waypoints(ordered_centroids), best_distance)
 end
 
 """
