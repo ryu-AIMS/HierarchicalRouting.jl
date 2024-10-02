@@ -72,21 +72,21 @@ function create_clusters(clusters::Raster{Int16, 2}, depot=nothing)
 
     coords = [(x, y) for x in clusters.dims[1], y in clusters.dims[2]]
 
-    cluster_centroids = Cluster[]
+    cluster_vec = Cluster[]
 
     if depot !== nothing
-        push!(cluster_centroids, Cluster(0, ClusterFields(depot, [depot])))
+        push!(cluster_vec, Cluster(0, ClusterFields(depot, [depot])))
     end
 
     # Push Cluster object to cluster centroid vector
     for id in unique_clusters
-        nodes = [Tuple(I) for I in CartesianIndices(clusters) if clusters[I] == id] # [(i[1], i[2]) for i in findall(==(id), clusters)]
+        nodes = [(i[1], i[2]) for i in findall(==(id), clusters)]
 
         lon = mean([coords[i[1], i[2]][1] for i in nodes])
         lat = mean([coords[i[1], i[2]][2] for i in nodes])
 
-        push!(cluster_centroids, Cluster(id, ClusterFields(Point{2, Float64}(lon, lat), [Point{2, Float64}(coords[i[1]][1], coords[i[1]][2]) for i in nodes])))
+        push!(cluster_vec, Cluster(id, ClusterFields(Point{2, Float64}(lon, lat), [Point{2, Float64}(coords[i[1]][1], coords[i[1]][2]) for i in nodes])))
     end
 
-    return cluster_centroids
+    return cluster_vec
 end
