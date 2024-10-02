@@ -1,9 +1,17 @@
 
 mutable struct ClusterFields
     centroid::Point{2, Float64}
-    # TODO: Add nodes and waypoints
-    # nodes::Vector{Point{2, Float64}}
+    nodes::Vector{Point{2, Float64}}
+    # TODO: Add waypoints
     # waypoints::NTuple{2, Point{2, Float64}}
+
+    function ClusterFields(centroid::Point{2, Float64})
+        new(centroid, [centroid])  # nodes defaults to [centroid]
+    end
+
+    function ClusterFields(centroid::Point{2, Float64}, nodes::Vector{Point{2, Float64}})
+        new(centroid, nodes)
+    end
 end
 
 struct Cluster
@@ -44,62 +52,40 @@ function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
 end
 
 """
-    centroids(clusters::Raster{Int16, 2}, depot::Tuple{Float64, Float64})
+    create_clusters(clusters::Raster{Int16, 2}, depot=nothing)
 
 Calculate the centroids of the clusters in the raster.
 Depot included as cluster 0.
 
 # Arguments
 - `clusters` : Raster containing the cluster IDs.
-- `depot` : Coordinates of the depot.
+- `depot` : Optional depot point.
 
 # Returns
-A DataFrame containing the ID, latitude, and longitude of the centroids.
+A vector of Cluster objects.
 """
-function centroids(clusters::Raster{Int16, 2}, depot::Tuple{Float64, Float64})
-    unique_clusters = unique(clusters)
-
-    # Remove the zero cluster ID (if present)
-    unique_clusters = unique_clusters[unique_clusters .!= 0]
-
-    coordinates = [(x, y) for x in clusters.dims[1], y in clusters.dims[2]]
-
-    cluster_centroids = DataFrame(id = Int[], lat = Float64[], lon = Float64[])
-    # Add depot as cluster 0
-    push!(cluster_centroids, (0, depot[1], depot[2]))
-
-    # Add each cluster centroid to the DataFrame
-    for id in unique_clusters
-        indices = findall(x -> x == id, clusters)
-
-        lat = mean([coordinates[i][2] for i in indices])
-        lon = mean([coordinates[i][1] for i in indices])
-
-        push!(cluster_centroids, (id, lat, lon))
-    end
-
-    # Sort the centroids by id
-    sort!(cluster_centroids, :id)
-    return cluster_centroids
-end
-function centroids(clusters::Raster{Int16, 2})
+function create_clusters(clusters::Raster{Int16, 2}, depot=nothing)
     unique_clusters = sort(unique(clusters))
 
     # Remove the zero cluster ID (if present)
     unique_clusters = unique_clusters[unique_clusters .!= 0]
 
-    coordinates = [(x, y) for x in clusters.dims[1], y in clusters.dims[2]]
+    coords = [(x, y) for x in clusters.dims[1], y in clusters.dims[2]]
 
     cluster_centroids = Cluster[]
 
+    if depot !== nothing
+        push!(cluster_centroids, Cluster(0, ClusterFields(depot, [depot])))
+    end
+
     # Push Cluster object to cluster centroid vector
     for id in unique_clusters
-        nodes = [(i[1], i[2]) for i in findall(==(id), clusters)]
+        nodes = [Tuple(I) for I in CartesianIndices(clusters) if clusters[I] == id] # [(i[1], i[2]) for i in findall(==(id), clusters)]
 
-        lon = mean([coordinates[i[1]][1] for i in nodes])
-        lat = mean([coordinates[i[1]][2] for i in nodes])
+        lon = mean([coords[i[1], i[2]][1] for i in nodes])
+        lat = mean([coords[i[1], i[2]][2] for i in nodes])
 
-        push!(cluster_centroids, Cluster(id, ClusterFields(Point{2, Float64}(lon, lat))))
+        push!(cluster_centroids, Cluster(id, ClusterFields(Point{2, Float64}(lon, lat), [Point{2, Float64}(coords[i[1]][1], coords[i[1]][2]) for i in nodes])))
     end
 
     return cluster_centroids

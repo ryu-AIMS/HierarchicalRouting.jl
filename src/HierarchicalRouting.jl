@@ -42,7 +42,7 @@ export
     extract_subset,
     target_threshold,
     cluster_targets,
-    centroids
+    create_clusters
 
 export
     create_exclusion_zones,
