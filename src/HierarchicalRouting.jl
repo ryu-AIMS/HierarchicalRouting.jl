@@ -31,17 +31,8 @@ include("plotting/plots.jl")
 export
     load_problem
 
-export
-    to_multipolygon,
-    to_dataframe,
-    simplify_exclusions!,
-    buffer_exclusions!,
-    unionize_overlaps!
 
 export
-    extract_subset,
-    target_threshold,
-    cluster_targets,
     create_clusters
 
 export
