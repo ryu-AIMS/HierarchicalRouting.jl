@@ -25,7 +25,7 @@ struct MSTProblem
     data_file_path::String
     depot::Point{2, Float64}
     ms::Vessel
-    tender::Vessel
+    tenders::Vector{Vessel}
 end
 
 # TODO: Remove hard-coded dir paths!!
@@ -34,7 +34,9 @@ function load_problem(;path::String="",
     depot::Point{2, Float64}=Point{2, Float64}(0.0, 0.0),
     suitable_threshold::Float64=50.0,
     k::Int=4,
-    ms_depth::Float64=-10.0)
+    ms_depth::Float64=-10.0,
+    tend_depth::Float64=-5.0
+    )
 
     # target site area location
     subset = define_site()
@@ -46,7 +48,7 @@ function load_problem(;path::String="",
     clustered_targets_path = joinpath(path, "outputs/clustered_threshold=$(suitable_threshold)_targets_k=$(k).tif")
 
     # process targets
-    clustered_targets = process_targets(
+    clusters_raster = process_targets(
         clustered_targets_path,
         target_subset_threshold_path,
         k,
@@ -65,17 +67,29 @@ function load_problem(;path::String="",
 
     # process exclusions
     ms_exclusion_zones_df = process_exclusions(
-        ms_exclusion_gpkg_path,
-        ms_exclusion_tif_path,
-        bathy_subset_path,
         bathy_fullset_path,
-        EPSG_code,
         ms_depth,
-        subset
+        subset,
+        EPSG_code,
+        bathy_subset_path,
+        ms_exclusion_gpkg_path,
+        ms_exclusion_tif_path
     )
     ms_exclusions = ms_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
-    return clustered_targets, ms_exclusions#, tender_exclusions
+    t_exclusion_zones_df = process_exclusions(
+        bathy_fullset_path,
+        tend_depth,
+        subset,
+        EPSG_code,
+        bathy_subset_path,
+        joinpath(path, "outputs/t_exclusion.gpkg"),
+        joinpath(path, "outputs/t_exclusion.tif")
+    )
+    # t_exclusions = unionize_overlaps!(simplify_exclusions!(buffer_exclusions!(t_exclusion_zones_df, 0.1); min_area=100)) #|>  |> simplify_exclusions! |> unionize_overlaps!
+    # t_exclusions = t_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
+
+    return clusters_raster, ms_exclusions, t_exclusion_zones_df
 end
 
 function define_site()
@@ -125,21 +139,22 @@ end
 
 # TODO: Generalize for all available environmental constraints
 # TODO: Generalize for ms and tender vessels
-function process_exclusions(ms_exclusion_gpkg_path,
-    ms_exclusion_tif_path,
-    bathy_subset_path,
+function process_exclusions(
     bathy_fullset_path,
+    draft,
+    subset,
     EPSG_code,
-    ms_depth,
-    subset
+    bathy_subset_path,
+    exclusion_gpkg_path,
+    exclusion_tif_path
     )
     # Create exclusion zones from environmental constraints
-    if isfile(ms_exclusion_gpkg_path)
-        ms_exclusion_zones_df = GDF.read(ms_exclusion_gpkg_path)
+    if isfile(exclusion_gpkg_path)
+        exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     else
-        if isfile(ms_exclusion_tif_path)
-            ms_exclusion_zones_int = Raster(ms_exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
-            ms_exclusion_zones_bool = Raster(ms_exclusion_zones_int .== 0, dims(ms_exclusion_zones_int))
+        if isfile(exclusion_tif_path)
+            exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
+            exclusion_zones_bool = Raster(exclusion_zones_int .== 0, dims(exclusion_zones_int))
         else
             # Load environmental constraints
             # Bathymetry
@@ -150,26 +165,26 @@ function process_exclusions(ms_exclusion_gpkg_path,
                 bathy_subset = extract_subset(bathy_dataset, subset)
                 write(bathy_subset_path, bathy_subset; force=true)
             end
-            ms_exclusion_zones_bool = create_exclusion_zones(bathy_subset, ms_depth)
-            write(ms_exclusion_tif_path, convert.(Int16, ms_exclusion_zones_bool); force=true)
+            exclusion_zones_bool = create_exclusion_zones(bathy_subset, draft)
+            write(exclusion_tif_path, convert.(Int16, exclusion_zones_bool); force=true)
         end
 
-        ms_exclusion_zones_df = ms_exclusion_zones_bool |> to_multipolygon |> to_dataframe
+        exclusion_zones_df = exclusion_zones_bool |> to_multipolygon |> to_dataframe
         GDF.write(
-            ms_exclusion_gpkg_path,
-            ms_exclusion_zones_df;
+            exclusion_gpkg_path,
+            exclusion_zones_df;
             crs=EPSG(EPSG_code)
         )
     end
 
 
 
-    if isfile(ms_exclusion_gpkg_path)
-        return GDF.read(ms_exclusion_gpkg_path)
+    if isfile(exclusion_gpkg_path)
+        return GDF.read(exclusion_gpkg_path)
     else
-        if isfile(ms_exclusion_tif_path)
-            ms_exclusion_zones_int = Raster(ms_exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
-            ms_exclusion_zones_bool = Raster(ms_exclusion_zones_int .== 0, dims(ms_exclusion_zones_int))
+        if isfile(exclusion_tif_path)
+            exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
+            exclusion_zones_bool = Raster(exclusion_zones_int .== 0, dims(exclusion_zones_int))
         else
             # Load environmental constraints
             # Bathymetry
@@ -180,16 +195,16 @@ function process_exclusions(ms_exclusion_gpkg_path,
                 bathy_subset = extract_subset(bathy_dataset, subset)
                 write(bathy_subset_path, bathy_subset; force=true)
             end
-            ms_exclusion_zones_bool = create_exclusion_zones(bathy_subset, ms_depth)
-            write(ms_exclusion_tif_path, convert.(Int16, ms_exclusion_zones_bool); force=true)
+            exclusion_zones_bool = create_exclusion_zones(bathy_subset, draft)
+            write(exclusion_tif_path, convert.(Int16, exclusion_zones_bool); force=true)
         end
 
-        ms_exclusion_zones_df = ms_exclusion_zones_bool |> to_multipolygon |> to_dataframe
+        exclusion_zones_df = exclusion_zones_bool |> to_multipolygon |> to_dataframe
         GDF.write(
-            ms_exclusion_gpkg_path,
-            ms_exclusion_zones_df;
+            exclusion_gpkg_path,
+            exclusion_zones_df;
             crs=EPSG(EPSG_code)
         )
-        return ms_exclusion_zones_df
+        return exclusion_zones_df
     end
 end
