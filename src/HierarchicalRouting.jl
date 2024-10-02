@@ -40,7 +40,8 @@ export
     nearest_neighbour,
     two_opt,
     return_route_distance,
-    two_opt_swap
+    two_opt_swap,
+    tender_sequential_nearest_neighbour
 
 export
     plot_polygons,

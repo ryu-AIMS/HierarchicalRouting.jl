@@ -2,7 +2,19 @@
 struct MSRoutingSolution
     cluster_sequence::DataFrame
     route::DataFrame
-    distance::Float64
+    cost::Float64
+end
+
+struct Sortie
+    nodes::Vector{Point{2, Float64}}
+    cost::Float64
+end
+
+struct TenderRoutingSolution
+    # tender::Tender
+    cluster_id::Int
+    sorties::Vector{Sortie}
+    cost::Float64
 end
 
 """
@@ -233,4 +245,45 @@ Route starting with the depot.
 function orient_route(route::Vector{Int64})
     idx = findfirst(==(1), route)
     return vcat(route[idx:end], route[1:idx-1])
+end
+
+function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple{2, Point{2, Float64}}, n_tenders::Int, t_cap::Int, exclusions::DataFrame)
+    nodes = [waypoints[1]]
+    append!(nodes, cluster.attributes.nodes)
+
+    dist_matrix = get_feasible_matrix([Point{2, Float64}(node[2], node[1]) for node in nodes], exclusions)
+
+    # initialise each tender at first waypoint
+    tender_tours = [fill(0, t_cap) for _ in 1:n_tenders] # [Vector{Int}(undef, t_cap+2) for _ in 1:n_tenders]
+
+    visited = falses(length(nodes))
+    visited[1] = true
+
+    # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop by stop
+    for i in 1:t_cap
+        for j in 1:n_tenders
+            # TODO: check conditions
+            if count(visited) == length(visited)
+                break
+            end
+
+            current_node = i == 1 ? 1 : tender_tours[j][i-1]
+
+            distances = dist_matrix[current_node, :]
+            vis_idxs = findall(v -> v != 0, visited)
+            distances[vis_idxs] .= Inf
+            nearest_idx = argmin(distances)
+
+            tender_tours[j][i] = nearest_idx
+            visited[nearest_idx] = true
+        end
+    end
+
+    sortie_dist = [dist_matrix[1, tour[1]] for tour in tender_tours]
+    sortie_dist .+= [dist_matrix[tour[i], tour[i+1]] for i in 1:(t_cap-1) for tour in tender_tours]
+    sortie_dist .+= [dist_matrix[tour[end], 1] for tour in tender_tours]
+
+    total_distance = sum(sortie_dist)
+
+    return TenderRoutingSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance), dist_matrix
 end
