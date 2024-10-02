@@ -18,7 +18,8 @@ Create exclusion zones based on environmental raster data and vessel threshold.
 Exclusion zones for environmental constraint and vessel threshold provided.
 """
 function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
-    exclusion_zones = env_constraint .>= threshold
+    # TODO: kwargs to specify max/min threshold values
+    exclusion_zones = (env_constraint .<= threshold) # .| (env_constraint .== env_constraint.missingval)
     return exclusion_zones
 end
 
