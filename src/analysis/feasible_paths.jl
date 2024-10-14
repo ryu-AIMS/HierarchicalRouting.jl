@@ -56,6 +56,7 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
         (left_point, right_point), current_exclusion_idx = find_next_points(current_point, final_point, exclusions, exclusion_idx[current_node_idx])
         new_points = [pt for pt in (left_point, right_point) if pt !== nothing]
 
+        # TODO: Check if path from current point to new_points intersects any other exclusion polygons
         append!(points, new_points)
         append!(parent_points, fill(current_point, length(new_points)))
         append!(exclusion_idx, fill(current_exclusion_idx, length(new_points)))
@@ -180,9 +181,7 @@ function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::
 
         if !has_vertex_in_bbox
             # Check if line crosses bounding box
-            polygon_points = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
-            poly_xs = [p[1] for p in polygon_points]
-            poly_ys = [p[2] for p in polygon_points]
+            poly_xs, poly_ys, _ = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
 
             crosses_bbox = (
                 line_min_x <= maximum(poly_xs) &&
