@@ -172,8 +172,8 @@ function plot_centroids_and_exclusions(cluster_centroids_df::DataFrame, exclusio
     display(fig)
 end
 
-function plot_waypoints_and_exclusions(route_df::DataFrame, exclusions::DataFrame,
-    cluster_sequence::DataFrame, cluster_radius=100)
+function plot_waypoints_and_exclusions(route_df::DataFrame, cluster_sequence::DataFrame,
+    exclusions::DataFrame, cluster_radius=100)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route with Cluster Centroids", xlabel = "Longitude", ylabel = "Latitude")
 
