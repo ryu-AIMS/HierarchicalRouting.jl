@@ -249,6 +249,26 @@ function orient_route(route::Vector{Int64})
     return vcat(route[idx:end], route[1:idx-1])
 end
 
+"""
+    tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple{2, Point{2, Float64}}, n_tenders::Int, t_cap::Int, exclusions::DataFrame)
+
+Assign nodes to tenders sequentially based on nearest neighbor.
+
+# Arguments
+- `cluster` : Cluster object containing nodes.
+- `waypoints` : Tuple of start and end waypoints.
+- `n_tenders` : Number of tenders.
+- `t_cap` : Tender capacity.
+- `exclusions` : DataFrame containing exclusion zones.
+
+# Returns
+- `solution` : TenderRoutingSolution object containing:
+    - `cluster_id` : Cluster ID.
+    - `sorties` : Vector of Sortie objects containing nodes and sortie distance.
+    - `cost` : Total distance of the route.
+    - `start` : Start waypoint.
+    - `finish` : End waypoint.
+"""
 function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple{2, Point{2, Float64}}, n_tenders::Int, t_cap::Int, exclusions::DataFrame)
     nodes = [waypoints[1]]
     append!(nodes, cluster.attributes.nodes)
