@@ -15,6 +15,8 @@ struct TenderRoutingSolution
     cluster_id::Int
     sorties::Vector{Sortie}
     cost::Float64
+    start::Point{2, Float64}
+    finish::Point{2, Float64}
 end
 
 """
@@ -279,11 +281,15 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
         end
     end
 
+    # if tender_cap is not filled, delete excess elements
+    tender_tours .= [count(tour .== 0) > 0 ? tour[1:findfirst(==(0), tour)-1] : tour for tour in tender_tours]
+
+    # TODO: Handling for empty tender tours
     sortie_dist = [dist_matrix[1, tour[1]] for tour in tender_tours]
-    sortie_dist .+= [dist_matrix[tour[i], tour[i+1]] for i in 1:(t_cap-1) for tour in tender_tours]
+    sortie_dist .+= [length(tour) > 1 ? sum([dist_matrix[tour[i], tour[i+1]] for i in 1:(length(tour)-1)]) : 0 for tour in tender_tours]
     sortie_dist .+= [dist_matrix[tour[end], 1] for tour in tender_tours]
 
     total_distance = sum(sortie_dist)
 
-    return TenderRoutingSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance), dist_matrix
+    return TenderRoutingSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance, waypoints[1], waypoints[2]), dist_matrix
 end
