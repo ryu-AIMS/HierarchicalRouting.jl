@@ -279,3 +279,54 @@ function plot_waypoints_and_exclusions_with_graph(g::SimpleWeightedGraph{Int64, 
 
     display(fig)
 end
+
+function plot_tender_routes(tender_soln::Vector{TenderRoutingSolution}, waypoints::Vector{Point{2, Float64}})
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
+
+    # Create a colormap (e.g., :viridis) with distinct colors for each tender solution
+    num_tenders = length(tender_soln)
+    colormap = distinguishable_colors(num_tenders + 1)[2:end]
+
+    for (t, t_soln) in enumerate(tender_soln)
+        color = colormap[t]
+
+        for route in t_soln.sorties
+            nodes = [t_soln.start]
+            append!(nodes, [node for node in route.nodes])
+            append!(nodes, [t_soln.finish])
+
+            node_lons = [wp[1] for wp in nodes]
+            node_lats = [wp[2] for wp in nodes]
+
+            scatter!(ax, node_lons, node_lats, markersize = 5, color = :red, label = "Waypoints")
+
+            for i in 1:length(nodes)
+                text!(ax, node_lons[i], node_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
+            end
+
+            lines!(ax, node_lons, node_lats, color = color, linewidth = 1)
+        end
+    end
+
+    # plot waypoints with black line
+    waypoint_lons = [wp[1] for wp in waypoints]
+    waypoint_lats = [wp[2] for wp in waypoints]
+
+    lines!(ax, waypoint_lons, waypoint_lats, color = :black, linewidth = 2, label = "Mothership")
+
+    # for (i, zone) in enumerate(eachrow(exclusions))
+    #     polygon = zone[:geometry]
+    #     for ring in GeoInterface.coordinates(polygon)
+    #         xs = [coord[1] for coord in ring]
+    #         ys = [coord[2] for coord in ring]
+    #         poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+
+    #         centroid_x, centroid_y = mean(xs), mean(ys)
+    #         text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+    #     end
+    # end
+
+    display(fig)
+
+end

@@ -49,7 +49,8 @@ export
     plot_route_w_exclusions,
     plot_centroids_and_exclusions,
     plot_waypoints_and_exclusions,
-    plot_waypoints_and_exclusions_with_graph
+    plot_waypoints_and_exclusions_with_graph,
+    plot_tender_routes
 
 export EPSG
 
