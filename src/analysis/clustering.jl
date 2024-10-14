@@ -82,10 +82,13 @@ function create_clusters(clusters::Raster{Int16, 2}, depot=nothing)
     for id in unique_clusters
         nodes = [(i[1], i[2]) for i in findall(==(id), clusters)]
 
-        lon = mean([coords[i[1], i[2]][1] for i in nodes])
-        lat = mean([coords[i[1], i[2]][2] for i in nodes])
+        # lon = mean([coords[i[1], i[2]][1] for i in nodes])
+        # lat = mean([coords[i[1], i[2]][2] for i in nodes])
+        row_cent = mean([node[1] for node in nodes])
+        col_cent = mean([node[2] for node in nodes])
 
-        push!(cluster_vec, Cluster(id, ClusterFields(Point{2, Float64}(lon, lat), [Point{2, Float64}(coords[i[1]][1], coords[i[1]][2]) for i in nodes])))
+        # push!(cluster_vec, Cluster(id, ClusterFields(Point{2, Float64}(lon, lat), [Point{2, Float64}(coords[i[1], i[2]][1], coords[i[1], i[2]][2]) for i in nodes])))
+        push!(cluster_vec, Cluster(id, ClusterFields(Point{2, Float64}(row_cent, col_cent), [Point{2, Float64}(node[1], node[2]) for node in nodes])))
     end
 
     return cluster_vec
