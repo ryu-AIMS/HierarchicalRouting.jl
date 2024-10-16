@@ -305,11 +305,28 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
     tender_tours .= [count(tour .== 0) > 0 ? tour[1:findfirst(==(0), tour)-1] : tour for tour in tender_tours]
 
     # TODO: Handling for empty tender tours
-    sortie_dist = [dist_matrix[1, tour[1]] for tour in tender_tours]
-    sortie_dist .+= [length(tour) > 1 ? sum([dist_matrix[tour[i], tour[i+1]] for i in 1:(length(tour)-1)]) : 0 for tour in tender_tours]
-    sortie_dist .+= [dist_matrix[tour[end], 1] for tour in tender_tours]
+    sortie_dist = sortie_cost(tender_tours, dist_matrix)
 
     total_distance = sum(sortie_dist)
 
     return TenderRoutingSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance, waypoints[1], waypoints[2]), dist_matrix
+
+"""
+    sortie_cost(sortie::Vector{Vector{Int64}}, dist_matrix::Matrix{Float64})
+
+Calculate the total distance of all sorties.
+
+# Arguments
+- `sorties` : Vector of Vector of node indices.
+- `dist_matrix` : Distance matrix between nodes.
+
+# Returns
+Vector of total distance of each sortie.
+"""
+function sortie_cost(sorties::Vector{Vector{Int64}}, dist_matrix::Matrix{Float64})::Vector{Float64}
+    # TODO: Handling for empty tender tours
+    sortie_dist = [dist_matrix[1, tour[1]] for tour in sorties]
+    sortie_dist .+= [length(tour) > 1 ? sum([dist_matrix[tour[i], tour[i+1]] for i in 1:(length(tour)-1)]) : 0 for tour in sorties]
+    sortie_dist .+= [dist_matrix[tour[end], 1] for tour in sorties]
+    return sortie_dist
 end
