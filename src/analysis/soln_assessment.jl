@@ -64,3 +64,40 @@ function critical_path(soln::MSTSolution)
     tender_cost = sum(longest_sortie)
     return tender_cost + soln.mothership.cost
 end
+
+function perturb_solution(soln::MSTSolution)
+    new_soln = deepcopy(soln)
+
+    # Choose ONE random cluster - assume fixed clustering
+    # TODO: Choose two random clusters to swap between - will these ever return an improvement?
+    clust_idx = rand(1:length(new_soln.clusters))
+    cluster = new_soln.clusters[clust_idx]
+    # clust_a_idx, clust_b_idx = rand(1:length(new_soln.clusters), 2)
+    # cluster_a = new_soln.clusters[clust_idx]
+    # cluster_b = new_soln.clusters[clust_idx]
+
+    # Choose TWO random sorties from the cluster
+    sortie_a_idx, sortie_b_idx = rand(1:length(cluster.sorties), 2)
+    sortie_a, sortie_b = cluster.sorties[sortie_a_idx], cluster.sorties[sortie_b_idx]
+
+    if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
+        return new_soln # No perturbation possible if a sortie has no nodes
+    end
+
+    node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes), 2)
+    node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
+
+    # Swap the nodes between the two sorties
+    new_soln.clusters[clust_idx].sorties[sortie_a_idx].nodes[node_a_idx] = node_b
+    new_soln.clusters[clust_idx].sorties[sortie_b_idx].nodes[node_b_idx] = node_a
+
+    # TODO: Recompute the cost for each modified sortie
+    # This assumes a function `compute_sortie_cost` exists
+    # sortie1.cost = compute_sortie_cost(sortie1)
+    # sortie2.cost = compute_sortie_cost(sortie2)
+
+    # Update the tender's total cost if necessary
+    # tender.cost = sum(sortie.cost for sortie in tender.sorties)
+
+    return new_soln
+end

@@ -59,5 +59,6 @@ export
     initial_solution,
     total_dist,
     critical_path,
+    perturb_solution
 
 end
