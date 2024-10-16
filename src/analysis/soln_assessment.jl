@@ -54,3 +54,13 @@ function initial_solution()
 
     return initial_solution(clusts, ms_exclusions, t_exclusions)
 end
+
+function total_dist(soln::MSTSolution)
+    return soln.mothership.cost + sum([cluster.cost for cluster in soln.clusters])
+end
+
+function critical_path(soln::MSTSolution)
+    longest_sortie = [maximum([sortie.cost for sortie in cluster.sorties]) for cluster in soln.clusters]
+    tender_cost = sum(longest_sortie)
+    return tender_cost + soln.mothership.cost
+end

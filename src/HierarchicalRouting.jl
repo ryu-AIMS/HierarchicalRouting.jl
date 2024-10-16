@@ -57,5 +57,7 @@ export EPSG
 
 export
     initial_solution,
+    total_dist,
+    critical_path,
 
 end
