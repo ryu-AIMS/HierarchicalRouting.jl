@@ -1,3 +1,7 @@
+
+using Glob
+using TOML
+
 # TODO: Adapt code to use/incorporate the MSTProblem struct
 
 struct Threshold
@@ -14,10 +18,10 @@ struct Constraint
 end
 
 struct Vessel
+    # TODO: add vessel weighting
     speed::Float64
     capacity::Int64
     env_constraint::Vector{Constraint}
-
     # Vessel(speed::Float64, capacity::Int; env_constraints::Constraints=Constraints()) = new(speed, capacity, env_constraints)
 end
 
@@ -29,23 +33,27 @@ struct MSTProblem
 end
 
 # TODO: Remove hard-coded dir paths!!
-function load_problem(;path::String="",
-    EPSG_code::Int=7844,
-    depot::Point{2, Float64}=Point{2, Float64}(0.0, 0.0),
-    suitable_threshold::Float64=50.0,
-    k::Int=4,
-    ms_depth::Float64=-10.0,
-    tend_depth::Float64=-5.0
-    )
+function load_problem()
 
-    # target site area location
-    subset = define_site()
+    config = TOML.parsefile(joinpath("src",".config.toml"))
 
-    suitable_targets_all_path = joinpath(path, "data/targets/Cairns-Cooktown_suitable_slopes.tif")
+    site_dir = config["data_dir"]["site"]
+    targets_dir = config["data_dir"]["targets"]
+    env_constraints_dir = config["data_dir"]["env_constraints"]
 
-    target_subset_path = joinpath(path, "outputs/target_subset.tif")
-    target_subset_threshold_path = joinpath(path, "outputs/target_subset_threshold=$(suitable_threshold).tif")
-    clustered_targets_path = joinpath(path, "outputs/clustered_threshold=$(suitable_threshold)_targets_k=$(k).tif")
+    output_dir = config["output_dir"]["path"]
+
+    suitable_threshold = config["parameters"]["suitable_threshold"]
+    k = config["parameters"]["k"]
+    EPSG_code = config["parameters"]["EPSG_code"]
+
+    subset = GDF.read(first(glob("*.gpkg", site_dir)))
+
+    suitable_targets_all_path = first(glob("*.tif", targets_dir))
+
+    target_subset_path = joinpath(output_dir, "target_subset.tif")
+    target_subset_threshold_path = joinpath(output_dir, "target_subset_threshold=$(suitable_threshold).tif")
+    clustered_targets_path = joinpath(output_dir, "clustered_threshold=$(suitable_threshold)_targets_k=$(k).tif")
 
     # process targets
     clusters_raster = process_targets(
@@ -59,48 +67,44 @@ function load_problem(;path::String="",
         EPSG_code
     )
 
-    bathy_fullset_path = joinpath(path, "data/bathy/Cairns-Cooktown/Cairns-Cooktown_bathy.tif")
+    # Dynamically discover subfolders in env_constraints_dir
+    env_subfolders = readdir(env_constraints_dir)
+    env_paths = Dict(subfolder => joinpath(env_constraints_dir, subfolder) for subfolder in env_subfolders)
 
-    ms_exclusion_gpkg_path = joinpath(path, "outputs/ms_exclusion.gpkg")
-    ms_exclusion_tif_path = joinpath(path, "outputs/ms_exclusion.tif")
-    bathy_subset_path = joinpath(path, "outputs/bathy_subset.tif")
+    # TODO: Use these paths to process all environmental constraints
+    for (subfolder, path) in env_paths
+        @eval $(Symbol("env_dir_" * subfolder)) = $path
+        @eval $(Symbol("rast_path_" * subfolder)) = glob("*.tif", $(Symbol("env_dir_" * subfolder)))
+    end
+    bathy_fullset_path = rast_path_bathy
+
+    bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
     # process exclusions
     ms_exclusion_zones_df = process_exclusions(
         bathy_fullset_path,
-        ms_depth,
+        config["parameters"]["ms_depth"],
         subset,
         EPSG_code,
         bathy_subset_path,
-        ms_exclusion_gpkg_path,
-        ms_exclusion_tif_path
+        joinpath(output_dir, "ms_exclusion.gpkg"),
+        joinpath(output_dir, "ms_exclusion.tif")
     )
     ms_exclusions = ms_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
     t_exclusion_zones_df = process_exclusions(
         bathy_fullset_path,
-        tend_depth,
+        config["parameters"]["tend_depth"],
         subset,
         EPSG_code,
         bathy_subset_path,
-        joinpath(path, "outputs/t_exclusion.gpkg"),
-        joinpath(path, "outputs/t_exclusion.tif")
+        joinpath(output_dir, "t_exclusion.gpkg"),
+        joinpath(output_dir, "t_exclusion.tif")
     )
     # t_exclusions = unionize_overlaps!(simplify_exclusions!(buffer_exclusions!(t_exclusion_zones_df, 0.1); min_area=100)) #|>  |> simplify_exclusions! |> unionize_overlaps!
     # t_exclusions = t_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
     return clusters_raster, ms_exclusions, t_exclusion_zones_df
-end
-
-function define_site()
-    files = readdir("data/site"; join=true)
-    gpkg_file = files[endswith.(files, ".gpkg")]
-
-    if length(gpkg_file) == 1
-        return GDF.read(gpkg_file[1])
-    else
-        error("Expected .gpkg site area file in 'data/site', but found $(length(gpkg_file)).")
-    end
 end
 
 # TODO Generalize

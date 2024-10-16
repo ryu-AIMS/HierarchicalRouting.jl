@@ -1,0 +1,20 @@
+
+[data_dir]
+site = "data/site"
+env_constraints = "data/env_constraints"
+targets = "data/targets"
+
+[output_dir]
+path = "outputs"
+
+[parameters]
+EPSG_code = 7844
+depot_x = 50.0
+depot_y = 200.0
+suitable_threshold = 50.0
+k = 5
+ms_depth = -10.0
+tend_depth = -5.0
+
+n_tenders = 3
+t_cap = 2
