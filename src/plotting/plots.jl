@@ -299,11 +299,11 @@ function plot_tender_routes(tender_soln::Vector{TenderRoutingSolution}, waypoint
             node_lons = [wp[1] for wp in nodes]
             node_lats = [wp[2] for wp in nodes]
 
-            scatter!(ax, node_lons, node_lats, markersize = 5, color = :red, label = "Waypoints")
+            scatter!(ax, node_lons, node_lats, markersize = 5, color = color)
 
-            for i in 1:length(nodes)
-                text!(ax, node_lons[i], node_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
-            end
+            # for i in 1:length(nodes)
+            #     text!(ax, node_lons[i], node_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
+            # end
 
             lines!(ax, node_lons, node_lats, color = color, linewidth = 1)
         end
