@@ -280,7 +280,7 @@ function plot_waypoints_and_exclusions_with_graph(g::SimpleWeightedGraph{Int64, 
     display(fig)
 end
 
-function plot_tender_routes(tender_soln::Vector{TenderRoutingSolution}, waypoints::Vector{Point{2, Float64}})
+function plot_tender_routes(tender_soln::Vector{ClusterSolution}, waypoints::Vector{Point{2, Float64}})
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
 

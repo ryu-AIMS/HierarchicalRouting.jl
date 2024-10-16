@@ -1,5 +1,5 @@
 
-struct MSRoutingSolution
+struct MothershipSolution
     cluster_sequence::DataFrame
     route::DataFrame
     cost::Float64
@@ -10,13 +10,18 @@ struct Sortie
     cost::Float64
 end
 
-struct TenderRoutingSolution
+struct ClusterSolution
     # tender::Tender
-    cluster_id::Int
+    id::Int
     sorties::Vector{Sortie}
-    cost::Float64
+    cost::Float64   # TODO: delete? redundant with sum(...) and critical path metric...
     start::Point{2, Float64}
     finish::Point{2, Float64}
+end
+
+struct MSTSolution
+    mothership::MothershipSolution
+    clusters::Vector{ClusterSolution}
 end
 
 """
@@ -84,7 +89,7 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
 
-    return MSRoutingSolution(ordered_nodes, get_waypoints(ordered_nodes), total_distance), dist_matrix
+    return MothershipSolution(ordered_nodes, get_waypoints(ordered_nodes), total_distance), dist_matrix
 end
 
 """
@@ -191,7 +196,7 @@ function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
 
     ordered_centroids = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
-    return MSRoutingSolution(ordered_centroids, get_waypoints(ordered_centroids), best_distance)
+    return MothershipSolution(ordered_centroids, get_waypoints(ordered_centroids), best_distance)
 end
 
 """
@@ -309,7 +314,8 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
 
     total_distance = sum(sortie_dist)
 
-    return TenderRoutingSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance, waypoints[1], waypoints[2]), dist_matrix
+    return ClusterSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance, waypoints[1], waypoints[2]), dist_matrix
+end
 
 """
     sortie_cost(sortie::Vector{Vector{Int64}}, dist_matrix::Matrix{Float64})
