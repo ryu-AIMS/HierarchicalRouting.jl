@@ -280,7 +280,7 @@ function plot_waypoints_and_exclusions_with_graph(g::SimpleWeightedGraph{Int64, 
     display(fig)
 end
 
-function plot_tender_routes(tender_soln::Vector{ClusterSolution}, waypoints::Vector{Point{2, Float64}})
+function plot_tender_routes(tender_soln::Vector{ClusterSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
 
@@ -315,17 +315,22 @@ function plot_tender_routes(tender_soln::Vector{ClusterSolution}, waypoints::Vec
 
     lines!(ax, waypoint_lons, waypoint_lats, color = :black, linewidth = 2, label = "Mothership")
 
-    # for (i, zone) in enumerate(eachrow(exclusions))
-    #     polygon = zone[:geometry]
-    #     for ring in GeoInterface.coordinates(polygon)
-    #         xs = [coord[1] for coord in ring]
-    #         ys = [coord[2] for coord in ring]
-    #         poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+    # Annotate waypoints by sequence
+    for i in 1:length(waypoint_lons)-1
+        text!(ax, waypoint_lons[i], waypoint_lats[i] - 5, text = string(i), align = (:center, :center), color = :black)
+    end
 
-    #         centroid_x, centroid_y = mean(xs), mean(ys)
-    #         text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
-    #     end
-    # end
+    for (i, zone) in enumerate(eachrow(exclusions))
+        polygon = zone[:geometry]
+        for ring in GeoInterface.coordinates(polygon)
+            xs = [coord[1] for coord in ring]
+            ys = [coord[2] for coord in ring]
+            poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+
+            centroid_x, centroid_y = mean(xs), mean(ys)
+            text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+        end
+    end
 
     display(fig)
 
