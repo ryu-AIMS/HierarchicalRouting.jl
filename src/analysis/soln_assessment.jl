@@ -136,12 +136,13 @@ function perturb_solution(soln::MSTSolution)
     # TODO: Choose two random clusters to swap between - will these ever return an improvement?
     clust_idx = rand(1:length(new_soln.clusters))
     cluster = new_soln.clusters[clust_idx]
-    # clust_a_idx, clust_b_idx = rand(1:length(new_soln.clusters), 2)
-    # cluster_a = new_soln.clusters[clust_idx]
-    # cluster_b = new_soln.clusters[clust_idx]
 
     # Choose TWO random sorties from the cluster
     sortie_a_idx, sortie_b_idx = rand(1:length(cluster.sorties), 2)
+    # TODO: Allow same sortie if not applying two-opt
+    while sortie_a_idx == sortie_b_idx
+        sortie_b_idx = rand(1:length(cluster.sorties))
+    end
     sortie_a, sortie_b = cluster.sorties[sortie_a_idx], cluster.sorties[sortie_b_idx]
 
     if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
@@ -154,6 +155,8 @@ function perturb_solution(soln::MSTSolution)
     # Swap the nodes between the two sorties
     new_soln.clusters[clust_idx].sorties[sortie_a_idx].nodes[node_a_idx] = node_b
     new_soln.clusters[clust_idx].sorties[sortie_b_idx].nodes[node_b_idx] = node_a
+
+    # TODO:Re-run two-opt on the modified sorties
 
     # TODO: Recompute the cost for each modified sortie
     # This assumes a function `compute_sortie_cost` exists
