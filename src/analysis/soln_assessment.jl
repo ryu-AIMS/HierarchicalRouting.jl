@@ -168,3 +168,76 @@ function perturb_solution(soln::MSTSolution)
 
     return new_soln
 end
+
+"""
+    simulated_annealing(
+        soln_init::MSTSolution,
+        objective_function::Function,
+        perturb_function::Function,
+        max_iterations::Int = 100_000,
+        temp_init::Float64 = 50.0,
+        cooling_rate::Float64 = 0.99_99
+    )
+
+Simulated Annealing optimization algorithm to optimize the solution.
+
+# Arguments
+- `soln_init` : Initial solution.
+- `objective_function` : Function to evaluate the solution.
+- `perturb_function` : Function to perturb the solution.
+- `max_iterations` : Maximum number of iterations. Default = 100_000.
+- `temp_init` : Initial temperature. Default = 50.0.
+- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.99_99 = 99.99%
+
+# Returns
+- `soln_best` : Best solution found.
+- `obj_best` : Objective value of the best solution.
+"""
+function simulated_annealing(
+    soln_init::MSTSolution,
+    objective_function::Function,
+    perturb_function::Function,
+    max_iterations::Int = 100_000,
+    temp_init::Float64 = 50.0,
+    cooling_rate::Float64 = 0.9999
+)
+
+    # Initialize the solution and temperature
+    soln_current = soln_init
+    obj_current = objective_function(soln_current)
+    soln_best = soln_current
+    obj_best = obj_current
+    temp = temp_init
+
+    println("Iteration \tBest Value \t\tTemp")
+    println("0\t\t$obj_best\t$temp")
+
+    for iteration in 1:max_iterations
+        soln_proposed = perturb_function(soln_current)
+        obj_proposed = objective_function(soln_proposed)
+
+        obj_delta = obj_proposed - obj_current
+
+        # If the new solution is improved OR meets acceptance prob criteria
+        if obj_delta < 0 || exp(-obj_delta / temp) > rand()
+            soln_current = soln_proposed
+            obj_current = obj_proposed
+
+            if obj_current < obj_best
+                soln_best = soln_current
+                obj_best = obj_current
+            end
+        end
+
+        temp *= cooling_rate
+
+        if iteration % 10000 == 0
+            println("$iteration\t\t$obj_best\t$temp")
+        end
+    end
+
+    println("Final Value: $obj_best")
+    println("Δ: $(objective_function(soln_init) - obj_best)")
+
+    return soln_best, obj_best
+end

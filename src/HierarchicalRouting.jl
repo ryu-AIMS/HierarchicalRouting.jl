@@ -59,6 +59,7 @@ export
     initial_solution,
     total_dist,
     critical_path,
-    perturb_solution
+    perturb_solution,
+    simulated_annealing
 
 end
