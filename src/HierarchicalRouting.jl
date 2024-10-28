@@ -14,7 +14,7 @@ import GeoInterface as GI
 import GeometryOps as GO
 import GeoDataFrames as GDF
 
-using FLoops
+using Distances: euclidean # haversine
 using Distances: haversine
 using Graphs, SimpleWeightedGraphs
 
@@ -40,8 +40,6 @@ export
     create_exclusion_zones,
     nearest_neighbour,
     two_opt,
-    return_route_distance,
-    two_opt_swap,
     tender_sequential_nearest_neighbour
 
 export
@@ -52,8 +50,6 @@ export
     plot_waypoints_and_exclusions,
     plot_waypoints_and_exclusions_with_graph,
     plot_tender_routes
-
-export EPSG
 
 export
     initial_solution,
