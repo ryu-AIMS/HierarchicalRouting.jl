@@ -3,6 +3,8 @@
 site = "data/site"
 env_constraints = "data/env_constraints"
 targets = "data/targets"
+target_scenarios = "data/targets/scenarios"
+
 
 [output_dir]
 path = "outputs"

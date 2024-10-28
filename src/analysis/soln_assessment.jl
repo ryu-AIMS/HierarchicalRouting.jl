@@ -48,8 +48,8 @@ function initial_solution(clusts::Vector{Cluster}, ms_exclusions::DataFrame, t_e
     # mothership = ClusterSolution(0, [clusters[1]], 0.0)
     return MSTSolution(ms_soln_2opt, tender_soln_NN) # MSTSolution(mothership, clusters)
 end
-function initial_solution()
-    clusters_raster, ms_exclusions, t_exclusions = load_problem()
+function initial_solution(target_scenario::String="")
+    clusters_raster, ms_exclusions, t_exclusions = load_problem(target_scenario)
     clusts = create_clusters(clusters_raster)
 
     return initial_solution(clusts, ms_exclusions, t_exclusions), clusts, ms_exclusions, t_exclusions
