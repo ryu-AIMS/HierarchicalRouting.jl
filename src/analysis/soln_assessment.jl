@@ -15,11 +15,11 @@ function initial_solution(clusts::Vector{Cluster}, ms_exclusions::DataFrame, t_e
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN, ms_feasible_matrix = nearest_neighbour(cluster_centroids_df, ms_exclusions)
-    # plot_waypoints_and_exclusions(ms_soln_NN.route, ms_soln_NN.cluster_sequence, ms_exclusions, 10)
+    # plot_waypoints_and_exclusions(ms_soln_NN.route, ms_soln_NN.cluster_sequence, ms_exclusions) #, 10)
 
     # 2-opt to improve the NN soln
     ms_soln_2opt = two_opt(ms_soln_NN.cluster_sequence, ms_feasible_matrix)
-    # plot_waypoints_and_exclusions(ms_soln_2opt.route, ms_soln_2opt.cluster_sequence, ms_exclusions, 10)
+    # plot_waypoints_and_exclusions(ms_soln_2opt.route, ms_soln_2opt.cluster_sequence, ms_exclusions)#, 10)
 
     #Refs to `clusts` rather than `clusters` because `clusts` have sub-cluster nodes
     clust_seq = [i for i in ms_soln_2opt.cluster_sequence.id if i!==0 && i <= length(clusts)]
@@ -28,7 +28,6 @@ function initial_solution(clusts::Vector{Cluster}, ms_exclusions::DataFrame, t_e
     for (i, cluster_id) in enumerate(clust_seq)
         start_waypoint =  ms_soln_2opt.route.waypoint[2 * i]
         end_waypoint =  ms_soln_2opt.route.waypoint[2 * i + 1]
-
         println("$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)")
 
         t_solution = tender_sequential_nearest_neighbour(
