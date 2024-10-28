@@ -20,18 +20,18 @@ struct Cluster
 end
 
 """
-    cluster_targets(df::DataFrame, num_clust::Int64)
+    cluster_targets(raster::Raster{Int, 2}, num_clust::Int64)
 
 Cluster the targets in a GeoDataFrame based on their geometry.
 
 # Arguments
-- `raster::Raster{Int16, 2}` : Raster containing the target geometries.
+- `raster::Raster{Int, 2}` : Raster containing the target geometries.
 - `num_clust::Int64` : Number of clusters to create.
 
 # Returns
 A DataFrame containing the cluster ID and the target geometries.
 """
-function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
+function cluster_targets(raster::Raster{Int, 2}, num_clust::Int64)
     indices = findall(x -> x != 0, raster)
     coordinates = [(Tuple(index)[1], Tuple(index)[2]) for index in indices]
     coordinates_array = hcat([collect(c) for c in coordinates]...)
@@ -52,7 +52,7 @@ function cluster_targets(raster::Raster{Int16, 2}, num_clust::Int64)
 end
 
 """
-    create_clusters(clusters::Raster{Int16, 2}, depot=nothing)
+    create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
 
 Calculate the centroids of the clusters in the raster.
 Depot included as cluster 0.
@@ -64,7 +64,7 @@ Depot included as cluster 0.
 # Returns
 A vector of Cluster objects.
 """
-function create_clusters(clusters::Raster{Int16, 2}, depot=nothing)
+function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
     unique_clusters = sort(unique(clusters))
 
     # Remove the zero cluster ID (if present)
