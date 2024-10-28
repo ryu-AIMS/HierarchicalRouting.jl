@@ -306,6 +306,9 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
         end
     end
 
+    # remove empty tours (all elements are 0)
+    tender_tours = filter(tour -> any(!=(0), tour), tender_tours)
+
     # if tender_cap is not filled, delete excess elements
     tender_tours .= [count(tour .== 0) > 0 ? tour[1:findfirst(==(0), tour)-1] : tour for tour in tender_tours]
 
