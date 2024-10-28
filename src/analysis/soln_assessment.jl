@@ -136,6 +136,10 @@ function perturb_solution(soln::MSTSolution)
     clust_idx = rand(1:length(new_soln.clusters))
     cluster = new_soln.clusters[clust_idx]
 
+    if length(cluster.sorties) < 2
+        return new_soln # No perturbation possible if a cluster has less than 2 sorties
+    end
+
     # Choose TWO random sorties from the cluster
     sortie_a_idx, sortie_b_idx = rand(1:length(cluster.sorties), 2)
     # TODO: Allow same sortie if not applying two-opt
@@ -148,7 +152,7 @@ function perturb_solution(soln::MSTSolution)
         return new_soln # No perturbation possible if a sortie has no nodes
     end
 
-    node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes), 2)
+    node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))
     node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
 
     # Swap the nodes between the two sorties
