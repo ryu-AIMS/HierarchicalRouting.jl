@@ -142,7 +142,7 @@ function process_targets(clustered_targets_path,
                 suitable_targets_all = Raster(suitable_targets_all_path, mappedcrs=EPSG(EPSG_code))
                 suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
             end
-            suitable_targets_subset = extract_subset(suitable_targets_all, subset)
+            suitable_targets_subset = crop_to_subset(suitable_targets_all, subset)
             write(target_subset_path, suitable_targets_subset; force=true)
         end
         clustered_targets = cluster_targets(suitable_targets_subset, k)
@@ -176,7 +176,7 @@ function process_exclusions(
                 bathy_subset = Raster(bathy_subset_path, mappedcrs=EPSG(EPSG_code))
             else
                 bathy_dataset = Raster(bathy_fullset_path, mappedcrs=EPSG(EPSG_code))
-                bathy_subset = extract_subset(bathy_dataset, subset)
+                bathy_subset = crop_to_subset(bathy_dataset, subset)
                 write(bathy_subset_path, bathy_subset; force=true)
             end
             exclusion_zones_bool = create_exclusion_zones(bathy_subset, draft)

@@ -100,19 +100,19 @@ function unionize_overlaps!(exclusions::DataFrame)
 end
 
 """
-    extract_subset(spatial_dataset::Raster, subset)
+    crop_to_subset(spatial_dataset::Raster, subset::DataFrame)
 
 Extract a subset from the given `spatial_dataset` raster based on the specified `subset`.
 
 # Arguments
 - `spatial_dataset::Raster`: The spatial dataset from which to extract the subset.
-- `subset`: The subset criteria to apply.
+- `subset::DataFrame`: The subset DataFrame containing geometries in area.
 
 # Returns
-A new raster containing the subset of the original raster.
+- A cropped raster based on the subset area.
 """
-function extract_subset(spatial_dataset::Raster, subset)
-    return Rasters.trim(mask(spatial_dataset; with=subset.geom))
+function crop_to_subset(spatial_dataset::Raster, subset::DataFrame)
+    return Rasters.crop(spatial_dataset, to=subset.geom)
 end
 
 """
