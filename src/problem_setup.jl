@@ -45,6 +45,7 @@ function load_problem(target_scenario::String="")
 
     suitable_threshold = config["parameters"]["suitable_threshold"]
     k = config["parameters"]["k"]
+    cluster_tolerance = config["parameters"]["cluster_tolerance"]
     EPSG_code = config["parameters"]["EPSG_code"]
 
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
@@ -65,7 +66,7 @@ function load_problem(target_scenario::String="")
     clusters_raster = process_targets(
         clustered_targets_path,
         target_subset_threshold_path,
-        k,
+        k, cluster_tolerance,
         suitable_targets_all_path,
         suitable_threshold,
         target_subset_path,
@@ -116,7 +117,7 @@ end
 # TODO Generalize
 function process_targets(clustered_targets_path,
     target_subset_threshold_path,
-    k,
+    k, cluster_tolerance,
     suitable_targets_all_path,
     suitable_threshold,
     target_subset_path,
@@ -145,7 +146,7 @@ function process_targets(clustered_targets_path,
             suitable_targets_subset = crop_to_subset(suitable_targets_all, subset)
             write(target_subset_path, suitable_targets_subset; force=true)
         end
-        clustered_targets = cluster_targets(suitable_targets_subset, k)
+        clustered_targets = cluster_targets(suitable_targets_subset, k; tol=cluster_tolerance)
         write(clustered_targets_path, clustered_targets; force=true)
         return clustered_targets
     end

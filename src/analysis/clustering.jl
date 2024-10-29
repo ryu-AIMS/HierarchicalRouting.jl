@@ -1,4 +1,6 @@
 
+using Clustering
+
 mutable struct ClusterFields
     centroid::Point{2, Float64}
     nodes::Vector{Point{2, Float64}}
@@ -20,23 +22,24 @@ struct Cluster
 end
 
 """
-    cluster_targets(raster::Raster{Int, 2}, num_clust::Int64)
+    cluster_targets(raster::Raster{Int, 2}, k::Int64)
 
 Cluster the targets in a GeoDataFrame based on their geometry.
 
 # Arguments
 - `raster::Raster{Int, 2}` : Raster containing the target geometries.
-- `num_clust::Int64` : Number of clusters to create.
+- `k::Int64` : Number of clusters to create.
+- `tol::Float64` : Tolerance for kmeans convergence.
 
 # Returns
 A DataFrame containing the cluster ID and the target geometries.
 """
-function cluster_targets(raster::Raster{Int, 2}, num_clust::Int64)
+function cluster_targets(raster::Raster{Int, 2}, k::Int64; tol::Float64=1.0)
     indices = findall(x -> x != 0, raster)
     coordinates = [(Tuple(index)[1], Tuple(index)[2]) for index in indices]
     coordinates_array = hcat([collect(c) for c in coordinates]...)
 
-    clustering = kmeans(coordinates_array, num_clust)
+    clustering = kmeans(coordinates_array, k; tol=1)
 
     rows = [coord[1] for coord in coordinates]
     cols = [coord[2] for coord in coordinates]
@@ -70,7 +73,7 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
     # Remove the zero cluster ID (if present)
     unique_clusters = unique_clusters[unique_clusters .!= 0]
 
-    coords = [(x, y) for x in clusters.dims[1], y in clusters.dims[2]]
+    # coords = [(x, y) for x in clusters.dims[1], y in clusters.dims[2]]
 
     cluster_vec = Cluster[]
 

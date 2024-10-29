@@ -3,7 +3,6 @@ module HierarchicalRouting
 using Base.Threads
 using Statistics
 
-using Clustering
 using CoordinateTransformations
 using GeometryBasics
 using Rasters
