@@ -156,7 +156,7 @@ end
 # TODO: Generalize for ms and tender vessels
 function process_exclusions(
     bathy_fullset_path,
-    draft,
+    vessel_draft,
     subset,
     EPSG_code,
     bathy_subset_path,
@@ -180,7 +180,7 @@ function process_exclusions(
                 bathy_subset = crop_to_subset(bathy_dataset, subset)
                 write(bathy_subset_path, bathy_subset; force=true)
             end
-            exclusion_zones_bool = create_exclusion_zones(bathy_subset, draft)
+            exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
             write(exclusion_tif_path, convert.(Int64, exclusion_zones_bool); force=true)
         end
 
@@ -190,6 +190,7 @@ function process_exclusions(
             exclusion_zones_df;
             crs=EPSG(EPSG_code)
         )
+        exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     end
     return exclusion_zones_df
 end
