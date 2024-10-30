@@ -280,13 +280,12 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
 
     dist_matrix = get_feasible_matrix([Point{2, Float64}(node[2], node[1]) for node in nodes], exclusions)
 
-    # initialise each tender at first waypoint
-    tender_tours = [fill(0, t_cap) for _ in 1:n_tenders] # [Vector{Int}(undef, t_cap+2) for _ in 1:n_tenders]
+    tender_tours = [fill(0, t_cap) for _ in 1:n_tenders]
 
     visited = falses(length(nodes))
     visited[1] = true
 
-    # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop by stop
+    # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop-by-stop
     for i in 1:t_cap
         for j in 1:n_tenders
             # TODO: check conditions
@@ -306,11 +305,8 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
         end
     end
 
-    # remove empty tours (all elements are 0)
-    tender_tours = filter(tour -> any(!=(0), tour), tender_tours)
-
-    # if tender_cap is not filled, delete excess elements
-    tender_tours .= [count(tour .== 0) > 0 ? tour[1:findfirst(==(0), tour)-1] : tour for tour in tender_tours]
+    # delete excess elements and remove empty tours
+    tender_tours = [count(tour .== 0) > 0 ? tour[1:findfirst(==(0), tour)-1] : tour for tour in tender_tours if any(!=(0), tour)]
 
     # TODO: Handling for empty tender tours
     sortie_dist = sortie_cost(tender_tours, dist_matrix)
