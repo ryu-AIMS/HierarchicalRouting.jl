@@ -189,65 +189,70 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `soln_init` : Initial solution.
 - `objective_function` : Function to evaluate the solution.
 - `perturb_function` : Function to perturb the solution.
-- `max_iterations` : Maximum number of iterations. Default = 100_000.
-- `temp_init` : Initial temperature. Default = 50.0.
-- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.99_99 = 99.99%
+- `max_iterations` : Maximum number of iterations. Default = 10_000.
+- `temp_init` : Initial temperature. Default = 500.0.
+- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.995 = 99.95%.
+- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 200.
 
 # Returns
-- `soln_best` : Best solution found.
+- `soln_best` : Best solution::MSTSolution found.
 - `obj_best` : Objective value of the best solution.
 """
 function simulated_annealing(
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    max_iterations::Int = 1_000,
+    max_iterations::Int = 10_000,
     temp_init::Float64 = 500.0,
-    cooling_rate::Float64 = 0.995
+    cooling_rate::Float64 = 0.995,
+    static_limit::Int = 200
 )
 
-    # Initialize the solution and temperature
-    soln_current = soln_init
-    obj_current = objective_function(soln_current)
-    soln_best = soln_current
-    obj_best = obj_current
-    temp = temp_init
+    # Initialize best solution as initial
+    soln_best = soln_init
+    obj_best = objective_function(soln_init)
 
     for clust_idx in 1:length(soln_init.clusters)
-        @info "Cluster $(clust_idx)"
-        @info "Iteration \tBest Value \t\tTemp"
-        @info "0\t\t$obj_best\t$temp"
+        # Initialize current solution as best, reset temp
         temp = temp_init
         soln_current = soln_best
         obj_current = obj_best
+        static_ctr = 0
+
+        @info "\nCluster $(soln_init.clusters[clust_idx].id)"
+        @info "Iteration \tBest Value \t\tTemp"
+        @info "0\t\t$obj_best\t$temp"
 
         for iteration in 1:max_iterations
             soln_proposed = perturb_function(soln_current, clust_idx)
             obj_proposed = objective_function(soln_proposed)
 
-            obj_delta = obj_proposed - obj_current
+            static_ctr += 1
+            improvement = obj_current - obj_proposed
 
             # If the new solution is improved OR meets acceptance prob criteria
-            if obj_delta < 0 || exp(-obj_delta / temp) > rand()
+            if improvement > 0 || exp(improvement / temp) > rand()
                 soln_current = soln_proposed
                 obj_current = obj_proposed
 
                 if obj_current < obj_best
+                    static_ctr = 0
                     soln_best = soln_current
                     obj_best = obj_current
+                    @info "$iteration\t\t$obj_best\t$temp"
                 end
             end
 
             temp *= cooling_rate
 
-            if iteration % (max_iterations/10) == 0
-                @info "$iteration\t\t$obj_best\t$temp"
+            if static_ctr > static_limit
+                @info "Early exit at iteration $iteration due to stagnation"
+                break
             end
         end
     end
 
     @info "Final Value: $obj_best"
     @info "Δ: $(objective_function(soln_init) - obj_best)"
-
     return soln_best, obj_best
 end
