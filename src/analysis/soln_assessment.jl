@@ -28,7 +28,7 @@ function initial_solution(clusts::Vector{Cluster}, ms_exclusions::DataFrame, t_e
     for (i, cluster_id) in enumerate(clust_seq)
         start_waypoint =  ms_soln_2opt.route.waypoint[2 * i]
         end_waypoint =  ms_soln_2opt.route.waypoint[2 * i + 1]
-        println("$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)")
+        @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
 
         t_solution = tender_sequential_nearest_neighbour(
             clusts[cluster_id],
@@ -128,12 +128,13 @@ function critical_path(soln::MSTSolution)
     return sum(cluster_cost) + mothership_cost_between_clusts(soln)
 end
 
-function perturb_solution(soln::MSTSolution)
+function perturb_solution(soln::MSTSolution, clust_idx::Int=-1)
     new_soln = deepcopy(soln)
 
-    # Choose ONE random cluster - assume fixed clustering
-    # TODO: Choose two random clusters to swap between - will these ever return an improvement?
-    clust_idx = rand(1:length(new_soln.clusters))
+    if clust_idx == -1
+        # Choose ONE random cluster - assume fixed clustering
+        clust_idx = rand(1:length(new_soln.clusters))
+    end
     cluster = new_soln.clusters[clust_idx]
 
     if length(cluster.sorties) < 2
@@ -200,9 +201,9 @@ function simulated_annealing(
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    max_iterations::Int = 100_000,
-    temp_init::Float64 = 50.0,
-    cooling_rate::Float64 = 0.9999
+    max_iterations::Int = 1_000,
+    temp_init::Float64 = 500.0,
+    cooling_rate::Float64 = 0.995
 )
 
     # Initialize the solution and temperature
@@ -212,35 +213,41 @@ function simulated_annealing(
     obj_best = obj_current
     temp = temp_init
 
-    println("Iteration \tBest Value \t\tTemp")
-    println("0\t\t$obj_best\t$temp")
+    for clust_idx in 1:length(soln_init.clusters)
+        @info "Cluster $(clust_idx)"
+        @info "Iteration \tBest Value \t\tTemp"
+        @info "0\t\t$obj_best\t$temp"
+        temp = temp_init
+        soln_current = soln_best
+        obj_current = obj_best
 
-    for iteration in 1:max_iterations
-        soln_proposed = perturb_function(soln_current)
-        obj_proposed = objective_function(soln_proposed)
+        for iteration in 1:max_iterations
+            soln_proposed = perturb_function(soln_current, clust_idx)
+            obj_proposed = objective_function(soln_proposed)
 
-        obj_delta = obj_proposed - obj_current
+            obj_delta = obj_proposed - obj_current
 
-        # If the new solution is improved OR meets acceptance prob criteria
-        if obj_delta < 0 || exp(-obj_delta / temp) > rand()
-            soln_current = soln_proposed
-            obj_current = obj_proposed
+            # If the new solution is improved OR meets acceptance prob criteria
+            if obj_delta < 0 || exp(-obj_delta / temp) > rand()
+                soln_current = soln_proposed
+                obj_current = obj_proposed
 
-            if obj_current < obj_best
-                soln_best = soln_current
-                obj_best = obj_current
+                if obj_current < obj_best
+                    soln_best = soln_current
+                    obj_best = obj_current
+                end
             end
-        end
 
-        temp *= cooling_rate
+            temp *= cooling_rate
 
-        if iteration % 10000 == 0
-            println("$iteration\t\t$obj_best\t$temp")
+            if iteration % (max_iterations/10) == 0
+                @info "$iteration\t\t$obj_best\t$temp"
+            end
         end
     end
 
-    println("Final Value: $obj_best")
-    println("Δ: $(objective_function(soln_init) - obj_best)")
+    @info "Final Value: $obj_best"
+    @info "Δ: $(objective_function(soln_init) - obj_best)"
 
     return soln_best, obj_best
 end
