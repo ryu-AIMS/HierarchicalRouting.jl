@@ -66,20 +66,16 @@ Compute the cost of each sortie in a cluster.
 - `sortie_dist` : The cost of each sortie in the cluster.
 """
 function tender_clust_cost(cluster::ClusterSolution)::Vector{Float64}
-    sortie_dist = [euclidean(cluster.start, sortie.nodes[1]) for sortie in cluster.sorties]
+    sortie_dist = [euclidean(cluster.start, sortie.nodes[1]) for sortie in cluster.sorties] # haversine
 
-    for sortie in cluster.sorties
-        if length(sortie.nodes) > 1
-            sortie_dist .+= sum([euclidean(sortie.nodes[s], sortie.nodes[s+1]) for s in 1:(length(sortie.nodes)-1)])
-        end
-    end
-    # TODO: Why does this get different result??
-    # sortie_dist .+= [
-    #     length(sortie.nodes) > 1 ? sum([euclidean(sortie.nodes[s], sortie.nodes[s+1]) for s in 1:(length(sortie.nodes)-1)]) : 0.0
-    #     for sortie in cluster.sorties
-    # ]
+    sortie_dist .+= sum([
+        length(sortie.nodes) > 1 ?
+        sum(euclidean.(sortie.nodes[1:end-1], sortie.nodes[2:end])) :
+        0.0
+        for sortie in cluster.sorties
+    ])
 
-    sortie_dist .+= [euclidean(cluster.sorties[i].nodes[end], cluster.finish) for i in 1:length(cluster.sorties)]
+    sortie_dist .+= euclidean.([sortie.nodes[end] for sortie in cluster.sorties], cluster.finish)
     return sortie_dist
 end
 
