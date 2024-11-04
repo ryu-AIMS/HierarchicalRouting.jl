@@ -21,20 +21,24 @@ struct Constraint
 end
 
 struct Vessel
-    # TODO: add vessel weighting
-    speed::Float64
+    exclusion::DataFrame
     capacity::Int64
-    env_constraint::Vector{Constraint}
-    # number::Int64
+    number::Int64
+    # TODO: add vessel weighting
+    # speed::Float64
+    # env_constraint::Vector{Constraint}
 
-    # Vessel(speed::Float64, capacity::Int; env_constraints::Constraints=Constraints()) = new(speed, capacity, env_constraints)
+    # Constructor with default values for capacity and number
+    function Vessel(exclusion::DataFrame, capacity::Int64 = typemax(Int64), number::Int64 = 1)
+        new(exclusion, capacity, number)
+    end
 end
 
-struct MSTProblem
-    data_file_path::String
+struct Problem
     depot::Point{2, Float64}
-    ms::Vessel
-    tenders::Vector{Vessel}
+    mothership::Vessel
+    tenders::Vessel
+    clusters::Vector{Cluster}
 end
 
 function load_problem(target_scenario::String="")
@@ -51,6 +55,10 @@ function load_problem(target_scenario::String="")
     k = config["parameters"]["k"]
     cluster_tolerance = config["parameters"]["cluster_tolerance"]
     EPSG_code = config["parameters"]["EPSG_code"]
+
+    depot = Point{2, Float64}(config["parameters"]["depot_x"], config["parameters"]["depot_y"])
+    n_tenders = config["parameters"]["n_tenders"]
+    t_cap = config["parameters"]["t_cap"]
 
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
 
@@ -117,5 +125,10 @@ function load_problem(target_scenario::String="")
     )
     # t_exclusions = unionize_overlaps!(simplify_exclusions!(buffer_exclusions!(t_exclusion_zones_df, 0.1); min_area=100)) #|>  |> simplify_exclusions! |> unionize_overlaps!
     # t_exclusions = t_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
-    return clusts, ms_exclusions, t_exclusion_zones_df
+
+    mothership = Vessel(ms_exclusions)
+    tenders = Vessel(t_exclusion_zones_df, t_cap, n_tenders)
+
+    problem = Problem(depot, mothership, tenders, clusts)
+    return problem
 end
