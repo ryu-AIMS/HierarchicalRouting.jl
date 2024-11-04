@@ -1,25 +1,5 @@
 
 """
-    to_multipolygon(raster::Raster{T, 2}) where {T<:Union{Bool,Int16}}
-
-Convert raster to multipolygons.
-Invert vertical axis.
-"""
-# TODO: Check polygonize coordinates output
-function to_multipolygon(raster::Raster{T, 2})::GI.Wrappers.MultiPolygon where {T<:Union{Bool,Int16}}
-    return GO.polygonize(.==(0), raster[:, end:-1:1])
-end
-
-"""
-    to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
-
-Create a DataFrame from multipolygons
-"""
-function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
-    return DataFrame(geometry=mp.geom)
-end
-
-"""
     simplify_exclusions!(exclusions::DataFrame; min_area::Real=200, simplify_tol::Real=10)::DataFrame
 
 Simplify exclusions by applying a convex hull, removing small polygons, and simplifying.
@@ -97,36 +77,4 @@ function unionize_overlaps!(exclusions::DataFrame)
     exclusions = DataFrame(geometry = unique_geometries)
 
     return exclusions
-end
-
-"""
-    crop_to_subset(spatial_dataset::Raster, subset::DataFrame)
-
-Extract a subset from the given `spatial_dataset` raster based on the specified `subset`.
-
-# Arguments
-- `spatial_dataset::Raster`: The spatial dataset from which to extract the subset.
-- `subset::DataFrame`: The subset DataFrame containing geometries in area.
-
-# Returns
-- A cropped raster based on the subset area.
-"""
-function crop_to_subset(spatial_dataset::Raster, subset::DataFrame)
-    return Rasters.crop(spatial_dataset, to=subset.geom)
-end
-
-"""
-    target_threshold(target_bathy::Raster, ms_depth)
-
-Mask the target environmental raster based on the minimum threshold value.
-
-# Arguments
-- `target_bathy::Raster`: The target bathymetry raster.
-- `ms_depth`: The minimum depth threshold.
-"""
-function target_threshold(targets::Raster, threshold::Float64)
-    # TODO: add min/max argument flag, or use a range
-    # TODO: include masks for other environmental constraints
-    masked_raster = targets .* (targets .>= threshold)
-    return masked_raster
 end

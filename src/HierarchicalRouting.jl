@@ -13,33 +13,32 @@ import GeoInterface as GI
 import GeometryOps as GO
 import GeoDataFrames as GDF
 
-using Distances: euclidean # haversine
-using Distances: haversine
+import Distances: euclidean # haversine
 using Graphs, SimpleWeightedGraphs
 
-include("problem_setup.jl")
+include("processing/processing.jl")
+include("processing/data_types.jl")
+#TODO: remove clustering from problem_setup
+include("clustering/clustering.jl")
+include("processing/reads.jl")
+include("processing/spatial_operations.jl")
 
-include("analysis/processing.jl")
-include("analysis/clustering.jl")
-include("analysis/routing_heuristics.jl")
-include("analysis/feasible_paths.jl")
-include("analysis/soln_assessment.jl")
+include("problem/problem_setup.jl")
+
+include("routing/routing_heuristics.jl")
+include("routing/feasible_paths.jl")
+include("optimization/metric_calcs.jl")
+include("optimization/solution_assessment.jl")
+
+include("problem/solve_problem.jl")
 
 include("plotting/plots.jl")
 
 
 export
-    load_problem
-
-
-export
-    create_clusters
-
-export
-    create_exclusion_zones,
-    nearest_neighbour,
-    two_opt,
-    tender_sequential_nearest_neighbour
+    load_problem,
+    initial_solution,
+    improve_solution
 
 export
     plot_polygons,
@@ -49,12 +48,5 @@ export
     plot_waypoints_and_exclusions,
     plot_waypoints_and_exclusions_with_graph,
     plot_tender_routes
-
-export
-    initial_solution,
-    total_dist,
-    critical_path,
-    perturb_solution,
-    simulated_annealing
 
 end

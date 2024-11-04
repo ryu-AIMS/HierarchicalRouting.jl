@@ -246,7 +246,7 @@ function build_graph(points::Vector{Point{2, Float64}}, parent_points::Vector{Po
         idx_pt = point_to_idx[pt_i]
         idx_parent = point_to_idx[parent_pt]
 
-        add_edge!(g, idx_parent, idx_pt, haversine(pt_i, parent_pt))
+        add_edge!(g, idx_parent, idx_pt, euclidean(pt_i, parent_pt)) # haversine
     end
 
     return g, point_to_idx, idx_to_point
