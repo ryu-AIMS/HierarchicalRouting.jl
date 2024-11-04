@@ -35,10 +35,10 @@ struct Vessel
 end
 
 struct Problem
+    target_scenario::String
     depot::Point{2, Float64}
     mothership::Vessel
     tenders::Vessel
-    clusters::Vector{Cluster}
 end
 
 function load_problem(target_scenario::String="")
@@ -46,47 +46,21 @@ function load_problem(target_scenario::String="")
     config = TOML.parsefile(joinpath("src",".config.toml"))
 
     site_dir = config["data_dir"]["site"]
+    subset = GDF.read(first(glob("*.gpkg", site_dir)))
+
     target_scenario_dir = config["data_dir"]["target_scenarios"]
-    env_constraints_dir = config["data_dir"]["env_constraints"]
-
-    output_dir = config["output_dir"]["path"]
-
-    suitable_threshold = config["parameters"]["suitable_threshold"]
-    k = config["parameters"]["k"]
-    cluster_tolerance = config["parameters"]["cluster_tolerance"]
-    EPSG_code = config["parameters"]["EPSG_code"]
+    if target_scenario == ""
+        target_scenario = first(glob("*", target_scenario_dir))
+    end
 
     depot = Point{2, Float64}(config["parameters"]["depot_x"], config["parameters"]["depot_y"])
     n_tenders = config["parameters"]["n_tenders"]
     t_cap = config["parameters"]["t_cap"]
+    EPSG_code = config["parameters"]["EPSG_code"]
 
-    subset = GDF.read(first(glob("*.gpkg", site_dir)))
+    output_dir = config["output_dir"]["path"]
 
-    suitable_targets_prefix = target_scenario[1:findlast(".",target_scenario)[1]-1]
-
-    if target_scenario == ""
-        target_scenario = first(glob("*", target_scenario_dir))
-    else
-        suitable_targets_all_path = joinpath(target_scenario_dir, target_scenario)
-    end
-
-    #TODO: Move clustering outide of load_problem
-
-    target_subset_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix).tif")
-    target_subset_threshold_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix)_threshold=$(suitable_threshold).tif")
-    clustered_targets_path = joinpath(output_dir, "clustered_$(suitable_targets_prefix)_targets_k=$(k).tif")
-
-    clusts = cluster_targets(
-        clustered_targets_path,
-        target_subset_threshold_path,
-        k, cluster_tolerance,
-        suitable_targets_all_path,
-        suitable_threshold,
-        target_subset_path,
-        subset,
-        EPSG_code
-        )
-
+    env_constraints_dir = config["data_dir"]["env_constraints"]
     # Dynamically discover subfolders in env_constraints_dir
     env_subfolders = readdir(env_constraints_dir)
     env_paths = Dict(subfolder => joinpath(env_constraints_dir, subfolder) for subfolder in env_subfolders)
@@ -127,6 +101,6 @@ function load_problem(target_scenario::String="")
     mothership = Vessel(ms_exclusions)
     tenders = Vessel(t_exclusion_zones_df, t_cap, n_tenders)
 
-    problem = Problem(depot, mothership, tenders, clusts)
+    problem = Problem(target_scenario, depot, mothership, tenders)
     return problem
 end

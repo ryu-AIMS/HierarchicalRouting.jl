@@ -18,12 +18,12 @@ using Graphs, SimpleWeightedGraphs
 
 include("processing/processing.jl")
 include("processing/data_types.jl")
-#TODO: remove clustering from problem_setup
-include("clustering/clustering.jl")
 include("processing/reads.jl")
 include("processing/spatial_operations.jl")
 
 include("problem/problem_setup.jl")
+
+include("clustering/clustering.jl")
 
 include("routing/routing_heuristics.jl")
 include("routing/feasible_paths.jl")
