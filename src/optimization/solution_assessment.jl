@@ -116,8 +116,8 @@ function simulated_annealing(
 
             temp *= cooling_rate
 
-            if static_ctr > static_limit
-                @info "Early exit at iteration $iteration due to stagnation"
+            if static_ctr >= static_limit
+                @info "Early exit at iteration $iteration due to stagnation. temp=$temp"
                 break
             end
         end
