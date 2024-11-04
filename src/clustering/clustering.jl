@@ -34,7 +34,7 @@ Cluster the targets in a GeoDataFrame based on their geometry.
 # Returns
 A DataFrame containing the cluster ID and the target geometries.
 """
-function cluster_targets(raster::Raster{Int, 2}, k::Int64; tol::Float64=1.0)
+function cluster_raster(raster::Raster{Int, 2}, k::Int64; tol::Float64=1.0)
     indices = findall(x -> x != 0, raster)
     coordinates = [(Tuple(index)[1], Tuple(index)[2]) for index in indices]
     coordinates_array = hcat([collect(c) for c in coordinates]...)
@@ -95,4 +95,29 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
     end
 
     return cluster_vec
+end
+
+function cluster_targets(
+    clustered_targets_path::String,
+    target_subset_threshold_path::String,
+    k::Int,
+    cluster_tolerance::Float64,
+    suitable_targets_all_path::String,
+    suitable_threshold::Float64,
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int)
+
+    clusters_raster = process_targets(
+        clustered_targets_path,
+        target_subset_threshold_path,
+        k, cluster_tolerance,
+        suitable_targets_all_path,
+        suitable_threshold,
+        target_subset_path,
+        subset,
+        EPSG_code
+    )
+    clusts = create_clusters(clusters_raster)
+    return clusts
 end

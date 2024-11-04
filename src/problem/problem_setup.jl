@@ -76,8 +76,7 @@ function load_problem(target_scenario::String="")
     target_subset_threshold_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix)_threshold=$(suitable_threshold).tif")
     clustered_targets_path = joinpath(output_dir, "clustered_$(suitable_targets_prefix)_targets_k=$(k).tif")
 
-    # process targets
-    clusters_raster = process_targets(
+    clusts = cluster_targets(
         clustered_targets_path,
         target_subset_threshold_path,
         k, cluster_tolerance,
@@ -86,8 +85,7 @@ function load_problem(target_scenario::String="")
         target_subset_path,
         subset,
         EPSG_code
-    )
-    clusts = create_clusters(clusters_raster)
+        )
 
     # Dynamically discover subfolders in env_constraints_dir
     env_subfolders = readdir(env_constraints_dir)

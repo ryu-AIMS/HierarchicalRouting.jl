@@ -31,7 +31,7 @@ function process_targets(clustered_targets_path,
             suitable_targets_subset = crop_to_subset(suitable_targets_all, subset)
             write(target_subset_path, suitable_targets_subset; force=true)
         end
-        clustered_targets = cluster_targets(suitable_targets_subset, k; tol=cluster_tolerance)
+        clustered_targets = cluster_raster(suitable_targets_subset, k; tol=cluster_tolerance)
         write(clustered_targets_path, clustered_targets; force=true)
         return clustered_targets
     end
