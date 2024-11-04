@@ -173,7 +173,7 @@ function plot_centroids_and_exclusions(cluster_centroids_df::DataFrame, exclusio
 end
 
 function plot_waypoints_and_exclusions(route_df::DataFrame, cluster_sequence::DataFrame,
-    exclusions::DataFrame, cluster_radius=100)
+    exclusions::DataFrame, cluster_radius=100, labels::Bool=true)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Mothership Route with Cluster Centroids", xlabel = "Longitude", ylabel = "Latitude")
 
@@ -217,7 +217,9 @@ function plot_waypoints_and_exclusions(route_df::DataFrame, cluster_sequence::Da
             poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
 
             centroid_x, centroid_y = mean(xs), mean(ys)
-            text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+            if labels
+                text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+            end
         end
     end
 
@@ -328,7 +330,7 @@ function plot_tender_routes(tender_soln::Vector{ClusterSolution}, waypoints::Vec
             poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
 
             centroid_x, centroid_y = mean(xs), mean(ys)
-            text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+            # text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
         end
     end
 
