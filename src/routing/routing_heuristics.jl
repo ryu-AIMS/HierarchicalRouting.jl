@@ -276,7 +276,7 @@ Assign nodes to tenders sequentially based on nearest neighbor.
 """
 function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple{2, Point{2, Float64}}, n_tenders::Int, t_cap::Int, exclusions::DataFrame)
     nodes = [waypoints[1]]
-    append!(nodes, cluster.attributes.nodes)
+    append!(nodes, cluster.nodes)
 
     dist_matrix = get_feasible_matrix([Point{2, Float64}(node[2], node[1]) for node in nodes], exclusions)
 

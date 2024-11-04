@@ -35,7 +35,7 @@ function initial_solution(problem::Problem)
     )
 
     cluster_centroids_df = DataFrame(id = Int[0], lon = Float64[problem.depot[1]], lat = Float64[problem.depot[2]])
-    [push!(cluster_centroids_df, (i, clust.attributes.centroid[1], clust.attributes.centroid[2])) for (i, clust) in enumerate(clusters)]
+    [push!(cluster_centroids_df, (i, clust.centroid[1], clust.centroid[2])) for (i, clust) in enumerate(clusters)]
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN, ms_feasible_matrix = nearest_neighbour(cluster_centroids_df, problem.mothership.exclusion)
