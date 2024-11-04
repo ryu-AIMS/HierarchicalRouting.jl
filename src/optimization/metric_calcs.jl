@@ -10,17 +10,17 @@ Compute the cost of each sortie in a cluster.
 # Returns
 - `sortie_dist` : The cost of each sortie in the cluster.
 """
-function tender_clust_cost(cluster::ClusterSolution)::Vector{Float64}
-    sortie_dist = [euclidean(cluster.start, sortie.nodes[1]) for sortie in cluster.sorties] # haversine
+function tender_clust_cost(tenders::TenderSolution)::Vector{Float64}
+    sortie_dist = [euclidean(tenders.start, sortie.nodes[1]) for sortie in tenders.sorties] # haversine
 
     sortie_dist .+= sum([
         length(sortie.nodes) > 1 ?
         sum(euclidean.(sortie.nodes[1:end-1], sortie.nodes[2:end])) :
         0.0
-        for sortie in cluster.sorties
+        for sortie in tenders.sorties
     ])
 
-    sortie_dist .+= euclidean.([sortie.nodes[end] for sortie in cluster.sorties], cluster.finish)
+    sortie_dist .+= euclidean.([sortie.nodes[end] for sortie in tenders.sorties], tenders.finish)
     return sortie_dist
 end
 
@@ -61,7 +61,7 @@ end
 
 function critical_path(soln::MSTSolution)
 
-    longest_sortie = [maximum(tender_clust_cost(cluster)) for cluster in soln.clusters]
+    longest_sortie = [maximum(tender_clust_cost(cluster)) for cluster in soln.tenders]
     mothership_sub_clust = mothership_cost_within_clusts(soln)
 
     cluster_cost = [max(longest_sortie[i], mothership_sub_clust[i]) for i in 1:length(longest_sortie)]

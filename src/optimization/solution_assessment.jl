@@ -4,9 +4,9 @@ function perturb_solution(soln::MSTSolution, clust_idx::Int=-1)
 
     if clust_idx == -1
         # Choose ONE random cluster - assume fixed clustering
-        clust_idx = rand(1:length(new_soln.clusters))
+        clust_idx = rand(1:length(new_soln.tenders))
     end
-    cluster = new_soln.clusters[clust_idx]
+    cluster = new_soln.tenders[clust_idx]
 
     if length(cluster.sorties) < 2
         return new_soln # No perturbation possible if a cluster has less than 2 sorties
@@ -28,8 +28,8 @@ function perturb_solution(soln::MSTSolution, clust_idx::Int=-1)
     node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
 
     # Swap the nodes between the two sorties
-    new_soln.clusters[clust_idx].sorties[sortie_a_idx].nodes[node_a_idx] = node_b
-    new_soln.clusters[clust_idx].sorties[sortie_b_idx].nodes[node_b_idx] = node_a
+    new_soln.tenders[clust_idx].sorties[sortie_a_idx].nodes[node_a_idx] = node_b
+    new_soln.tenders[clust_idx].sorties[sortie_b_idx].nodes[node_b_idx] = node_a
 
     # TODO:Re-run two-opt on the modified sorties
 
