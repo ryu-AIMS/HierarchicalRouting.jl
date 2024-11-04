@@ -37,7 +37,7 @@ function initial_solution(clusts::Vector{Cluster}, ms_exclusions::DataFrame, t_e
     return MSTSolution(ms_soln_2opt, tender_soln_NN)
 end
 
-function improve_solution(soln::MSTSolution, opt_function::Function, objective_function::Function, perturb_function::Function, max_iterations::Int = 100_000, temp_init::Float64 = 50.0, cooling_rate::Float64 = 0.99_99)
+function improve_solution(soln::MSTSolution, opt_function::Function, objective_function::Function, perturb_function::Function, max_iterations::Int = 100_000, temp_init::Float64 = 500.0, cooling_rate::Float64 = 0.99_99)
     soln_best, z_best = opt_function(soln, objective_function, perturb_function, max_iterations, temp_init, cooling_rate)
     return soln_best, z_best
 end

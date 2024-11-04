@@ -50,7 +50,7 @@ end
         objective_function::Function,
         perturb_function::Function,
         max_iterations::Int = 100_000,
-        temp_init::Float64 = 50.0,
+        temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.99_99
     )
 
@@ -73,9 +73,9 @@ function simulated_annealing(
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    max_iterations::Int = 10_000,
+    max_iterations::Int = 100_000,
     temp_init::Float64 = 500.0,
-    cooling_rate::Float64 = 0.995,
+    cooling_rate::Float64 = 0.99_99,
     static_limit::Int = 200
 )
 
