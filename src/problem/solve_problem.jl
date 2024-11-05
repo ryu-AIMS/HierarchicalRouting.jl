@@ -38,7 +38,7 @@ function initial_solution(problem::Problem)
     [push!(cluster_centroids_df, (i, clust.centroid[1], clust.centroid[2])) for (i, clust) in enumerate(clusters)]
 
     # Nearest Neighbour to generate initial mothership route & matrix
-    ms_soln_NN, ms_feasible_matrix = nearest_neighbour(cluster_centroids_df, problem.mothership.exclusion)
+    ms_soln_NN, ms_feasible_matrix, feasible_path = nearest_neighbour(cluster_centroids_df, problem.mothership.exclusion)
 
     # 2-opt to improve the NN soln
     ms_soln_2opt = two_opt(ms_soln_NN.cluster_sequence, ms_feasible_matrix)
@@ -58,8 +58,8 @@ function initial_solution(problem::Problem)
 
         push!(tender_soln_NN, t_solution[1])
     end
-
-    return MSTSolution(clusters, ms_soln_2opt, tender_soln_NN)
+    points = [Point{2, Float64}(row.lat, row.lon) for row in eachrow(cluster_centroids_df)]
+    return MSTSolution(clusters, ms_soln_2opt, tender_soln_NN), feasible_path, points
 end
 
 function improve_solution(soln::MSTSolution, opt_function::Function, objective_function::Function, perturb_function::Function, max_iterations::Int = 100_000, temp_init::Float64 = 500.0, cooling_rate::Float64 = 0.99_99)

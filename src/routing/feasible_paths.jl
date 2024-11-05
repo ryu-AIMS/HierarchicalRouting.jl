@@ -2,29 +2,31 @@
 """
     get_feasible_matrix(waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
 
-Create a distance matrix between waypoints accounting for environmental constraints.
+Create a matrix of distances of feasible paths between waypoints accounting for (avoiding) environmental constraints.
 
 # Arguments
-- `waypoint::Vector{Point{2, Float64}s` : Vector of lat long tuples.
+- `points::Vector{Point{2, Float64}` : Vector of lat long tuples.
 - `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
 
 # Returns
-Feasible distance matrix between waypoints.
+- `feasible_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
+- `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of waypoints.
 """
-function get_feasible_matrix(points::Vector{Point{2, Float64}}, exclusions::DataFrame)::Matrix{Float64}
+function get_feasible_matrix(points::Vector{Point{2, Float64}}, exclusions::DataFrame)
     n_points = length(points)
     feasible_matrix = zeros(Float64, n_points, n_points)
+    feasible_path = fill((Dict{Int64, Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
 
     for j in 1:n_points
         for i in 1:j-1
             if points[i] != points[j]
-                feasible_matrix[i, j] = shortest_feasible_path(points[i], points[j], exclusions)[1]
+                feasible_matrix[i, j], feasible_path[i,j] = shortest_feasible_path(points[i], points[j], exclusions)
                 feasible_matrix[j, i] = feasible_matrix[i, j]
             end
         end
     end
 
-    return feasible_matrix
+    return feasible_matrix, feasible_path
 end
 
 """
@@ -76,7 +78,7 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     path = a_star(g, 1, point_to_idx[final_point], g.weights)
     dist = sum(g.weights[p.src, p.dst] for p in path)
 
-    return dist, path
+    return dist, (idx_to_point, path)
 end
 
 """

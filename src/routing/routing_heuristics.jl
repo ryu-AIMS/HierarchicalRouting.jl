@@ -56,9 +56,10 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
     - `route` : DataFrame of waypoints on the route.
     - `distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
+- `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of nodes.
 """
 function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
-    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lat, row.lon) for row in eachrow(nodes)], exclusions)
+    dist_matrix, feasible_path = get_feasible_matrix([Point{2, Float64}(row.lat, row.lon) for row in eachrow(nodes)], exclusions)
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -89,7 +90,7 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
 
-    return MothershipSolution(ordered_nodes, get_waypoints(ordered_nodes), total_distance), dist_matrix
+    return MothershipSolution(ordered_nodes, get_waypoints(ordered_nodes), total_distance), dist_matrix, feasible_path
 end
 
 """
@@ -278,7 +279,7 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
     nodes = [waypoints[1]]
     append!(nodes, cluster.nodes)
 
-    dist_matrix = get_feasible_matrix([Point{2, Float64}(node[2], node[1]) for node in nodes], exclusions)
+    dist_matrix = get_feasible_matrix([Point{2, Float64}(node[2], node[1]) for node in nodes], exclusions)[1]
 
     tender_tours = [fill(0, t_cap) for _ in 1:n_tenders]
 
