@@ -35,18 +35,18 @@ include("problem/solve_problem.jl")
 include("plotting/plots.jl")
 
 
-export
-    load_problem,
-    initial_solution,
-    improve_solution
+# export
+#     load_problem,
+#     initial_solution,
+#     improve_solution
 
-export
-    plot_polygons,
-    plot_mothership_route,
-    plot_route_w_exclusions,
-    plot_centroids_and_exclusions,
-    plot_waypoints_and_exclusions,
-    plot_waypoints_and_exclusions_with_graph,
-    plot_tender_routes
+# export
+#     plot_polygons,
+#     plot_mothership_route,
+#     plot_route_w_exclusions,
+#     plot_centroids_and_exclusions,
+#     plot_waypoints_and_exclusions,
+#     plot_waypoints_and_exclusions_with_graph,
+#     plot_tender_routes
 
 end
