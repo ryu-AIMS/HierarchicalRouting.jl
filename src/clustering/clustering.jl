@@ -1,20 +1,12 @@
 
 using Clustering
 
-mutable struct Cluster
+@kwdef struct Cluster
     id::Int
     centroid::Point{2, Float64}
-    nodes::Vector{Point{2, Float64}}
+    nodes::Vector{Point{2, Float64}} = [centroid]
     # TODO: Add waypoints?
     # waypoints::NTuple{2, Point{2, Float64}}
-
-    function Cluster(id::Int, centroid::Point{2, Float64})
-        new(id, centroid, [centroid])  # nodes defaults to [centroid]
-    end
-
-    function Cluster(id::Int, centroid::Point{2, Float64}, nodes::Vector{Point{2, Float64}})
-        new(id, centroid, nodes)
-    end
 end
 
 """
@@ -72,7 +64,7 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
     cluster_vec = Cluster[]
 
     if depot !== nothing
-        push!(cluster_vec, Cluster(0, depot, [depot]))
+        push!(cluster_vec, Cluster(id = 0, centroid = depot))
     end
 
     # Push Cluster object to cluster centroid vector
@@ -82,7 +74,7 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
         row_cent = mean([node[1] for node in nodes])
         col_cent = mean([node[2] for node in nodes])
 
-        push!(cluster_vec, Cluster(id, Point{2, Float64}(row_cent, col_cent), [Point{2, Float64}(node[1], node[2]) for node in nodes]))
+        push!(cluster_vec, Cluster(id = id, centroid = Point{2, Float64}(row_cent, col_cent), nodes = [Point{2, Float64}(node[1], node[2]) for node in nodes]))
     end
 
     return cluster_vec

@@ -2,36 +2,29 @@
 using Glob
 using TOML
 
-# TODO: Adapt code to use/incorporate the MSTProblem struct
+# struct Threshold
+#     # value::Float64
+#     # type::Symbol
 
-struct Threshold
-    # value::Float64
-    # type::Symbol
+#     min::Float64
+#     max::Float64
 
-    min::Float64
-    max::Float64
+#     Threshold(; min::Float64=-Inf, max::Float64=Inf) = new(min, max)
+# end
 
-    Threshold(; min::Float64=-Inf, max::Float64=Inf) = new(min, max)
-end
+# struct Constraint
+#     name::String
+#     threshold::Threshold
+#     file_path::String
+# end
 
-struct Constraint
-    name::String
-    threshold::Threshold
-    file_path::String
-end
-
-struct Vessel
+@kwdef struct Vessel
     exclusion::DataFrame
-    capacity::Int64
-    number::Int64
-    # TODO: add vessel weighting
-    # speed::Float64
+    capacity::Int64 = typemax(Int64)
+    number::Int64 = 1
+    # TODO: add attributes
+    # weight::Float64
     # env_constraint::Vector{Constraint}
-
-    # Constructor with default values for capacity and number
-    function Vessel(exclusion::DataFrame, capacity::Int64 = typemax(Int64), number::Int64 = 1)
-        new(exclusion, capacity, number)
-    end
 end
 
 struct Problem
@@ -98,8 +91,8 @@ function load_problem(target_scenario::String="")
     # t_exclusions = unionize_overlaps!(simplify_exclusions!(buffer_exclusions!(t_exclusion_zones_df, 0.1); min_area=100)) #|>  |> simplify_exclusions! |> unionize_overlaps!
     # t_exclusions = t_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
-    mothership = Vessel(ms_exclusions)
-    tenders = Vessel(t_exclusion_zones_df, t_cap, n_tenders)
+    mothership = Vessel(exclusion = ms_exclusions)
+    tenders = Vessel(exclusion = t_exclusion_zones_df, capacity = t_cap, number = n_tenders)
 
     problem = Problem(target_scenario, depot, mothership, tenders)
     return problem

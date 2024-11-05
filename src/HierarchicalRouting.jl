@@ -1,6 +1,6 @@
 module HierarchicalRouting
 
-# using Base.Threads
+using Base
 using Statistics
 
 using CoordinateTransformations
