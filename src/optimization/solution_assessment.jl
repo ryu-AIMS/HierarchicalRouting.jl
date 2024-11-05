@@ -63,7 +63,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `max_iterations` : Maximum number of iterations. Default = 10_000.
 - `temp_init` : Initial temperature. Default = 500.0.
 - `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.995 = 99.95%.
-- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 200.
+- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 5000.
 
 # Returns
 - `soln_best` : Best solution::MSTSolution found.
@@ -76,7 +76,7 @@ function simulated_annealing(
     max_iterations::Int = 100_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.99_99,
-    static_limit::Int = 200
+    static_limit::Int = 5000
 )
 
     # Initialize best solution as initial
