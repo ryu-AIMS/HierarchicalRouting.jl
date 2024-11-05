@@ -282,6 +282,65 @@ function plot_waypoints_and_exclusions_with_graph(g::SimpleWeightedGraph{Int64, 
     display(fig)
 end
 
+function plot_graph_exclusions(
+    graph_matrix::Matrix{
+        Tuple{
+            Dict{Int64, Point{2, Float64}},
+            Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
+            }},
+    waypoints::Vector{Point{2, Float64}},
+    exclusions::DataFrame)
+
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], title = "Mothership Route with Graph", xlabel = "Longitude", ylabel = "Latitude")
+    n_graphs = length(graph_matrix)
+    # color_palette = distinguishable_colors(n_graphs)
+    color_palette = [cgrad(:rainbow, n_graphs)[i] for i in 1:n_graphs]
+
+
+    # Waypoints
+    waypoint_lons = [wp[1] for wp in waypoints]
+    waypoint_lats = [wp[2] for wp in waypoints]
+    scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Waypoints")
+    for i in 1:length(waypoints)
+        text!(ax, waypoint_lons[i], waypoint_lats[i] + 0.01, text = string(i), align = (:center, :center), color = :black)
+    end
+
+    # Exclusion zones (polygons)
+    for (i, zone) in enumerate(eachrow(exclusions))
+        polygon = zone[:geometry]
+        for ring in GeoInterface.coordinates(polygon)
+            xs = [coord[1] for coord in ring]
+            ys = [coord[2] for coord in ring]
+            poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black, label = "Exclusion Zone")
+
+            centroid_x, centroid_y = mean(xs), mean(ys)
+            text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+        end
+    end
+
+    for (idx, graph_dict_path_i) in enumerate(graph_matrix)
+        idx_to_point, shortest_path = graph_dict_path_i
+        shortest_path_edges = Set(shortest_path)
+        color = color_palette[idx]
+
+        # # Weighted graph
+        # x_coords = [idx_to_point[i][1] for i in 1:nv(g)]
+        # y_coords = [idx_to_point[i][2] for i in 1:nv(g)]
+        # scatter!(ax, x_coords, y_coords, markersize = 6, color = :blue, label = idx==1 ? "Graph Nodes" : nothing)
+        # [text!(ax, x_coords[i], y_coords[i], text = string(i), align = (:center, :center), color = :red) for i in 1:nv(g)]
+
+        # Draw shortest path edges in red
+        for e in shortest_path
+            x1, y1 = idx_to_point[e.src][1], idx_to_point[e.src][2]
+            x2, y2 = idx_to_point[e.dst][1], idx_to_point[e.dst][2]
+            lines!(ax, [x1, x2], [y1, y2], color = color, linewidth = 2, label = "Shortest Path")
+        end
+    end
+
+    display(fig)
+end
+
 function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
