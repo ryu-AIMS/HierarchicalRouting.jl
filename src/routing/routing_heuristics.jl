@@ -201,28 +201,6 @@ function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
 end
 
 """
-    return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})
-
-Calculate the total distance of a route starting from index 1, and returning to index 1.
-
-# Arguments
-- `route` : Vector of cluster indices.
-- `dist_matrix` : Distance matrix between clusters.
-
-# Returns
-Total distance of the return route.
-"""
-function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})
-    total_dist = 0.0
-    n = length(route)  # Adjust for duplicate last point as the start point)
-
-    total_dist = sum([dist_matrix[route[i], route[i + 1]] for i in 1:n-1])
-
-    total_dist += dist_matrix[route[n], route[1]]
-    return total_dist
-end
-
-"""
     two_opt_swap(route::Vector{Int64}, i::Int, j::Int)
 
 Swap two points in a route.
@@ -315,24 +293,4 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
     total_distance = sum(sortie_dist)
 
     return TenderSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance, waypoints[1], waypoints[2]), dist_matrix
-end
-
-"""
-    sortie_cost(sortie::Vector{Vector{Int64}}, dist_matrix::Matrix{Float64})
-
-Calculate the total distance of all sorties.
-
-# Arguments
-- `sorties` : Vector of Vector of node indices.
-- `dist_matrix` : Distance matrix between nodes.
-
-# Returns
-Vector of total distance of each sortie.
-"""
-function sortie_cost(sorties::Vector{Vector{Int64}}, dist_matrix::Matrix{Float64})::Vector{Float64}
-    # TODO: Handling for empty tender tours
-    sortie_dist = [dist_matrix[1, tour[1]] for tour in sorties]
-    sortie_dist .+= [length(tour) > 1 ? sum([dist_matrix[tour[i], tour[i+1]] for i in 1:(length(tour)-1)]) : 0 for tour in sorties]
-    sortie_dist .+= [dist_matrix[tour[end], 1] for tour in sorties]
-    return sortie_dist
 end
