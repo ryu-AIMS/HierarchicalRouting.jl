@@ -73,8 +73,6 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
 
     g, point_to_idx, idx_to_point = build_graph(points, parent_points)
 
-    # plot_waypoints_and_exclusions_with_graph(g, idx_to_point, [initial_point, final_point], exclusions)
-
     path = a_star(g, 1, point_to_idx[final_point], g.weights)
     dist = sum(g.weights[p.src, p.dst] for p in path)
 
