@@ -50,7 +50,7 @@ function unionize_overlaps!(exclusions::DataFrame)
             geom2 = geometries[j]
 
             if AG.overlaps(geom1, geom2)
-                # @info "Partial overlap: $i and $j"
+                @debug "Partial overlap: $i and $j"
                 union_geom = AG.union(geom1, geom2)
                 exclusions.geometry[i] = union_geom
                 exclusions.geometry[j] = union_geom
@@ -63,10 +63,10 @@ function unionize_overlaps!(exclusions::DataFrame)
             end
 
             if AG.contains(geom1, geom2)
-                # @info "Full overlap: $i contains $j"
+                @debug "Full overlap: $i contains $j"
                 exclusions.geometry[j] = geom1
             elseif AG.contains(geom2, geom1)
-                # @info "Full overlap: $j contains $i"
+                @debug "Full overlap: $j contains $i"
                 exclusions.geometry[i] = geom2
             end
         end
