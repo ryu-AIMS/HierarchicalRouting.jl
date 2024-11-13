@@ -3,6 +3,7 @@
     cluster_sequence::DataFrame
     route::DataFrame
     cost::Float64
+    line_strings::Vector{LineString{2, Float64}} = []
 end
 
 struct Sortie
@@ -91,7 +92,10 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
     waypoints = get_waypoints(ordered_nodes)
 
-    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=total_distance), dist_matrix, feasible_path
+    _, waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)
+    paths = get_linestrings(waypoint_feasible_path)
+
+    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=total_distance, line_strings=paths), dist_matrix, feasible_path
 end
 
 """
@@ -162,7 +166,7 @@ Apply two-opt heuristic to improve the current route (by uncrossing crossed link
     - `waypoints` : DataFrame of waypoints on the route.
     - `best_distance` : Total distance of the best route.
 """
-function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
+function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64}, feasible_path)
     # If depot is last row, remove
     if nodes.id[1] == nodes.id[end]
         nodes = nodes[1:end-1, :]
@@ -198,7 +202,7 @@ function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
 
     ordered_centroids = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
-    return MothershipSolution(cluster_sequence=ordered_centroids, route=get_waypoints(ordered_centroids), cost=best_distance)
+    return MothershipSolution(cluster_sequence=ordered_centroids, route=get_waypoints(ordered_centroids), cost=best_distance, line_strings=get_linestrings(feasible_path))
 end
 
 """
