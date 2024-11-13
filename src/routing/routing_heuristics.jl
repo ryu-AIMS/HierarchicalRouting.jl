@@ -13,7 +13,7 @@ end
 struct TenderSolution
     id::Int
     sorties::Vector{Sortie}
-    cost::Float64   # TODO: delete? redundant with sum(...) and critical path metric...
+    # cost::Float64   # TODO: delete? redundant with sum(...) and critical path metric...
     start::Point{2, Float64}
     finish::Point{2, Float64}
 end
@@ -292,5 +292,5 @@ function tender_sequential_nearest_neighbour(cluster::Cluster, waypoints::NTuple
 
     total_distance = sum(sortie_dist)
 
-    return TenderSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], total_distance, waypoints[1], waypoints[2]), dist_matrix
+    return TenderSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]], sortie_dist[t]) for t in 1:length(tender_tours)], waypoints[1], waypoints[2]), dist_matrix
 end
