@@ -292,7 +292,6 @@ function plot_linestrings(
     n_graphs = length(line_strings)
     color_palette = [cgrad(:rainbow, n_graphs)[i] for i in 1:n_graphs]
 
-    # Waypoints
     waypoint_lons = [wp[1] for wp in waypoints]
     waypoint_lats = [wp[2] for wp in waypoints]
     scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Waypoints")
@@ -305,7 +304,6 @@ function plot_linestrings(
         color = :black
     )
 
-    # Exclusion zones (polygons)
     for (i, zone) in enumerate(eachrow(exclusions))
         polygon = zone[:geometry]
         for ring in GeoInterface.coordinates(polygon)
@@ -318,10 +316,10 @@ function plot_linestrings(
         end
     end
 
-    # Plot each LineString from the line_strings argument
     for (idx, line_string) in enumerate(line_strings)
         color = color_palette[idx]
-        lines!(ax, line_string.points, color = color, linewidth = 2, label = "Shortest Path")
+        points = [Point(p[1], p[2]) for l in line_string for p in l.points]  # Swap x and y for each point
+        lines!(ax, points, color = color, linewidth = 2, label = "Shortest Path")
     end
 
     display(fig)
