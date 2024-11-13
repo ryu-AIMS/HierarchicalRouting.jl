@@ -1,5 +1,5 @@
 
-struct MothershipSolution
+@kwdef struct MothershipSolution
     cluster_sequence::DataFrame
     route::DataFrame
     cost::Float64
@@ -89,12 +89,13 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     cluster_sequence = tour .- 1
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
+    waypoints = get_waypoints(ordered_nodes)
 
-    return MothershipSolution(ordered_nodes, get_waypoints(ordered_nodes), total_distance), dist_matrix, feasible_path
+    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=total_distance), dist_matrix, feasible_path
 end
 
 """
-    get_waypoints(sequence::DataFrame)::Vector{Point{2, Float64}
+    get_waypoints(sequence::DataFrame)::DataFrame
 
 Calculate mothership waypoints between sequential clusters.
 For each cluster, waypoint 1/3 dist before and after cluster centroid.
@@ -197,7 +198,7 @@ function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
 
     ordered_centroids = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
-    return MothershipSolution(ordered_centroids, get_waypoints(ordered_centroids), best_distance)
+    return MothershipSolution(cluster_sequence=ordered_centroids, route=get_waypoints(ordered_centroids), cost=best_distance)
 end
 
 """
