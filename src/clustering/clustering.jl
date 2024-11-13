@@ -74,7 +74,7 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
         row_cent = mean([node[1] for node in nodes])
         col_cent = mean([node[2] for node in nodes])
 
-        push!(cluster_vec, Cluster(id = id, centroid = Point{2, Float64}(row_cent, col_cent), nodes = [Point{2, Float64}(node[1], node[2]) for node in nodes]))
+        push!(cluster_vec, Cluster(id = id, centroid = Point{2, Float64}(col_cent, row_cent), nodes = [Point{2, Float64}(node[2], node[1]) for node in nodes]))
     end
 
     return cluster_vec
