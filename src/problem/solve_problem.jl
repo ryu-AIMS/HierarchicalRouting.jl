@@ -25,8 +25,8 @@ function initial_solution(problem::Problem)
 
         push!(tender_soln, t_solution[1])
     end
-    points = [Point{2, Float64}(row.lat, row.lon) for row in eachrow(cluster_centroids_df)]
-    return MSTSolution(clusters, ms_soln_2opt, tender_soln), feasible_path, points
+
+    return MSTSolution(clusters, ms_soln_2opt, tender_soln)#, feasible_path, [Point{2, Float64}(row.lat, row.lon) for row in eachrow(cluster_centroids_df)]
 end
 
 function improve_solution(soln::MSTSolution, opt_function::Function, objective_function::Function, perturb_function::Function, max_iterations::Int = 100_000, temp_init::Float64 = 500.0, cooling_rate::Float64 = 0.99_99)
