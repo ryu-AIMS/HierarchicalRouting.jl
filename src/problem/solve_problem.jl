@@ -1,41 +1,8 @@
 
 function initial_solution(problem::Problem)
 
-    config = TOML.parsefile(joinpath("src",".config.toml"))
-
-    suitable_threshold = config["parameters"]["suitable_threshold"]
-    k = config["parameters"]["k"]
-    cluster_tolerance = config["parameters"]["cluster_tolerance"]
-    EPSG_code = config["parameters"]["EPSG_code"]
-
-    target_scenario = problem.target_scenario
-    suitable_targets_prefix = target_scenario[1:findlast(".",target_scenario)[1]-1]
-
-    site_dir = config["data_dir"]["site"]
-    output_dir = config["output_dir"]["path"]
-
-    clustered_targets_path = joinpath(output_dir, "clustered_$(suitable_targets_prefix)_targets_k=$(k).tif")
-    target_subset_threshold_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix)_threshold=$(suitable_threshold).tif")
-    target_subset_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix).tif")
-
-    subset = GDF.read(first(glob("*.gpkg", site_dir)))
-
-    target_scenario_dir = config["data_dir"]["target_scenarios"]
-    suitable_targets_all_path = joinpath(target_scenario_dir, target_scenario)
-
-    clusters = cluster_targets(
-        clustered_targets_path,
-        target_subset_threshold_path,
-        k, cluster_tolerance,
-        suitable_targets_all_path,
-        suitable_threshold,
-        target_subset_path,
-        subset,
-        EPSG_code
-    )
-
-    cluster_centroids_df = DataFrame(id = Int[0], lon = Float64[problem.depot[1]], lat = Float64[problem.depot[2]])
-    [push!(cluster_centroids_df, (i, clust.centroid[1], clust.centroid[2])) for (i, clust) in enumerate(clusters)]
+    # Load problem data
+    clusters, cluster_centroids_df = process_problem(problem)
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN, ms_feasible_matrix, feasible_path = nearest_neighbour(cluster_centroids_df, problem.mothership.exclusion)

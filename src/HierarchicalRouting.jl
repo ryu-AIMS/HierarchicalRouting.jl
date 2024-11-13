@@ -16,12 +16,12 @@ import GeoDataFrames as GDF
 import Distances: euclidean # haversine
 using Graphs, SimpleWeightedGraphs
 
+include("problem/problem_setup.jl")
+
 include("processing/processing.jl")
 include("processing/data_types.jl")
 include("processing/reads.jl")
 include("processing/spatial_operations.jl")
-
-include("problem/problem_setup.jl")
 
 include("clustering/clustering.jl")
 
