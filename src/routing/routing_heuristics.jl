@@ -152,21 +152,27 @@ function get_waypoints(sequence::DataFrame)::DataFrame
 end
 
 """
-    two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64})
+    two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, feasible_path, exclusions::DataFrame)
 
-Apply two-opt heuristic to improve the current route (by uncrossing crossed links).
+Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
 
 # Arguments
-- `nodes` : DataFrame (id, lat, lon) incl depot as node 0 in row 1.
+- `ms_soln_current` : Current MothershipSolution - from nearest_neighbour.
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
+- `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of nodes.
+- `exclusions` : DataFrame containing exclusion zones.
 
 # Returns
-- `solution` : MSRoutingSolution object containing:
-    - `ordered_centroids` : Improved return route to/from depot.
-    - `waypoints` : DataFrame of waypoints on the route.
-    - `best_distance` : Total distance of the best route.
+- `solution` : MothershipSolution object containing:
+    - `cluster_sequence` : DataFrame of cluster centroids in sequence (containing id, lon, lat).
+    - `route` : DataFrame of waypoints characterising route.
+    - `cost` : Total distance of the route.
+    - `line_strings` : Vector of LineString objects for each path.
 """
-function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64}, feasible_path)
+function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, feasible_path, exclusions::DataFrame)
+
+    nodes = ms_soln_current.cluster_sequence
+
     # If depot is last row, remove
     if nodes.id[1] == nodes.id[end]
         nodes = nodes[1:end-1, :]
@@ -200,9 +206,14 @@ function two_opt(nodes::DataFrame, dist_matrix::Matrix{Float64}, feasible_path)
     # Adjust sequence to zero-based indexing where depot = 0
     best_route .-= 1
 
-    ordered_centroids = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
+    ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
-    return MothershipSolution(cluster_sequence=ordered_centroids, route=get_waypoints(ordered_centroids), cost=best_distance, line_strings=get_linestrings(feasible_path))
+    waypoints = get_waypoints(ordered_nodes)
+    _, waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)
+
+    paths = get_linestrings(waypoint_feasible_path)
+
+    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=best_distance, line_strings=paths)
 end
 
 """
