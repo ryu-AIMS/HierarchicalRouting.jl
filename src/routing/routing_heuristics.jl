@@ -60,7 +60,7 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
 - `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of nodes.
 """
 function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
-    dist_matrix, feasible_path = get_feasible_matrix([Point{2, Float64}(row.lat, row.lon) for row in eachrow(nodes)], exclusions)
+    dist_matrix, feasible_path = get_feasible_matrix([Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)], exclusions)
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
