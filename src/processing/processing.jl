@@ -36,13 +36,14 @@ end
     Tuple{
         Dict{Int64, Point{2, Float64}},
         Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
-    }})
+    }},
+    waypoints::Vector{Point{2, Float64}})
 
-For each shortest path: create a single LineString across all points.
-
+Between each sequential pair of waypoints: create a single LineString across all points defining its path.
 
 # Arguments
 - `graph_matrix::Matrix{Tuple{Dict{Int64, Point{2, Float64}}, Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}}}`: The graph matrix.
+- `waypoints::Vector{Point{2, Float64}}`: The waypoints.
 
 # Returns
 - A vector of LineStrings.
@@ -51,17 +52,31 @@ function get_linestrings(graph_matrix::Matrix{
     Tuple{
         Dict{Int64, Point{2, Float64}},
         Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
-    }})
+    }},
+    waypoints::Vector{Point{2, Float64}})
+
     line_strings = Vector{LineString{2, Float64}}()
 
-    for graph_dict_path_i in graph_matrix
-        idx_to_point, shortest_path = graph_dict_path_i
+    for i in 1:(length(waypoints) - 1)
+        start_point = waypoints[i]
+        end_point = waypoints[i + 1]
 
-        if length(shortest_path) > 0
-            path_points = [idx_to_point[e.src] for e in shortest_path]
-            push!(path_points, idx_to_point[shortest_path[end].dst])
+        # Find the graph entry corresponding to this waypoint pair
+        for graph_dict_path in graph_matrix
+            idx_to_point, shortest_path = graph_dict_path
 
-            push!(line_strings, LineString(path_points))
+            # Check if the path starts and ends at the desired waypoints
+            if !isempty(shortest_path) &&
+               idx_to_point[shortest_path[1].src] == start_point &&
+               idx_to_point[shortest_path[end].dst] == end_point
+
+                # Extract points along path
+                path_points = [idx_to_point[e.src] for e in shortest_path]
+                push!(path_points, idx_to_point[shortest_path[end].dst])
+
+                push!(line_strings, LineString(path_points))
+                break
+            end
         end
     end
 

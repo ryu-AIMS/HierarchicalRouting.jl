@@ -93,7 +93,7 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     waypoints = get_waypoints(ordered_nodes)
 
     _, waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)
-    paths = get_linestrings(waypoint_feasible_path)
+    paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=total_distance, line_strings=paths), dist_matrix, feasible_path
 end
@@ -211,7 +211,7 @@ function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float6
     waypoints = get_waypoints(ordered_nodes)
     _, waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)
 
-    paths = get_linestrings(waypoint_feasible_path)
+    paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=best_distance, line_strings=paths)
 end
