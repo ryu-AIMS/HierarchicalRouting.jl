@@ -284,7 +284,7 @@ end
 
 function plot_linestrings(
     line_strings::Vector{LineString{2, Float64}},
-    waypoints::Vector{Point{2, Float64}},
+    centroids::Vector{Point{2, Float64}},
     exclusions::DataFrame)
 
     fig = Figure(size = (800, 600))
@@ -292,14 +292,14 @@ function plot_linestrings(
     n_graphs = length(line_strings)
     color_palette = [cgrad(:rainbow, n_graphs)[i] for i in 1:n_graphs]
 
-    waypoint_lons = [wp[1] for wp in waypoints]
-    waypoint_lats = [wp[2] for wp in waypoints]
-    scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Waypoints")
+    centroid_lons = [c[1] for c in centroids]
+    centroid_lats = [c[2] for c in centroids]
+    scatter!(ax, centroid_lons, centroid_lats, markersize = 5, color = :red, label = "Waypoints")
     text!(
         ax,
-        waypoint_lons,
-        waypoint_lats .+ 0.01,
-        text = string.(1:length(waypoints)),
+        centroid_lons,
+        centroid_lats .+ 0.01,
+        text = string.(1:length(centroids)),
         align = (:center, :center),
         color = :black
     )
