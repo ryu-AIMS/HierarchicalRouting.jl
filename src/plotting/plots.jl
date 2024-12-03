@@ -421,6 +421,27 @@ function linestrings!(
     end
 end
 
+function tenders!(
+    ax::Axis,
+    tender_soln::Vector{TenderSolution}
+)
+    colormap = distinguishable_colors(length(tender_soln) + 1)[2:end]
+
+    for t_soln in tender_soln
+        color = colormap[t_soln.id]
+
+        for route in t_soln.sorties
+            nodes = [t_soln.start]
+            append!(nodes, [node for node in route.nodes])
+            append!(nodes, [t_soln.finish])
+
+            node_lons, node_lats = [wp[1] for wp in nodes], [wp[2] for wp in nodes]
+
+            lines!(ax, node_lons, node_lats, color = color, linewidth = 1)
+        end
+    end
+end
+
 function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
