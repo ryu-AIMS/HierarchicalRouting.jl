@@ -354,6 +354,26 @@ function points!(
 
 end
 
+function cluster_centroids!(
+    ax::Axis,
+    centroids::Vector{Point{2, Float64}};
+    cluster_radius = 100
+)
+    centroid_lons = [c[1] for c in centroids]
+    centroid_lats = [c[2] for c in centroids]
+    scatter!(ax, centroid_lons, centroid_lats, markersize = 5, color = :red, label = "Waypoints")
+
+    # cluster circles
+    for i in 2:length(centroid_lons)-1
+        scatter!(ax, [centroid_lons[i]], [centroid_lats[i]], markersize = 10, color = (:red, 0.2), strokewidth = 0)
+
+        circle_lons = [centroid_lons[i] + cluster_radius * cos(θ) for θ in range(0, 2π, length=100)]
+        circle_lats = [centroid_lats[i] + cluster_radius * sin(θ) for θ in range(0, 2π, length=100)]
+        poly!(ax, circle_lons, circle_lats, color = (:red, 0.2), strokecolor = :red)
+    end
+
+end
+
 function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
