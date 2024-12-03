@@ -374,6 +374,25 @@ function cluster_centroids!(
 
 end
 
+function exclusions!(
+    ax::Axis,
+    exclusions::DataFrame;
+    labels::Bool = false
+)
+    for (i, zone) in enumerate(eachrow(exclusions))
+        polygon = zone[:geometry]
+        for ring in GeoInterface.coordinates(polygon)
+            xs, ys = [coord[1] for coord in ring], [coord[2] for coord in ring]
+            poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black)#, label = "Exclusion Zone")
+
+            if labels
+                centroid_x, centroid_y = mean(xs), mean(ys)
+                text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+            end
+        end
+    end
+end
+
 function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
