@@ -292,17 +292,31 @@ function plot_linestrings(
     n_graphs = length(line_strings)
     color_palette = [cgrad(:rainbow, n_graphs)[i] for i in 1:n_graphs]
 
+    waypoints = [line[1][1] for line in line_strings]
+    waypoint_lons = [wp[1] for wp in waypoints]
+    waypoint_lats = [wp[2] for wp in waypoints]
+
+    # Plot cluster centroids
+    scatter!(ax, waypoint_lons, waypoint_lats, markersize = 5, color = :red, label = "Cluster Centroids")
+
+    # Annotate waypoints by sequence
+    for i in 1:length(waypoint_lons)
+        text!(ax, waypoint_lons[i], waypoint_lats[i] + 50, text = string(i-1), align = (:center, :center), color = :black)
+    end
+
     centroid_lons = [c[1] for c in centroids]
     centroid_lats = [c[2] for c in centroids]
     scatter!(ax, centroid_lons, centroid_lats, markersize = 5, color = :red, label = "Waypoints")
-    text!(
-        ax,
-        centroid_lons,
-        centroid_lats .+ 0.01,
-        text = string.(1:length(centroids)),
-        align = (:center, :center),
-        color = :black
-    )
+
+    # cluster circles
+    cluster_radius = 100
+    for i in 2:length(centroid_lons)-1
+        scatter!(ax, [centroid_lons[i]], [centroid_lats[i]], markersize = 10, color = (:red, 0.2), strokewidth = 0)
+
+        circle_lons = [centroid_lons[i] + cluster_radius * cos(θ) for θ in range(0, 2π, length=100)]
+        circle_lats = [centroid_lats[i] + cluster_radius * sin(θ) for θ in range(0, 2π, length=100)]
+        poly!(ax, circle_lons, circle_lats, color = (:red, 0.2), strokecolor = :red)
+    end
 
     for (i, zone) in enumerate(eachrow(exclusions))
         polygon = zone[:geometry]
@@ -318,7 +332,7 @@ function plot_linestrings(
 
     for (idx, line_string) in enumerate(line_strings)
         color = color_palette[idx]
-        points = [Point(p[1], p[2]) for l in line_string for p in l.points]  # Swap x and y for each point
+        points = [Point(p[1], p[2]) for l in line_string for p in l.points]
         lines!(ax, points, color = color, linewidth = 2, label = "Shortest Path")
     end
 
