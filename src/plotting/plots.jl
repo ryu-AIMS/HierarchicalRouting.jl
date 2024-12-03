@@ -339,6 +339,21 @@ function plot_linestrings(
     display(fig)
 end
 
+function points!(
+    ax::Axis,
+    clusters::Vector{HierarchicalRouting.Cluster};
+)
+    colormap = distinguishable_colors(length(clusters) + 1)[2:end]
+
+    for (idx, cluster) in enumerate(clusters)
+        color = colormap[idx]
+        for point in cluster.nodes
+            scatter!(ax, point, color = color, markersize = 5)
+        end
+    end
+
+end
+
 function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
