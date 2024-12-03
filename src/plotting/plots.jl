@@ -393,6 +393,34 @@ function exclusions!(
     end
 end
 
+function linestrings!(
+    ax::Axis,
+    line_strings::Vector{LineString{2, Float64}};
+    labels::Bool = false
+)
+    n_graphs = length(line_strings)
+    color_palette = [cgrad(:rainbow, n_graphs)[i] for i in 1:n_graphs]
+
+    waypoints = [line[1][1] for line in line_strings]
+
+    waypoint_lons, waypoint_lats = [wp[1] for wp in waypoints], [wp[2] for wp in waypoints]
+
+    # Mark waypoints with 'x'
+    scatter!(ax, waypoint_lons, waypoint_lats, marker = 'x', markersize = 10, color = :black)#, label = "Cluster Centroids")
+
+    # Plot LineStrings
+    for (idx, line_string) in enumerate(line_strings)
+        color = color_palette[idx]
+        points = [Point(p[1], p[2]) for l in line_string for p in l.points]
+        lines!(ax, points, color = color, linewidth = 2)
+    end
+
+    if labels
+        # Annotate waypoints by sequence
+        text!(ax, waypoint_lons, waypoint_lats .+ 30, text = string.((0:length(waypoint_lons)-1)), align = (:center, :center), color = :black)
+    end
+end
+
 function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
