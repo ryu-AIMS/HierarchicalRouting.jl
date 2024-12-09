@@ -492,7 +492,7 @@ end
 end
 
 function tenders(
-    tender_soln::Vector{TenderSolution}
+    tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
@@ -503,7 +503,7 @@ function tenders(
 end
 function tenders!(
     ax::Axis,
-    tender_soln::Vector{TenderSolution}
+    tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )
     colormap = distinguishable_colors(length(tender_soln) + 1)[2:end]
 
@@ -523,7 +523,7 @@ function tenders!(
     return ax
 end
 
-function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
+function plot_tender_routes(tender_soln::Vector{HierarchicalRouting.TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], title = "Tender Routes", xlabel = "Longitude", ylabel = "Latitude")
 
