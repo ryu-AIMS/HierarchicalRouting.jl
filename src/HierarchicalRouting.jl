@@ -34,6 +34,7 @@ include("problem/solve_problem.jl")
 
 include("plotting/plots.jl")
 
+export Plot
 
 # export
 #     load_problem,

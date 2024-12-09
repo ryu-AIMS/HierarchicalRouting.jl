@@ -1,3 +1,11 @@
+module Plot
+
+import ..HierarchicalRouting
+
+using Rasters
+using DataFrames
+using GeometryBasics
+
 using GLMakie, GeoMakie
 
 
@@ -568,5 +576,7 @@ function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vect
     end
 
     display(fig)
+
+end
 
 end
