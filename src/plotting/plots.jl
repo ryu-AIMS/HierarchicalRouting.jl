@@ -339,6 +339,14 @@ function plot_linestrings(
     display(fig)
 end
 
+function points(clusters::Vector{HierarchicalRouting.Cluster})
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+
+    points!(ax, clusters)
+
+    return fig, ax
+end
 function points!(
     ax::Axis,
     clusters::Vector{HierarchicalRouting.Cluster};
@@ -354,6 +362,18 @@ function points!(
     return ax
 end
 
+function clusters(
+    cluster_sequence::DataFrame;
+    cluster_radius = 100,
+    centers = false
+)
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+
+    clusters!(ax, cluster_sequence, cluster_radius = cluster_radius, centers = centers)
+
+    return fig, ax
+end
 function clusters!(
     ax::Axis,
     cluster_sequence::DataFrame;
@@ -392,6 +412,17 @@ function clusters!(
     return ax
 end
 
+function exclusions(
+    exclusions::DataFrame;
+    labels::Bool = false
+)
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+
+    exclusions!(ax, exclusions, labels = labels)
+
+    return fig, ax
+end
 function exclusions!(
     ax::Axis,
     exclusions::DataFrame;
@@ -412,7 +443,18 @@ function exclusions!(
     return ax
 end
 
-function linestrings!(
+function linestrings(
+    line_strings::Vector{LineString{2, Float64}};
+    labels::Bool = false
+)
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+
+    linestrings!(ax, line_strings, labels = labels)
+
+    return fig, ax
+end
+    function linestrings!(
     ax::Axis,
     line_strings::Vector{LineString{2, Float64}};
     labels::Bool = false
@@ -441,6 +483,16 @@ function linestrings!(
     return ax
 end
 
+function tenders(
+    tender_soln::Vector{TenderSolution}
+)
+    fig = Figure(size = (800, 600))
+    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+
+    tenders!(ax, tender_soln)
+
+    return fig, ax
+end
 function tenders!(
     ax::Axis,
     tender_soln::Vector{TenderSolution}
