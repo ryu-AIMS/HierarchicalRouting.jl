@@ -351,7 +351,7 @@ function points!(
             scatter!(ax, point, color = color, markersize = 5)
         end
     end
-
+    return ax
 end
 
 function clusters!(
@@ -389,7 +389,7 @@ function clusters!(
             # series((center_lon, center_lat), color = (color, 0.2), markersize = 10)
         end
     end
-
+    return ax
 end
 
 function exclusions!(
@@ -409,6 +409,7 @@ function exclusions!(
             end
         end
     end
+    return ax
 end
 
 function linestrings!(
@@ -437,6 +438,7 @@ function linestrings!(
         # Annotate waypoints by sequence
         text!(ax, waypoint_lons, waypoint_lats .+ 30, text = string.((0:length(waypoint_lons)-1)), align = (:center, :center), color = :black)
     end
+    return ax
 end
 
 function tenders!(
@@ -458,6 +460,7 @@ function tenders!(
             lines!(ax, node_lons, node_lats, color = color, linewidth = 1)
         end
     end
+    return ax
 end
 
 function plot_tender_routes(tender_soln::Vector{TenderSolution}, waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
