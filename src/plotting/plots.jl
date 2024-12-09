@@ -354,22 +354,40 @@ function points!(
 
 end
 
-function cluster_centroids!(
+function clusters!(
     ax::Axis,
-    centroids::Vector{Point{2, Float64}};
-    cluster_radius = 100
+    cluster_sequence::DataFrame;
+    cluster_radius = 100,
+    centers = false
 )
-    centroid_lons = [c[1] for c in centroids]
-    centroid_lats = [c[2] for c in centroids]
-    scatter!(ax, centroid_lons, centroid_lats, markersize = 5, color = :red, label = "Waypoints")
+    sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
+    centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)
+    # series(centroids)
 
     # cluster circles
-    for i in 2:length(centroid_lons)-1
-        scatter!(ax, [centroid_lons[i]], [centroid_lats[i]], markersize = 10, color = (:red, 0.2), strokewidth = 0)
+    colormap = distinguishable_colors(length(sequence_id)+1)[2:end]
 
-        circle_lons = [centroid_lons[i] + cluster_radius * cos(θ) for θ in range(0, 2π, length=100)]
-        circle_lats = [centroid_lats[i] + cluster_radius * sin(θ) for θ in range(0, 2π, length=100)]
-        poly!(ax, circle_lons, circle_lats, color = (:red, 0.2), strokecolor = :red)
+    # Precompute circle offsets
+    circle_offset_lon = cluster_radius .* cos.(range(0, 2π, length=100))
+    circle_offset_lat = cluster_radius .* sin.(range(0, 2π, length=100))
+
+    for (idx, seq) in enumerate(sequence_id)
+        color = colormap[seq]
+
+        center_lon = centroids[:, 1][idx + 1]
+        center_lat = centroids[:, 2][idx + 1]
+
+        circle_lons = center_lon .+ circle_offset_lon
+        circle_lats = center_lat .+ circle_offset_lat
+
+        circle = hcat(circle_lons, circle_lats)
+
+        poly!(ax, circle, color = (color, 0.2), strokecolor = color, label = "Cluster Centroids")
+
+        if centers
+            scatter!(ax, [center_lon], [center_lat], markersize = 10, color = (color, 0.2), strokewidth = 0)
+            # series((center_lon, center_lat), color = (color, 0.2), markersize = 10)
+        end
     end
 
 end
