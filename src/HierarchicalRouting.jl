@@ -36,9 +36,5 @@ include("plotting/plots.jl")
 
 export Plot
 
-# export
-#     load_problem,
-#     initial_solution,
-#     improve_solution
 
 end
