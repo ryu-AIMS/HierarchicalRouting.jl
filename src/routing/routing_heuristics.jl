@@ -151,14 +151,13 @@ function get_waypoints(sequence::DataFrame)::DataFrame
 end
 
 """
-    two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, feasible_path, exclusions::DataFrame)
+    two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, exclusions::DataFrame)
 
 Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
 
 # Arguments
 - `ms_soln_current` : Current MothershipSolution - from nearest_neighbour.
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
-- `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of nodes.
 - `exclusions` : DataFrame containing exclusion zones.
 
 # Returns
@@ -168,7 +167,7 @@ Apply the 2-opt heuristic to improve the current MothershipSolution route (by un
     - `cost` : Total distance of the route.
     - `line_strings` : Vector of LineString objects for each path.
 """
-function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, feasible_path, exclusions::DataFrame)
+function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, exclusions::DataFrame)
 
     nodes = ms_soln_current.cluster_sequence
 
@@ -208,7 +207,7 @@ function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float6
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
     waypoints = get_waypoints(ordered_nodes)
-    _, waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
 
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 

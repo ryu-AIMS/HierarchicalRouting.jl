@@ -8,7 +8,7 @@ function initial_solution(problem::Problem)
     ms_soln_NN, ms_feasible_matrix_centroids = nearest_neighbour(cluster_centroids_df, problem.mothership.exclusion)
 
     # 2-opt to improve the NN soln
-    ms_soln_2opt = two_opt(ms_soln_NN, ms_feasible_matrix_centroids, ms_feasible_path_centroids, problem.mothership.exclusion)
+    ms_soln_2opt = two_opt(ms_soln_NN, ms_feasible_matrix_centroids, problem.mothership.exclusion)
 
     clust_seq = [i for i in ms_soln_2opt.cluster_sequence.id if i!==0 && i <= length(clusters)]
     tender_soln = HierarchicalRouting.TenderSolution[]
