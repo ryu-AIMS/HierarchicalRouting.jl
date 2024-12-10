@@ -2,16 +2,20 @@ module Plot
 
 import ..HierarchicalRouting
 
-using Rasters
 using DataFrames
+using Rasters
+using Statistics
+
 using GeometryBasics
 
 using GLMakie, GeoMakie
 
 
-function points(clusters::Vector{HierarchicalRouting.Cluster})
+function points(
+    clusters::Vector{HierarchicalRouting.Cluster})
     fig = Figure(size = (800, 600))
-    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude"
+)
 
     points!(ax, clusters)
 
