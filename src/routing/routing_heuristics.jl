@@ -57,10 +57,9 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
     - `route` : DataFrame of waypoints on the route.
     - `distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
-- `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of nodes.
 """
 function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
-    dist_matrix, feasible_path = get_feasible_matrix([Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)], exclusions)
+    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)], exclusions)[1]
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -92,10 +91,10 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
     waypoints = get_waypoints(ordered_nodes)
 
-    _, waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
-    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=total_distance, line_strings=paths), dist_matrix, feasible_path
+    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=total_distance, line_strings=paths), dist_matrix
 end
 
 """
