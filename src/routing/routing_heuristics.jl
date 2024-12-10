@@ -44,6 +44,89 @@ function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
 end
 
 """
+    get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
+
+Calculate mothership waypoints between sequential clusters.
+For each cluster, waypoint 1/3 dist before and after cluster centroid,
+unless within exclusion zone, then adjust to closest boundary point.
+
+# Arguments
+- `sequence` : id, amd centroid lat, long coordinates in sequence; including depot as the first and last rows wwith id=0.
+- `exclusions` : DataFrame containing exclusion zones.
+
+# Returns
+- `waypoint_df` : DataFrame for each waypoint on route. Depot included as first and last rows.
+                    Cols: waypoint::Point{2, Float64}, connecting_clusters::NTuple{2, Int64} reference to previous and next id.
+"""
+function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
+    # TODO: Implement convex hull exclusion zones
+    # TODO: Use graph to determine feasible paths and waypoints along path
+    n_cluster_seqs = nrow(sequence)
+
+    waypoints = Vector{Point{2, Float64}}(undef, 2*(n_cluster_seqs-2)+2)
+    connecting_clusters = Vector{NTuple{2, Int64}}(undef, 2*(n_cluster_seqs-2)+2)
+
+    waypoints[1] = Point{2, Float64}(sequence.lon[1], sequence.lat[1])
+    connecting_clusters[1] = (sequence.id[1], sequence.id[1])
+
+    """
+        adjust_waypoint(waypoint::Point{2, Float64}, exclusions::DataFrame)::Point{2, Float64}
+
+    Adjust waypoint if inside exclusion zone to closest boundary point.
+
+    # Arguments
+    - `waypoint` : Point{2, Float64} waypoint.
+    - `exclusions` : DataFrame containing exclusion zones.
+
+    # Returns
+    Adjusted waypoint if inside exclusion zone, else original waypoint.
+    """
+    function adjust_waypoint(waypoint::Point{2, Float64}, exclusions::DataFrame)::Point{2, Float64}
+        waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
+        polygons = exclusions.geometry
+        for polygon in polygons
+            exterior_ring = AG.getgeom(polygon, 0)
+            n_points = AG.ngeom(exterior_ring)
+            if AG.contains(polygon, waypoint_geom)
+                boundary_points = [Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1]
+                closest_point = argmin(p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2), boundary_points)
+                return closest_point
+            end
+        end
+        return waypoint
+    end
+
+    for i in 2:(n_cluster_seqs - 1)
+        prev_lon, prev_lat, prev_clust = sequence.lon[i-1], sequence.lat[i-1], sequence.id[i-1]
+        current_lon, current_lat, current_clust = sequence.lon[i], sequence.lat[i], sequence.id[i]
+        next_lon, next_lat, next_clust = sequence.lon[i+1], sequence.lat[i+1], sequence.id[i+1]
+
+        # Compute waypoints before and after the current cluster centroid
+        prev_waypoint = Point{2, Float64}(2/3 * current_lon + 1/3 * prev_lon, 2/3 * current_lat + 1/3 * prev_lat)
+        next_waypoint = Point{2, Float64}(2/3 * current_lon + 1/3 * next_lon, 2/3 * current_lat + 1/3 * next_lat)
+
+        # Adjust waypoints if they are inside exclusion polygons
+        prev_waypoint = adjust_waypoint(prev_waypoint, exclusions)
+        next_waypoint = adjust_waypoint(next_waypoint, exclusions)
+
+        waypoints[2*i-2] = prev_waypoint
+        connecting_clusters[2*i-2] = (prev_clust, current_clust)
+
+        waypoints[2*i-1] = next_waypoint
+        connecting_clusters[2*i-1] = (current_clust, next_clust)
+    end
+
+    waypoints[2*(n_cluster_seqs-2)+2] = (sequence.lon[end], sequence.lat[end])
+    connecting_clusters[2*(n_cluster_seqs-2)+2] = (sequence.id[end], sequence.id[end])
+
+    waypoint_df = DataFrame(
+        waypoint = waypoints,
+        connecting_clusters = connecting_clusters
+    )
+    return waypoint_df
+end
+
+"""
     nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
 
 Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to the depot.
@@ -89,65 +172,12 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     cluster_sequence = tour .- 1
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
-    waypoints = get_waypoints(ordered_nodes)
+    waypoints = get_waypoints(ordered_nodes, exclusions)
 
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=total_distance, line_strings=paths), dist_matrix
-end
-
-"""
-    get_waypoints(sequence::DataFrame)::DataFrame
-
-Calculate mothership waypoints between sequential clusters.
-For each cluster, waypoint 1/3 dist before and after cluster centroid.
-
-# Arguments
-- `sequence` : id, amd centroid lat, long coordinates in sequence; including depot as the first and last rows wwith id=0.
-
-# Returns
-- `waypoint_df` : DataFrame for each waypoint on route.
-                    Cols: waypoint::Point{2, Float64}, connecting_clusters::NTuple{2, Int64} reference to previous and next id.
-                    Depot is included as first and last rows.
-"""
-function get_waypoints(sequence::DataFrame)::DataFrame
-    # TODO: Implement convex hull exclusion zones
-    # TODO: Use graph to determine feasible paths and waypoints along path
-    n_cluster_seqs = nrow(sequence)
-
-    waypoints = Vector{Point{2, Float64}}(undef, 2*(n_cluster_seqs-2)+2)
-    connecting_clusters = Vector{NTuple{2, Int64}}(undef, 2*(n_cluster_seqs-2)+2)
-
-    waypoints[1] = (sequence.lon[1], sequence.lat[1])
-    connecting_clusters[1] = (sequence.id[1], sequence.id[1])
-
-    for i in 2:(n_cluster_seqs - 1)
-        prev_lat, prev_lon, prev_clust = sequence.lat[i-1], sequence.lon[i-1], sequence.id[i-1]
-        current_lat, current_lon, current_clust = sequence.lat[i], sequence.lon[i], sequence.id[i] #first(sequence[sequence.id .== cluster_seq_ids[i], :])
-        next_lat, next_lon, next_clust = sequence.lat[i+1], sequence.lon[i+1], sequence.id[i+1] #first(sequence[sequence.id .== cluster_seq_ids[i+1], :])
-
-        prev_waypoint_lat = (2/3 * (current_lat) + 1/3 * (prev_lat))
-        prev_waypoint_lon = (2/3 * (current_lon) + 1/3 * (prev_lon))
-
-        next_waypoint_lat = (2/3 * (current_lat) + 1/3 * (next_lat))
-        next_waypoint_lon = (2/3 * (current_lon) + 1/3 * (next_lon))
-
-        waypoints[2*i-2] = (prev_waypoint_lon, prev_waypoint_lat)
-        connecting_clusters[2*i-2] = (prev_clust, current_clust)
-
-        waypoints[2*i-1] = (next_waypoint_lon, next_waypoint_lat)
-        connecting_clusters[2*i-1] = (current_clust, next_clust)
-    end
-
-    waypoints[2*(n_cluster_seqs-2)+2] = (sequence.lon[end], sequence.lat[end])
-    connecting_clusters[2*(n_cluster_seqs-2)+2] = (sequence.id[end], sequence.id[end])
-
-    waypoint_df = DataFrame(
-        waypoint = waypoints,
-        connecting_clusters = connecting_clusters
-    )
-    return waypoint_df
 end
 
 """
@@ -206,7 +236,7 @@ function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float6
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
 
-    waypoints = get_waypoints(ordered_nodes)
+    waypoints = get_waypoints(ordered_nodes, exclusions)
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
 
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
