@@ -80,7 +80,7 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
 end
 
 """
-    find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Int) #::Union{Nothing, Tuple}
+    find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int}) #::Union{Nothing, Tuple}
 
 Find the widest vertices on each (left/right) side of the line to the final point.
 
@@ -88,14 +88,14 @@ Find the widest vertices on each (left/right) side of the line to the final poin
 - `current_point::Point{2, Float64}`: The current point marking start of line.
 - `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `current_exclusions_idx::Int`: The index of the current exclusion polygon, to disregard for crossing.
+- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion polygons to disregard for crossings.
 
 # Returns
 - `furthest_vert_L::Union{Nothing, Point{2, Float64}}`: The furthest point on the left side of the line.
 - `furthest_vert_R::Union{Nothing, Point{2, Float64}}`: The furthest point on the right side of the line.
 - `polygon_idx::Int`: The index of the polygon crossed.
 """
-function find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Int) #::Union{Nothing, Tuple}
+function find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int}) #::Union{Nothing, Tuple}
     max_dist_L, max_dist_R = -Inf32, -Inf32
     furthest_vert_L, furthest_vert_R = nothing, nothing # Set{Point{2, Float64}}()
 
@@ -134,7 +134,7 @@ function find_next_points(current_point::Point{2, Float64}, final_point::Point{2
 end
 
 """
-    closest_crossed_polygon(pt_a::Point{2, Float64}, pt_b::Point{2, Float64}, exclusions::DataFrame)
+    closest_crossed_polygon(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int})
 
 Find polygons that intersect with a line segment.
 
@@ -142,12 +142,13 @@ Find polygons that intersect with a line segment.
 - `current_point::Point{2, Float64}`: The current point marking start of line.
 - `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion polygons to disregard.
 
 # Returns
 - `closest_polygon`: The first/closest polygon that intersects with the line segment.
 - `polygon_idx`: The index of the(first) polygon crossed.
 """
-function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Int)
+function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int})
     closest_polygon = nothing
     min_dist = Inf
     polygon_idx = nothing
@@ -160,7 +161,7 @@ function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::
 
     for (i, row) in enumerate(eachrow(exclusions))
         # Skip current polygon
-        if i == current_exclusions_idx
+        if i in current_exclusions_idx
             continue
         end
 
@@ -169,16 +170,13 @@ function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::
         n_pts = AG.ngeom(exterior_ring)
 
         # Check if any vertices of the polygon are inside the bounding box of line
-        has_vertex_in_bbox, crosses_bbox = false, false
-        for j in 0:n_pts - 1
-            x, y, _ = AG.getpoint(exterior_ring, j)
+        has_vertex_in_bbox = any(
+            line_min_x <= AG.getpoint(exterior_ring, j)[1] <= line_max_x &&
+            line_min_y <= AG.getpoint(exterior_ring, j)[2] <= line_max_y
+            for j in 0:n_pts - 1
+        )
 
-            if line_min_x <= x <= line_max_x && line_min_y <= y <= line_max_y
-                has_vertex_in_bbox = true
-                break
-            end
-        end
-
+        crosses_bbox = false
         if !has_vertex_in_bbox
             # Check if line crosses bounding box
             poly_xs, poly_ys, _ = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
