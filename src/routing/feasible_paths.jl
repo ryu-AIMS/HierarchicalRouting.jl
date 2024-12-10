@@ -48,25 +48,49 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     points = [initial_point]
     parent_points = [initial_point]
     current_node_idx = 1
-    n_final = 0
     exclusion_idx = [0]
 
-    while current_node_idx <= length(points) - n_final + 1
+    function process_point(
+        candidate_point::Point{2, Float64},
+        target_point::Union{Nothing, Point{2, Float64}},
+        exclusions::DataFrame,
+        ignore_exclusion_indices::Vector{Int})
+
+        if target_point !== nothing
+            (left_point, right_point), new_exclusion_idx = HierarchicalRouting.find_next_points(candidate_point, target_point, exclusions, ignore_exclusion_indices)
+
+            if left_point == target_point || right_point == target_point
+                push!(parent_points, candidate_point)
+                push!(points, target_point)
+                push!(exclusion_idx, ignore_exclusion_indices[1])
+                return
+            end
+
+            for intermediate_point in [left_point, right_point]
+                if intermediate_point !== nothing && intermediate_point !== target_point
+                    push!(parent_points, candidate_point)
+                    push!(points, intermediate_point)
+                    push!(exclusion_idx, new_exclusion_idx)
+                end
+            end
+        end
+    end
+
+    while current_node_idx <= length(points)
         current_point = points[current_node_idx]
+        if current_point == final_point || current_point in points[1:current_node_idx - 1]
+            current_node_idx += 1
+            continue
+        end
 
         # Find edge points of next intersecting exclusion polygon, and polygon index
-        (left_point, right_point), current_exclusion_idx = find_next_points(current_point, final_point, exclusions, exclusion_idx[current_node_idx])
-        new_points = [pt for pt in (left_point, right_point) if pt !== nothing]
+        (left_point, right_point), current_exclusion_idx = HierarchicalRouting.find_next_points(current_point, final_point, exclusions, [exclusion_idx[current_node_idx]])
 
-        # TODO: Check if path from current point to new_points intersects any other exclusion polygons
-        append!(points, new_points)
-        append!(parent_points, fill(current_point, length(new_points)))
-        append!(exclusion_idx, fill(current_exclusion_idx, length(new_points)))
-
-        # If at final point, add counter to n_of_final
-        if left_point == final_point || right_point == final_point
-            n_final += 1
-        end
+        # check if current_point to (left_point, right_point) is feasible or if there are intersecting polygons in between
+        map(
+            point -> process_point(current_point, point, exclusions, [current_exclusion_idx, exclusion_idx[current_node_idx]]),
+            filter(x -> x !== nothing, [left_point, right_point])
+        )
 
         current_node_idx += 1
     end
