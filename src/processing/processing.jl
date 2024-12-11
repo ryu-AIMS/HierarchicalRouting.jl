@@ -16,13 +16,17 @@ function crop_to_subset(spatial_dataset::Raster, subset::DataFrame)
 end
 
 """
-    target_threshold(target_bathy::Raster, ms_depth)
+    target_threshold(targets::Raster, threshold::Float64)
 
-Mask the target environmental raster based on the minimum threshold value.
+Mask the target raster based on the specified threshold value.
+i.e. set all values below the threshold to 0.
 
 # Arguments
-- `target_bathy::Raster`: The target bathymetry raster.
-- `ms_depth`: The minimum depth threshold.
+- `targets::Raster`: The target raster.
+- `threshold::Float64`: The threshold value.
+
+# Returns
+- A masked raster.
 """
 function target_threshold(targets::Raster, threshold::Float64)
     # TODO: add min/max argument flag, or use a range
