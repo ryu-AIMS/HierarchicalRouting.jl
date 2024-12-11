@@ -133,20 +133,20 @@ function linestrings(
 
     return fig, ax
 end
-    function linestrings!(
+function linestrings!(
     ax::Axis,
     line_strings::Vector{LineString{2, Float64}};
     labels::Bool = false
 )
     n_graphs = length(line_strings)
-    color_palette = [cgrad(:rainbow, n_graphs)[i] for i in 1:n_graphs]
+    color_palette = cgrad(:rainbow, n_graphs)
 
     waypoints = [line[1][1] for line in line_strings]
-
-    waypoint_lons, waypoint_lats = [wp[1] for wp in waypoints], [wp[2] for wp in waypoints]
+    waypoint_matrix = hcat([wp[1] for wp in waypoints], [wp[2] for wp in waypoints])
 
     # Mark waypoints with 'x'
-    scatter!(ax, waypoint_lons, waypoint_lats, marker = 'x', markersize = 10, color = :black)#, label = "Cluster Centroids")
+    scatter!(waypoint_matrix, marker = 'x', markersize = 10, color = :black)#, label = "Waypoints")
+    # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
 
     # Plot LineStrings
     for (idx, line_string) in enumerate(line_strings)
@@ -157,7 +157,7 @@ end
 
     if labels
         # Annotate waypoints by sequence
-        text!(ax, waypoint_lons, waypoint_lats .+ 30, text = string.((0:length(waypoint_lons)-1)), align = (:center, :center), color = :black)
+        text!(ax, waypoint_matrix[:,1], waypoint_matrix[:,2] .+ 30, text = string.(0:size(waypoint_matrix,1)-1), align = (:center, :center), color = :black)
     end
     return ax
 end
