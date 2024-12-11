@@ -39,12 +39,13 @@ end
 function clusters(
     cluster_sequence::DataFrame;
     cluster_radius = 100,
-    centers = false
+    centers = false,
+    labels = false
 )
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
 
-    clusters!(ax, cluster_sequence, cluster_radius = cluster_radius, centers = centers)
+    clusters!(ax, cluster_sequence, cluster_radius = cluster_radius, centers = centers, labels = labels)
 
     return fig, ax
 end
@@ -52,7 +53,8 @@ function clusters!(
     ax::Axis,
     cluster_sequence::DataFrame;
     cluster_radius = 100,
-    centers = false
+    centers = false,
+    labels = false
 )
     sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
     centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)
@@ -81,6 +83,9 @@ function clusters!(
         if centers
             scatter!(ax, [center_lon], [center_lat], markersize = 10, color = (color, 0.2), strokewidth = 0)
             # series((center_lon, center_lat), color = (color, 0.2), markersize = 10)
+        end
+        if labels
+            text!(ax, center_lon, center_lat, text = string(seq), align = (:center, :center), color = :black)
         end
     end
     return ax
