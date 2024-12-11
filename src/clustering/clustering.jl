@@ -27,7 +27,7 @@ function cluster_raster(raster::Raster{Int, 2}, k::Int64; tol::Float64=1.0)
     coordinates = [(Tuple(index)[1], Tuple(index)[2]) for index in indices]
     coordinates_array = hcat([collect(c) for c in coordinates]...)
 
-    clustering = kmeans(coordinates_array, k; tol=1)
+    clustering = kmeans(coordinates_array, k; tol=tol)
 
     rows = [coord[1] for coord in coordinates]
     cols = [coord[2] for coord in coordinates]
