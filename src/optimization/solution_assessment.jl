@@ -1,5 +1,17 @@
 
-function perturb_solution(soln::MSTSolution, clust_idx::Int=-1)
+"""
+    perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1)
+
+Perturb the solution by swapping two nodes between two sorties in a cluster.
+
+# Arguments
+- `soln` : Solution to perturb.
+- `clust_idx` : Index of the cluster to perturb. Default = -1.
+
+# Returns
+- `new_soln` : Perturbed solution.
+"""
+function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1)
     new_soln = deepcopy(soln)
 
     if clust_idx == -1
@@ -9,7 +21,8 @@ function perturb_solution(soln::MSTSolution, clust_idx::Int=-1)
     cluster = new_soln.tenders[clust_idx]
 
     if length(cluster.sorties) < 2
-        return new_soln # No perturbation possible if a cluster has less than 2 sorties
+        # No perturbation possible if a cluster has less than 2 sorties
+        return new_soln
     end
 
     # Choose TWO random sorties from the cluster
@@ -21,7 +34,8 @@ function perturb_solution(soln::MSTSolution, clust_idx::Int=-1)
     sortie_a, sortie_b = cluster.sorties[sortie_a_idx], cluster.sorties[sortie_b_idx]
 
     if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
-        return new_soln # No perturbation possible if a sortie has no nodes
+        # No perturbation possible if a sortie has no nodes
+        return new_soln
     end
 
     node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))

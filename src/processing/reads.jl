@@ -37,9 +37,8 @@ function process_targets(clustered_targets_path,
     end
 end
 
-# TODO: Generalize for all available environmental constraints
-# TODO: Generalize for ms and tender vessels
-function process_exclusions(
+"""
+    process_exclusions(
     bathy_fullset_path,
     vessel_draft,
     subset,
@@ -48,6 +47,32 @@ function process_exclusions(
     exclusion_gpkg_path,
     exclusion_tif_path
     )
+
+Create exclusion zones from environmental constraints.
+
+# Arguments
+- `bathy_fullset_path::String`: The path to the full bathymetry dataset.
+- `vessel_draft::Real`: The vessel draft/depth.
+- `subset::DataFrame`: The DataFrame containing the study area boundary.
+- `EPSG_code::Int`: The EPSG code for the study area.
+- `bathy_subset_path::String`: The path to the subset bathymetry dataset.
+- `exclusion_gpkg_path::String`: The path to the exclusion zones GeoPackage.
+- `exclusion_tif_path::String`: The path to the exclusion zones raster.
+
+# Returns
+- `exclusion_zones_df::DataFrame`: The DataFrame containing the exclusion zones.
+"""
+function process_exclusions(
+    bathy_fullset_path,
+    vessel_draft,
+    subset,
+    EPSG_code,
+    bathy_subset_path,
+    exclusion_gpkg_path,
+    exclusion_tif_path
+)
+    # TODO: Generalize for all available environmental constraints
+    # TODO: Generalize for ms and tender vessels
     # Create exclusion zones from environmental constraints
     if isfile(exclusion_gpkg_path)
         exclusion_zones_df = GDF.read(exclusion_gpkg_path)
@@ -80,6 +105,18 @@ function process_exclusions(
     return exclusion_zones_df
 end
 
+"""
+    process_problem(problem::Problem)
+
+Read and process problem data to generate an initial solution.
+
+# Arguments
+- `problem::Problem`: The problem data in the form of a `HierarchicalRouting::Problem` struct.
+
+# Returns
+- `clusters::Vector{Cluster}`: The clusters of the problem.
+- `cluster_centroids_df::DataFrame`: The DataFrame containing the cluster centroids.
+"""
 function process_problem(problem::Problem)
     config = TOML.parsefile(joinpath("src",".config.toml"))
 

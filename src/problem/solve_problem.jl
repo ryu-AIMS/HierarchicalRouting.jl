@@ -1,6 +1,22 @@
 
-function initial_solution(problem::Problem)
+"""
+    initial_solution(problem::Problem)
 
+Generate an initial solution to the problem
+    for mothership
+        using the nearest neighbour heuristic, and then
+        improving the solution using the 2-opt heuristic;
+    for tenders
+        using the sequential nearest neighbour heuristic.
+
+# Arguments
+- `problem::Problem`: Problem instance to solve
+
+# Returns
+- `soln_best::MSTSolution`: Best solution found
+- `z_best::Float64`: Best objective value found
+"""
+function initial_solution(problem::Problem)
     # Load problem data
     clusters, cluster_centroids_df = process_problem(problem)
 
@@ -26,10 +42,46 @@ function initial_solution(problem::Problem)
         push!(tender_soln, t_solution[1])
     end
 
-    return MSTSolution(clusters, ms_soln_2opt, tender_soln)#, feasible_path, [Point{2, Float64}(row.lat, row.lon) for row in eachrow(cluster_centroids_df)]
+    return MSTSolution(clusters, ms_soln_2opt, tender_soln)
 end
 
-function improve_solution(soln::MSTSolution, opt_function::Function, objective_function::Function, perturb_function::Function, max_iterations::Int = 100_000, temp_init::Float64 = 500.0, cooling_rate::Float64 = 0.99_99)
+"""
+    improve_solution(
+        soln::MSTSolution,
+        opt_function::Function,
+        objective_function::Function,
+        perturb_function::Function,
+        max_iterations::Int = 100_000,
+        temp_init::Float64 = 500.0,
+        cooling_rate::Float64 = 0.99_99
+    )
+
+Improve the solution using the optimization function `opt_function`
+    with the objective function `objective_function` and
+    the perturbation function `perturb_function`.
+
+# Arguments
+- `soln::MSTSolution`: Initial solution to improve
+- `opt_function::Function`: Optimization function to use
+- `objective_function::Function`: Objective function to use
+- `perturb_function::Function`: Perturbation function to use
+- `max_iterations::Int = 100_000`: Maximum number of iterations
+- `temp_init::Float64 = 500.0`: Initial temperature for simulated annealing
+- `cooling_rate::Float64 = 0.99_99`: Cooling rate for simulated annealing
+
+# Returns
+- `soln_best::MSTSolution`: Best solution found
+- `z_best::Float64`: Best objective value found
+"""
+function improve_solution(
+    soln::MSTSolution,
+    opt_function::Function,
+    objective_function::Function,
+    perturb_function::Function,
+    max_iterations::Int = 100_000,
+    temp_init::Float64 = 500.0,
+    cooling_rate::Float64 = 0.99_99
+)
     soln_best, z_best = opt_function(soln, objective_function, perturb_function, max_iterations, temp_init, cooling_rate)
     return soln_best, z_best
 end

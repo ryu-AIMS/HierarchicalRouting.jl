@@ -50,12 +50,28 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     current_node_idx = 1
     exclusion_idx = [0]
 
+    """
+        process_point(
+        candidate_point::Point{2, Float64},
+        target_point::Union{Nothing, Point{2, Float64}},
+        exclusions::DataFrame,
+        ignore_exclusion_indices::Vector{Int}
+        )
+
+    Check if the line between two points is feasible, and add intermediate points to the path.
+
+    # Arguments
+    - `candidate_point::Point{2, Float64}`: The start of the line.
+    - `target_point::Union{Nothing, Point{2, Float64}}`: The end of the line.
+    - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+    - `ignore_exclusion_indices::Vector{Int}`: The indices of the exclusion polygons to disregard for crossings - the polygons associated with candidate and target points.
+    """
     function process_point(
         candidate_point::Point{2, Float64},
         target_point::Union{Nothing, Point{2, Float64}},
         exclusions::DataFrame,
-        ignore_exclusion_indices::Vector{Int})
-
+        ignore_exclusion_indices::Vector{Int}
+    )
         if target_point !== nothing
             (left_point, right_point), new_exclusion_idx = HierarchicalRouting.find_next_points(candidate_point, target_point, exclusions, ignore_exclusion_indices)
 
@@ -104,7 +120,12 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
 end
 
 """
-    find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int}) #::Union{Nothing, Tuple}
+    find_next_points(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int}
+    ) #::Union{Nothing, Tuple}
 
 Find the widest vertices on each (left/right) side of the line to the final point.
 
@@ -119,7 +140,12 @@ Find the widest vertices on each (left/right) side of the line to the final poin
 - `furthest_vert_R::Union{Nothing, Point{2, Float64}}`: The furthest point on the right side of the line.
 - `polygon_idx::Int`: The index of the polygon crossed.
 """
-function find_next_points(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int}) #::Union{Nothing, Tuple}
+function find_next_points(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int}
+) #::Union{Nothing, Tuple}
     max_dist_L, max_dist_R = -Inf32, -Inf32
     furthest_vert_L, furthest_vert_R = nothing, nothing # Set{Point{2, Float64}}()
 
@@ -158,7 +184,12 @@ function find_next_points(current_point::Point{2, Float64}, final_point::Point{2
 end
 
 """
-    closest_crossed_polygon(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int})
+    closest_crossed_polygon(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int}
+    )
 
 Find polygons that intersect with a line segment.
 
@@ -172,7 +203,12 @@ Find polygons that intersect with a line segment.
 - `closest_polygon`: The first/closest polygon that intersects with the line segment.
 - `polygon_idx`: The index of the(first) polygon crossed.
 """
-function closest_crossed_polygon(current_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame, current_exclusions_idx::Vector{Int})
+function closest_crossed_polygon(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int}
+)
     closest_polygon = nothing
     min_dist = Inf
     polygon_idx = nothing

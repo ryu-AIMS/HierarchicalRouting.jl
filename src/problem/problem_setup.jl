@@ -34,6 +34,17 @@ struct Problem
     tenders::Vessel
 end
 
+"""
+    load_problem(target_scenario::String="")
+
+Load the problem data from the configuration file and return a Problem object.
+
+# Arguments
+- `target_scenario::String`: The name of the target scenario to load. Defaults to an empty string.
+
+# Returns
+- `problem::Problem`: The problem object containing the target scenario, depot, mothership, and tenders.
+"""
 function load_problem(target_scenario::String="")
 
     config = TOML.parsefile(joinpath("src",".config.toml"))
