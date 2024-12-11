@@ -1,14 +1,42 @@
 
-# TODO Generalize
-function process_targets(clustered_targets_path,
-    target_subset_threshold_path,
-    k, cluster_tolerance,
+"""
+    process_targets(
+    clustered_targets_path::String,
+    k::Int,
+    cluster_tolerance::Real,
+    suitable_targets_all_path::String,
+    suitable_threshold::Real,
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int
+    )
+
+Process target locations to generate clusters.
+
+# Arguments
+- `clustered_targets_path::String`: The path to the clustered targets raster.
+- `k::Int`: The number of clusters.
+- `cluster_tolerance::Real`: The cluster tolerance.
+- `suitable_targets_all_path::String`: The path to the suitable targets dataset.
+- `suitable_threshold::Real`: The suitable targets threshold.
+- `target_subset_path::String`: The path to the target subset raster.
+- `subset::DataFrame`: The DataFrame containing the study area boundary.
+- `EPSG_code::Int`: The EPSG code for the study area.
+
+# Returns
+- `clustered_targets::Raster`: The clustered targets raster, classified by cluster ID number.
+"""
+function process_targets(
+    clustered_targets_path,
+    k,
+    cluster_tolerance,
     suitable_targets_all_path,
     suitable_threshold,
     target_subset_path,
     subset,
     EPSG_code
-    )
+)
+    # TODO Generalize
     if isfile(clustered_targets_path)
         return Raster(clustered_targets_path, mappedcrs=EPSG(EPSG_code))
     else
@@ -142,8 +170,8 @@ function process_problem(problem::Problem)
 
     clusters = cluster_targets(
         clustered_targets_path,
-        target_subset_threshold_path,
-        k, cluster_tolerance,
+        k,
+        cluster_tolerance,
         suitable_targets_all_path,
         suitable_threshold,
         target_subset_path,

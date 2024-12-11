@@ -80,21 +80,48 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
     return cluster_vec
 end
 
+"""
+    cluster_targets(
+        clustered_targets_path::String,
+        k::Int,
+        cluster_tolerance::Float64,
+        suitable_targets_all_path::String,
+        suitable_threshold::Float64,
+        target_subset_path::String,
+        subset::DataFrame,
+        EPSG_code::Int
+    )
+
+Cluster targets based on their geometry.
+
+# Arguments
+- `clustered_targets_path::String` : Path to the clustered targets raster.
+- `k::Int` : Number of clusters to create.
+- `cluster_tolerance::Float64` : Tolerance for kmeans convergence.
+- `suitable_targets_all_path::String` : Path to the suitable targets raster.
+- `suitable_threshold::Float64` : Threshold for suitable targets.
+- `target_subset_path::String` : Path to the target subset raster.
+- `subset::DataFrame` : DataFrame containing the target geometries.
+- `EPSG_code::Int` : EPSG code for the target geometries.
+
+# Returns
+A vector of Cluster objects.
+"""
 function cluster_targets(
     clustered_targets_path::String,
-    target_subset_threshold_path::String,
     k::Int,
     cluster_tolerance::Float64,
     suitable_targets_all_path::String,
     suitable_threshold::Float64,
     target_subset_path::String,
     subset::DataFrame,
-    EPSG_code::Int)
+    EPSG_code::Int
+)
 
     clusters_raster = process_targets(
         clustered_targets_path,
-        target_subset_threshold_path,
-        k, cluster_tolerance,
+        k,
+        cluster_tolerance,
         suitable_targets_all_path,
         suitable_threshold,
         target_subset_path,
