@@ -10,7 +10,27 @@ using GeometryBasics
 
 using GLMakie, GeoMakie
 
+"""
+    clusters(
+        clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
+        cluster_sequence::Union{DataFrame, Nothing} = nothing,
+        cluster_radius::Real = 0,
+        centers = false,
+        labels = false
+    )
 
+Create a plot of nodes by cluster.
+
+# Arguments
+- `clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing}`: Clusters.
+- `cluster_sequence::Union{DataFrame, Nothing}`: Cluster by sequence visited.
+- `cluster_radius::Real`: Radius of circle to represent clusters.
+- `centers::Bool`: Plot cluster centers flag.
+- `labels::Bool`: Plot cluster labels flag.
+
+# Returns
+- `fig, ax`: Figure and Axis objects.
+"""
 function clusters(
     ;
     clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
@@ -33,6 +53,29 @@ function clusters(
 
     return fig, ax
 end
+"""
+    clusters!(
+        ax::Axis;
+        clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
+        cluster_sequence::Union{DataFrame, Nothing} = nothing,
+        cluster_radius::Real = 0,
+        centers::Bool = false,
+        labels::Bool = false
+    )
+
+Plot nodes by cluster.
+
+# Arguments
+- `ax::Axis`: Axis object.
+- `clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing}`: Clusters.
+- `cluster_sequence::Union{DataFrame, Nothing}`: Cluster by sequence visited.
+- `cluster_radius::Real`: Radius of circle to represent clusters.
+- `centers::Bool`: Plot cluster centers flag.
+- `labels::Bool`: Plot cluster labels flag.
+
+# Returns
+- `ax`: Axis object.
+"""
 function clusters!(
     ax::Axis;
     clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
@@ -91,6 +134,21 @@ function clusters!(
     return ax
 end
 
+"""
+    exclusions(
+        exclusions::DataFrame;
+        labels::Bool = false
+    )
+
+Create a plot of exclusion zones.
+
+# Arguments
+- `exclusions::DataFrame`: Exclusion zone polygons.
+- `labels::Bool`: Plot exclusion zones flag.
+
+# Returns
+- `fig, ax`: Figure and Axis objects.
+"""
 function exclusions(
     exclusions::DataFrame;
     labels::Bool = false
@@ -102,6 +160,23 @@ function exclusions(
 
     return fig, ax
 end
+"""
+    exclusions!(
+        ax::Axis,
+        exclusions::DataFrame;
+        labels::Bool = false
+    )
+
+Plot exclusion zones.
+
+# Arguments
+- `ax::Axis`: Axis object.
+- `exclusions::DataFrame`: Exclusion zone polygons.
+- `labels::Bool`: Plot exclusion zones flag.
+
+# Returns
+- `ax`: Axis object.
+"""
 function exclusions!(
     ax::Axis,
     exclusions::DataFrame;
@@ -122,6 +197,21 @@ function exclusions!(
     return ax
 end
 
+"""
+    linestrings(
+        line_strings::Vector{LineString{2, Float64}};
+        labels::Bool = false
+    )
+
+Create a plot of LineStrings for mothership route.
+
+# Arguments
+- `line_strings::Vector{LineString{2, Float64}}`: LineStrings for mothership route.
+- `labels::Bool`: Plot LineString labels flag.
+
+# Returns
+- `fig, ax`: Figure and Axis objects.
+"""
 function linestrings(
     line_strings::Vector{LineString{2, Float64}};
     labels::Bool = false
@@ -133,6 +223,23 @@ function linestrings(
 
     return fig, ax
 end
+"""
+    linestrings!(
+        ax::Axis,
+        line_strings::Vector{LineString{2, Float64}};
+        labels::Bool = false
+    )
+
+Plot LineStrings for mothership route.
+
+# Arguments
+- `ax::Axis`: Axis object.
+- `line_strings::Vector{LineString{2, Float64}}`: LineStrings for mothership route.
+- `labels::Bool`: Plot LineString labels flag.
+
+# Returns
+- `ax`: Axis object.
+"""
 function linestrings!(
     ax::Axis,
     line_strings::Vector{LineString{2, Float64}};
@@ -162,6 +269,19 @@ function linestrings!(
     return ax
 end
 
+"""
+    tenders(
+        tender_soln::Vector{HierarchicalRouting.TenderSolution}
+    )
+
+Create a plot of tender routes within each cluster.
+
+# Arguments
+- `tender_soln::Vector{HierarchicalRouting.TenderSolution}`: Tender solutions.
+
+# Returns
+- `fig, ax`: Figure and Axis objects.
+"""
 function tenders(
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )
@@ -172,6 +292,21 @@ function tenders(
 
     return fig, ax
 end
+"""
+    tenders!(
+        ax::Axis,
+        tender_soln::Vector{HierarchicalRouting.TenderSolution}
+    )
+
+Plot tender routes within each cluster.
+
+# Arguments
+- `ax::Axis`: Axis object.
+- `tender_soln::Vector{HierarchicalRouting.TenderSolution}`: Tender solutions.
+
+# Returns
+- `ax`: Axis object.
+"""
 function tenders!(
     ax::Axis,
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
