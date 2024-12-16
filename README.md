@@ -67,6 +67,45 @@ solution_best, z_best = HierarchicalRouting.improve_solution(
     );
 ```
 
+## Visualization
+
+To visualize the routing solution, use the `Plot` module. Below is an example to create a
+complete plot of clusters, exclusions, and routes:
+
+```julia
+using GLMakie
+
+fig, ax = HierarchicalRouting.Plot.clusters(
+    clusters = solution_best.clusters,
+    cluster_sequence = solution_best.mothership.cluster_sequence,
+    labels=true,
+    centers=false,
+    cluster_radius = 0
+)
+
+# Add exclusions for the mothership
+HierarchicalRouting.Plot.exclusions!(ax, problem.mothership.exclusion, labels = false)
+
+# Add mothership routes
+HierarchicalRouting.Plot.linestrings!(ax, solution_best.mothership.line_strings; labels =
+    true)
+
+# Add exclusions for tenders
+HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels = false)
+
+# Add tender routes
+HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders)
+
+# Display the figure
+display(fig)
+```
+
+### Components
+
+- Clusters: Shows clustered target points and optional labels and/or cluster centers.
+- Exclusions: Displays environmental constraints to avoid for the mothership or tenders.
+- Routes: Display the mothership and tender routes.
+
 ## Development setup
 
 The steps below assume you are in the project root.
