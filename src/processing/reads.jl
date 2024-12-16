@@ -160,7 +160,7 @@ function process_problem(problem::Problem)
     output_dir = config["output_dir"]["path"]
 
     clustered_targets_path = joinpath(output_dir, "clustered_$(suitable_targets_prefix)_targets_k=$(k).tif")
-    target_subset_threshold_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix)_threshold=$(suitable_threshold).tif")
+    # target_subset_threshold_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix)_threshold=$(suitable_threshold).tif")
     target_subset_path = joinpath(output_dir, "target_subset_$(suitable_targets_prefix).tif")
 
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
