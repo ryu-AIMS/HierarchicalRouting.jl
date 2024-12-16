@@ -11,78 +11,78 @@ using GeometryBasics
 using GLMakie, GeoMakie
 
 
-function points(
-    clusters::Vector{HierarchicalRouting.Cluster})
-    fig = Figure(size = (800, 600))
-    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude"
-)
-
-    points!(ax, clusters)
-
-    return fig, ax
-end
-function points!(
-    ax::Axis,
-    clusters::Vector{HierarchicalRouting.Cluster};
-)
-    colormap = distinguishable_colors(length(clusters) + 1)[2:end]
-
-    for (idx, cluster) in enumerate(clusters)
-        color = colormap[idx]
-        for point in cluster.nodes
-            scatter!(ax, point, color = color, markersize = 5)
-        end
-    end
-    return ax
-end
-
 function clusters(
-    cluster_sequence::DataFrame;
-    cluster_radius = 100,
+    ;
+    clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
+    cluster_sequence::Union{DataFrame, Nothing} = nothing,
+    cluster_radius::Real = 0,
     centers = false,
     labels = false
 )
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
 
-    clusters!(ax, cluster_sequence, cluster_radius = cluster_radius, centers = centers, labels = labels)
+    clusters!(
+        ax,
+        clusters = clusters,
+        cluster_sequence = cluster_sequence,
+        cluster_radius = cluster_radius,
+        centers = centers,
+        labels = labels
+    )
 
     return fig, ax
 end
 function clusters!(
-    ax::Axis,
-    cluster_sequence::DataFrame;
-    cluster_radius = 100,
-    centers = false,
-    labels = false
+    ax::Axis;
+    clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
+    cluster_sequence::Union{DataFrame, Nothing} = nothing,
+    cluster_radius::Real = 0,
+    centers::Bool = false,
+    labels::Bool = false
 )
-    sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
-    centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)
-    # series(centroids)
+    # Validate inputs
+    if isnothing(clusters) && isnothing(cluster_sequence)
+        error("At least one of `clusters` or `cluster_sequence` must be provided.")
+    end
 
-    # cluster circles
-    colormap = distinguishable_colors(length(sequence_id)+1)[2:end]
+    sequence_id, colormap, centroids = nothing, nothing, nothing
+    if !isnothing(cluster_sequence)
+        sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
+        colormap = distinguishable_colors(length(sequence_id) + 1)[2:end]
+        centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)[2:end-1,:]
+    elseif !isnothing(clusters)
+        sequence_id = 1:length(clusters)
+        colormap = distinguishable_colors(length(clusters) + 1)[2:end]
+        centroids = hcat([cluster.centroid[1] for cluster in clusters], [cluster.centroid[2] for cluster in clusters])
+    end
 
-    # Precompute circle offsets
-    circle_offset_lon = cluster_radius .* cos.(range(0, 2π, length=100))
-    circle_offset_lat = cluster_radius .* sin.(range(0, 2π, length=100))
+    circle_offsets = cluster_radius > 0 ? (
+        cluster_radius .* cos.(range(0, 2π, length=100)),
+        cluster_radius .* sin.(range(0, 2π, length=100))
+    ) : nothing
 
     for (idx, seq) in enumerate(sequence_id)
         color = colormap[seq]
 
-        center_lon = centroids[:, 1][idx + 1]
-        center_lat = centroids[:, 2][idx + 1]
+        # plot nodes
+        if !isnothing(clusters) && !isempty(clusters[seq].nodes)
+            scatter!(ax, clusters[seq].nodes, color = color, markersize = 5)
+        end
 
-        circle_lons = center_lon .+ circle_offset_lon
-        circle_lats = center_lat .+ circle_offset_lat
+        center_lon, center_lat = !isnothing(cluster_sequence) ?
+            centroids[idx, :] :
+            centroids[seq, :]
 
-        circle = hcat(circle_lons, circle_lats)
+        if cluster_radius > 0
+            circle_lons = center_lon .+ circle_offsets[1]
+            circle_lats = center_lat .+ circle_offsets[2]
 
-        poly!(ax, circle, color = (color, 0.2), strokecolor = color, label = "Cluster Centroids")
+            poly!(ax, hcat(circle_lons, circle_lats), color = (color, 0.2), strokecolor = color, label = "Cluster Centroids")
+        end
 
         if centers
             scatter!(ax, [center_lon], [center_lat], markersize = 10, color = (color, 0.2), strokewidth = 0)
-            # series((center_lon, center_lat), color = (color, 0.2), markersize = 10)
         end
         if labels
             text!(ax, center_lon, center_lat, text = string(seq), align = (:center, :center), color = :black)
