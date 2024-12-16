@@ -235,10 +235,9 @@ function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float6
     best_route .-= 1
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
-
     waypoints = get_waypoints(ordered_nodes, exclusions)
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
 
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, cost=best_distance, line_strings=paths)
