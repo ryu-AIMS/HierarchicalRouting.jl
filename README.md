@@ -17,7 +17,8 @@ and environmental constraints.
 ### Configure problem
 
 Define a `.config.toml` file to specify data paths, output directories, and problem
-parameters. Below is an example:
+parameters.
+Below is an example:
 
 ```toml
 [data_dir]
@@ -31,20 +32,20 @@ target_scenarios = "data/targets/scenarios"
 path = "outputs"
 
 [parameters]
-EPSG_code = 7844 # Unique coordinate reference system ID for area of interest
-depot_x = 50.0 # Longitudinal coordinate
-depot_y = 200.0 # Latitudinal coordinate
-suitable_threshold = 50.0 # Threshold value for target locations
-k = 5 # Number of clusters to target points
-cluster_tolerance = 1.0 # k-means clustering change tolerance at convergence
-ms_depth = -10.0 # Mothership draft
-tend_depth = -5.0 # Tender draft
+EPSG_code = 7844            # Unique coordinate reference system ID for area of interest
+depot_x = 50.0              # Longitudinal coordinate
+depot_y = 200.0             # Latitudinal coordinate
+suitable_threshold = 50.0   # Threshold value for target locations
+k = 5                       # Number of clusters to target points
+cluster_tolerance = 1.0     # k-means clustering change tolerance at convergence
+ms_depth = -10.0            # Mothership draft
+tend_depth = -5.0           # Tender draft
 
-n_tenders = 3 # Number of tenders available
-t_cap = 2 # Max number of sites a tender can visit in each deployment sortie
+n_tenders = 3               # Number of tenders available
+t_cap = 2                   # Max number of sites a tender can visit in each deployment sortie
 ```
 
-Note: By convention, this file is named `.config.toml` (note the leading `.`).
+By convention, this file is named `.config.toml` (note the leading `.`).
 
 ## Quickstart
 
@@ -75,12 +76,17 @@ complete plot of clusters, exclusions, and routes:
 ```julia
 using GLMakie
 
-fig, ax = HierarchicalRouting.Plot.clusters(
+fig = Figure(size = (800, 600))
+ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+
+# Add clustered points
+HierarchicalRouting.Plot.clusters!(
+    ax,
     clusters = solution_best.clusters,
     cluster_sequence = solution_best.mothership.cluster_sequence,
     labels=true,
     centers=false,
-    cluster_radius = 0
+    cluster_radius = 100
 )
 
 # Add exclusions for the mothership
@@ -95,9 +101,6 @@ HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels = fal
 
 # Add tender routes
 HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders)
-
-# Display the figure
-display(fig)
 ```
 
 ### Components
@@ -122,12 +125,12 @@ $ julia project=.
 (sandbox) julia> ]dev ..
 ```
 
-### Create a development script
+### Run a development script
 
 - Copy the quickstart to a file (e.g., `dev_routing.jl`) and save to the sandbox directory.
 - Create the `.config.toml` file and save to the sandbox directory.
-- Assuming VS Code is configured to default to the sandbox environment and start the
-Julia REPL at project root:
+- Start the Julia REPL at project root:
+(Assuming VS Code is configured to default to the sandbox environment)
 
 ```julia
 ;cd sandbox
@@ -152,7 +155,7 @@ HierarchicalRouting/
 
 ### Data files
 
-Place data files in the data/ directory, organized as follows:
+Place data files in the `data/` directory, organized as follows:
 
 ```
 ├───data
