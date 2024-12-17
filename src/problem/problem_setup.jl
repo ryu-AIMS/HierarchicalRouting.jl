@@ -90,7 +90,7 @@ function load_problem(target_scenario::String="")
     )
     ms_exclusions = ms_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
-    t_exclusion_zones_df = process_exclusions(
+    t_exclusions = process_exclusions(
         bathy_fullset_path,
         config["parameters"]["tend_depth"],
         subset,
@@ -99,11 +99,19 @@ function load_problem(target_scenario::String="")
         joinpath(output_dir, "t_exclusion.gpkg"),
         joinpath(output_dir, "t_exclusion.tif")
     )
-    # t_exclusions = unionize_overlaps!(simplify_exclusions!(buffer_exclusions!(t_exclusion_zones_df, 0.1); min_area=100)) #|>  |> simplify_exclusions! |> unionize_overlaps!
-    # t_exclusions = t_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
+    t_exclusions = unionize_overlaps!(
+        simplify_exclusions!(
+            buffer_exclusions!(
+                t_exclusions, buffer_dist=0.1
+            ),
+            min_area=10,
+            simplify_tol=1,
+            convex_flag=false
+        )
+    )
 
     mothership = Vessel(exclusion = ms_exclusions)
-    tenders = Vessel(exclusion = t_exclusion_zones_df, capacity = t_cap, number = n_tenders)
+    tenders = Vessel(exclusion = t_exclusions, capacity = t_cap, number = n_tenders)
 
     problem = Problem(target_scenario, depot, mothership, tenders)
     return problem
