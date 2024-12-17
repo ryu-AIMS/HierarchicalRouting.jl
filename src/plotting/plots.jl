@@ -243,23 +243,28 @@ Plot LineStrings for mothership route.
 function linestrings!(
     ax::Axis,
     line_strings::Vector{LineString{2, Float64}};
-    labels::Bool = false
+    markers::Bool = false,
+    labels::Bool = false,
+    color = nothing
 )
     n_graphs = length(line_strings)
-    color_palette = cgrad(:rainbow, n_graphs)
+    color_palette = isnothing(color) ? cgrad(:rainbow, n_graphs) : nothing
+    color = isnothing(color) ? color_palette : fill(color, n_graphs)
 
     waypoints = [line[1][1] for line in line_strings]
     waypoint_matrix = hcat([wp[1] for wp in waypoints], [wp[2] for wp in waypoints])
 
     # Mark waypoints with 'x'
-    scatter!(waypoint_matrix, marker = 'x', markersize = 10, color = :black)#, label = "Waypoints")
-    # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
+    if markers
+        scatter!(waypoint_matrix, marker = 'x', markersize = 10, color = :black)#, label = "Waypoints")
+        # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
+    end
 
     # Plot LineStrings
     for (idx, line_string) in enumerate(line_strings)
-        color = color_palette[idx]
+        line_color = color[idx]
         points = [Point(p[1], p[2]) for l in line_string for p in l.points]
-        lines!(ax, points, color = color, linewidth = 2)
+        lines!(ax, points, color = line_color, linewidth = 2)
     end
 
     if labels
