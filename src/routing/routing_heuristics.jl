@@ -17,6 +17,7 @@ struct TenderSolution
     # cost::Float64   # TODO: delete? redundant with sum(...) and critical path metric...
     start::Point{2, Float64}
     finish::Point{2, Float64}
+    line_strings::Vector{Vector{LineString{2, Float64}}}
 end
 
 struct MSTSolution
