@@ -62,10 +62,7 @@ function load_problem(target_scenario::String="")
     t_cap = config["parameters"]["t_cap"]
     EPSG_code = config["parameters"]["EPSG_code"]
 
-    output_dir = config["output_dir"]["path"]
-
     env_constraints_dir = config["data_dir"]["env_constraints"]
-    # Dynamically discover subfolders in env_constraints_dir
     env_subfolders = readdir(env_constraints_dir)
     env_paths = Dict(subfolder => joinpath(env_constraints_dir, subfolder) for subfolder in env_subfolders)
 
@@ -75,6 +72,8 @@ function load_problem(target_scenario::String="")
         @eval $(Symbol("rast_path_" * subfolder)) = glob("*.tif", $(Symbol("env_dir_" * subfolder)))
     end
     bathy_fullset_path = rast_path_bathy
+
+    output_dir = config["output_dir"]["path"]
 
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
