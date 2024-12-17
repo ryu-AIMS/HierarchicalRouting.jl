@@ -315,16 +315,7 @@ function tenders!(
 
     for t_soln in tender_soln
         color = colormap[t_soln.id]
-
-        for route in t_soln.sorties
-            nodes = [t_soln.start]
-            append!(nodes, [node for node in route.nodes])
-            append!(nodes, [t_soln.finish])
-
-            node_lons, node_lats = [wp[1] for wp in nodes], [wp[2] for wp in nodes]
-
-            lines!(ax, node_lons, node_lats, color = color, linewidth = 1)
-        end
+        [linestrings!(ax, t, color = color, labels = false) for t in t_soln.line_strings]
     end
     return ax
 end
