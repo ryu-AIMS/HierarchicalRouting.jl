@@ -89,9 +89,10 @@ end
         objective_function::Function,
         perturb_function::Function,
         exclusions::DataFrame = DataFrame(),
-        max_iterations::Int = 100_000,
+        max_iterations::Int = 5_000,
         temp_init::Float64 = 500.0,
-        cooling_rate::Float64 = 0.99_99
+        cooling_rate::Float64 = 0.99,
+        static_limit::Int = 250
     )
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -101,10 +102,10 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `objective_function` : Function to evaluate the solution.
 - `perturb_function` : Function to perturb the solution.
 - `exclusions` : DataFrame of exclusions. Default = DataFrame().
-- `max_iterations` : Maximum number of iterations. Default = 10_000.
+- `max_iterations` : Maximum number of iterations. Default = 5_000.
 - `temp_init` : Initial temperature. Default = 500.0.
-- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.995 = 99.95%.
-- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 5000.
+- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.99 = 99%.
+- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 250.
 
 # Returns
 - `soln_best` : Best solution::MSTSolution found.
@@ -115,10 +116,10 @@ function simulated_annealing(
     objective_function::Function,
     perturb_function::Function,
     exclusions::DataFrame = DataFrame(),
-    max_iterations::Int = 100_000,
+    max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
-    cooling_rate::Float64 = 0.99_99,
-    static_limit::Int = 5000
+    cooling_rate::Float64 = 0.99,
+    static_limit::Int = 250
 )
 
     # Initialize best solution as initial
@@ -157,6 +158,10 @@ function simulated_annealing(
             end
 
             temp *= cooling_rate
+
+            if iteration % 100 == 0
+                @info "$iteration\t\t$obj_best\t$temp"
+            end
 
             if static_ctr >= static_limit
                 @info "Early exit at iteration $iteration due to stagnation. temp=$temp"

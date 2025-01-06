@@ -54,7 +54,7 @@ end
         exclusions::DataFrame = DataFrame(),
         max_iterations::Int = 100_000,
         temp_init::Float64 = 500.0,
-        cooling_rate::Float64 = 0.99_99
+        cooling_rate::Float64 = 0.99
     )
 
 Improve the solution using the optimization function `opt_function`
@@ -67,9 +67,9 @@ Improve the solution using the optimization function `opt_function`
 - `objective_function::Function`: Objective function to use
 - `perturb_function::Function`: Perturbation function to use
 - `exclusions::DataFrame = DataFrame()`: Exclusions DataFrame
-- `max_iterations::Int = 100_000`: Maximum number of iterations
+- `max_iterations::Int = 5_000`: Maximum number of iterations
 - `temp_init::Float64 = 500.0`: Initial temperature for simulated annealing
-- `cooling_rate::Float64 = 0.99_99`: Cooling rate for simulated annealing
+- `cooling_rate::Float64 = 0.99`: Cooling rate for simulated annealing
 
 # Returns
 - `soln_best::MSTSolution`: Best solution found
@@ -81,9 +81,9 @@ function improve_solution(
     objective_function::Function,
     perturb_function::Function,
     exclusions::DataFrame = DataFrame(),
-    max_iterations::Int = 100_000,
+    max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
-    cooling_rate::Float64 = 0.99_99
+    cooling_rate::Float64 = 0.99
 )
     soln_best, z_best = opt_function(soln, objective_function, perturb_function, exclusions, max_iterations, temp_init, cooling_rate)
     return soln_best, z_best
