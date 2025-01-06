@@ -47,3 +47,30 @@ function export_points(clusters::Vector{HierarchicalRouting.Cluster})
 
     return clusters
 end
+
+"""
+    export_clusters(cluster_sequence::DataFrame)
+
+Export clusters to a GeoPackage file.
+Saved in the output directory, using the EPSG code from the config file.
+
+# Arguments
+- `cluster_sequence::DataFrame`: Cluster sequence.
+
+# Returns
+- `df::DataFrame`: Cluster sequence with id, geometry, and order_id columns.
+"""
+function export_clusters(cluster_sequence::DataFrame) #, filepath::String)
+    df = DataFrame(
+        id = cluster_sequence.id,
+        geometry = [AG.createpoint(lon, lat) for (lon, lat) in zip(cluster_sequence.lon, cluster_sequence.lat)],
+        order_id = 0:size(cluster_sequence, 1)-1
+    )
+
+    output_path, EPSG_code = _get_output_details()
+
+    # TODO: crs based on lat/lons - but current coords as row/col refs
+    GDF.write(joinpath(output_path, "test_clusters.gpkg"), df, crs=EPSG(EPSG_code))
+
+    return df
+end
