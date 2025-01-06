@@ -166,3 +166,50 @@ Place data files in the `data/` directory, organized as follows:
     └───targets         # Target site scenarios
         └───scenarios
 ```
+
+## Solution structure
+
+```
+MSTProblem
+│
+├── target_scenario (String)
+├── depot (Point{2, Float64})
+├── mothership (Vessel)
+└── tenders (Vessel)
+
+Vessel
+│
+├── exclusion (DataFrame)
+├── capacity (Int64)
+└── number (Int64)
+
+Cluster
+│
+├── id (Int64)
+├── centroid (Point{2, Float64})
+└── nodes (Vector{Point{2, Float64}})
+ 
+MothershipSolution
+│
+├── cluster_sequence (DataFrame)
+├── route (DataFrame)
+├── cost (Float64)
+└── line_strings (Vector{LineString{2, Float64}})
+ 
+TenderSolution
+│
+├── id
+├── sorties (Vector{Sortie})
+│   ├── nodes (Vector{Point{2, Float64}})
+│   └── cost (Float64)
+├── start (Point{2, Float64})
+├── finish (Point{2, Float64})
+└── line_strings (Vector{Vector{LineString{2, Float64}}})
+
+MSTSolution
+│
+├── clusters (Vector{Cluster})
+├── mothership (MothershipSolution)
+└── tenders (Vector{TenderSolution})
+
+```
