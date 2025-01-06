@@ -34,6 +34,8 @@ include("problem/solve_problem.jl")
 
 include("plotting/plots.jl")
 
+include("processing/write_files.jl")
+
 export Plot
 
 
