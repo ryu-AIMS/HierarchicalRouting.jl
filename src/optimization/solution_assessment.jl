@@ -1,17 +1,18 @@
 
 """
-    perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1)
+    perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions::DataFrame = DataFrame())
 
 Perturb the solution by swapping two nodes between two sorties in a cluster.
 
 # Arguments
 - `soln` : Solution to perturb.
 - `clust_idx` : Index of the cluster to perturb. Default = -1.
+- `exclusions` : DataFrame of exclusions. Default = DataFrame().
 
 # Returns
 - `new_soln` : Perturbed solution.
 """
-function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1)
+function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions::DataFrame = DataFrame())
     new_soln = deepcopy(soln)
 
     if clust_idx == -1
@@ -63,6 +64,7 @@ end
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
+        exclusions::DataFrame = DataFrame(),
         max_iterations::Int = 100_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.99_99
@@ -74,6 +76,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `soln_init` : Initial solution.
 - `objective_function` : Function to evaluate the solution.
 - `perturb_function` : Function to perturb the solution.
+- `exclusions` : DataFrame of exclusions. Default = DataFrame().
 - `max_iterations` : Maximum number of iterations. Default = 10_000.
 - `temp_init` : Initial temperature. Default = 500.0.
 - `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.995 = 99.95%.
@@ -87,6 +90,7 @@ function simulated_annealing(
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
+    exclusions::DataFrame = DataFrame(),
     max_iterations::Int = 100_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.99_99,
@@ -109,7 +113,7 @@ function simulated_annealing(
         @info "0\t\t$obj_best\t$temp"
 
         for iteration in 1:max_iterations
-            soln_proposed = perturb_function(soln_current, clust_idx)
+            soln_proposed = perturb_function(soln_current, clust_idx, exclusions)
             obj_proposed = objective_function(soln_proposed)
 
             static_ctr += 1
