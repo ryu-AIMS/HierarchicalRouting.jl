@@ -74,3 +74,33 @@ function export_clusters(cluster_sequence::DataFrame) #, filepath::String)
 
     return df
 end
+
+"""
+    export_exclusions(exclusions::DataFrame, filepath::String)
+
+Export exclusions to a GeoPackage file.
+Saved in the output directory, using the EPSG code from the config file.
+
+# Arguments
+- `problem::HierarchicalRouting.Problem`: Problem instance.
+
+# Returns
+- `exclusions_ms::DataFrame`: Mothership exclusions.
+- `exclusions_tenders::DataFrame`: Tenders exclusions.
+"""
+function export_exclusions(problem::HierarchicalRouting.Problem)
+    exclusions_ms = problem.mothership.exclusion
+    exclusions_tenders = problem.tenders.exclusion
+
+    # Ensure DataFrames have primary key column (id)
+    exclusions_ms.id = collect(1:nrow(exclusions_ms))
+    exclusions_tenders.id = collect(1:nrow(exclusions_tenders))
+
+    output_path, EPSG_code = _get_output_details()
+
+    # TODO: crs based on lat/lons - but current coords as row/col refs
+    GDF.write(joinpath(output_path, "test_exclusions_ms.gpkg"), exclusions_ms, crs=EPSG(EPSG_code))
+    GDF.write(joinpath(output_path, "test_exclusions_tenders.gpkg"), exclusions_tenders, crs=EPSG(EPSG_code))
+
+    return exclusions_ms, exclusions_tenders
+end
