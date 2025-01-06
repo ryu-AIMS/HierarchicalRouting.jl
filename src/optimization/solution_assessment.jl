@@ -47,6 +47,30 @@ function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions:
     new_soln.tenders[clust_idx].sorties[sortie_b_idx].nodes[node_b_idx] = node_a
 
     # TODO:Re-run two-opt on the modified sorties
+    # Recompute the feasible paths for the modified sorties
+    updated_tender_tours = [
+        [
+            [soln.tenders[clust_idx].start];
+            sortie.nodes;
+            [soln.tenders[clust_idx].finish]
+        ]
+        for sortie in [
+            new_soln.tenders[clust_idx].sorties[sortie_a_idx]; new_soln.tenders[clust_idx].sorties[sortie_b_idx]
+        ]
+    ]
+
+    feasible_paths = Matrix{
+        Tuple{Dict{Int64, Point{2, Float64}}, Vector{SimpleWeightedEdge{Int64, Float64}}}
+    }[
+        get_feasible_matrix(s, exclusions)[2] for s in updated_tender_tours
+    ]
+
+    paths = [get_linestrings(feasible_paths[s], updated_tender_tours[s]) for s in 1:length(feasible_paths)]
+
+    # Update linestrings for the modified sorties
+    new_soln.tenders[clust_idx].line_strings[sortie_a_idx] = get_linestrings(feasible_paths[1], updated_tender_tours[1]) # paths[1]
+    new_soln.tenders[clust_idx].line_strings[sortie_b_idx] = get_linestrings(feasible_paths[2], updated_tender_tours[2])
+      # paths[2]
 
     # TODO: Recompute the cost for each modified sortie
     # This assumes a function `compute_sortie_cost` exists
