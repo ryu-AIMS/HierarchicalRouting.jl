@@ -140,3 +140,48 @@ function export_mothership_routes(line_strings::Vector{LineString{2, Float64}})
 
     return df
 end
+
+"""
+    export_tender_routes(tender_soln::Vector{HierarchicalRouting.TenderSolution})
+
+Export tender routes to a GeoPackage file.
+Saved in the output directory, using the EPSG code from the config file.
+
+# Arguments
+- `tender_soln::Vector{HierarchicalRouting.TenderSolution}`: Tender solutions.
+
+# Returns
+- `df::DataFrame`: DataFrame with id, cluster_id, sortie_id, and geometry columns.
+"""
+function export_tender_routes(tender_soln::Vector{HierarchicalRouting.TenderSolution})
+    df = DataFrame(
+        id = Int[],
+        cluster_id = Int[],
+        sortie_id = Int[],
+        geometry = ArchGDAL.IGeometry{ArchGDAL.wkbLineString}[]
+    )
+
+    id = 1
+    for tender in tender_soln
+        for (sortie_id, sortie_lines) in enumerate(tender.line_strings)
+            nodes = [
+                [
+                    (node[1][1],node[1][2])
+                    for segment in sortie_lines
+                    for node in segment
+                ];
+                (tender.finish[1], tender.finish[2])
+            ]
+
+            line_geometry = AG.createlinestring(nodes)
+            push!(df, (id, tender.id, sortie_id, line_geometry))
+            id += 1
+        end
+    end
+
+    output_path, EPSG_code = _get_output_details()
+
+    GDF.write(joinpath(output_path, "test_t_routes.gpkg"), df, crs=EPSG(EPSG_code))
+
+    return df
+end
