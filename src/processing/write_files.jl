@@ -104,3 +104,39 @@ function export_exclusions(problem::HierarchicalRouting.Problem)
 
     return exclusions_ms, exclusions_tenders
 end
+
+"""
+    export_mothership_routes(line_strings::Vector{LineString{2, Float64}})
+
+Export mothership routes to a GeoPackage file.
+Saved in the output directory, using the EPSG code from the config file.
+
+# Arguments
+- `line_strings::Vector{LineString{2, Float64}}`: LineStrings.
+
+# Returns
+- `df::DataFrame`: DataFrame with id and geometry columns.
+"""
+function export_mothership_routes(line_strings::Vector{LineString{2, Float64}})
+    df = DataFrame(
+        id = Int[],
+        geometry = ArchGDAL.IGeometry{ArchGDAL.wkbLineString}[]
+    )
+
+    for (route_id, line) in enumerate(line_strings)
+        coords = [((p[1][1], p[1][2]), (p[2][1], p[2][2])) for p in line.points]
+
+        # Convert to ArchGDAL geometry
+        flat_coords = Iterators.flatten(coords) |> collect
+        # Pass flat coordinates
+        line = AG.createlinestring(flat_coords)
+
+        push!(df, (route_id, line))
+    end
+
+    output_path, EPSG_code = _get_output_details()
+
+    GDF.write(joinpath(output_path, "test_ms_routes.gpkg"), df, crs=EPSG(EPSG_code))
+
+    return df
+end
