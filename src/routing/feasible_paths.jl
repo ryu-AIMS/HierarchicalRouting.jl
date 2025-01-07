@@ -161,22 +161,51 @@ function find_next_points(
     exterior_ring = AG.getgeom(polygon, 0)
     n_pts = AG.ngeom(exterior_ring)
 
+    """
+        perpendicular_distance_line_to_point(line::Line{2, Float64}, point::Point{2, Float64})
+
+    Calculate the perpendicular distance of a point to a line.
+
+    # Arguments
+    - `line::Line{2, Float64}`: The line to calculate the distance to.
+    - `point::Point{2, Float64}`: The point to calculate the distance from.
+
+    # Returns
+    - `dist::Float64`: The perpendicular distance of the point to the line.
+    """
+    function perpendicular_distance_line_to_point(line::Line{2, Float64}, point::Point{2, Float64})
+        p1, p2 = line.points[1], line.points[2]
+
+        # Convert points to vectors
+        v1 = Vec(p1)
+        v2 = Vec(p2)
+        p = Vec(point)
+
+        # Vector projection and the distance
+        line_vec = v2 - v1
+        point_vec = p - v1
+        proj_len = GeometryBasics.dot(point_vec, line_vec) / GeometryBasics.norm(line_vec)
+        proj_point = v1 + proj_len * GeometryBasics.normalize(line_vec)
+
+        return GeometryBasics.norm(p - proj_point)
+    end
+
     # For each polygon vertex, find the furthest points on the left and right side of line
     for i in 0:n_pts - 1
         x, y, _ = AG.getpoint(exterior_ring, i)
         pt = Point{2, Float64}(x, y)
 
-        # Perp dist of point to line
-        dist = GO.distance(pt, LineString([current_point, final_point]))
+        dist = perpendicular_distance_line_to_point(Line(current_point, final_point), pt)
+
         side = (final_point[1] - current_point[1]) * (pt[2] - current_point[2]) - (final_point[2] - current_point[2]) * (pt[1] - current_point[1])
 
         # Check side (L/R) and update furthest points
         if side > 0 && dist > max_dist_L
-                max_dist_L = dist
-                furthest_vert_L = pt #Set([pt])
+            max_dist_L = dist
+            furthest_vert_L = pt #Set([pt])
         elseif side < 0 && dist > max_dist_R
-                max_dist_R = dist
-                furthest_vert_R = pt #Set([pt])
+            max_dist_R = dist
+            furthest_vert_R = pt #Set([pt])
         end
     end
 
