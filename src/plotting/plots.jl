@@ -110,7 +110,7 @@ function clusters!(
 
         # plot nodes
         if !isnothing(clusters) && !isempty(clusters[seq].nodes)
-            scatter!(ax, clusters[seq].nodes, color = color, markersize = 5)
+            scatter!(ax, clusters[seq].nodes, color = color, markersize = 10, marker = :x)
         end
 
         center_lon, center_lat = !isnothing(cluster_sequence) ?
