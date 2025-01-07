@@ -26,7 +26,7 @@ Saved in the output directory, using the EPSG code from the config file.
 - `clusters::Vector{HierarchicalRouting.Cluster}`: Clusters.
 
 # Returns
-- `clusters::Vector{HierarchicalRouting.Cluster}`: Clusters.
+- `df` : DataFrame with id, geometry, and cluster_id columns.
 """
 function export_points(clusters::Vector{HierarchicalRouting.Cluster})
     df = DataFrame(
@@ -45,7 +45,7 @@ function export_points(clusters::Vector{HierarchicalRouting.Cluster})
     # TODO: crs based on lat/lons - but current coords as row/col refs
     GDF.write(joinpath(output_path, "test_points.gpkg"), df, crs=EPSG(EPSG_code))
 
-    return clusters
+    return df
 end
 
 """
