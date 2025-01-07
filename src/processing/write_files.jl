@@ -43,7 +43,7 @@ function export_points(clusters::Vector{HierarchicalRouting.Cluster})
     output_path, EPSG_code = _get_output_details()
 
     # TODO: crs based on lat/lons - but current coords as row/col refs
-    GDF.write(joinpath(output_path, "test_points.gpkg"), df, crs=EPSG(EPSG_code))
+    GDF.write(joinpath(output_path, "points.gpkg"), df, crs=EPSG(EPSG_code))
 
     return df
 end
@@ -70,7 +70,7 @@ function export_clusters(cluster_sequence::DataFrame) #, filepath::String)
     output_path, EPSG_code = _get_output_details()
 
     # TODO: crs based on lat/lons - but current coords as row/col refs
-    GDF.write(joinpath(output_path, "test_clusters.gpkg"), df, crs=EPSG(EPSG_code))
+    GDF.write(joinpath(output_path, "clusters.gpkg"), df, crs=EPSG(EPSG_code))
 
     return df
 end
@@ -99,8 +99,8 @@ function export_exclusions(problem::HierarchicalRouting.Problem)
     output_path, EPSG_code = _get_output_details()
 
     # TODO: crs based on lat/lons - but current coords as row/col refs
-    GDF.write(joinpath(output_path, "test_exclusions_ms.gpkg"), exclusions_ms, crs=EPSG(EPSG_code))
-    GDF.write(joinpath(output_path, "test_exclusions_tenders.gpkg"), exclusions_tenders, crs=EPSG(EPSG_code))
+    GDF.write(joinpath(output_path, "exclusions_ms.gpkg"), exclusions_ms, crs=EPSG(EPSG_code))
+    GDF.write(joinpath(output_path, "exclusions_tenders.gpkg"), exclusions_tenders, crs=EPSG(EPSG_code))
 
     return exclusions_ms, exclusions_tenders
 end
@@ -136,7 +136,7 @@ function export_mothership_routes(line_strings::Vector{LineString{2, Float64}})
 
     output_path, EPSG_code = _get_output_details()
 
-    GDF.write(joinpath(output_path, "test_ms_routes.gpkg"), df, crs=EPSG(EPSG_code))
+    GDF.write(joinpath(output_path, "routes_ms.gpkg"), df, crs=EPSG(EPSG_code))
 
     return df
 end
@@ -181,7 +181,7 @@ function export_tender_routes(tender_soln::Vector{HierarchicalRouting.TenderSolu
 
     output_path, EPSG_code = _get_output_details()
 
-    GDF.write(joinpath(output_path, "test_t_routes.gpkg"), df, crs=EPSG(EPSG_code))
+    GDF.write(joinpath(output_path, "routes_tenders.gpkg"), df, crs=EPSG(EPSG_code))
 
     return df
 end
