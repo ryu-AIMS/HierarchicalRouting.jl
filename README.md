@@ -169,6 +169,8 @@ Place data files in the `data/` directory, organized as follows:
 
 ## Solution structure
 
+The solution (including problem) structure is as follows:
+
 ```
 MSTProblem
 │
@@ -182,6 +184,12 @@ Vessel
 ├── exclusion (DataFrame)
 ├── capacity (Int64)
 └── number (Int64)
+
+MSTSolution
+│
+├── clusters (Vector{Cluster})
+├── mothership (MothershipSolution)
+└── tenders (Vector{TenderSolution})
 
 Cluster
 │
@@ -205,11 +213,5 @@ TenderSolution
 ├── start (Point{2, Float64})
 ├── finish (Point{2, Float64})
 └── line_strings (Vector{Vector{LineString{2, Float64}}})
-
-MSTSolution
-│
-├── clusters (Vector{Cluster})
-├── mothership (MothershipSolution)
-└── tenders (Vector{TenderSolution})
 
 ```
