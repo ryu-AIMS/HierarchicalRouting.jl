@@ -152,14 +152,10 @@ function find_next_points(
     # TODO: Allow for multiple equidistant furthest points
 
     # Next polygon crossed by line to end point
-    polygon, polygon_idx = closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
+    (polygon, exterior_ring, n_pts), polygon_idx = closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
     if polygon === nothing
         return (final_point, nothing), 0
     end
-
-    # Geometry of polygon and number of vertices
-    exterior_ring = AG.getgeom(polygon, 0)
-    n_pts = AG.ngeom(exterior_ring)
 
     """
         perpendicular_distance_line_to_point(line::Line{2, Float64}, point::Point{2, Float64})
@@ -229,7 +225,7 @@ Find polygons that intersect with a line segment.
 - `current_exclusions_idx::Vector{Int}`: The indices of the exclusion polygons to disregard.
 
 # Returns
-- `closest_polygon`: The first/closest polygon that intersects with the line segment.
+- `closest_polygon`: The polygon, LineString and number of vertices of the first/closest polygon intersecting with the line segment.
 - `polygon_idx`: The index of the(first) polygon crossed.
 """
 function closest_crossed_polygon(
@@ -238,7 +234,7 @@ function closest_crossed_polygon(
     exclusions::DataFrame,
     current_exclusions_idx::Vector{Int}
 )
-    closest_polygon = nothing
+    closest_polygon = (nothing, nothing, 0)
     min_dist = Inf
     polygon_idx = nothing
 
@@ -288,7 +284,7 @@ function closest_crossed_polygon(
 
             if dist < min_dist
                 min_dist = dist
-                closest_polygon = row.geometry
+                closest_polygon = (row.geometry, exterior_ring, n_pts)
                 polygon_idx = i
             end
         end
