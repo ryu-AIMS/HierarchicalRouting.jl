@@ -88,8 +88,8 @@ end
         exclusions::DataFrame = DataFrame(),
         max_iterations::Int = 5_000,
         temp_init::Float64 = 500.0,
-        cooling_rate::Float64 = 0.99,
-        static_limit::Int = 250
+        cooling_rate::Float64 = 0.95,
+        static_limit::Int = 150
     )
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -101,8 +101,8 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `exclusions` : DataFrame of exclusions. Default = DataFrame().
 - `max_iterations` : Maximum number of iterations. Default = 5_000.
 - `temp_init` : Initial temperature. Default = 500.0.
-- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.99 = 99%.
-- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 250.
+- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.95 = 95%.
+- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 150.
 
 # Returns
 - `soln_best` : Best solution::MSTSolution found.
@@ -115,14 +115,15 @@ function simulated_annealing(
     exclusions::DataFrame = DataFrame(),
     max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
-    cooling_rate::Float64 = 0.99,
-    static_limit::Int = 250
+    cooling_rate::Float64 = 0.95,
+    static_limit::Int = 150
 )
 
     # Initialize best solution as initial
     soln_best = soln_init
     obj_best = objective_function(soln_init)
 
+    # TODO: Display cost values for each cluster, rather than total solution cost
     for clust_idx in 1:length(soln_init.clusters)
         # Initialize current solution as best, reset temp
         temp = temp_init
@@ -161,13 +162,14 @@ function simulated_annealing(
             end
 
             if static_ctr >= static_limit
-                @info "Early exit at iteration $iteration due to stagnation. temp=$temp"
+                @info "$iteration\t\t$obj_best\t$temp"
+                @info "Early exit at iteration $iteration due to stagnation."
                 break
             end
         end
     end
 
-    @info "Final Value: $obj_best"
+    @info "\nFinal Value: $obj_best"
     @info "Δ: $(objective_function(soln_init) - obj_best)"
     return soln_best, obj_best
 end
