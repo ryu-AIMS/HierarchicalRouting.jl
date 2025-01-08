@@ -280,8 +280,10 @@ function closest_crossed_polygon(
         end
 
         if AG.crosses(line, row.geometry) ||
-            AG.within(AG.createpoint(current_point[1], current_point[2]), row.geometry) ||
-            AG.within(AG.createpoint(final_point[1], final_point[2]), row.geometry)
+            (
+                AG.touches(AG.createpoint(current_point[1], current_point[2]), row.geometry) &&
+                AG.touches(AG.createpoint(final_point[1], final_point[2]), row.geometry)
+            )
 
             dist = GO.distance(current_point, row.geometry)
 
