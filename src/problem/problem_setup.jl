@@ -22,9 +22,7 @@ using TOML
     exclusion::DataFrame
     capacity::Int64 = typemax(Int64)
     number::Int64 = 1
-    # TODO: add attributes
-    # weight::Float64
-    # env_constraint::Vector{Constraint}
+    weighting::Float64 = 1.0
 end
 
 struct Problem
@@ -80,7 +78,7 @@ function load_problem(target_scenario::String="")
     # process exclusions
     ms_exclusion_zones_df = process_exclusions(
         bathy_fullset_path,
-        config["parameters"]["ms_depth"],
+        config["parameters"]["depth_ms"],
         subset,
         EPSG_code,
         bathy_subset_path,
@@ -91,7 +89,7 @@ function load_problem(target_scenario::String="")
 
     t_exclusions = process_exclusions(
         bathy_fullset_path,
-        config["parameters"]["tend_depth"],
+        config["parameters"]["depth_t"],
         subset,
         EPSG_code,
         bathy_subset_path,
@@ -109,8 +107,8 @@ function load_problem(target_scenario::String="")
         )
     )
 
-    mothership = Vessel(exclusion = ms_exclusions)
-    tenders = Vessel(exclusion = t_exclusions, capacity = t_cap, number = n_tenders)
+    mothership = Vessel(exclusion = ms_exclusions, weighting = config["parameters"]["weight_ms"])
+    tenders = Vessel(exclusion = t_exclusions, capacity = t_cap, number = n_tenders, weighting = config["parameters"]["weight_t"])
 
     problem = Problem(target_scenario, depot, mothership, tenders)
     return problem
