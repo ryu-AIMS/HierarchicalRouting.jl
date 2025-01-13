@@ -22,8 +22,8 @@ cluster_tolerance = 1.0
 depth_ms = -10.0
 depth_t = -5.0
 
-weight_ms = 1.0
-weight_t = 1.0
+weight_ms = 5.0
+weight_t = 2.0
 
 n_tenders = 3
 t_cap = 2
