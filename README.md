@@ -64,7 +64,8 @@ solution_best, z_best = HierarchicalRouting.improve_solution(
     solution_init,
     HierarchicalRouting.simulated_annealing,
     HierarchicalRouting.critical_path,
-    HierarchicalRouting.perturb_swap_solution
+    HierarchicalRouting.perturb_swap_solution,
+    problem.tenders.exclusion
     );
 ```
 
@@ -79,25 +80,25 @@ using GLMakie
 fig = Figure(size = (800, 600))
 ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
 
+# Add exclusions for the mothership
+HierarchicalRouting.Plot.exclusions!(ax, problem.mothership.exclusion, labels = false)
+
+# Add exclusions for tenders
+HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels = false)
+
 # Add clustered points
 HierarchicalRouting.Plot.clusters!(
     ax,
     clusters = solution_best.clusters,
     cluster_sequence = solution_best.mothership.cluster_sequence,
     labels=true,
-    centers=false,
+    centers=true,
     cluster_radius = 100
 )
-
-# Add exclusions for the mothership
-HierarchicalRouting.Plot.exclusions!(ax, problem.mothership.exclusion, labels = false)
 
 # Add mothership routes
 HierarchicalRouting.Plot.linestrings!(ax, solution_best.mothership.line_strings; labels =
     true)
-
-# Add exclusions for tenders
-HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels = false)
 
 # Add tender routes
 HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders)
