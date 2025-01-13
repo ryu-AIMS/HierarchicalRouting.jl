@@ -66,11 +66,6 @@ function tender_clust_cost(tenders::TenderSolution)::Vector{Float64}
     return sortie_dist
 end
 
-function total_dist(soln::MSTSolution)
-    cluster_dist = sum([sum([euclidean(sortie.nodes[i], sortie.nodes[i+1]) for i in 1:(length(sortie.nodes)-1)]) for sortie in soln.mothership.sorties])
-    return soln.mothership.cost + cluster_dist # sum([cluster.cost for cluster in soln.clusters])
-end
-
 """
     mothership_cost_between_clusts(soln::MSTSolution)
 
