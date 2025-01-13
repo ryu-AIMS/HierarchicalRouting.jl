@@ -297,6 +297,7 @@ Assign nodes to tenders sequentially based on nearest neighbor.
     - `sorties` : Vector of Sortie objects containing nodes and sortie distance.
     - `start` : Start waypoint.
     - `finish` : End waypoint.
+- `dist_matrix` : Distance matrix between nodes.
 """
 function tender_sequential_nearest_neighbour(
     cluster::Cluster,
