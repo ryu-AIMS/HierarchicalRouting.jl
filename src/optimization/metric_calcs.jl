@@ -52,7 +52,7 @@ Compute the cost of each sortie in a cluster.
 # Returns
 - `sortie_dist` : The cost of each sortie in the cluster.
 """
-function tender_clust_cost(tenders::TenderSolution)::Vector{Float64}
+function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
     sortie_dist = [euclidean(tenders.start, sortie.nodes[1]) for sortie in tenders.sorties] # haversine
 
     sortie_dist .+= sum([
@@ -77,7 +77,7 @@ Compute the cost of the mothership between clusters, not including across each c
 # Returns
 - The sum of (euclidean) mothership distances between clusters.
 """
-function mothership_cost_between_clusts(soln::MSTSolution)
+function mothership_dist_between_clusts(soln::MSTSolution)
     return sum(euclidean(soln.mothership.route.waypoint[i], soln.mothership.route.waypoint[i+1]) for i in 1:2:(nrow(soln.mothership.route)))
 end
 
@@ -92,16 +92,17 @@ Compute the cost of the mothership within each cluster, not including between cl
 # Returns
 - The sum of (euclidean) mothership distances within each cluster.
 """
-function mothership_cost_within_clusts(soln::MSTSolution)
+function mothership_dist_within_clusts(soln::MSTSolution)
     return [euclidean(soln.mothership.route.waypoint[i], soln.mothership.route.waypoint[i+1]) for i in 2:2:(nrow(soln.mothership.route)-1)]
 end
 
-function critical_path(soln::MSTSolution)
+function critical_path(soln::MSTSolution, vessel_weightings::NTuple{2, Float64}=(1.0, 1.0))
 
-    longest_sortie = [maximum(tender_clust_cost(cluster)) for cluster in soln.tenders]
-    mothership_sub_clust = mothership_cost_within_clusts(soln)
+    longest_sortie_cost = [(maximum(tender_clust_dist(cluster)) * vessel_weightings[2]) for cluster in soln.tenders]
 
-    cluster_cost = [max(longest_sortie[i], mothership_sub_clust[i]) for i in 1:length(longest_sortie)]
+    mothership_sub_clust_cost = mothership_dist_within_clusts(soln) * vessel_weightings[1]
 
-    return sum(cluster_cost) + mothership_cost_between_clusts(soln)
+    cluster_cost = [max(longest_sortie_cost[i], mothership_sub_clust_cost[i]) for i in 1:length(longest_sortie_cost)]
+
+    return sum(cluster_cost) + (mothership_dist_between_clusts(soln) * vessel_weightings[1])
 end
