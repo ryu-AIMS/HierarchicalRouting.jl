@@ -102,8 +102,7 @@ function load_problem(target_scenario::String="")
                 t_exclusions, buffer_dist=0.1
             ),
             min_area=10,
-            simplify_tol=1,
-            convex_flag=false
+            simplify_tol=1
         )
     )
 

@@ -3,27 +3,21 @@
     simplify_exclusions!(
     exclusions::DataFrame;
     min_area::Real=50,
-    simplify_tol::Real=2,
-    convex_flag::Bool=true
+    simplify_tol::Real=2
     )::DataFrame
 
-Simplify exclusions by applying a convex hull, removing small polygons, and simplifying.
+Simplify exclusions by removing small polygons, and simplifying geometry.
 
 # Arguments
 - `exclusions::DataFrame`: The DataFrame containing exclusion zones.
 - `min_area::Real`: The minimum area for exclusion polygons. Default = 50
-- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons. Default = 2
-- `convex_flag::Bool`: Apply convex hull to exclusion polygons. Default = true
+- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons, i.e., larger tol = more aggressive simplification. Default = 2
 """
 function simplify_exclusions!(
     exclusions::DataFrame;
     min_area::Real=50,
-    simplify_tol::Real=2,
-    convex_flag::Bool=true
+    simplify_tol::Real=2
     )
-    if convex_flag
-        exclusions.geometry .= AG.convexhull.(exclusions.geometry)
-    end
     exclusions = exclusions[AG.geomarea.(exclusions.geometry) .>= min_area, :]
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
     return exclusions
