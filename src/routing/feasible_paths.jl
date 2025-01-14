@@ -250,23 +250,23 @@ function closest_crossed_polygon(
             continue
         end
 
-        # Check if any vertices of the polygon are inside the bounding box
-        exterior_ring = AG.getgeom(row.geometry, 0)
+        geom = row.geometry
+        exterior_ring = AG.getgeom(geom, 0)
         n_pts = AG.ngeom(exterior_ring)
 
-        # Check if any vertices of the polygon are inside the bounding box of line
-        has_vertex_in_bbox = any(
+        # Check if any polygon vertices are inside the line's bounding box
+        vertex_in_line_bbox = any(
             line_min_x <= AG.getpoint(exterior_ring, j)[1] <= line_max_x &&
             line_min_y <= AG.getpoint(exterior_ring, j)[2] <= line_max_y
             for j in 0:n_pts - 1
         )
 
-        crosses_bbox = false
-        if !has_vertex_in_bbox
-            # Check if line crosses bounding box
+        # Check if line crosses bounding box
+        line_in_polygon_bbox = false
+        if !vertex_in_line_bbox
             poly_xs, poly_ys, _ = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
 
-            crosses_bbox = (
+            line_in_polygon_bbox = (
                 line_min_x <= maximum(poly_xs) &&
                 line_max_x >= minimum(poly_xs) &&
                 line_min_y <= maximum(poly_ys) &&
@@ -275,21 +275,23 @@ function closest_crossed_polygon(
         end
 
         # Skip polygons with no vertices in or crossing bounding box
-        if !has_vertex_in_bbox && !crosses_bbox
+        if !vertex_in_line_bbox && !line_in_polygon_bbox
             continue
         end
 
-        if AG.crosses(line, row.geometry) ||
+        if AG.crosses(line, geom) ||
             (
-                AG.touches(AG.createpoint(current_point[1], current_point[2]), row.geometry) &&
-                AG.touches(AG.createpoint(final_point[1], final_point[2]), row.geometry)
+                AG.touches(AG.createpoint(current_point[1], current_point[2]), geom) &&
+                AG.touches(AG.createpoint(final_point[1], final_point[2]), geom)
             )
 
-            dist = GO.distance(current_point, row.geometry)
+            # Find distance to polygon
+            dist = GO.distance(current_point, geom)
 
+            # If closer than current closest polygon, update closest polygon
             if dist < min_dist
                 min_dist = dist
-                closest_polygon = (row.geometry, exterior_ring, n_pts)
+                closest_polygon = (geom, exterior_ring, n_pts)
                 polygon_idx = i
             end
         end
