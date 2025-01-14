@@ -32,7 +32,7 @@ Buffer exclusion zones by a specified distance.
 - `exclusions::DataFrame`: The DataFrame containing exclusion zones.
 - `buffer_dist::Real`: The buffer distance. Default = 1.0
 """
-function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Real=1.0)
+function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Real=2.0)
     exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
     return exclusions
 end

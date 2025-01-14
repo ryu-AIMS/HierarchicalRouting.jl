@@ -85,7 +85,7 @@ function load_problem(target_scenario::String="")
         joinpath(output_dir, "ms_exclusion.gpkg"),
         joinpath(output_dir, "ms_exclusion.tif")
     )
-    ms_exclusions = ms_exclusion_zones_df |> buffer_exclusions! |> simplify_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
+    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
     t_exclusions = process_exclusions(
         bathy_fullset_path,
@@ -97,12 +97,13 @@ function load_problem(target_scenario::String="")
         joinpath(output_dir, "t_exclusion.tif")
     )
     t_exclusions = unionize_overlaps!(
-        simplify_exclusions!(
-            buffer_exclusions!(
-                t_exclusions, buffer_dist=0.1
+        buffer_exclusions!(
+            simplify_exclusions!(
+                t_exclusions,
+                min_area=20,
+                simplify_tol=1
             ),
-            min_area=10,
-            simplify_tol=1
+            buffer_dist=0.1
         )
     )
 
