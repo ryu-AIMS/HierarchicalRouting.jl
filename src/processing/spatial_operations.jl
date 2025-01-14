@@ -49,8 +49,45 @@ function unionize_overlaps!(exclusions::DataFrame)
     geometries = exclusions.geometry
     n = length(geometries)
 
+    """
+        linestring_to_polygon(linestring::AG.IGeometry{AG.wkbLineString})::AG.IGeometry{AG.wkbPolygon}
+
+    Convert a LineString to a Polygon.
+
+    # Arguments
+    - `linestring::AG.IGeometry{AG.wkbLineString}`: The LineString to convert.
+
+    # Returns
+    - `polygon::AG.IGeometry{AG.wkbPolygon}`: The converted Polygon.
+    """
+    function linestring_to_polygon(linestring::AG.IGeometry{AG.wkbLineString})
+        num_points = AG.ngeom(linestring)
+        points = [(AG.getx(linestring, i), AG.gety(linestring, i)) for i in 0:num_points-1]
+
+        # Close the LineString if open
+        if points[1] != points[end]
+            push!(points, points[1])
+        end
+
+        return AG.createpolygon([points])
+    end
+
     for i in 1:n
         geom1 = geometries[i]
+
+        if AG.ngeom(geom1) > 1
+            # Unionize multi-geometries
+            geom_a = linestring_to_polygon(AG.getgeom(geom1, 0))
+            for j in 1:AG.ngeom(geom1) - 1
+                geom_b = linestring_to_polygon(AG.getgeom(geom1, j))
+
+                if AG.intersects(geom_a, geom_b) #|| AG.overlaps(geom_a, geom_b) || AG.contains(geom_a, geom_b) || AG.contains(geom_b, geom_a)
+                    geom_a = AG.union(geom_a, geom_b)
+                end
+            end
+            geometries[i] = geom_a
+            geom1 = geom_a
+        end
 
         for j in i+1:n
             geom2 = geometries[j]
@@ -58,28 +95,28 @@ function unionize_overlaps!(exclusions::DataFrame)
             if AG.overlaps(geom1, geom2)
                 @debug "Partial overlap: $i and $j"
                 union_geom = AG.union(geom1, geom2)
-                exclusions.geometry[i] = union_geom
-                exclusions.geometry[j] = union_geom
+                geometries[i] = union_geom
+                geometries[j] = union_geom
 
                 for k in 1:n
                     if AG.overlaps(union_geom, geometries[k])
-                        exclusions.geometry[k] = union_geom
+                        geometries[k] = union_geom
                     end
                 end
             end
 
             if AG.contains(geom1, geom2)
                 @debug "Full overlap: $i contains $j"
-                exclusions.geometry[j] = geom1
+                geometries[j] = geom1
             elseif AG.contains(geom2, geom1)
                 @debug "Full overlap: $j contains $i"
-                exclusions.geometry[i] = geom2
+                geometries[i] = geom2
             end
         end
     end
 
     # Remove duplicate unionized geometries
-    unique_geometries = unique(exclusions.geometry[.!AG.isempty.(exclusions.geometry)])
+    unique_geometries = unique(geometries[.!AG.isempty.(geometries)])
     exclusions = DataFrame(geometry = unique_geometries)
 
     return exclusions
