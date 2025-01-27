@@ -37,32 +37,35 @@ function process_targets(
     EPSG_code
 )
     # TODO Generalize
-    if isfile(clustered_targets_path)
-        return Raster(clustered_targets_path, mappedcrs=EPSG(EPSG_code))
-    else
+    # if isfile(clustered_targets_path)
+    #     return Raster(clustered_targets_path, mappedcrs=EPSG(EPSG_code))
+    # else
         # Read deployment locations
-        if isfile(target_subset_path)
-            suitable_targets_subset = Raster(target_subset_path, mappedcrs=EPSG(EPSG_code))
-        else
-            if endswith(suitable_targets_all_path, ".geojson")
-                suitable_targets_poly = GDF.read(suitable_targets_all_path)
-                suitable_targets_centroids = [AG.centroid(polygon) for polygon in suitable_targets_poly.geometry]
-                suitable_targets_centroids_pts = [AG.getpoint(centroid,0)[1:2] for centroid in suitable_targets_centroids]
+        # if isfile(target_subset_path)
+        #     # TODO: Check this works...
+        #     suitable_targets_subset = Raster(target_subset_path, mappedcrs=EPSG(EPSG_code))
+        # else
+        if endswith(suitable_targets_all_path, ".geojson")
+            suitable_targets_poly = GDF.read(suitable_targets_all_path)
+            suitable_targets_centroids = [AG.centroid(polygon) for polygon in suitable_targets_poly.geometry]
+            suitable_targets_centroids_pts = [AG.getpoint(centroid,0)[1:2] for centroid in suitable_targets_centroids]
 
-                resolution = 0.0001
-                suitable_targets_all = Rasters.rasterize(last, suitable_targets_centroids_pts; res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code))
-                suitable_targets_all = reverse(suitable_targets_all; dims=Y)
-            else
-                suitable_targets_all = Raster(suitable_targets_all_path, mappedcrs=EPSG(EPSG_code))
-                suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
-            end
-            suitable_targets_subset = crop_to_subset(suitable_targets_all, subset)
+            resolution = 0.0001
+            suitable_targets_all = Rasters.rasterize(last, suitable_targets_centroids_pts; res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code))
+            suitable_targets_all = reverse(suitable_targets_all; dims=Y)
+        else
+            suitable_targets_all = Raster(suitable_targets_all_path, mappedcrs=EPSG(EPSG_code))
+            suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
+        end
+        suitable_targets_subset = crop_to_subset(suitable_targets_all, subset)
+        if !isfile(target_subset_path)
             write(target_subset_path, suitable_targets_subset; force=true)
         end
+        # end
         clustered_targets = cluster_raster(suitable_targets_subset, k; tol=cluster_tolerance)
         write(clustered_targets_path, clustered_targets; force=true)
         return clustered_targets
-    end
+    # end
 end
 
 """
