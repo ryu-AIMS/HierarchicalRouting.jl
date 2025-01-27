@@ -108,15 +108,15 @@ function process_exclusions(
         exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     else
         if isfile(exclusion_tif_path)
-            exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
+            exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code), missingval=0)
             exclusion_zones_bool = Raster(exclusion_zones_int .!= 0, dims(exclusion_zones_int))
         else
             # Load environmental constraints
             # Bathymetry
             if isfile(bathy_subset_path)
-                bathy_subset = Raster(bathy_subset_path, mappedcrs=EPSG(EPSG_code))
+                bathy_subset = Raster(bathy_subset_path, mappedcrs=EPSG(EPSG_code), missingval=0)
             else
-                bathy_dataset = Raster(bathy_fullset_path, mappedcrs=EPSG(EPSG_code))
+                bathy_dataset = Raster(bathy_fullset_path, mappedcrs=EPSG(EPSG_code), missingval=0)
                 bathy_subset = crop_to_subset(bathy_dataset, subset)
                 write(bathy_subset_path, bathy_subset; force=true)
             end
