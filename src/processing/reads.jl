@@ -109,7 +109,7 @@ function process_exclusions(
     else
         if isfile(exclusion_tif_path)
             exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
-            exclusion_zones_bool = Raster(exclusion_zones_int .== 0, dims(exclusion_zones_int))
+            exclusion_zones_bool = Raster(exclusion_zones_int .!= 0, dims(exclusion_zones_int))
         else
             # Load environmental constraints
             # Bathymetry

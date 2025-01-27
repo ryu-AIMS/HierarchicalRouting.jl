@@ -7,7 +7,7 @@ Invert vertical axis.
 """
 # TODO: Check polygonize coordinates output
 function to_multipolygon(raster::Raster{T, 2})::GI.Wrappers.MultiPolygon where {T<:Union{Bool,Int16}}
-    return GO.polygonize(.==(0), raster[:, end:-1:1])
+    return GO.polygonize(.!=(0), raster[:, end:-1:1])
 end
 
 """
