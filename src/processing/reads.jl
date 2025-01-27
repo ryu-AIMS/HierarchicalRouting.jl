@@ -52,7 +52,6 @@ function process_targets(
 
             resolution = 0.0001
             suitable_targets_all = Rasters.rasterize(last, suitable_targets_centroids_pts; res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code))
-            suitable_targets_all = reverse(suitable_targets_all; dims=Y)
         else
             suitable_targets_all = Raster(suitable_targets_all_path, mappedcrs=EPSG(EPSG_code))
             suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
