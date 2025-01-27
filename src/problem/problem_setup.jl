@@ -63,13 +63,14 @@ function load_problem(target_scenario::String="")
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
     env_paths = Dict(subfolder => joinpath(env_constraints_dir, subfolder) for subfolder in env_subfolders)
+    env_data = Dict(
+        subfolder => (
+            env_dir = path,
+            rast_file = isempty(glob("*.tif", path)) ? nothing : first(glob("*.tif", path))
+        ) for (subfolder, path) in env_paths
+    )
 
-    # TODO: Use these paths to process all environmental constraints
-    for (subfolder, path) in env_paths
-        @eval $(Symbol("env_dir_" * subfolder)) = $path
-        @eval $(Symbol("rast_path_" * subfolder)) = glob("*.tif", $(Symbol("env_dir_" * subfolder)))
-    end
-    bathy_fullset_path = rast_path_bathy
+    # TODO: Process all environmental constraints to create single cumulative exclusion zone
 
     output_dir = config["output_dir"]["path"]
 
@@ -77,7 +78,7 @@ function load_problem(target_scenario::String="")
 
     # process exclusions
     ms_exclusion_zones_df = process_exclusions(
-        bathy_fullset_path,
+        env_data["bathy"].rast_file,
         config["parameters"]["depth_ms"],
         subset,
         EPSG_code,
@@ -88,7 +89,7 @@ function load_problem(target_scenario::String="")
     ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
     t_exclusions = process_exclusions(
-        bathy_fullset_path,
+        env_data["bathy"].rast_file,
         config["parameters"]["depth_t"],
         subset,
         EPSG_code,
