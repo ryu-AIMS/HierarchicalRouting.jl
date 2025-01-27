@@ -13,7 +13,7 @@ end
 """
     to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
 
-Create a DataFrame from multipolygons
+Convert multipolygons to DataFrame
 """
 function to_dataframe(mp::GI.Wrappers.MultiPolygon)::DataFrame
     return DataFrame(geometry=mp.geom)
