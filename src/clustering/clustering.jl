@@ -12,7 +12,7 @@ end
 """
     cluster_targets(raster::Raster{Int, 2}, k::Int64)
 
-Cluster the targets in a GeoDataFrame based on their geometry.
+Cluster targets using kmeans clustering.
 
 # Arguments
 - `raster::Raster{Int, 2}` : Raster containing the target geometries.
@@ -20,7 +20,7 @@ Cluster the targets in a GeoDataFrame based on their geometry.
 - `tol::Float64` : Tolerance for kmeans convergence.
 
 # Returns
-A DataFrame containing the cluster ID and the target geometries.
+A raster containing the cluster IDs.
 """
 function cluster_raster(raster::Raster{Int, 2}, k::Int64; tol::Float64=1.0)
     indices = findall(x -> x != 0, raster)
