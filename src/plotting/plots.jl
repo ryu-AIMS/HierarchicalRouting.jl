@@ -92,11 +92,11 @@ function clusters!(
     sequence_id, colormap, centroids = nothing, nothing, nothing
     if !isnothing(cluster_sequence)
         sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
-        colormap = distinguishable_colors(length(sequence_id) + 1)[2:end]
+        colormap = distinguishable_colors(length(sequence_id) + 2)[3:end]
         centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)[2:end-1,:]
     elseif !isnothing(clusters)
         sequence_id = 1:length(clusters)
-        colormap = distinguishable_colors(length(clusters) + 1)[2:end]
+        colormap = distinguishable_colors(length(clusters) + 2)[3:end]
         centroids = hcat([cluster.centroid[1] for cluster in clusters], [cluster.centroid[2] for cluster in clusters])
     end
 
@@ -316,8 +316,9 @@ function tenders!(
     ax::Axis,
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )
-    colormap = distinguishable_colors(length(tender_soln) + 1)[2:end]
+    colormap = distinguishable_colors(length(tender_soln) + 2)[3:end]
 
+    # TODO: Plot critical path (longest) thicker than other paths
     for t_soln in tender_soln
         color = colormap[t_soln.id]
         [linestrings!(ax, t, color = color, labels = false) for t in t_soln.line_strings]
