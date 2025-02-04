@@ -1,13 +1,13 @@
 
 """
-    find_next_points(
+    find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
     current_exclusions_idx::Vector{Int}
     )
 
-Find the widest vertices on each (left/right) side of the line to the final point.
+Find the vertices on each (left/right) side of the line that have the widest angle.
 
 # Arguments
 - `current_point::Point{2, Float64}`: The current point marking start of line.
@@ -16,71 +16,55 @@ Find the widest vertices on each (left/right) side of the line to the final poin
 - `current_exclusions_idx::Vector{Int}`: The indices of the exclusion polygons to disregard for crossings.
 
 # Returns
-- `[furthest_vert_L, furthest_vert_R]`: The furthest left and right polygon vertices of the line to the final point.
+- `[furthest_vert_L, furthest_vert_R]`: The vertices with the widest left and right angular deviations from the line.
 - `polygon_idx::Int`: The index of the polygon crossed.
 """
-function find_next_points(
+function find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
     current_exclusions_idx::Vector{Int}
 )
-    max_dist_L, max_dist_R = -Inf32, -Inf32
-    furthest_vert_L, furthest_vert_R = nothing, nothing # Set{Point{2, Float64}}()
+    max_angle_L, max_angle_R = 0.0, 0.0
+    furthest_vert_L, furthest_vert_R = nothing, nothing
 
-    # TODO: Allow for multiple equidistant furthest points
-
-    # Next polygon crossed by line to end point
-    (polygon, exterior_ring, n_pts), polygon_idx = closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
+    # Next polygon crossed by line to final_point
+    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
     if polygon === nothing
         return [final_point], 0
     end
 
-    """
-        perpendicular_distance_line_to_point(line::Line{2, Float64}, point::Point{2, Float64})
+    # Compute the signed angle (radian) between base_vec and vec
+    function vector_angle(base_vec::Vector{Float64}, vec::Vector{Float64})
 
-    Calculate the perpendicular distance of a point to a line.
+        # Cross product tells us the direction of the angle
+        cross = base_vec[1]*vec[2] - base_vec[2]*vec[1]
+        # Dot product tells us the magnitude of the angle
+        dot_val = base_vec[1]*vec[1] + base_vec[2]*vec[2]
 
-    # Arguments
-    - `line::Line{2, Float64}`: The line to calculate the distance to.
-    - `point::Point{2, Float64}`: The point to calculate the distance from.
-
-    # Returns
-    - `dist::Float64`: The perpendicular distance of the point to the line.
-    """
-    function perpendicular_distance_line_to_point(line::Line{2, Float64}, point::Point{2, Float64})
-        p1, p2 = line.points[1], line.points[2]
-
-        # Convert points to vectors
-        v1 = Vec(p1)
-        v2 = Vec(p2)
-        p = Vec(point)
-
-        # Vector projection and the distance
-        line_vec = v2 - v1
-        point_vec = p - v1
-        proj_len = GeometryBasics.dot(point_vec, line_vec) / GeometryBasics.norm(line_vec)
-        proj_point = v1 + proj_len * GeometryBasics.normalize(line_vec)
-
-        return GeometryBasics.norm(p - proj_point)
+        return atan(cross, dot_val)
     end
 
-    # For each polygon vertex, find the furthest points on the left and right side of line
+    # Base vector from current_point to final_point.
+    base_vec = [final_point[1] - current_point[1], final_point[2] - current_point[2]]
+
+    # Find the widest polygon vertices on the left and right side of line
     for i in 0:n_pts - 1
         x, y, _ = AG.getpoint(exterior_ring, i)
         pt = Point{2, Float64}(x, y)
 
-        dist = perpendicular_distance_line_to_point(Line(current_point, final_point), pt)
+        # Vector from current_point to this vertex.
+        vec = [pt[1] - current_point[1], pt[2] - current_point[2]]
 
-        side = (final_point[1] - current_point[1]) * (pt[2] - current_point[2]) - (final_point[2] - current_point[2]) * (pt[1] - current_point[1])
+        # Signed angle between base vector and vector to vertex
+        angle = vector_angle(base_vec, vec)
 
-        # Check side (L/R) and update furthest points
-        if side > 0 && dist > max_dist_L
-            max_dist_L = dist
-            furthest_vert_L = pt #Set([pt])
-        elseif side < 0 && dist > max_dist_R
-            max_dist_R = dist
-            furthest_vert_R = pt #Set([pt])
+        if angle > 0 && angle > max_angle_L
+            max_angle_L = angle
+            furthest_vert_L = pt
+        elseif angle < 0 && abs(angle) > max_angle_R
+            max_angle_R = abs(angle)
+            furthest_vert_R = pt
         end
     end
 
