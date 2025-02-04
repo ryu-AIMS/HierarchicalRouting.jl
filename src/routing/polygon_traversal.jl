@@ -5,7 +5,7 @@
     final_point::Point{2, Float64},
     exclusions::DataFrame,
     current_exclusions_idx::Vector{Int}
-    ) #::Union{Nothing, Tuple}
+    )
 
 Find the widest vertices on each (left/right) side of the line to the final point.
 
@@ -16,8 +16,7 @@ Find the widest vertices on each (left/right) side of the line to the final poin
 - `current_exclusions_idx::Vector{Int}`: The indices of the exclusion polygons to disregard for crossings.
 
 # Returns
-- `furthest_vert_L::Union{Nothing, Point{2, Float64}}`: The furthest point on the left side of the line.
-- `furthest_vert_R::Union{Nothing, Point{2, Float64}}`: The furthest point on the right side of the line.
+- `[furthest_vert_L, furthest_vert_R]`: The furthest left and right polygon vertices of the line to the final point.
 - `polygon_idx::Int`: The index of the polygon crossed.
 """
 function find_next_points(
@@ -34,7 +33,7 @@ function find_next_points(
     # Next polygon crossed by line to end point
     (polygon, exterior_ring, n_pts), polygon_idx = closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
     if polygon === nothing
-        return (final_point, nothing), 0
+        return [final_point], 0
     end
 
     """
@@ -85,7 +84,7 @@ function find_next_points(
         end
     end
 
-    return (furthest_vert_L, furthest_vert_R), polygon_idx
+    return [furthest_vert_L, furthest_vert_R], polygon_idx
 end
 
 """

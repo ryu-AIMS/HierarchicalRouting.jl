@@ -73,16 +73,16 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
         ignore_exclusion_indices::Vector{Int}
     )
         if target_point !== nothing
-            (left_point, right_point), new_exclusion_idx = HierarchicalRouting.find_next_points(candidate_point, target_point, exclusions, ignore_exclusion_indices)
+            new_vertices, new_exclusion_idx = HierarchicalRouting.find_next_points(candidate_point, target_point, exclusions, ignore_exclusion_indices)
 
-            if left_point == target_point || right_point == target_point
+            if target_point in new_vertices
                 push!(parent_points, candidate_point)
                 push!(points, target_point)
                 push!(exclusion_idx, ignore_exclusion_indices[1])
                 return
             end
 
-            for intermediate_point in [left_point, right_point]
+            for intermediate_point in new_vertices
                 if intermediate_point !== nothing && intermediate_point !== target_point
                     push!(parent_points, candidate_point)
                     push!(points, intermediate_point)
@@ -100,12 +100,14 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
         end
 
         # Find edge points of next intersecting exclusion polygon, and polygon index
-        (left_point, right_point), current_exclusion_idx = HierarchicalRouting.find_next_points(current_point, final_point, exclusions, [exclusion_idx[current_node_idx]])
+        vertices, current_exclusion_idx = HierarchicalRouting.find_next_points(current_point, final_point, exclusions, [exclusion_idx[current_node_idx]])
 
-        # check if current_point to (left_point, right_point) is feasible or if there are intersecting polygons in between
-        map(
-            point -> process_point(current_point, point, exclusions, [current_exclusion_idx, exclusion_idx[current_node_idx]]),
-            filter(x -> x !== nothing, [left_point, right_point])
+        # TODO: check if path from current_point to (left_point, right_point) is feasible (no intersecting polygons in between)
+        process_point.(
+            Ref(current_point),
+            vertices,
+            Ref(exclusions),
+            Ref([current_exclusion_idx, exclusion_idx[current_node_idx]])
         )
 
         current_node_idx += 1
