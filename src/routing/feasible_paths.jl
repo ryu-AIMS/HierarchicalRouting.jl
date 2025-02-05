@@ -73,7 +73,7 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
         ignore_exclusion_indices::Vector{Int}
     )
         if target_point !== nothing
-            new_vertices, new_exclusion_idx = HierarchicalRouting.find_widest_points(candidate_point, target_point, exclusions, ignore_exclusion_indices)
+            new_vertices, new_exclusion_idx = HierarchicalRouting.find_widest_points(candidate_point, target_point, exclusions)
 
             if target_point in new_vertices
                 push!(parent_points, candidate_point)
@@ -100,7 +100,7 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
         end
 
         # Find edge points of next intersecting exclusion polygon, and polygon index
-        vertices, current_exclusion_idx = HierarchicalRouting.find_widest_points(current_point, final_point, exclusions, [exclusion_idx[current_node_idx]])
+            vertices, current_exclusion_idx = HierarchicalRouting.find_widest_points(current_point, final_point, exclusions)
 
         # TODO: check if path from current_point to (left_point, right_point) is feasible (no intersecting polygons in between)
         process_point.(
