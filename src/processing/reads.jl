@@ -120,8 +120,9 @@ function process_exclusions(
                 bathy_subset = crop_to_subset(bathy_dataset, subset)
                 write(bathy_subset_path, bathy_subset; force=true)
             end
+
             exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
-            write(exclusion_tif_path, convert.(Int64, exclusion_zones_bool); force=true)
+            write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
         end
 
         exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
