@@ -26,13 +26,14 @@ function polygonize_binary(rast::Raster)::DataFrame
 
     # Apply affine transformation
     x, y = dims(rast)
+    y0 = maximum([y[1], y[end]])
     transform = [
         x[1],       # x0: left edge in CRS units
         step(x),    # dx: pixel width in CRS units
         0.0,        # row rotation (typically 0)
-        y[end],     # y0: top edge in CRS units
+        y0,         # y0: top edge in CRS units
         0.0,        # column rotation (typically 0)
-        -step(y)    # dy: pixel height in CRS units (negative)
+        step(y)     # dy: pixel height in CRS units (negative = north-up orientation)
     ]
     AG.setgeotransform!(d, transform)
 
@@ -82,16 +83,21 @@ function polygonize_binary(rast::Raster)::DataFrame
     layer_geoms = Vector{AG.IGeometry}()
     for i in 0:(n_features-1)
         feat = AG.Feature(AG.GDAL.ogr_l_getfeature(layer, i))
-        field_val = AG.getfield(feat, 0)  # 0 is the index of our "exclusion" field
+        field_val = AG.getfield(feat, 0)  # Get first field (C is a zero-indexed language)
 
         if field_val == 1
             push!(layer_geoms, AG.getgeom(feat))
         end
+
+        AG.destroy(feat)
     end
 
     # Close handles
+    AG.destroy(band)
     AG.GDAL.gdalclose(d)
     AG.GDAL.gdalclose(ds_shp)
+    AG.GDAL.ogr_fld_destroy(field_defn)
+    AG.GDAL.osrrelease(gdal_ref)
 
     return DataFrame(geometry=layer_geoms)
 end
