@@ -124,7 +124,7 @@ function process_exclusions(
             write(exclusion_tif_path, convert.(Int64, exclusion_zones_bool); force=true)
         end
 
-        exclusion_zones_df = exclusion_zones_bool |> to_multipolygon |> to_dataframe
+        exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
         GDF.write(
             exclusion_gpkg_path,
             exclusion_zones_df;
