@@ -140,7 +140,7 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
 - `dist_matrix` : Distance matrix between centroids.
 """
 function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
-    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)], exclusions)[1]
+    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)], exclusions, false)[1]
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -172,7 +172,7 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
     waypoints = get_waypoints(ordered_nodes, exclusions)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions, false)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths), dist_matrix
@@ -234,7 +234,7 @@ function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float6
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
     waypoints = get_waypoints(ordered_nodes, exclusions)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions, false)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths)
@@ -309,7 +309,7 @@ function tender_sequential_nearest_neighbour(
     nodes = [waypoints[1]]
     append!(nodes, cluster.nodes)
 
-    dist_matrix = get_feasible_matrix(nodes, exclusions)[1]
+    dist_matrix = get_feasible_matrix(nodes, exclusions, true)[1]
 
     tender_tours = [Int[] for _ in 1:n_tenders]
     visited = falses(length(nodes))
@@ -339,7 +339,7 @@ function tender_sequential_nearest_neighbour(
     sorties = [[[nodes[stop] for stop in [[1]; t]]; [waypoints[2]]] for t in tender_tours]
 
     feasible_paths = Matrix{Tuple{Dict{Int64, Point{2, Float64}}, Vector{SimpleWeightedEdge{Int64, Float64}}}}[
-        get_feasible_matrix(s, exclusions)[2] for s in sorties
+        get_feasible_matrix(s, exclusions, true)[2] for s in sorties
     ]
 
     paths = [get_linestrings(feasible_paths[s], sorties[s]) for s in 1:length(feasible_paths)]
