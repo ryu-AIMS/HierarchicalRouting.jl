@@ -57,7 +57,8 @@ function get_linestrings(graph_matrix::Matrix{
         Dict{Int64, Point{2, Float64}},
         Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
     }},
-    waypoints::Vector{Point{2, Float64}})
+    waypoints::Vector{Point{2, Float64}}
+)
 
     line_strings = Vector{LineString{2, Float64}}()
 
@@ -70,9 +71,17 @@ function get_linestrings(graph_matrix::Matrix{
             idx_to_point, shortest_path = graph_dict_path
 
             # Check if the path starts and ends at the desired waypoints
-            if !isempty(shortest_path) &&
-               idx_to_point[shortest_path[1].src] == start_point &&
-               idx_to_point[shortest_path[end].dst] == end_point
+            if !isempty(shortest_path) && (
+                (
+                    idx_to_point[shortest_path[1].src] == start_point &&
+                    idx_to_point[shortest_path[end].dst] == end_point
+                )
+                ||
+                (
+                    idx_to_point[shortest_path[1].src] == end_point &&
+                    idx_to_point[shortest_path[end].dst] == start_point
+                )
+            )
 
                 # Extract points along path
                 path_points = [idx_to_point[e.src] for e in shortest_path]
