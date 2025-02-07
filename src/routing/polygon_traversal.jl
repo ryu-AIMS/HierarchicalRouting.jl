@@ -20,13 +20,14 @@ Find the vertices on each (left/right) side of the line that have the widest ang
 function find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
-    exclusions::DataFrame
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int}
 )
     max_angle_L, max_angle_R = 0.0, 0.0
     furthest_vert_L, furthest_vert_R = nothing, nothing
 
     # Find the first/next polygon that the line (current_point, final_point) crosses.
-    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.closest_crossed_polygon(current_point, final_point, exclusions)
+    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
     if polygon === nothing
         return [final_point], 0
     end
@@ -89,7 +90,8 @@ Find polygons that intersect with a line segment.
 function closest_crossed_polygon(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
-    exclusions::DataFrame
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int}
 )
     closest_polygon = (nothing, nothing, 0)
     min_dist = Inf
@@ -102,6 +104,9 @@ function closest_crossed_polygon(
     line_min_y, line_max_y = min(current_point[2], final_point[2]), max(current_point[2], final_point[2])
 
     for (i, row) in enumerate(eachrow(exclusions))
+        if i in current_exclusions_idx
+            continue
+        end
 
         geom = row.geometry
         exterior_ring = AG.getgeom(geom, 0)
