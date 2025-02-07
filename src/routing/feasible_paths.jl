@@ -70,6 +70,15 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
                 final_exclusion_idx = i
                 break
             end
+
+            if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(initial_point[1], initial_point[2]))
+                final_exclusion_idx = i
+                temp_point = initial_point
+                initial_point = final_point
+                final_point = temp_point
+                points = [initial_point]
+                break
+            end
         end
     end
 
