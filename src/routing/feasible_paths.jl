@@ -64,6 +64,14 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     )
 
     final_exclusion_idx = nothing
+    if ignore_exclusions_flag
+        for (i, exclusion) in enumerate(eachrow(exclusions))
+            if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(final_point[1], final_point[2]))
+                final_exclusion_idx = i
+                break
+            end
+        end
+    end
 
     points = [initial_point]
     parent_points = [initial_point]
@@ -114,7 +122,7 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
 
     while current_node_idx <= length(points)
         current_point = points[current_node_idx]
-        if current_point == final_point || current_point in points[1:current_node_idx - 1]
+        if current_point == final_point || current_point in points[1:current_node_idx - 1] || exclusion_idx[current_node_idx] == final_exclusion_idx
             current_node_idx += 1
             continue
         end
