@@ -157,3 +157,80 @@ function closest_crossed_polygon(
 
     return closest_polygon, polygon_idx
 end
+
+"""
+    is_visible(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusion_poly
+)::Bool
+
+Check if a point is visible from another point, given a single exclusion polygon.
+    i.e. no exclusion zone intersects the straight line between them.
+
+# Arguments
+- `current_point::Point{2, Float64}`: The current point marking start of line.
+- `final_point::Point{2, Float64}`: The final point marking end of line.
+- `exclusion_poly`: The exclusion polygon.
+
+# Returns
+- `Bool`: True if the line between the two points is visible, false otherwise.
+"""
+function is_visible(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusion_poly
+)::Bool
+
+    line_to_point = AG.createlinestring([
+        (current_point[1], current_point[2]),
+        (final_point[1], final_point[2])
+    ])
+
+    # TODO: CHECK if commented statement below is necessary/correct/overkill
+    if AG.intersects(exclusion_poly, line_to_point) && !AG.touches(exclusion_poly, line_to_point)
+        return false
+    end
+    return true
+end
+
+"""
+    is_visible(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int} = [0]
+    )::Bool
+
+Check if a point is visible from another point, considering a vector of polygons.
+    i.e. no exclusion zone intersects the straight line between them.
+
+# Arguments
+- `current_point::Point{2, Float64}`: The current point marking start of line.
+- `final_point::Point{2, Float64}`: The final point marking end of line.
+- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion zones that have already been crossed.
+
+# Returns
+- `Bool`: True if the line between the two points is visible, false otherwise.
+"""
+function is_visible(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+    current_exclusions_idx::Vector{Int} = [0]
+)::Bool
+
+    for i in 1:size(exclusions, 1)
+
+        # Skip exclusion zones
+        if i in current_exclusions_idx || AG.isempty(exclusions.geometry[i])
+            continue
+        end
+
+        if !is_visible(current_point, final_point, exclusions.geometry[i])
+            return false
+        end
+    end
+    return true
+end
