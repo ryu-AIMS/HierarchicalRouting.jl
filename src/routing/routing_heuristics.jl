@@ -168,8 +168,14 @@ function nearest_neighbour(
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
 )
-    dist_matrix = get_feasible_matrix(
+    # adjust_waypoints to ensure not within exclusion zones
+    feasible_nodes = HierarchicalRouting.adjust_waypoint.(
         [Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)],
+        Ref(exclusions_mothership)
+    )
+
+    dist_matrix = get_feasible_matrix(
+        feasible_nodes,
         exclusions_mothership
     )[1]
 
