@@ -125,13 +125,19 @@ function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
 end
 
 """
-    nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
+    nearest_neighbour(
+        nodes::DataFrame,
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        )
 
 Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to the depot.
 
 # Arguments
 - `nodes` : DataFrame containing id, lat, lon. Depot is cluster 0 in row 1.
-- `exclusions` : DataFrame containing exclusion zones.
+- `exclusions_mothership` : DataFrame containing exclusion zones for mothership.
+- `exclusions_tender` : DataFrame containing exclusion zones for tenders.
+
 # Returns
 - `solution` : MSRoutingSolution object containing:
     - `cluster_sequence` : Centroid sequence DataFrame (containing id, lat, lon).
@@ -139,8 +145,15 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
     - `distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
 """
-function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
-    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)], exclusions)[1]
+function nearest_neighbour(
+    nodes::DataFrame,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+)
+    dist_matrix = get_feasible_matrix(
+        [Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)],
+        exclusions_mothership
+    )[1]
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -170,23 +183,31 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     cluster_sequence = tour .- 1
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
-    waypoints = get_waypoints(ordered_nodes, exclusions)
+    # combine exclusions for mothership and tenders
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths), dist_matrix
 end
 
 """
-    two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, exclusions::DataFrame)
+    two_opt(
+        ms_soln_current::MothershipSolution,
+        dist_matrix::Matrix{Float64},
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        )
 
 Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
 
 # Arguments
 - `ms_soln_current` : Current MothershipSolution - from nearest_neighbour.
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
-- `exclusions` : DataFrame containing exclusion zones.
+- `exclusions_mothership` : DataFrame containing exclusion zones for mothership.
+- `exclusions_tender` : DataFrame containing exclusion zones for tenders.
 
 # Returns
 - `solution` : MothershipSolution object containing:
@@ -194,7 +215,12 @@ Apply the 2-opt heuristic to improve the current MothershipSolution route (by un
     - `route` : DataFrame of waypoints characterising route.
     - `line_strings` : Vector of LineString objects for each path.
 """
-function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, exclusions::DataFrame)
+function two_opt(
+    ms_soln_current::MothershipSolution,
+    dist_matrix::Matrix{Float64},
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+)
 
     nodes = ms_soln_current.cluster_sequence
 
@@ -232,9 +258,10 @@ function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float6
     best_route .-= 1
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
-    waypoints = get_waypoints(ordered_nodes, exclusions)
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths)
