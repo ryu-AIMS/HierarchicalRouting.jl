@@ -62,7 +62,7 @@ function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions:
     feasible_paths = Matrix{
         Tuple{Dict{Int64, Point{2, Float64}}, Vector{SimpleWeightedEdge{Int64, Float64}}}
     }[
-        get_feasible_matrix(s, exclusions, true)[2] for s in updated_tender_tours
+        get_feasible_matrix(s, exclusions)[2] for s in updated_tender_tours
     ]
 
     # Update linestrings for the modified sorties

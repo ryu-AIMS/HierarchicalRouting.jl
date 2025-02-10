@@ -7,13 +7,14 @@ Create a matrix of distances of feasible paths between waypoints accounting for 
 # Arguments
 - `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
 - `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+- `ignore_exclusions_flag::Bool` : Flag to ignore exclusions. Default is `true`.
 
 # Returns
 - `feasible_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
 - `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of waypoints.
 """
 function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame,
-    ignore_exclusions_flag::Bool
+    ignore_exclusions_flag::Bool = true
     )
     n_points = length(nodes)
     feasible_matrix = zeros(Float64, n_points, n_points)
@@ -54,6 +55,7 @@ Use A* between all vertices on polygons that intersect with straight line to fin
 - `initial_point::Point{2, Float64}`: Starting point of path.
 - `final_point::Point{2, Float64}`: Ending point of path.
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
+- `ignore_exclusions_flag::Bool`: Flag to ignore exclusions.
 
 # Returns
 - `dist::Float64`: The distance of the shortest feasible path.
@@ -66,11 +68,13 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     final_exclusion_idx = nothing
     if ignore_exclusions_flag
         for (i, exclusion) in enumerate(eachrow(exclusions))
+            # If final point is within an exclusion zone, add all vertices of 'final' exclusion polygon to graph
             if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(final_point[1], final_point[2]))
                 final_exclusion_idx = i
                 break
             end
 
+            # If final point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
             if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(initial_point[1], initial_point[2]))
                 final_exclusion_idx = i
                 temp_point = initial_point
