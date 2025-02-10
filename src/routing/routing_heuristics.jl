@@ -42,6 +42,51 @@ function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
 end
 
 """
+adjust_waypoint(
+    waypoint::Point{2, Float64},
+    exclusions::DataFrame,
+    )::Point{2, Float64}
+
+Adjust waypoint if inside exclusion zone to closest boundary point.
+
+# Arguments
+- `waypoint` : Point{2, Float64} waypoint.
+- `exclusions` : DataFrame containing exclusion zones.
+
+# Returns
+Adjusted waypoint if inside exclusion zone, else original waypoint.
+"""
+function adjust_waypoint(
+    waypoint::Point{2, Float64},
+    exclusions::DataFrame,
+)::Point{2, Float64}
+    waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
+    containing_polygons = [
+        polygon for polygon in exclusions.geometry
+            if AG.contains(polygon, waypoint_geom)
+    ]
+
+    if isempty(containing_polygons)
+        return waypoint
+    end
+
+    union_poly = containing_polygons[1]
+    for poly in containing_polygons[2:end]
+        union_poly = AG.union(union_poly, poly)
+    end
+
+    exterior_ring = AG.getgeom(union_poly, 0)
+    n_points = AG.ngeom(exterior_ring)
+
+    boundary_points = [
+        Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1
+    ]
+
+    closest_point = argmin(p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2), boundary_points)
+    return closest_point
+end
+
+"""
     get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
 
 Calculate mothership waypoints between sequential clusters.
@@ -66,33 +111,6 @@ function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
 
     waypoints[1] = Point{2, Float64}(sequence.lon[1], sequence.lat[1])
     connecting_clusters[1] = (sequence.id[1], sequence.id[1])
-
-    """
-        adjust_waypoint(waypoint::Point{2, Float64}, exclusions::DataFrame)::Point{2, Float64}
-
-    Adjust waypoint if inside exclusion zone to closest boundary point.
-
-    # Arguments
-    - `waypoint` : Point{2, Float64} waypoint.
-    - `exclusions` : DataFrame containing exclusion zones.
-
-    # Returns
-    Adjusted waypoint if inside exclusion zone, else original waypoint.
-    """
-    function adjust_waypoint(waypoint::Point{2, Float64}, exclusions::DataFrame)::Point{2, Float64}
-        waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
-        polygons = exclusions.geometry
-        for polygon in polygons
-            exterior_ring = AG.getgeom(polygon, 0)
-            n_points = AG.ngeom(exterior_ring)
-            if AG.contains(polygon, waypoint_geom)
-                boundary_points = [Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1]
-                closest_point = argmin(p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2), boundary_points)
-                return closest_point
-            end
-        end
-        return waypoint
-    end
 
     for i in 2:(n_cluster_seqs - 1)
         prev_lon, prev_lat, prev_clust = sequence.lon[i-1], sequence.lat[i-1], sequence.id[i-1]
