@@ -366,6 +366,12 @@ function tender_sequential_nearest_neighbour(
     visited = falses(length(nodes))
     visited[1] = true
 
+    for s in 1:length(cluster.nodes)
+        if dist_matrix[1, s+1] == Inf
+            visited[s+1] = true
+        end
+    end
+
     # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop-by-stop
     for _ in 1:t_cap
         for t in 1:n_tenders
