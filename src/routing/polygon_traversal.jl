@@ -188,10 +188,7 @@ function is_visible(
     ])
 
     # TODO: CHECK if commented statement below is necessary/correct/overkill
-    if AG.intersects(exclusion_poly, line_to_point) && !AG.touches(exclusion_poly, line_to_point)
-        return false
-    end
-    return true
+    return !AG.intersects(exclusion_poly, line_to_point) || AG.touches(exclusion_poly, line_to_point)
 end
 
 """
