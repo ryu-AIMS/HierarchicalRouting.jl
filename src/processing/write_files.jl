@@ -60,7 +60,7 @@ Saved in the output directory, using the EPSG code from the config file.
 # Returns
 - `df::DataFrame`: Cluster sequence with id, geometry, and order_id columns.
 """
-function export_clusters(cluster_sequence::DataFrame) #, filepath::String)
+function export_clusters(cluster_sequence::DataFrame)
     df = DataFrame(
         id = cluster_sequence.id,
         geometry = [AG.createpoint(lon, lat) for (lon, lat) in zip(cluster_sequence.lon, cluster_sequence.lat)],
@@ -120,15 +120,13 @@ Saved in the output directory, using the EPSG code from the config file.
 function export_mothership_routes(line_strings::Vector{LineString{2, Float64}})
     df = DataFrame(
         id = Int[],
-        geometry = ArchGDAL.IGeometry{ArchGDAL.wkbLineString}[]
+        geometry = AG.IGeometry{AG.wkbLineString}[]
     )
 
     for (route_id, line) in enumerate(line_strings)
         coords = [((p[1][1], p[1][2]), (p[2][1], p[2][2])) for p in line.points]
 
-        # Convert to ArchGDAL geometry
         flat_coords = Iterators.flatten(coords) |> collect
-        # Pass flat coordinates
         line = AG.createlinestring(flat_coords)
 
         push!(df, (route_id, line))
@@ -158,7 +156,7 @@ function export_tender_routes(tender_soln::Vector{HierarchicalRouting.TenderSolu
         id = Int[],
         cluster_id = Int[],
         sortie_id = Int[],
-        geometry = ArchGDAL.IGeometry{ArchGDAL.wkbLineString}[]
+        geometry = AG.IGeometry{AG.wkbLineString}[]
     )
 
     id = 1

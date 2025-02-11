@@ -27,6 +27,7 @@ include("clustering/clustering.jl")
 
 include("routing/routing_heuristics.jl")
 include("routing/feasible_paths.jl")
+include("routing/polygon_traversal.jl")
 include("optimization/metric_calcs.jl")
 include("optimization/solution_assessment.jl")
 

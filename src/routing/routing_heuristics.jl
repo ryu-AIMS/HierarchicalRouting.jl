@@ -42,6 +42,51 @@ function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
 end
 
 """
+adjust_waypoint(
+    waypoint::Point{2, Float64},
+    exclusions::DataFrame,
+    )::Point{2, Float64}
+
+Adjust waypoint if inside exclusion zone to closest boundary point.
+
+# Arguments
+- `waypoint` : Point{2, Float64} waypoint.
+- `exclusions` : DataFrame containing exclusion zones.
+
+# Returns
+Adjusted waypoint if inside exclusion zone, else original waypoint.
+"""
+function adjust_waypoint(
+    waypoint::Point{2, Float64},
+    exclusions::DataFrame,
+)::Point{2, Float64}
+    waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
+    containing_polygons = [
+        polygon for polygon in exclusions.geometry
+            if AG.contains(polygon, waypoint_geom)
+    ]
+
+    if isempty(containing_polygons)
+        return waypoint
+    end
+
+    union_poly = containing_polygons[1]
+    for poly in containing_polygons[2:end]
+        union_poly = AG.union(union_poly, poly)
+    end
+
+    exterior_ring = AG.getgeom(union_poly, 0)
+    n_points = AG.ngeom(exterior_ring)
+
+    boundary_points = [
+        Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1
+    ]
+
+    closest_point = argmin(p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2), boundary_points)
+    return closest_point
+end
+
+"""
     get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
 
 Calculate mothership waypoints between sequential clusters.
@@ -66,33 +111,6 @@ function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
 
     waypoints[1] = Point{2, Float64}(sequence.lon[1], sequence.lat[1])
     connecting_clusters[1] = (sequence.id[1], sequence.id[1])
-
-    """
-        adjust_waypoint(waypoint::Point{2, Float64}, exclusions::DataFrame)::Point{2, Float64}
-
-    Adjust waypoint if inside exclusion zone to closest boundary point.
-
-    # Arguments
-    - `waypoint` : Point{2, Float64} waypoint.
-    - `exclusions` : DataFrame containing exclusion zones.
-
-    # Returns
-    Adjusted waypoint if inside exclusion zone, else original waypoint.
-    """
-    function adjust_waypoint(waypoint::Point{2, Float64}, exclusions::DataFrame)::Point{2, Float64}
-        waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
-        polygons = exclusions.geometry
-        for polygon in polygons
-            exterior_ring = AG.getgeom(polygon, 0)
-            n_points = AG.ngeom(exterior_ring)
-            if AG.contains(polygon, waypoint_geom)
-                boundary_points = [Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1]
-                closest_point = argmin(p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2), boundary_points)
-                return closest_point
-            end
-        end
-        return waypoint
-    end
 
     for i in 2:(n_cluster_seqs - 1)
         prev_lon, prev_lat, prev_clust = sequence.lon[i-1], sequence.lat[i-1], sequence.id[i-1]
@@ -125,13 +143,19 @@ function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
 end
 
 """
-    nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
+    nearest_neighbour(
+        nodes::DataFrame,
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        )
 
 Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to the depot.
 
 # Arguments
 - `nodes` : DataFrame containing id, lat, lon. Depot is cluster 0 in row 1.
-- `exclusions` : DataFrame containing exclusion zones.
+- `exclusions_mothership` : DataFrame containing exclusion zones for mothership.
+- `exclusions_tender` : DataFrame containing exclusion zones for tenders.
+
 # Returns
 - `solution` : MSRoutingSolution object containing:
     - `cluster_sequence` : Centroid sequence DataFrame (containing id, lat, lon).
@@ -139,8 +163,21 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
     - `distance` : Total distance of the route.
 - `dist_matrix` : Distance matrix between centroids.
 """
-function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
-    dist_matrix = get_feasible_matrix([Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)], exclusions)[1]
+function nearest_neighbour(
+    nodes::DataFrame,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+)
+    # adjust_waypoints to ensure not within exclusion zones
+    feasible_nodes = HierarchicalRouting.adjust_waypoint.(
+        [Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)],
+        Ref(exclusions_mothership)
+    )
+
+    dist_matrix = get_feasible_matrix(
+        feasible_nodes,
+        exclusions_mothership
+    )[1]
 
     num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
     visited = falses(num_clusters + 1)
@@ -170,23 +207,31 @@ function nearest_neighbour(nodes::DataFrame, exclusions::DataFrame)
     cluster_sequence = tour .- 1
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
-    waypoints = get_waypoints(ordered_nodes, exclusions)
+    # combine exclusions for mothership and tenders
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths), dist_matrix
 end
 
 """
-    two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, exclusions::DataFrame)
+    two_opt(
+        ms_soln_current::MothershipSolution,
+        dist_matrix::Matrix{Float64},
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        )
 
 Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
 
 # Arguments
 - `ms_soln_current` : Current MothershipSolution - from nearest_neighbour.
 - `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
-- `exclusions` : DataFrame containing exclusion zones.
+- `exclusions_mothership` : DataFrame containing exclusion zones for mothership.
+- `exclusions_tender` : DataFrame containing exclusion zones for tenders.
 
 # Returns
 - `solution` : MothershipSolution object containing:
@@ -194,7 +239,12 @@ Apply the 2-opt heuristic to improve the current MothershipSolution route (by un
     - `route` : DataFrame of waypoints characterising route.
     - `line_strings` : Vector of LineString objects for each path.
 """
-function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float64}, exclusions::DataFrame)
+function two_opt(
+    ms_soln_current::MothershipSolution,
+    dist_matrix::Matrix{Float64},
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+)
 
     nodes = ms_soln_current.cluster_sequence
 
@@ -232,9 +282,10 @@ function two_opt(ms_soln_current::MothershipSolution, dist_matrix::Matrix{Float6
     best_route .-= 1
 
     ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
-    waypoints = get_waypoints(ordered_nodes, exclusions)
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions)[2]
+    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths)
@@ -314,6 +365,12 @@ function tender_sequential_nearest_neighbour(
     tender_tours = [Int[] for _ in 1:n_tenders]
     visited = falses(length(nodes))
     visited[1] = true
+
+    for s in 1:length(cluster.nodes)
+        if dist_matrix[1, s+1] == Inf
+            visited[s+1] = true
+        end
+    end
 
     # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop-by-stop
     for _ in 1:t_cap

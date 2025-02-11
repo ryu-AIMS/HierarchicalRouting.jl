@@ -1,27 +1,43 @@
 
 """
-    get_feasible_matrix(waypoints::Vector{Point{2, Float64}}, exclusions::DataFrame)
+    get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
 
 Create a matrix of distances of feasible paths between waypoints accounting for (avoiding) environmental constraints.
 
 # Arguments
-- `points::Vector{Point{2, Float64}` : Vector of lat long tuples.
+- `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
 - `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+- `ignore_exclusions_flag::Bool` : Flag to ignore exclusions. Default is `true`.
 
 # Returns
 - `feasible_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
 - `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of waypoints.
 """
-function get_feasible_matrix(points::Vector{Point{2, Float64}}, exclusions::DataFrame)
-    n_points = length(points)
+function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame,
+    ignore_exclusions_flag::Bool = true
+    )
+    n_points = length(nodes)
     feasible_matrix = zeros(Float64, n_points, n_points)
     feasible_path = fill((Dict{Int64, Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
 
     for j in 1:n_points
         for i in 1:j-1
-            if points[i] != points[j]
-                feasible_matrix[i, j], feasible_path[i,j] = shortest_feasible_path(points[i], points[j], exclusions)
-                feasible_matrix[j, i] = feasible_matrix[i, j]
+            if nodes[i] != nodes[j]
+                # TODO: Process elsewhere
+                # Check if any of the points are within an exclusion zone
+                if any(
+                    AG.contains.(
+                        exclusions.geometry, Ref(AG.createpoint(nodes[j][1], nodes[j][2])))
+                ) ||
+                any(
+                    AG.contains.(
+                        exclusions.geometry, Ref(AG.createpoint(nodes[i][1], nodes[i][2])))
+                )
+                    feasible_matrix[i, j] = feasible_matrix[j, i] = Inf
+                else
+                    feasible_matrix[i, j], feasible_path[i,j] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[j], exclusions, ignore_exclusions_flag)
+                    feasible_matrix[j, i] = feasible_matrix[i, j]
+                end
             end
         end
     end
@@ -39,12 +55,37 @@ Use A* between all vertices on polygons that intersect with straight line to fin
 - `initial_point::Point{2, Float64}`: Starting point of path.
 - `final_point::Point{2, Float64}`: Ending point of path.
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
+- `ignore_exclusions_flag::Bool`: Flag to ignore exclusions.
 
 # Returns
 - `dist::Float64`: The distance of the shortest feasible path.
 - `path::Vector{SimpleWeightedGraph{Int64, Float64}.Edge}`: The shortest feasible path as a vector of edges.
 """
-function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame)
+function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame,
+    ignore_exclusions_flag::Bool
+    )
+
+    final_exclusion_idx = nothing
+    if ignore_exclusions_flag
+        for (i, exclusion) in enumerate(eachrow(exclusions))
+            # If final point is within an exclusion zone, add all vertices of 'final' exclusion polygon to graph
+            if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(final_point[1], final_point[2]))
+                final_exclusion_idx = i
+                break
+            end
+
+            # If final point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
+            if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(initial_point[1], initial_point[2]))
+                final_exclusion_idx = i
+                temp_point = initial_point
+                initial_point = final_point
+                final_point = temp_point
+                points = [initial_point]
+                break
+            end
+        end
+    end
+
     points = [initial_point]
     parent_points = [initial_point]
     current_node_idx = 1
@@ -73,16 +114,16 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
         ignore_exclusion_indices::Vector{Int}
     )
         if target_point !== nothing
-            (left_point, right_point), new_exclusion_idx = HierarchicalRouting.find_next_points(candidate_point, target_point, exclusions, ignore_exclusion_indices)
+            new_vertices, new_exclusion_idx = HierarchicalRouting.find_widest_points(candidate_point, target_point, exclusions, ignore_exclusions_flag ? ignore_exclusion_indices : [0])
 
-            if left_point == target_point || right_point == target_point
+            if target_point in new_vertices
                 push!(parent_points, candidate_point)
                 push!(points, target_point)
                 push!(exclusion_idx, ignore_exclusion_indices[1])
                 return
             end
 
-            for intermediate_point in [left_point, right_point]
+            for intermediate_point in new_vertices
                 if intermediate_point !== nothing && intermediate_point !== target_point
                     push!(parent_points, candidate_point)
                     push!(points, intermediate_point)
@@ -94,210 +135,36 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
 
     while current_node_idx <= length(points)
         current_point = points[current_node_idx]
-        if current_point == final_point || current_point in points[1:current_node_idx - 1]
+        if current_point == final_point || current_point in points[1:current_node_idx - 1] || exclusion_idx[current_node_idx] == final_exclusion_idx
             current_node_idx += 1
             continue
         end
 
         # Find edge points of next intersecting exclusion polygon, and polygon index
-        (left_point, right_point), current_exclusion_idx = HierarchicalRouting.find_next_points(current_point, final_point, exclusions, [exclusion_idx[current_node_idx]])
+        vertices, current_exclusion_idx = HierarchicalRouting.find_widest_points(current_point, final_point, exclusions, ignore_exclusions_flag ? [exclusion_idx[current_node_idx]] : [0])
 
-        # check if current_point to (left_point, right_point) is feasible or if there are intersecting polygons in between
-        map(
-            point -> process_point(current_point, point, exclusions, [current_exclusion_idx, exclusion_idx[current_node_idx]]),
-            filter(x -> x !== nothing, [left_point, right_point])
+        # TODO: check if path from current_point to (left_point, right_point) is feasible (no intersecting polygons in between)
+        process_point.(
+            Ref(current_point),
+            vertices,
+            Ref(exclusions),
+            Ref([current_exclusion_idx, exclusion_idx[current_node_idx]])
         )
 
         current_node_idx += 1
     end
 
-    g, point_to_idx, idx_to_point = build_graph(points, parent_points)
+    g, point_to_idx, idx_to_point = build_graph(
+        points,
+        parent_points,
+        isnothing(final_exclusion_idx) ? nothing : exclusions[final_exclusion_idx,:geometry],
+        final_point
+    )
 
     path = a_star(g, 1, point_to_idx[final_point], g.weights)
     dist = sum(g.weights[p.src, p.dst] for p in path)
 
     return dist, (idx_to_point, path)
-end
-
-"""
-    find_next_points(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int}
-    ) #::Union{Nothing, Tuple}
-
-Find the widest vertices on each (left/right) side of the line to the final point.
-
-# Arguments
-- `current_point::Point{2, Float64}`: The current point marking start of line.
-- `final_point::Point{2, Float64}`: The final point marking end of line.
-- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion polygons to disregard for crossings.
-
-# Returns
-- `furthest_vert_L::Union{Nothing, Point{2, Float64}}`: The furthest point on the left side of the line.
-- `furthest_vert_R::Union{Nothing, Point{2, Float64}}`: The furthest point on the right side of the line.
-- `polygon_idx::Int`: The index of the polygon crossed.
-"""
-function find_next_points(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int}
-) #::Union{Nothing, Tuple}
-    max_dist_L, max_dist_R = -Inf32, -Inf32
-    furthest_vert_L, furthest_vert_R = nothing, nothing # Set{Point{2, Float64}}()
-
-    # TODO: Allow for multiple equidistant furthest points
-
-    # Next polygon crossed by line to end point
-    (polygon, exterior_ring, n_pts), polygon_idx = closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
-    if polygon === nothing
-        return (final_point, nothing), 0
-    end
-
-    """
-        perpendicular_distance_line_to_point(line::Line{2, Float64}, point::Point{2, Float64})
-
-    Calculate the perpendicular distance of a point to a line.
-
-    # Arguments
-    - `line::Line{2, Float64}`: The line to calculate the distance to.
-    - `point::Point{2, Float64}`: The point to calculate the distance from.
-
-    # Returns
-    - `dist::Float64`: The perpendicular distance of the point to the line.
-    """
-    function perpendicular_distance_line_to_point(line::Line{2, Float64}, point::Point{2, Float64})
-        p1, p2 = line.points[1], line.points[2]
-
-        # Convert points to vectors
-        v1 = Vec(p1)
-        v2 = Vec(p2)
-        p = Vec(point)
-
-        # Vector projection and the distance
-        line_vec = v2 - v1
-        point_vec = p - v1
-        proj_len = GeometryBasics.dot(point_vec, line_vec) / GeometryBasics.norm(line_vec)
-        proj_point = v1 + proj_len * GeometryBasics.normalize(line_vec)
-
-        return GeometryBasics.norm(p - proj_point)
-    end
-
-    # For each polygon vertex, find the furthest points on the left and right side of line
-    for i in 0:n_pts - 1
-        x, y, _ = AG.getpoint(exterior_ring, i)
-        pt = Point{2, Float64}(x, y)
-
-        dist = perpendicular_distance_line_to_point(Line(current_point, final_point), pt)
-
-        side = (final_point[1] - current_point[1]) * (pt[2] - current_point[2]) - (final_point[2] - current_point[2]) * (pt[1] - current_point[1])
-
-        # Check side (L/R) and update furthest points
-        if side > 0 && dist > max_dist_L
-            max_dist_L = dist
-            furthest_vert_L = pt #Set([pt])
-        elseif side < 0 && dist > max_dist_R
-            max_dist_R = dist
-            furthest_vert_R = pt #Set([pt])
-        end
-    end
-
-    return (furthest_vert_L, furthest_vert_R), polygon_idx
-end
-
-"""
-    closest_crossed_polygon(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int}
-    )
-
-Find polygons that intersect with a line segment.
-
-# Arguments
-- `current_point::Point{2, Float64}`: The current point marking start of line.
-- `final_point::Point{2, Float64}`: The final point marking end of line.
-- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion polygons to disregard.
-
-# Returns
-- `closest_polygon`: The polygon, LineString and number of vertices of the first/closest polygon intersecting with the line segment.
-- `polygon_idx`: The index of the(first) polygon crossed.
-"""
-function closest_crossed_polygon(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int}
-)
-    closest_polygon = (nothing, nothing, 0)
-    min_dist = Inf
-    polygon_idx = nothing
-
-    line = AG.createlinestring([current_point[1], final_point[1]], [current_point[2], final_point[2]])
-
-    # Define bounding box for line to exclude polygons that do not intersect
-    line_min_x, line_max_x = min(current_point[1], final_point[1]), max(current_point[1], final_point[1])
-    line_min_y, line_max_y = min(current_point[2], final_point[2]), max(current_point[2], final_point[2])
-
-    for (i, row) in enumerate(eachrow(exclusions))
-        # Skip current polygon
-        if i in current_exclusions_idx
-            continue
-        end
-
-        geom = row.geometry
-        exterior_ring = AG.getgeom(geom, 0)
-        n_pts = AG.ngeom(exterior_ring)
-
-        # Check if any polygon vertices are inside the line's bounding box
-        vertex_in_line_bbox = any(
-            line_min_x <= AG.getpoint(exterior_ring, j)[1] <= line_max_x &&
-            line_min_y <= AG.getpoint(exterior_ring, j)[2] <= line_max_y
-            for j in 0:n_pts - 1
-        )
-
-        # Check if line crosses bounding box
-        line_in_polygon_bbox = false
-        if !vertex_in_line_bbox
-            poly_xs, poly_ys, _ = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
-
-            line_in_polygon_bbox = (
-                line_min_x <= maximum(poly_xs) &&
-                line_max_x >= minimum(poly_xs) &&
-                line_min_y <= maximum(poly_ys) &&
-                line_max_y >= minimum(poly_ys)
-            )
-        end
-
-        # Skip polygons with no vertices in or crossing bounding box
-        if !vertex_in_line_bbox && !line_in_polygon_bbox
-            continue
-        end
-
-        if AG.crosses(line, geom) ||
-            (
-                AG.touches(AG.createpoint(current_point[1], current_point[2]), geom) &&
-                AG.touches(AG.createpoint(final_point[1], final_point[2]), geom)
-            )
-
-            # Find distance to polygon
-            dist = GO.distance(current_point, geom)
-
-            # If closer than current closest polygon, update closest polygon
-            if dist < min_dist
-                min_dist = dist
-                closest_polygon = (geom, exterior_ring, n_pts)
-                polygon_idx = i
-            end
-        end
-    end
-
-    return closest_polygon, polygon_idx
 end
 
 """
@@ -308,27 +175,67 @@ Construct a simple weighted graph between given points that do not intersect exc
 # Arguments
 - `points::Vector{Point{2, Float64}`: A vector of points respresenting ordered end points.
 - `parent_points::Vector{Point{2, Float64}`: A vector of points representing ordered start points.
+- `polygon` : Polygon provided if it's convex hull contains final point.
+    Include all vertices of exclusion polygon in graph.
+- `final_point` : Include final point in graph.
+    Provided if final point is within the convex hull of an exclusion zone.
 
 # Returns
-Simple weighted graph with distances between points.
+- `g::SimpleWeightedGraph{Int64, Float64}`: A simple weighted graph of all points/edges.
+- `point_to_idx::Dict{Point{2, Float64}, Int64}`: A dictionary mapping points to indices.
+- `idx_to_point::Dict{Int64, Point{2, Float64}`: A dictionary mapping indices to points.
 """
-function build_graph(points::Vector{Point{2, Float64}}, parent_points::Vector{Point{2, Float64}})#::SimpleWeightedGraph{Int64, Float64}
+function build_graph(
+    points::Vector{Point{2, Float64}},
+    parent_points::Vector{Point{2, Float64}},
+    polygon,
+    final_point
+    )
     # Dictionaries to map unique points and their indices
     point_to_idx = Dict{Point{2, Float64}, Int64}()
     idx_to_point = Dict{Int64, Point{2, Float64}}()
-    idx_counter = 1
+    idx_counter = 0
 
     for pt in points
         if !haskey(point_to_idx, pt)
+            idx_counter += 1
             point_to_idx[pt] = idx_counter
             idx_to_point[idx_counter] = pt
-            idx_counter += 1
         end
     end
 
-    g = SimpleWeightedGraph(idx_counter - 1)
+    poly_vertices = []
+    n_pts = 0
+    if !isnothing(polygon)
+        # Add all polygon vertices/edges to graph
+        exterior_ring = AG.getgeom(polygon, 0)
+        n_pts = AG.ngeom(exterior_ring)
+        poly_vertices = [
+            Point{2,Float64}(
+                AG.getpoint(exterior_ring, i)[1],
+                AG.getpoint(exterior_ring, i)[2]
+            ) for i in 0:n_pts-1
+        ]
 
-    # Add edges between points & parents (from 2 because first point has no parent)
+        for v in poly_vertices
+            if !haskey(point_to_idx, v)
+                idx_counter += 1
+                point_to_idx[v] = idx_counter
+                idx_to_point[idx_counter] = v
+            end
+        end
+
+        # Ensure final_point is in dictionaries
+        if !haskey(point_to_idx, final_point)
+            idx_counter += 1
+            point_to_idx[final_point] = idx_counter
+            idx_to_point[idx_counter] = final_point
+        end
+    end
+
+    g = SimpleWeightedGraph(idx_counter)
+
+    # Add edges between points & parents (points[1] has no parent)
     for i in 2:length(points)
         pt_i = points[i]
         parent_pt = parent_points[i]
@@ -337,6 +244,28 @@ function build_graph(points::Vector{Point{2, Float64}}, parent_points::Vector{Po
         idx_parent = point_to_idx[parent_pt]
 
         add_edge!(g, idx_parent, idx_pt, euclidean(pt_i, parent_pt)) # haversine
+    end
+
+    # If `polygon`: Add edges between polygon vertices and final point if is_visible
+    if !isnothing(polygon)
+        final_pt_idx = point_to_idx[final_point]
+        for i in 1:n_pts
+            pt_i = poly_vertices[i]
+            idx_i = point_to_idx[pt_i]
+
+            # Connect adjacent vertex (wrapping around)
+            j = (i % n_pts) + 1
+
+            pt_j = poly_vertices[j]
+            idx_j = point_to_idx[pt_j]
+
+            add_edge!(g, idx_i, idx_j, euclidean(pt_i, pt_j))
+
+            # Add edge between polygon vertex and final_point if is_visible
+            if is_visible(pt_i, final_point, polygon)
+                add_edge!(g, idx_i, final_pt_idx, euclidean(pt_i, final_point))
+            end
+        end
     end
 
     return g, point_to_idx, idx_to_point
