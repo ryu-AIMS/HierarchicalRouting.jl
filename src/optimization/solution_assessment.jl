@@ -29,9 +29,6 @@ function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions:
     # Choose TWO random sorties from the cluster
     sortie_a_idx, sortie_b_idx = rand(1:length(cluster.sorties), 2)
     # TODO: Allow same sortie if not applying two-opt
-    while sortie_a_idx == sortie_b_idx
-        sortie_b_idx = rand(1:length(cluster.sorties))
-    end
     sortie_a, sortie_b = cluster.sorties[sortie_a_idx], cluster.sorties[sortie_b_idx]
 
     if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
@@ -39,7 +36,25 @@ function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions:
         return new_soln
     end
 
-    node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))
+    # node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))
+
+    if sortie_a_idx == sortie_b_idx
+        # Ensure we select two distinct node indices from that sortie.
+        if length(sortie_a.nodes) < 2
+            return new_soln
+        elseif length(sortie_a.nodes) == 2
+            node_a_idx, node_b_idx = 1, 2
+        else
+            node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes), 2)
+            while node_a_idx == node_b_idx
+                node_b_idx = rand(1:length(sortie_a.nodes))
+            end
+        end
+    else
+        # Chose two random node indices from different sorties
+        node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes), 2)
+    end
+
     node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
 
     # Swap the nodes between the two sorties
