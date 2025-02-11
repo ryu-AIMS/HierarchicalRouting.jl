@@ -1,20 +1,21 @@
 
-@kwdef struct MothershipSolution
-    cluster_sequence::DataFrame
-    route::DataFrame
-    line_strings::Vector{LineString{2, Float64}} = []
+struct Route
+    nodes::Vector{Point{2, Float64}}
+    dist_matrix::Matrix{Float64}
+    line_strings::Vector{LineString{2, Float64}}
 end
 
-struct Sortie
-    nodes::Vector{Point{2, Float64}}
+@kwdef struct MothershipSolution
+    cluster_sequence::DataFrame
+    route::Route
 end
 
 struct TenderSolution
     id::Int
-    sorties::Vector{Sortie}
     start::Point{2, Float64}
     finish::Point{2, Float64}
-    line_strings::Vector{Vector{LineString{2, Float64}}}
+    sorties::Vector{Route}
+    dist_matrix::Matrix{Float64}
 end
 
 struct MSTSolution
@@ -157,11 +158,12 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
 - `exclusions_tender` : DataFrame containing exclusion zones for tenders.
 
 # Returns
-- `solution` : MSRoutingSolution object containing:
+- `solution` : MothershipSolution object containing:
     - `cluster_sequence` : Centroid sequence DataFrame (containing id, lat, lon).
-    - `route` : DataFrame of waypoints on the route.
-    - `distance` : Total distance of the route.
-- `dist_matrix` : Distance matrix between centroids.
+    - `route` : Route object containing waypoints, distance matrix, and line strings.
+        - `nodes` : Vector of Point{2, Float64} waypoints.
+        - `dist_matrix` : Distance matrix between centroids.
+        - `line_strings` : Vector of LineString objects for each path.
 """
 function nearest_neighbour(
     nodes::DataFrame,
@@ -214,7 +216,10 @@ function nearest_neighbour(
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
-    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths), dist_matrix
+    return MothershipSolution(
+        cluster_sequence=ordered_nodes,
+        route=Route(waypoints.waypoint, dist_matrix, paths)
+    )
 end
 
 """
@@ -236,17 +241,19 @@ Apply the 2-opt heuristic to improve the current MothershipSolution route (by un
 # Returns
 - `solution` : MothershipSolution object containing:
     - `cluster_sequence` : DataFrame of cluster centroids in sequence (containing id, lon, lat).
-    - `route` : DataFrame of waypoints characterising route.
-    - `line_strings` : Vector of LineString objects for each path.
+    - `route` : Route object containing waypoints, distance matrix, and line strings.
+        - `nodes` : Vector of Point{2, Float64} waypoints.
+        - `dist_matrix` : Distance matrix between centroids.
+        - `line_strings` : Vector of LineString objects for each path.
 """
 function two_opt(
     ms_soln_current::MothershipSolution,
-    dist_matrix::Matrix{Float64},
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
 )
 
     nodes = ms_soln_current.cluster_sequence
+    dist_matrix = ms_soln_current.route.dist_matrix
 
     # If depot is last row, remove
     if nodes.id[1] == nodes.id[end]
@@ -255,7 +262,7 @@ function two_opt(
 
     # Initialize route as ordered waypoints
     best_route = [row.id+1 for row in eachrow(nodes)]
-    best_distance = return_route_distance(best_route, dist_matrix)
+    best_distance = return_route_distance(best_route, ms_soln_current.route.dist_matrix)
     improved = true
 
     while improved
@@ -288,7 +295,10 @@ function two_opt(
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
-    return MothershipSolution(cluster_sequence=ordered_nodes, route=waypoints, line_strings=paths)
+    return MothershipSolution(
+        cluster_sequence=ordered_nodes,
+        route=Route(waypoints.waypoint, dist_matrix, paths)
+    )
 end
 
 """
@@ -345,10 +355,12 @@ Assign nodes to tenders sequentially based on nearest neighbor.
 # Returns
 - `solution` : TenderRoutingSolution object containing:
     - `cluster_id` : Cluster ID.
-    - `sorties` : Vector of Sortie objects containing nodes and sortie distance.
     - `start` : Start waypoint.
     - `finish` : End waypoint.
-- `dist_matrix` : Distance matrix between nodes.
+    - `sorties` : Vector of Sortie objects containing nodes and sortie distance.
+        - `nodes` : Vector of Point{2, Float64} waypoints.
+        - `dist_matrix` : Distance matrix between nodes.
+        - `line_strings` : Vector of LineString objects for each path.
 """
 function tender_sequential_nearest_neighbour(
     cluster::Cluster,
@@ -359,12 +371,13 @@ function tender_sequential_nearest_neighbour(
 )
     nodes = [waypoints[1]]
     append!(nodes, cluster.nodes)
+    append!(nodes, [waypoints[2]])
 
     dist_matrix = get_feasible_matrix(nodes, exclusions)[1]
 
     tender_tours = [Int[] for _ in 1:n_tenders]
     visited = falses(length(nodes))
-    visited[1] = true
+    visited[1] = visited[end] = true
 
     for s in 1:length(cluster.nodes)
         if dist_matrix[1, s+1] == Inf
@@ -393,13 +406,30 @@ function tender_sequential_nearest_neighbour(
     # delete excess elements and remove empty tours
     tender_tours = filter(!isempty, tender_tours)
 
-    sorties = [[[nodes[stop] for stop in [[1]; t]]; [waypoints[2]]] for t in tender_tours]
-
-    feasible_paths = Matrix{Tuple{Dict{Int64, Point{2, Float64}}, Vector{SimpleWeightedEdge{Int64, Float64}}}}[
-        get_feasible_matrix(s, exclusions)[2] for s in sorties
+    sorties = [
+        [
+            [nodes[stop] for stop in [[1]; t]];
+            [waypoints[2]]
+        ]
+        for t in tender_tours
     ]
 
+    sortie_mats_paths = [get_feasible_matrix(s, exclusions) for s in sorties]
+    sortie_dist_matrices = [res[1] for res in sortie_mats_paths]
+    feasible_paths = [res[2] for res in sortie_mats_paths]
+
+    # TODO: Consider re-reversing reversed paths to pass to get_linestrings
     paths = [get_linestrings(feasible_paths[s], sorties[s]) for s in 1:length(feasible_paths)]
 
-    return TenderSolution(cluster.id, [Sortie([nodes[stop] for stop in tender_tours[t]]) for t in 1:length(tender_tours)], waypoints[1], waypoints[2], paths), dist_matrix
+    return TenderSolution(
+        cluster.id,
+        waypoints[1],
+        waypoints[2],
+        [
+            Route(
+                sortie, sortie_dist_matrices[i], paths[i]
+            ) for (i, sortie) in enumerate(sorties)
+        ],
+        dist_matrix
+    )
 end
