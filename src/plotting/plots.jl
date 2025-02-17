@@ -195,7 +195,7 @@ function exclusions!(
 
             if labels
                 centroid_x, centroid_y = mean(xs), mean(ys)
-                text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :blue)
+                text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :grey)
             end
         end
     end
