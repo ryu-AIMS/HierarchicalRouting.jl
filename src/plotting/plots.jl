@@ -133,7 +133,7 @@ function clusters!(
             scatter!(ax, [center_lon], [center_lat], markersize = 10, color = (color, 0.2), strokewidth = 0)
         end
         if labels
-            text!(ax, center_lon, center_lat, text = string(seq), align = (:center, :center), color = :black)
+            text!(ax, center_lon, center_lat, text = string(seq), align = (:center, :center), color = color)
         end
     end
     return ax
