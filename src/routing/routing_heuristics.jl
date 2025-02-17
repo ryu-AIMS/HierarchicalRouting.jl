@@ -299,11 +299,13 @@ function two_opt(
     waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
-    paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
+    # paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
+    paths = [waypoint_feasible_path[s, s+1] for s in 1:size(waypoint_feasible_path)[1]-1]
+    path = vcat(paths...)
 
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
-        route=Route(waypoints.waypoint, dist_matrix, paths)
+        route=Route(waypoints.waypoint, dist_matrix, path)
     )
 end
 
