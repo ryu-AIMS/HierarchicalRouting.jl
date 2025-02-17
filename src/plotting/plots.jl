@@ -37,7 +37,8 @@ function clusters(
     cluster_sequence::Union{DataFrame, Nothing} = nothing,
     cluster_radius::Real = 0,
     centers = false,
-    labels = false
+    centers::Bool = false,
+    labels::Bool = false
 )
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
