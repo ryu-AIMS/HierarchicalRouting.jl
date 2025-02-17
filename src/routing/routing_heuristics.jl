@@ -177,6 +177,10 @@ function nearest_neighbour(
         Ref(exclusions_mothership)
     )
 
+    cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
+    cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
+
+    # Create distance matrix between feasible nodes - cluster centroids
     dist_matrix = get_feasible_matrix(
         feasible_centroids,
         exclusions_mothership
@@ -216,11 +220,13 @@ function nearest_neighbour(
     waypoints = get_waypoints(ordered_centroids, exclusions_all)
 
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
-    paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
+    # paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
+    paths = [waypoint_feasible_path[s, s+1] for s in 1:size(waypoint_feasible_path)[1]-1]
+    path = vcat(paths...)
 
     return MothershipSolution(
         cluster_sequence=ordered_centroids,
-        route=Route(waypoints.waypoint, dist_matrix, paths)
+        route=Route(waypoints.waypoint, dist_matrix, path)
     )
 end
 
