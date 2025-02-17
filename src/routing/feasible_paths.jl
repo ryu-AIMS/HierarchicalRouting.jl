@@ -22,8 +22,7 @@ function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataF
             if nodes[i] != nodes[j]
                 # TODO: Process elsewhere
                 # Check if any of the points are within an exclusion zone
-                if point_in_exclusion(nodes[i], exclusions) ||
-                    point_in_exclusion(nodes[j], exclusions)
+                if point_in_exclusion([nodes[i], nodes[j]], exclusions)
                     dist_matrix[i, j] = dist_matrix[j, i] = Inf
                 else
                     dist_matrix[i, j], path_matrix[i, j] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[j], exclusions)
@@ -36,10 +35,14 @@ function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataF
     return dist_matrix, path_matrix
 end
 
-function point_in_exclusion(pt::Point{2,Float64}, exclusions::DataFrame)
-    point_ag = AG.createpoint(pt[1], pt[2])
+function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)
+    point_ag = AG.createpoint(point[1], point[2])
     return any(AG.contains.(exclusions.geometry, [point_ag]))
 end
+function point_in_exclusion(points::Vector{Point{2,Float64}}, exclusions::DataFrame)
+    return any(point_in_exclusion.(points, [exclusions]))
+end
+
 
 """
     shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame)
