@@ -205,7 +205,9 @@ end
 """
     linestrings(
         line_strings::Vector{LineString{2, Float64}};
-        labels::Bool = false
+        markers::Bool = false,
+        labels::Bool = false,
+        color = nothing
     )
 
 Create a plot of LineStrings for mothership route.
@@ -219,12 +221,14 @@ Create a plot of LineStrings for mothership route.
 """
 function linestrings(
     line_strings::Vector{LineString{2, Float64}};
-    labels::Bool = false
+    markers::Bool = false,
+    labels::Bool = false,
+    color = nothing
 )
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
 
-    linestrings!(ax, line_strings, labels = labels)
+    linestrings!(ax, line_strings, markers = markers, labels = labels, color = color)
 
     return fig, ax
 end
@@ -232,7 +236,9 @@ end
     linestrings!(
         ax::Axis,
         line_strings::Vector{LineString{2, Float64}};
-        labels::Bool = false
+        markers::Bool = false,
+        labels::Bool = false,
+        color = nothing
     )
 
 Plot LineStrings for mothership route.
@@ -240,7 +246,9 @@ Plot LineStrings for mothership route.
 # Arguments
 - `ax::Axis`: Axis object.
 - `line_strings::Vector{LineString{2, Float64}}`: LineStrings for mothership route.
+- `markers::Bool`: Plot waypoints flag.
 - `labels::Bool`: Plot LineString labels flag.
+- `color`: LineString color.
 
 # Returns
 - `ax`: Axis object.
