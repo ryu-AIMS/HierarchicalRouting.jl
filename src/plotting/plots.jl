@@ -25,6 +25,7 @@ Create a plot of nodes by cluster.
 - `clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing}`: Clusters.
 - `cluster_sequence::Union{DataFrame, Nothing}`: Cluster by sequence visited.
 - `cluster_radius::Real`: Radius of circle to represent clusters.
+- `nodes::Bool`: Plot nodes flag.
 - `centers::Bool`: Plot cluster centers flag.
 - `labels::Bool`: Plot cluster labels flag.
 
@@ -36,7 +37,7 @@ function clusters(
     clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
     cluster_sequence::Union{DataFrame, Nothing} = nothing,
     cluster_radius::Real = 0,
-    centers = false,
+    nodes::Bool = true,
     centers::Bool = false,
     labels::Bool = false
 )
@@ -48,6 +49,7 @@ function clusters(
         clusters = clusters,
         cluster_sequence = cluster_sequence,
         cluster_radius = cluster_radius,
+        nodes = nodes,
         centers = centers,
         labels = labels
     )
@@ -60,6 +62,7 @@ end
         clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
         cluster_sequence::Union{DataFrame, Nothing} = nothing,
         cluster_radius::Real = 0,
+        nodes::Bool = true,
         centers::Bool = false,
         labels::Bool = false
     )
@@ -82,6 +85,7 @@ function clusters!(
     clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
     cluster_sequence::Union{DataFrame, Nothing} = nothing,
     cluster_radius::Real = 0,
+    nodes::Bool = true,
     centers::Bool = false,
     labels::Bool = false
 )
@@ -110,7 +114,7 @@ function clusters!(
         color = colormap[seq]
 
         # plot nodes
-        if !isnothing(clusters) && !isempty(clusters[seq].nodes)
+        if nodes && !isnothing(clusters) && !isempty(clusters[seq].nodes)
             scatter!(ax, clusters[seq].nodes, color = color, markersize = 10, marker = :x)
         end
 
