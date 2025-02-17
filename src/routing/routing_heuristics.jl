@@ -166,18 +166,19 @@ Apply the nearest neighbor algorithm starting from the depot (1st row/col) and r
         - `line_strings` : Vector of LineString objects for each path.
 """
 function nearest_neighbour(
-    nodes::DataFrame,
+    cluster_centroids::DataFrame,
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
 )
-    # adjust_waypoints to ensure not within exclusion zones
-    feasible_nodes = HierarchicalRouting.adjust_waypoint.(
-        [Point{2, Float64}(row.lon, row.lat) for row in eachrow(nodes)],
+# TODO: Use vector rather than DataFrame for cluster_centroids
+    # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
+    feasible_centroids = HierarchicalRouting.adjust_waypoint.(
+        [Point{2, Float64}(row.lon, row.lat) for row in eachrow(cluster_centroids)],
         Ref(exclusions_mothership)
     )
 
     dist_matrix = get_feasible_matrix(
-        feasible_nodes,
+        feasible_centroids,
         exclusions_mothership
     )[1]
 
@@ -208,16 +209,17 @@ function nearest_neighbour(
     # Adjust cluster_sequence to zero-based indexing
     cluster_sequence = tour .- 1
 
-    ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in cluster_sequence], :]
+    ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.id) for id in cluster_sequence], :]
+
     # combine exclusions for mothership and tenders
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
-    waypoints = get_waypoints(ordered_nodes, exclusions_all)
+    waypoints = get_waypoints(ordered_centroids, exclusions_all)
 
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
     paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
 
     return MothershipSolution(
-        cluster_sequence=ordered_nodes,
+        cluster_sequence=ordered_centroids,
         route=Route(waypoints.waypoint, dist_matrix, paths)
     )
 end
