@@ -37,10 +37,8 @@ function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataF
 end
 
 function point_in_exclusion(pt::Point{2,Float64}, exclusions::DataFrame)
-        if any(AG.contains.(exclusions.geometry, Ref(AG.createpoint(pt[1], pt[2]))))
-            return true
-        end
-    return false
+    point_ag = AG.createpoint(pt[1], pt[2])
+    return any(AG.contains.(exclusions.geometry, [point_ag]))
 end
 
 """
