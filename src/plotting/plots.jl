@@ -204,7 +204,7 @@ end
 
 """
     linestrings(
-        line_strings::Vector{LineString{2, Float64}};
+        route::HierarchicalRouting.Route;
         markers::Bool = false,
         labels::Bool = false,
         color = nothing
@@ -213,14 +213,16 @@ end
 Create a plot of LineStrings for mothership route.
 
 # Arguments
-- `line_strings::Vector{LineString{2, Float64}}`: LineStrings for mothership route.
+- `route::HierarchicalRouting.Route`: Route including nodes and LineStrings.
+- `markers::Bool`: Plot waypoints flag.
 - `labels::Bool`: Plot LineString labels flag.
+- `color`: LineString color.
 
 # Returns
 - `fig, ax`: Figure and Axis objects.
 """
 function linestrings(
-    line_strings::Vector{LineString{2, Float64}};
+    route::HierarchicalRouting.Route;
     markers::Bool = false,
     labels::Bool = false,
     color = nothing
@@ -228,14 +230,14 @@ function linestrings(
     fig = Figure(size = (800, 600))
     ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
 
-    linestrings!(ax, line_strings, markers = markers, labels = labels, color = color)
+    linestrings!(ax, route, markers = markers, labels = labels, color = color)
 
     return fig, ax
 end
 """
     linestrings!(
         ax::Axis,
-        line_strings::Vector{LineString{2, Float64}};
+        route::HierarchicalRouting.Route;
         markers::Bool = false,
         labels::Bool = false,
         color = nothing
@@ -245,7 +247,7 @@ Plot LineStrings for mothership route.
 
 # Arguments
 - `ax::Axis`: Axis object.
-- `line_strings::Vector{LineString{2, Float64}}`: LineStrings for mothership route.
+- `route::HierarchicalRouting.Route`: Route including nodes and LineStrings.
 - `markers::Bool`: Plot waypoints flag.
 - `labels::Bool`: Plot LineString labels flag.
 - `color`: LineString color.
@@ -255,16 +257,18 @@ Plot LineStrings for mothership route.
 """
 function linestrings!(
     ax::Axis,
-    line_strings::Vector{LineString{2, Float64}};
+    route::HierarchicalRouting.Route;
     markers::Bool = false,
     labels::Bool = false,
     color = nothing
 )
+    line_strings = route.line_strings
+    waypoints = route.nodes[1:end-1]
+
     n_graphs = length(line_strings)
     color_palette = isnothing(color) ? cgrad(:rainbow, n_graphs) : nothing
     color = isnothing(color) ? color_palette : fill(color, n_graphs)
 
-    waypoints = [line[1][1] for line in line_strings]
     waypoint_matrix = hcat([wp[1] for wp in waypoints], [wp[2] for wp in waypoints])
 
     # Mark waypoints with 'x'
