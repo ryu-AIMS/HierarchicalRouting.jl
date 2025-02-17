@@ -338,7 +338,7 @@ function tenders!(
     # TODO: Plot critical path (longest) thicker than other paths
     for t_soln in tender_soln
         color = colormap[t_soln.id]
-        [linestrings!(ax, s.line_strings, color = color, labels = false) for s in t_soln.sorties]
+        [linestrings!(ax, s, color = color, labels = false) for s in t_soln.sorties]
     end
     return ax
 end
