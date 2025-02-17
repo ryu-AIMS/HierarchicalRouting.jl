@@ -9,14 +9,13 @@ Create a matrix of distances of feasible paths between waypoints accounting for 
 - `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
 
 # Returns
-- `feasible_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
-- `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of waypoints.
+- `dist_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
+- `path_matrix` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of waypoints.
 """
-function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame,
-    )
+function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
     n_points = length(nodes)
-    feasible_matrix = zeros(Float64, n_points, n_points)
-    feasible_path = fill((Dict{Int64, Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
+    dist_matrix = zeros(Float64, n_points, n_points)
+    path_matrix = fill((Dict{Int64, Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
 
     for j in 1:n_points
         for i in 1:j-1
@@ -25,16 +24,16 @@ function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataF
                 # Check if any of the points are within an exclusion zone
                 if point_in_exclusion(nodes[i], exclusions) ||
                     point_in_exclusion(nodes[j], exclusions)
-                    feasible_matrix[i, j] = feasible_matrix[j, i] = Inf
+                    dist_matrix[i, j] = dist_matrix[j, i] = Inf
                 else
-                    feasible_matrix[i, j], feasible_path[i, j] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[j], exclusions)
-                    feasible_matrix[j, i] = feasible_matrix[i, j]
+                    dist_matrix[i, j], path_matrix[i, j] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[j], exclusions)
+                    dist_matrix[j, i] = dist_matrix[i, j]
                 end
             end
         end
     end
 
-    return feasible_matrix, feasible_path
+    return dist_matrix, path_matrix
 end
 
 function point_in_exclusion(pt::Point{2,Float64}, exclusions::DataFrame)
