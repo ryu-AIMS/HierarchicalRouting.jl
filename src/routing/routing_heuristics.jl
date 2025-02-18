@@ -63,8 +63,8 @@ function adjust_waypoint(
 )::Point{2, Float64}
     waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
     containing_polygons = [
-        polygon for polygon in exclusions.geometry
-            if AG.contains(polygon, waypoint_geom)
+        AG.convexhull(polygon) for polygon in exclusions.geometry
+            if AG.contains(AG.convexhull(polygon), waypoint_geom)
     ]
 
     if isempty(containing_polygons)
