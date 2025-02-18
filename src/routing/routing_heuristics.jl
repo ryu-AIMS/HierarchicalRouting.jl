@@ -424,8 +424,9 @@ function tender_sequential_nearest_neighbour(
     sortie_dist_matrices = [res[1] for res in sortie_mats_paths]
     feasible_paths = [res[2] for res in sortie_mats_paths]
 
-    # TODO: Consider re-reversing reversed paths to pass to get_linestrings
-    paths = [get_linestrings(feasible_paths[s], sorties[s]) for s in 1:length(feasible_paths)]
+    # ! Matrix not array...
+
+    paths = [[feasible_path[s, s+1] for s in 1:size(feasible_path)[1]-1] for feasible_path in feasible_paths]
 
     return TenderSolution(
         cluster.id,
@@ -433,7 +434,7 @@ function tender_sequential_nearest_neighbour(
         waypoints[2],
         [
             Route(
-                sortie, sortie_dist_matrices[i], paths[i]
+                sortie, sortie_dist_matrices[i], vcat(paths[i]...)
             ) for (i, sortie) in enumerate(sorties)
         ],
         dist_matrix
