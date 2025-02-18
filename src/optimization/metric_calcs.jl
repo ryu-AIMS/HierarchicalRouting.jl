@@ -47,7 +47,7 @@ end
 Compute the cost of each sortie in a cluster.
 
 # Arguments
-- `cluster::ClusterSolution` : The cluster solution.
+- `tenters::TenderSolution` : Tender solution.
 
 # Returns
 - `sortie_dist` : The cost of each sortie in the cluster.
@@ -72,13 +72,13 @@ end
 Compute the cost of the mothership between clusters, not including across each cluster.
 
 # Arguments
-- `soln::MSTSolution` : Full MST solution.
+- `route::Route` : Full mothership route.
 
 # Returns
 - The sum of (euclidean) mothership distances between clusters.
 """
-function mothership_dist_between_clusts(soln::MSTSolution)
-    return sum(euclidean(soln.mothership.route.waypoint[i], soln.mothership.route.waypoint[i+1]) for i in 1:2:(nrow(soln.mothership.route)))
+function mothership_dist_between_clusts(route::Route)
+    return sum(euclidean(route.nodes[i], route.nodes[i+1]) for i in 1:2:(length(route.nodes)))
 end
 
 """
@@ -87,22 +87,43 @@ end
 Compute the cost of the mothership within each cluster, not including between clusters.
 
 # Arguments
-- `soln::MSTSolution` : Full MST solution.
+- `route::Route` : Full mothership route.
 
 # Returns
-- The sum of (euclidean) mothership distances within each cluster.
+- The sum of (euclidean) mothership distances across/within each cluster.
 """
-function mothership_dist_within_clusts(soln::MSTSolution)
-    return [euclidean(soln.mothership.route.waypoint[i], soln.mothership.route.waypoint[i+1]) for i in 2:2:(nrow(soln.mothership.route)-1)]
+function mothership_dist_within_clusts(route::Route)
+    return [euclidean(route.nodes[i], route.nodes[i+1]) for i in 2:2:(length(route.nodes)-1)]
 end
 
+"""
+    critical_path(soln::MSTSolution, vessel_weightings::NTuple{2, Float64}=(1.0, 1.0))
+
+Compute the critical path cost of the solution.
+This is the longest path for a return trip, quantified as the sum of:
+    - the longest path within each cluster - `cluster_cost_each`,
+        i.e., the maximum(sortie, mothership) cost within each cluster
+        summed for `cluster_cost`, and
+    - the sum of the mothership cost between clusters - `tow_cost`.
+
+# Arguments
+- `soln::MSTSolution` : The solution to evaluate.
+- `vessel_weightings::NTuple{2, Float64}` : The weightings for mothership and sortie costs.
+
+# Returns
+- The total (critical path) cost of the solution.
+"""
 function critical_path(soln::MSTSolution, vessel_weightings::NTuple{2, Float64}=(1.0, 1.0))
 
-    longest_sortie_cost = [(maximum(tender_clust_dist(cluster)) * vessel_weightings[2]) for cluster in soln.tenders]
+    # Within clusters
+    longest_sortie_cost = maximum.(tender_clust_dist.(soln.tenders)) .* vessel_weightings[2]
+    mothership_sub_clust_cost = mothership_dist_within_clusts(soln.mothership.route) * vessel_weightings[1]
 
-    mothership_sub_clust_cost = mothership_dist_within_clusts(soln) * vessel_weightings[1]
+    cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
+    cluster_cost = sum(cluster_cost_each)
 
-    cluster_cost = [max(longest_sortie_cost[i], mothership_sub_clust_cost[i]) for i in 1:length(longest_sortie_cost)]
+    # Between clusters
+    tow_cost = (mothership_dist_between_clusts(soln.mothership.route) * vessel_weightings[1])
 
-    return sum(cluster_cost) + (mothership_dist_between_clusts(soln) * vessel_weightings[1])
+    return cluster_cost + tow_cost
 end
