@@ -15,7 +15,13 @@ the sequential nearest neighbour heuristic.
 """
 function initial_solution(problem::Problem)
     # Load problem data
-    clusters, cluster_centroids_df = process_problem(problem)
+    clusters::Vector{Cluster} = process_problem(problem)
+
+    cluster_centroids_df::DataFrame = DataFrame(
+        id  = [0; 1:length(clusters)],
+        lon = [problem.depot[1]; [clust.centroid[1] for clust in clusters]],
+        lat = [problem.depot[2]; [clust.centroid[2] for clust in clusters]]
+    )
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN = nearest_neighbour(
