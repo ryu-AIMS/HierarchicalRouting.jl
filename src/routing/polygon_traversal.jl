@@ -25,6 +25,10 @@ function find_widest_points(
     exclusions::DataFrame,
     current_exclusion_idx::Int
 )
+    if is_visible(current_point, final_point, exclusions)
+        return [final_point], 0
+    end
+
     max_angle_L, max_angle_R = 0.0, 0.0
     furthest_vert_L, furthest_vert_R = nothing, nothing
 
@@ -55,13 +59,20 @@ function find_widest_points(
         # Signed angle between base vector and vector to vertex
         angle = vector_angle(base_vec, vec)
 
-        if angle > 0 && angle > max_angle_L
-            max_angle_L = angle
-            furthest_vert_L = pt
-        elseif angle < 0 && abs(angle) > max_angle_R
-            max_angle_R = abs(angle)
-            furthest_vert_R = pt
+        if is_visible(current_point, pt, exclusions)
+            if angle > 0 && angle > max_angle_L
+                max_angle_L = angle
+                furthest_vert_L = pt
+            elseif angle < 0 && abs(angle) > max_angle_R
+                max_angle_R = abs(angle)
+                furthest_vert_R = pt
+            end
         end
+    end
+
+    #if no visible vertices found, allow widest points from current polygon
+    if isnothing(furthest_vert_L) && isnothing(furthest_vert_R)
+        return find_widest_points(current_point, final_point, exclusions, 0)
     end
 
     return [furthest_vert_L, furthest_vert_R], polygon_idx
