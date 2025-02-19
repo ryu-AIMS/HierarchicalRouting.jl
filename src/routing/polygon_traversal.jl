@@ -177,6 +177,15 @@ function closest_crossed_polygon(
         end
     end
 
+    # If no polygon was found, return the current exclusion zone
+    if min_dist == Inf && current_exclusion_idx != 0
+        geom = exclusions.geometry[current_exclusion_idx]
+        exterior_ring = AG.getgeom(geom, 0)
+        n_pts = AG.ngeom(exterior_ring)
+
+        return (geom, exterior_ring, n_pts), current_exclusion_idx
+    end
+
     return closest_polygon, polygon_idx
 end
 
