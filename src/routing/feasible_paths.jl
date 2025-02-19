@@ -2,11 +2,12 @@
 """
     get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
 
-Create a matrix of distances of feasible paths between waypoints accounting for (avoiding) environmental constraints.
+Create a matrix of distances of feasible paths between waypoints, avoiding exclusions.
 
 # Arguments
 - `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
-- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given
+    vehicle's (cumulative) environmental constraints.
 
 # Returns
 - `dist_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
@@ -25,7 +26,10 @@ function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataF
                 if point_in_exclusion([nodes[i], nodes[j]], exclusions)
                     dist_matrix[i, j] = dist_matrix[j, i] = Inf
                 else
-                    dist_matrix[i, j], path_matrix[i, j] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[j], exclusions)
+                    dist_matrix[i, j],
+                    path_matrix[i, j] = HierarchicalRouting.shortest_feasible_path(
+                        nodes[i], nodes[j], exclusions
+                    )
                     dist_matrix[j, i] = dist_matrix[i, j]
                 end
             end
@@ -46,7 +50,8 @@ between sequential nodes, avoiding exclusions.
 
 # Arguments
 - `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
-- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given
+    vehicle's (cumulative) environmental constraints.
 
 # Returns
 - `dist_vector::Vector{Float64}` : A vector of distances between waypoints.
@@ -64,7 +69,10 @@ function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataF
                 if point_in_exclusion([nodes[i], nodes[i+1]], exclusions)
                     dist_vector[i, i+1] = Inf
                 else
-                    dist_vector[i], path_vector[i] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[i+1], exclusions)
+                    dist_vector[i],
+                    path_vector[i] = HierarchicalRouting.shortest_feasible_path(
+                        nodes[i], nodes[i+1], exclusions
+                    )
                 end
             end
     end
@@ -88,7 +96,8 @@ end
 )
 
 Find the shortest feasible path between two points.
-Use A* between all vertices on polygons that intersect with straight line to finish, from start pt and any other intersecting polygons.
+Use A* between all vertices on polygons that intersect with straight line to finish,
+from start pt and any other intersecting polygons.
 
 # Arguments
 - `initial_point::Point{2, Float64}`: Starting point of path.
@@ -111,7 +120,7 @@ function shortest_feasible_path(
     final_point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [final_point_ag])
     initial_point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [initial_point_ag])
 
-    # If final point is within an exclusion zone, add all vertices of 'final' exclusion polygon to graph
+    # If final point is within an exclusion zone, add all polygon vertices to graph
     # ? Consider cases where point is within the convex hull of multiple polygons
     final_exclusion_idx = findfirst(final_point_in_exclusion_zone) # findall(final_point_in_exclusion_zone)
     initial_exclusion_idx = findfirst(initial_point_in_exclusion_zone) # findall(initial_point_in_exclusion_zone)
