@@ -207,7 +207,7 @@ function build_network!(
 
     for vertex in candidates
         # Skip vertices already visited
-        if vertex ∈ points_from
+        if vertex ∈ points_from || isnothing(vertex) || vertex == current_point
             continue
         end
 
@@ -216,10 +216,10 @@ function build_network!(
         push!(points_to, vertex)
         push!(exclusion_idx, next_exclusion_idx)
 
-        if (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
+        # If final exclusion zone reached, vertices added to graph later in build_graph()
+        if next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx)
             continue
-        end
-
+        else
         # Recursively process this candidate vertex.
         build_network!(
             points_from,
@@ -231,6 +231,7 @@ function build_network!(
             next_exclusion_idx,
             final_exclusion_idx
         )
+        end
     end
     # TODO: check if path from current_point to next/intermediate point is feasible (no intersecting polygons in between)
 
