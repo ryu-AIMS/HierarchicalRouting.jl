@@ -376,16 +376,17 @@ function tender_sequential_nearest_neighbour(
     t_cap::Int,
     exclusions::DataFrame
 )
-    nodes = [waypoints[1]]
-    append!(nodes, cluster.nodes)
+    target_points = cluster.nodes
+    nodes = [[waypoints[1]]; target_points; [waypoints[2]]]
 
-    dist_matrix = get_feasible_matrix(nodes, exclusions)[1]
+    # Create distance matrix between all waypoints and target points
+    dist_matrix, feasible_paths = get_feasible_matrix(nodes, exclusions)
 
     tender_tours = [Int[] for _ in 1:n_tenders]
-    visited = falses(length(nodes))
+    visited = falses(length(target_points) + 1)
     visited[1] = true
 
-    visited[2:end] .= isinf.(dist_matrix[1, 2:end])
+    visited[2:end] .= isinf.(dist_matrix[1, 2:end-1])
 
     # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop-by-stop
     for _ in 1:t_cap
@@ -396,7 +397,7 @@ function tender_sequential_nearest_neighbour(
 
             current_node = isempty(tender_tours[t]) ? 1 : last(tender_tours[t])
 
-            distances = dist_matrix[current_node, :]
+            distances = dist_matrix[current_node, 1:end-1]
             distances[visited] .= Inf
             nearest_idx = argmin(distances)
 
@@ -408,30 +409,30 @@ function tender_sequential_nearest_neighbour(
     # delete excess elements and remove empty tours
     tender_tours = filter(!isempty, tender_tours)
 
-    sorties = [
-        [
-            [nodes[stop] for stop in [[1]; t]];
-            [waypoints[2]]
-        ]
-        for t in tender_tours
-    ]
+    final_waypoint_idx = length(nodes)
+    tender_tours_idx = [[1; tour; final_waypoint_idx] for tour in tender_tours]
 
-    sortie_mats_paths = [get_feasible_matrix(s, exclusions) for s in sorties]
-    sortie_dist_matrices = [res[1] for res in sortie_mats_paths]
-    feasible_paths = [res[2] for res in sortie_mats_paths]
+    sorties = [[nodes[p] for p in t] for t in tender_tours_idx]
+
+    sortie_dist_matrices = [dist_matrix[t, t] for t in tender_tours_idx]
+    feasible_paths = [feasible_paths[t, t] for t in tender_tours_idx]
 
     # ! Matrix not array...
 
-    paths = [[feasible_path[s, s+1] for s in 1:size(feasible_path)[1]-1] for feasible_path in feasible_paths]
+    paths = [
+        [feasible_path[s, s+1] for s in 1:size(feasible_path)[1]-1]
+        for feasible_path in feasible_paths
+    ]
+
+    # # TODO: Consider re-reversing reversed paths to pass to get_linestrings
 
     return TenderSolution(
         cluster.id,
         waypoints[1],
         waypoints[2],
         [
-            Route(
-                sortie, sortie_dist_matrices[i], vcat(paths[i]...)
-            ) for (i, sortie) in enumerate(sorties)
+            Route(sortie, sortie_dist_matrices[i], vcat(paths[i]...))
+            for (i, sortie) in enumerate(sorties)
         ],
         dist_matrix
     )
