@@ -11,7 +11,8 @@
     EPSG_code::Int
     )
 
-Process target locations to generate clusters.
+Generate a clustered targets raster by reading in the suitable target location data,
+applying thresholds and cropping to a target subset, and then clustering.
 
 # Arguments
 - `clustered_targets_path::String`: The path to the clustered targets raster.
@@ -24,7 +25,7 @@ Process target locations to generate clusters.
 - `EPSG_code::Int`: The EPSG code for the study area.
 
 # Returns
-- `clustered_targets::Raster`: The clustered targets raster, classified by cluster ID number.
+A raster of clustered targets.
 """
 function process_targets(
     clustered_targets_path,
@@ -53,7 +54,7 @@ function process_targets(
         write(target_subset_path, suitable_targets_subset; force=true)
     end
 
-    clustered_targets = cluster_raster(suitable_targets_subset, k; tol=cluster_tolerance)
+    clustered_targets = apply_kmeans_clustering(suitable_targets_subset, k; tol=cluster_tolerance)
     write(clustered_targets_path, clustered_targets; force=true)
     return clustered_targets
 end
@@ -148,11 +149,10 @@ Read and process problem data to generate an initial solution.
 - `problem::Problem`: The problem data in the form of a `HierarchicalRouting::Problem` struct.
 
 # Returns
-- `clusters::Vector{Cluster}`: The clusters of the problem.
-- `cluster_centroids_df::DataFrame`: The DataFrame containing the cluster centroids.
+Vector of clustered locations.
 """
 function process_problem(problem::Problem)
-    config = TOML.parsefile(joinpath("src",".config.toml"))
+    config = TOML.parsefile(joinpath("src", ".config.toml"))
 
     suitable_threshold = config["parameters"]["suitable_threshold"]
     k = config["parameters"]["k"]
@@ -160,7 +160,7 @@ function process_problem(problem::Problem)
     EPSG_code = config["parameters"]["EPSG_code"]
 
     target_scenario = problem.target_scenario
-    suitable_targets_prefix = target_scenario[1:findlast(".",target_scenario)[1]-1]
+    suitable_targets_prefix = target_scenario[1:findlast(".", target_scenario)[1]-1]
 
     site_dir = config["data_dir"]["site"]
     output_dir = config["output_dir"]["path"]
@@ -174,7 +174,7 @@ function process_problem(problem::Problem)
     target_scenario_dir = config["data_dir"]["target_scenarios"]
     suitable_targets_all_path = joinpath(target_scenario_dir, target_scenario)
 
-    clusters = cluster_targets(
+    clusters = generate_target_clusters(
         clustered_targets_path,
         k,
         cluster_tolerance,
@@ -185,8 +185,5 @@ function process_problem(problem::Problem)
         EPSG_code
     )
 
-    cluster_centroids_df = DataFrame(id = Int[0], lon = Float64[problem.depot[1]], lat = Float64[problem.depot[2]])
-    [push!(cluster_centroids_df, (i, clust.centroid[1], clust.centroid[2])) for (i, clust) in enumerate(clusters)]
-
-    return clusters, cluster_centroids_df
+    return clusters
 end
