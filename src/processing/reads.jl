@@ -109,7 +109,7 @@ function process_exclusions(
     else
         if isfile(exclusion_tif_path)
             exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code), missingval=0)
-            exclusion_zones_bool = Raster(exclusion_zones_int .!= 0, dims(exclusion_zones_int))
+            exclusion_zones_bool = exclusion_zones_int .!= 0
         else
             # Load environmental constraints
             # Bathymetry
@@ -120,18 +120,19 @@ function process_exclusions(
                 bathy_subset = crop_to_subset(bathy_dataset, subset)
                 write(bathy_subset_path, bathy_subset; force=true)
             end
+
             exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
-            write(exclusion_tif_path, convert.(Int64, exclusion_zones_bool); force=true)
+            write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
         end
 
-        exclusion_zones_df = exclusion_zones_bool |> to_multipolygon |> to_dataframe
+        exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
         GDF.write(
             exclusion_gpkg_path,
             exclusion_zones_df;
             crs=EPSG(EPSG_code)
         )
-        exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     end
+
     return exclusion_zones_df
 end
 
