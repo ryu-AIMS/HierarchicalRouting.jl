@@ -203,6 +203,13 @@ function build_network!(
         return
     end
 
+    if HierarchicalRouting.is_visible(current_point, final_point, exclusions)
+        push!(points_from, current_point)
+        push!(points_to, final_point)
+        push!(exclusion_idxs, 0)
+        return
+    end
+
     candidates, next_poly_idxs = HierarchicalRouting.find_widest_points(
         current_point,
         final_point,
@@ -216,21 +223,19 @@ function build_network!(
             continue
         end
 
-        # Record new point/edge
-        push!(points_from, current_point)
-        push!(points_to, vertex)
+        # Remove `is_visible()
+        if is_visible(current_point, vertex, exclusions)
+            # Record new point/edge
+            push!(points_from, current_point)
+            push!(points_to, vertex)
             push!(exclusion_idxs, next_poly_idx)
 
-        # If final exclusion zone reached, vertices added to graph later in build_graph()
-        if next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx)
-            continue
-        else
-        # Recursively process this candidate vertex.
-        build_network!(
-            points_from,
-            points_to,
+            # Recursively process this candidate vertex.
+            build_network!(
+                points_from,
+                points_to,
                 exclusion_idxs,
-            vertex,
+                vertex,
             final_point,
             exclusions,
                 next_poly_idx,
