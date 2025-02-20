@@ -177,6 +177,10 @@ function nearest_neighbour(
         Ref(exclusions_mothership)
     )
 
+    cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
+    cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
+
+    # Create distance matrix between feasible nodes - cluster centroids
     dist_matrix = get_feasible_matrix(
         feasible_centroids,
         exclusions_mothership
