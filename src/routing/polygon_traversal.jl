@@ -12,6 +12,7 @@ Find the vertices on each (left/right) side of the line that have the widest ang
 - `current_point::Point{2, Float64}`: The current point marking start of line.
 - `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion zones that have already been crossed.
 
 # Returns
 - `[furthest_vert_L, furthest_vert_R]`: The vertices with the widest left and right angular deviations from the line.
@@ -28,23 +29,16 @@ function find_widest_points(
 
     # Find the first/next polygon that the line (current_point, final_point) crosses.
     (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
-    if polygon === nothing
+
+    if isnothing(polygon)
         return [final_point], 0
     end
 
-    # Compute the signed angle (radian) between base_vec and vec
-    function vector_angle(base_vec::Vector{Float64}, vec::Vector{Float64})
-
-        # Cross product tells us the direction of the angle
-        cross = base_vec[1]*vec[2] - base_vec[2]*vec[1]
-        # Dot product tells us the magnitude of the angle
-        dot_val = base_vec[1]*vec[1] + base_vec[2]*vec[2]
-
-        return atan(cross, dot_val)
-    end
-
     # Base vector from current_point to final_point.
-    base_vec = [final_point[1] - current_point[1], final_point[2] - current_point[2]]
+    base_vec = [
+        (final_point[1] - current_point[1]),
+        (final_point[2] - current_point[2])
+    ]
 
     # Find the widest polygon vertices on the left and right side of line
     for i in 0:n_pts - 1
@@ -52,7 +46,10 @@ function find_widest_points(
         pt = Point{2, Float64}(x, y)
 
         # Vector from current_point to this vertex.
-        vec = [pt[1] - current_point[1], pt[2] - current_point[2]]
+        vec = [
+            (pt[1] - current_point[1]),
+            (pt[2] - current_point[2])
+        ]
 
         # Signed angle between base vector and vector to vertex
         angle = vector_angle(base_vec, vec)
@@ -67,6 +64,17 @@ function find_widest_points(
     end
 
     return [furthest_vert_L, furthest_vert_R], polygon_idx
+end
+
+# Compute the signed angle (radian) between base_vec and vec
+function vector_angle(base_vec::Vector{Float64}, vec::Vector{Float64})
+
+    # Cross product tells us the direction of the angle
+    cross = base_vec[1]*vec[2] - base_vec[2]*vec[1]
+    # Dot product tells us the magnitude of the angle
+    dot_val = base_vec[1]*vec[1] + base_vec[2]*vec[2]
+
+    return atan(cross, dot_val)
 end
 
 """
