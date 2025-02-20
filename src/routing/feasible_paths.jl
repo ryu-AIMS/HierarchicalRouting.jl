@@ -113,33 +113,21 @@ function shortest_feasible_path(
     final_point::Point{2, Float64},
     exclusions::DataFrame,
 )
-    final_point_ag = AG.createpoint(final_point[1], final_point[2])
-    initial_point_ag = AG.createpoint(initial_point[1], initial_point[2])
-
-    convex_exclusions_ag = AG.convexhull.(exclusions.geometry)
-    final_point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [final_point_ag])
-    initial_point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [initial_point_ag])
-
-    # If final point is within an exclusion zone, add all polygon vertices to graph
-    # ? Consider cases where point is within the convex hull of multiple polygons
-    final_exclusion_idx = findfirst(final_point_in_exclusion_zone) # findall(final_point_in_exclusion_zone)
-    initial_exclusion_idx = findfirst(initial_point_in_exclusion_zone) # findall(initial_point_in_exclusion_zone)
-
-    exclusions_containing_points = unique(filter(x -> !isnothing(x), [initial_exclusion_idx, final_exclusion_idx]))
-
-    # ! Workaround for now
-    # If initial point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
-    if any(initial_point_in_exclusion_zone)
-        final_exclusion_idx = initial_exclusion_idx
-        initial_point, final_point = final_point, initial_point
-    end
-
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
     exclusion_idx = Union{Int,Nothing}[]
 
-    # recursive function to build list of points to add to graph
-    build_network!(
+    final_exclusion_index = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
+
+    # # ! Workaround for now
+    # # If initial point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
+    # if any(initial_point_in_exclusion_zone)
+    #     final_exclusion_index = initial_exclusion_idx
+    #     initial_point, final_point = final_point, initial_point
+    # end
+
+    # recursively build list of points to add to graph
+    HierarchicalRouting.build_network!(
         points_from,
         points_to,
         exclusion_idx,
@@ -147,13 +135,13 @@ function shortest_feasible_path(
         final_point,
         exclusions,
         nothing, #exclusions_containing_points, #
-        final_exclusion_idx
+        final_exclusion_index
     )
 
     graph, idx_to_pt, final_pt_idx = build_graph(
         points_from,
         points_to,
-        isnothing(final_exclusion_idx) ? nothing : exclusions[final_exclusion_idx,:geometry],
+        iszero(final_exclusion_index) ? nothing : exclusions[final_exclusion_index,:geometry],
         final_point
     )
 
@@ -163,6 +151,23 @@ function shortest_feasible_path(
     linestring_path = [LineString([idx_to_pt[segment.src], idx_to_pt[segment.dst]]) for segment in path]
 
     return dist, linestring_path
+end
+
+function point_in_convexhull(
+    point::Point{2, Float64},
+    exclusions::DataFrame
+)::Int
+    point_ag = AG.createpoint(point[1], point[2])
+    convex_exclusions_ag = AG.convexhull.(exclusions.geometry)
+
+    point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [point_ag])
+
+    # If point is within an exclusion zone, add all polygon vertices to graph
+    # ? Consider cases where point is within the convex hull of multiple polygons
+    # findall(final_point_in_exclusion_zone)
+    exclusion_index = findfirst(point_in_exclusion_zone)
+
+    return isnothing(exclusion_index) ? 0 : exclusion_index
 end
 
 """
