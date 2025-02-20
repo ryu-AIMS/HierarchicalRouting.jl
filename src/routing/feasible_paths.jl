@@ -115,7 +115,7 @@ function shortest_feasible_path(
 )
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
-    exclusion_idx = Union{Int,Nothing}[]
+    exclusion_idxs = Int[]
 
     final_exclusion_index = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
 
@@ -130,7 +130,7 @@ function shortest_feasible_path(
     HierarchicalRouting.build_network!(
         points_from,
         points_to,
-        exclusion_idx,
+        exclusion_idxs,
         initial_point,
         final_point,
         exclusions,
@@ -174,7 +174,7 @@ end
     build_network!(
     points_from::Vector{Point{2, Float64}},
     points_to::Vector{Point{2, Float64}},
-    exclusion_idx::Vector{Union{Int,Nothing}},
+    exclusion_idxs::Vector{Int},
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
@@ -183,7 +183,7 @@ end
 )
 
 Build a network of points to connect to each other.
-Vectors `points_from`, `points_to`, and `exclusion_idx` are modified in place.
+Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
 
 # Returns
 - `nothing`
@@ -191,7 +191,7 @@ Vectors `points_from`, `points_to`, and `exclusion_idx` are modified in place.
 function build_network!(
     points_from::Vector{Point{2, Float64}},
     points_to::Vector{Point{2, Float64}},
-    exclusion_idx::Vector{Union{Int,Nothing}},
+    exclusion_idxs::Vector{Int},
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
@@ -219,7 +219,7 @@ function build_network!(
         # Record new point/edge
         push!(points_from, current_point)
         push!(points_to, vertex)
-        push!(exclusion_idx, next_exclusion_idx)
+            push!(exclusion_idxs, next_exclusion_idx)
 
         # If final exclusion zone reached, vertices added to graph later in build_graph()
         if next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx)
@@ -229,7 +229,7 @@ function build_network!(
         build_network!(
             points_from,
             points_to,
-            exclusion_idx,
+                exclusion_idxs,
             vertex,
             final_point,
             exclusions,
