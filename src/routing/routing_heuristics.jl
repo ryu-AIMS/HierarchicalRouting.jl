@@ -258,17 +258,17 @@ function two_opt(
     exclusions_tender::DataFrame,
 )
 
-    nodes = ms_soln_current.cluster_sequence
+    cluster_centroids = ms_soln_current.cluster_sequence
     dist_matrix = ms_soln_current.route.dist_matrix
 
     # If depot is last row, remove
-    if nodes.id[1] == nodes.id[end]
-        nodes = nodes[1:end-1, :]
+    if cluster_centroids.id[1] == cluster_centroids.id[end]
+        cluster_centroids = cluster_centroids[1:end-1, :]
     end
 
     # Initialize route as ordered waypoints
-    best_route = [row.id+1 for row in eachrow(nodes)]
-    best_distance = return_route_distance(best_route, ms_soln_current.route.dist_matrix)
+    best_route = [row.id+1 for row in eachrow(cluster_centroids)] # cluster_centroids = cluster_centroids[1:end-1, :]
+    best_distance = return_route_distance(best_route, dist_matrix)
     improved = true
 
     while improved
@@ -287,14 +287,12 @@ function two_opt(
         end
     end
 
-    # Re-orient route to start from the depot (1), and add the depot as final point
+    # Re-orient route to start from and end at the depot, and adjust to zero-based indexing
     best_route = orient_route(best_route)
     push!(best_route, best_route[1])
-
-    # Adjust sequence to zero-based indexing where depot = 0
     best_route .-= 1
 
-    ordered_nodes = nodes[[findfirst(==(id), nodes.id) for id in best_route], :]
+    ordered_nodes = cluster_centroids[[findfirst(==(id), cluster_centroids.id) for id in best_route], :]
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
     waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
