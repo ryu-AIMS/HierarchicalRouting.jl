@@ -3,7 +3,8 @@
     find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
-    exclusions::DataFrame
+    exclusions::DataFrame,
+    current_exclusion_idx::Int
     )
 
 Find the vertices on each (left/right) side of the line that have the widest angle.
@@ -12,7 +13,7 @@ Find the vertices on each (left/right) side of the line that have the widest ang
 - `current_point::Point{2, Float64}`: The current point marking start of line.
 - `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion zones that have already been crossed.
+- `current_exclusion_idx::Int`: The index of the current exclusion zone - to ignore.
 
 # Returns
 - `[furthest_vert_L, furthest_vert_R]`: The vertices with the widest left and right angular deviations from the line.
@@ -22,13 +23,13 @@ function find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int}
+    current_exclusion_idx::Int
 )
     max_angle_L, max_angle_R = 0.0, 0.0
     furthest_vert_L, furthest_vert_R = nothing, nothing
 
     # Find the first/next polygon that the line (current_point, final_point) crosses.
-    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.closest_crossed_polygon(current_point, final_point, exclusions, current_exclusions_idx)
+    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.closest_crossed_polygon(current_point, final_point, exclusions, current_exclusion_idx)
 
     if isnothing(polygon)
         return [final_point], 0
@@ -81,7 +82,8 @@ end
     closest_crossed_polygon(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
-    exclusions::DataFrame
+    exclusions::DataFrame,
+    current_exclusionn_idx::Int
     )
 
 Find polygons that intersect with a line segment.
@@ -90,6 +92,7 @@ Find polygons that intersect with a line segment.
 - `current_point::Point{2, Float64}`: The current point marking start of line.
 - `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
+- `current_exclusion_idx::Int`: The index of the current exclusion zone - to ignore.
 
 # Returns
 - `closest_polygon`: The polygon, LineString and number of vertices of the first/closest polygon intersecting with the line segment.
@@ -99,7 +102,7 @@ function closest_crossed_polygon(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int}
+    current_exclusion_idx::Int
 )
     closest_polygon = (nothing, nothing, 0)
     min_dist = Inf
@@ -112,7 +115,7 @@ function closest_crossed_polygon(
     line_min_y, line_max_y = min(current_point[2], final_point[2]), max(current_point[2], final_point[2])
 
     for (i, row) in enumerate(eachrow(exclusions))
-        if i in current_exclusions_idx
+        if i == current_exclusion_idx
             continue
         end
 
