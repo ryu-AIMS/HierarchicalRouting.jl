@@ -206,11 +206,9 @@ function nearest_neighbour(
         current_location = nearest_idx
     end
 
-    # Return to the depot
+    # Return to the depot and adjust cluster_sequence to zero-based indexing
     push!(tour, 1)
     total_distance += dist_matrix[current_location, 1]
-
-    # Adjust cluster_sequence to zero-based indexing
     cluster_sequence = tour .- 1
 
     ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.id) for id in cluster_sequence], :]
@@ -219,9 +217,9 @@ function nearest_neighbour(
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
     waypoints = get_waypoints(ordered_centroids, exclusions_all)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
-    paths = [waypoint_feasible_path[s, s+1] for s in 1:size(waypoint_feasible_path)[1]-1]
-    path = vcat(paths...)
+    # Calc feasible path between waypoints.
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(waypoints.waypoint, exclusions_mothership)
+    path = vcat(waypoint_path_vector...)
 
     return MothershipSolution(
         cluster_sequence=ordered_centroids,
@@ -297,9 +295,12 @@ function two_opt(
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
     waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
-    waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
-    paths = [waypoint_feasible_path[s, s+1] for s in 1:size(waypoint_feasible_path)[1]-1]
-    path = vcat(paths...)
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
+        waypoints.waypoint,
+        exclusions_mothership
+    )
+
+    path = vcat(waypoint_path_vector...)
 
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
