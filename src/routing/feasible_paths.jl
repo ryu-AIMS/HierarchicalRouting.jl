@@ -15,7 +15,7 @@ Create a matrix of distances of feasible paths between waypoints accounting for 
 function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
     n_points = length(nodes)
     dist_matrix = zeros(Float64, n_points, n_points)
-    path_matrix = fill((Dict{Int64, Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
+    path_matrix = fill((Vector{Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
 
     for j in 1:n_points
         for i in 1:j-1
@@ -145,119 +145,110 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
         current_node_idx += 1
     end
 
-    g, point_to_idx, idx_to_point = build_graph(
-        points,
+    graph, idx_to_point, final_point_idx = build_graph(
         parent_points,
+        points,
         isnothing(final_exclusion_idx) ? nothing : exclusions[final_exclusion_idx,:geometry],
         final_point
     )
 
-    path = a_star(g, 1, point_to_idx[final_point], g.weights)
-    dist = sum(g.weights[p.src, p.dst] for p in path)
+    path = a_star(graph, 1, final_point_idx, graph.weights)
+    dist = sum(graph.weights[p.src, p.dst] for p in path)
 
     return dist, (idx_to_point, path)
 end
 
 """
-    build_graph(pts::Vector{Point{2, Float64}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
+    build_graph(
+        points_from::Vector{Point{2, Float64}},
+        points_to::Vector{Point{2, Float64}},
+        polygon::Union{Nothing, AG.IGeometry},
+        final_point::Point{2, Float64}
+    )
 
-Construct a simple weighted graph between given points that do not intersect exclusions.
+Build a graph network from a set of points.
+If polygon is provided, connect it to visible points in graph and visible vertices.
 
 # Arguments
-- `points::Vector{Point{2, Float64}`: A vector of points respresenting ordered end points.
-- `parent_points::Vector{Point{2, Float64}`: A vector of points representing ordered start points.
-- `polygon` : Polygon provided if it's convex hull contains final point.
-    Include all vertices of exclusion polygon in graph.
-- `final_point` : Include final point in graph.
-    Provided if final point is within the convex hull of an exclusion zone.
+- `points_from::Vector{Point{2, Float64}}`: Vector of points to connect from.
+- `points_to::Vector{Point{2, Float64}}`: Vector of points to connect to.
+- `polygon::Union{Nothing, AG.IGeometry}`: Polygon to connect to.
+- `final_point::Point{2, Float64}`: Final point to connect to.
 
 # Returns
-- `g::SimpleWeightedGraph{Int64, Float64}`: A simple weighted graph of all points/edges.
-- `point_to_idx::Dict{Point{2, Float64}, Int64}`: A dictionary mapping points to indices.
-- `idx_to_point::Dict{Int64, Point{2, Float64}`: A dictionary mapping indices to points.
+- `graph::SimpleWeightedGraph`: Graph object.
+- `idx_to_point::Vector{Point{2, Float64}}`: Mapping of indices to points.
+- `final_pt_idx::Int`: Index of final point. Used in A* to specify target point.
 """
 function build_graph(
-    points::Vector{Point{2, Float64}},
-    parent_points::Vector{Point{2, Float64}},
-    polygon,
-    final_point
-    )
-    # Dictionaries to map unique points and their indices
-    point_to_idx = Dict{Point{2, Float64}, Int64}()
-    idx_to_point = Dict{Int64, Point{2, Float64}}()
-    idx_counter = 0
+    points_from::Vector{Point{2, Float64}},
+    points_to::Vector{Point{2, Float64}},
+    polygon::Union{Nothing, AG.IGeometry},
+    final_point::Point{2, Float64}
+)
+    # Collect connected points from network
+    chain_points = [Point{2,Float64}(p[1], p[2]) for p in vcat(points_from, points_to, [final_point])]
 
-    for pt in points
-        if !haskey(point_to_idx, pt)
-            idx_counter += 1
-            point_to_idx[pt] = idx_counter
-            idx_to_point[idx_counter] = pt
-        end
-    end
+    is_polygon = !isnothing(polygon)
+    poly_vertices = Point{2, Float64}[]
 
-    poly_vertices = []
-    n_pts = 0
-    if !isnothing(polygon)
-        # Add all polygon vertices/edges to graph
+    if is_polygon
         exterior_ring = AG.getgeom(polygon, 0)
         n_pts = AG.ngeom(exterior_ring)
-        poly_vertices = [
-            Point{2,Float64}(
-                AG.getpoint(exterior_ring, i)[1],
-                AG.getpoint(exterior_ring, i)[2]
-            ) for i in 0:n_pts-1
-        ]
 
-        for v in poly_vertices
-            if !haskey(point_to_idx, v)
-                idx_counter += 1
-                point_to_idx[v] = idx_counter
-                idx_to_point[idx_counter] = v
+        vertices = AG.getpoint.([exterior_ring], 0:n_pts-1)
+        points_x, points_y = getindex.(vertices, 1), getindex.(vertices, 2)
+
+        # convex_hull = AG.convexhull(polygon)
+        # # Select points that are either outside or touching the convex hull
+        # points_ag = AG.createpoint.(points_x, points_y)
+        # points_outside_convex_hull = .!AG.contains.([convex_hull], points_ag)
+        # points_touching_convex_hull = AG.touches.([convex_hull], points_ag)
+        # target_points_mask::BitVector = points_outside_convex_hull .|| points_touching_convex_hull
+        # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
+        # n_pts = length(poly_vertices)
+
+        poly_vertices = Point{2, Float64}.(points_x, points_y)
+    end
+
+    all_points = vcat(chain_points, poly_vertices)
+    unique_points = unique(all_points)
+    n_vertices = length(unique_points)
+
+    # Create the graph with one vertex per unique point.
+    graph = SimpleWeightedGraph(n_vertices)
+
+    # Map points to indices
+    pt_to_idx = Dict{Point{2, Float64}, Int}(unique_points .=> collect(1:n_vertices))
+
+    # Add candidate (chain) edges.
+    for (p,q) in zip(points_from, points_to)
+        add_edge!(graph, pt_to_idx[p], pt_to_idx[q], euclidean(p, q))
+    end
+
+    # Add polygon edges if a polygon was provided.
+    if is_polygon # && !isempty(poly_vertices)
+        n_poly = length(poly_vertices)
+        # Connect adjacent polygon vertices, and wrap around.
+        for i in 1:n_poly
+            p = poly_vertices[i]
+            q = poly_vertices[mod1(i + 1, n_poly)]
+
+            if is_visible(p, q, polygon)
+                i_idx = pt_to_idx[p]
+                j_idx = pt_to_idx[q]
+                add_edge!(graph, i_idx, j_idx, euclidean(p, q))
             end
         end
-
-        # Ensure final_point is in dictionaries
-        if !haskey(point_to_idx, final_point)
-            idx_counter += 1
-            point_to_idx[final_point] = idx_counter
-            idx_to_point[idx_counter] = final_point
-        end
-    end
-
-    g = SimpleWeightedGraph(idx_counter)
-
-    # Add edges between points & parents (points[1] has no parent)
-    for i in 2:length(points)
-        pt_i = points[i]
-        parent_pt = parent_points[i]
-
-        idx_pt = point_to_idx[pt_i]
-        idx_parent = point_to_idx[parent_pt]
-
-        add_edge!(g, idx_parent, idx_pt, euclidean(pt_i, parent_pt)) # haversine
-    end
-
-    # If `polygon`: Add edges between polygon vertices and final point if is_visible
-    if !isnothing(polygon)
-        final_pt_idx = point_to_idx[final_point]
-        for i in 1:n_pts
-            pt_i = poly_vertices[i]
-            idx_i = point_to_idx[pt_i]
-
-            # Connect adjacent vertex (wrapping around)
-            j = (i % n_pts) + 1
-
-            pt_j = poly_vertices[j]
-            idx_j = point_to_idx[pt_j]
-
-            add_edge!(g, idx_i, idx_j, euclidean(pt_i, pt_j))
-
-            # Add edge between polygon vertex and final_point if is_visible
-            if is_visible(pt_i, final_point, polygon)
-                add_edge!(g, idx_i, final_pt_idx, euclidean(pt_i, final_point))
+        # Connect each polygon vertex to the final point if visible.
+        for p in poly_vertices
+            if is_visible(p, final_point, polygon)
+                i_idx = pt_to_idx[p]
+                j_idx = pt_to_idx[final_point]
+                add_edge!(graph, i_idx, j_idx, euclidean(p, final_point))
             end
         end
     end
 
-    return g, point_to_idx, idx_to_point
+    return graph, unique_points, pt_to_idx[final_point]
 end
