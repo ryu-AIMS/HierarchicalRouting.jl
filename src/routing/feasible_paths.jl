@@ -206,7 +206,7 @@ function build_network!(
         current_point,
         final_point,
         exclusions,
-        [current_exclusion]
+        current_exclusion
     )
 
     for vertex in candidates
