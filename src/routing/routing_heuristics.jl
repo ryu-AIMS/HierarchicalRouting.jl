@@ -61,7 +61,9 @@ function adjust_waypoint(
     waypoint::Point{2, Float64},
     exclusions::DataFrame,
 )::Point{2, Float64}
+
     waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
+
     containing_polygons = [
         polygon for polygon in exclusions.geometry
             if AG.contains(polygon, waypoint_geom)
@@ -71,16 +73,14 @@ function adjust_waypoint(
         return waypoint
     end
 
-    union_poly = containing_polygons[1]
-    for poly in containing_polygons[2:end]
-        union_poly = AG.union(union_poly, poly)
-    end
+    union_poly = reduce(AG.union, containing_polygons)
 
     exterior_ring = AG.getgeom(union_poly, 0)
     n_points = AG.ngeom(exterior_ring)
 
     boundary_points = [
         Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1
+        # if !any(AG.contains.(exclusions.geometry, [AG.createpoint(AG.getpoint(exterior_ring, i)...)]))
     ]
 
     closest_point = argmin(p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2), boundary_points)
