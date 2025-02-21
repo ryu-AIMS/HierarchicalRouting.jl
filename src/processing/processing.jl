@@ -54,7 +54,7 @@ Between each sequential pair of waypoints: create a single LineString across all
 """
 function get_linestrings(graph_matrix::Matrix{
     Tuple{
-        Dict{Int64, Point{2, Float64}},
+        Vector{Point{2, Float64}},
         Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
     }},
     waypoints::Vector{Point{2, Float64}}
@@ -68,24 +68,24 @@ function get_linestrings(graph_matrix::Matrix{
 
         # Find the graph entry corresponding to this waypoint pair
         for graph_dict_path in graph_matrix
-            idx_to_point, shortest_path = graph_dict_path
+            point_vector, shortest_path = graph_dict_path
 
             # Check if the path starts and ends at the desired waypoints
             if !isempty(shortest_path) && (
                 (
-                    idx_to_point[shortest_path[1].src] == start_point &&
-                    idx_to_point[shortest_path[end].dst] == end_point
+                    point_vector[shortest_path[1].src] == start_point &&
+                    point_vector[shortest_path[end].dst] == end_point
                 )
                 ||
                 (
-                    idx_to_point[shortest_path[1].src] == end_point &&
-                    idx_to_point[shortest_path[end].dst] == start_point
+                    point_vector[shortest_path[1].src] == end_point &&
+                    point_vector[shortest_path[end].dst] == start_point
                 )
             )
 
                 # Extract points along path
-                path_points = [idx_to_point[e.src] for e in shortest_path]
-                push!(path_points, idx_to_point[shortest_path[end].dst])
+                path_points = [point_vector[e.src] for e in shortest_path]
+                push!(path_points, point_vector[shortest_path[end].dst])
 
                 push!(line_strings, LineString(path_points))
                 break
