@@ -375,19 +375,14 @@ function tender_sequential_nearest_neighbour(
 )
     nodes = [waypoints[1]]
     append!(nodes, cluster.nodes)
-    append!(nodes, [waypoints[2]])
 
     dist_matrix = get_feasible_matrix(nodes, exclusions)[1]
 
     tender_tours = [Int[] for _ in 1:n_tenders]
     visited = falses(length(nodes))
-    visited[1] = visited[end] = true
+    visited[1] = true
 
-    for s in 1:length(cluster.nodes)
-        if dist_matrix[1, s+1] == Inf
-            visited[s+1] = true
-        end
-    end
+    visited[2:end] .= isinf.(dist_matrix[1, 2:end])
 
     # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop-by-stop
     for _ in 1:t_cap
