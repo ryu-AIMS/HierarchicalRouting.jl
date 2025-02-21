@@ -58,24 +58,16 @@ Use A* between all vertices on polygons that intersect with straight line to fin
 function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame,
     )
 
-    final_exclusion_idx = 0
-    for (i, exclusion) in enumerate(eachrow(exclusions))
-        # If final point is within an exclusion zone, add all vertices of 'final' exclusion polygon to graph
-        if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(final_point[1], final_point[2]))
-            final_exclusion_idx = i
-            break
-        end
+    # ! Under construction
+    final_exclusion_idx = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
+    # initial_exclusion_idx = HierarchicalRouting.point_in_convexhull(initial_point, exclusions)
 
-        # If final point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
-        if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(initial_point[1], initial_point[2]))
-            final_exclusion_idx = i
-            temp_point = initial_point
-            initial_point = final_point
-            final_point = temp_point
-            points = [initial_point]
-            break
-        end
-    end
+    # # ! Workaround for now
+    # # If initial point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
+    # if !iszero(initial_point_in_exclusion_zone)
+    #     final_exclusion_idx = initial_exclusion_idx
+    #     initial_point, final_point = final_point, initial_point
+    # end
 
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
@@ -104,6 +96,38 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
     return dist, (idx_to_point, path)
+end
+
+"""
+    point_in_convexhull(
+    point::Point{2, Float64},
+    exclusions::DataFrame
+)::Int
+
+Check if a point is within a convex hull of exclusion zones.
+
+# Arguments
+- `point::Point{2, Float64}`: Point to check.
+- `exclusions::DataFrame`: Exclusion zones.
+
+# Returns
+- Index of exclusion zone if point is within a convex hull, 0 otherwise.
+"""
+function point_in_convexhull(
+    point::Point{2, Float64},
+    exclusions::DataFrame
+)::Int
+    point_ag = AG.createpoint(point[1], point[2])
+    convex_exclusions_ag = AG.convexhull.(exclusions.geometry)
+
+    point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [point_ag])
+
+    # If point is within an exclusion zone, add all polygon vertices to graph
+    # ? Consider cases where point is within the convex hull of multiple polygons
+    # findall(final_point_in_exclusion_zone)
+    exclusion_index = findfirst(point_in_exclusion_zone)
+
+    return isnothing(exclusion_index) ? 0 : exclusion_index
 end
 
 """
