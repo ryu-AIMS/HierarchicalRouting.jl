@@ -35,6 +35,43 @@ function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataF
     return dist_matrix, path_matrix
 end
 
+"""
+    get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+
+Create vectors of:
+- distances, and
+- feasible paths
+
+between sequential nodes, avoiding exclusions.
+
+# Arguments
+- `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
+- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+
+# Returns
+- `dist_vector::Vector{Float64}` : A vector of distances between waypoints.
+- `path_vector` : A vector of paths between waypoints, represented as LineStrings.
+"""
+function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+    n_points = length(nodes)-1
+    dist_vector = zeros(Float64, n_points)
+    path_vector = fill(Vector{LineString{2, Float64}}(), n_points)
+
+    for i in 1:n_points
+            if nodes[i] != nodes[i+1]
+                # TODO: Process elsewhere
+                # Check if any of the points are within an exclusion zone
+                if any(point_in_exclusion.([nodes[i], nodes[i+1]], [exclusions]))
+                    dist_vector[i, i+1] = Inf
+                else
+                    dist_vector[i], path_vector[i] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[i+1], exclusions)
+                end
+            end
+    end
+
+    return dist_vector, path_vector
+end
+
 function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)
     point_ag = AG.createpoint(point[1], point[2])
     return any(AG.contains.(exclusions.geometry, [point_ag]))
