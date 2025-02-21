@@ -15,7 +15,7 @@ Create a matrix of distances of feasible paths between waypoints accounting for 
 function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
     n_points = length(nodes)
     dist_matrix = zeros(Float64, n_points, n_points)
-    path_matrix = fill((Vector{Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
+    path_matrix = fill(Vector{LineString{2, Float64}}(), n_points, n_points)
 
     for j in 1:n_points
         for i in 1:j-1
@@ -95,7 +95,9 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
     path = a_star(graph, 1, final_point_idx, graph.weights)
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
-    return dist, (idx_to_point, path)
+    linestring_path = [LineString([idx_to_point[segment.src], idx_to_point[segment.dst]]) for segment in path]
+
+    return dist, linestring_path
 end
 
 """
