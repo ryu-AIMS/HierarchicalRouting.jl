@@ -220,11 +220,12 @@ function nearest_neighbour(
     waypoints = get_waypoints(ordered_centroids, exclusions_all)
 
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
-    paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
+    paths = [waypoint_feasible_path[s, s+1] for s in 1:size(waypoint_feasible_path)[1]-1]
+    path = vcat(paths...)
 
     return MothershipSolution(
         cluster_sequence=ordered_centroids,
-        route=Route(waypoints.waypoint, dist_matrix, paths)
+        route=Route(waypoints.waypoint, dist_matrix, path)
     )
 end
 
@@ -297,11 +298,12 @@ function two_opt(
     waypoints = get_waypoints(ordered_nodes, exclusions_all)
 
     waypoint_feasible_path = get_feasible_matrix(waypoints.waypoint, exclusions_mothership)[2]
-    paths = get_linestrings(waypoint_feasible_path, waypoints.waypoint)
+    paths = [waypoint_feasible_path[s, s+1] for s in 1:size(waypoint_feasible_path)[1]-1]
+    path = vcat(paths...)
 
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
-        route=Route(waypoints.waypoint, dist_matrix, paths)
+        route=Route(waypoints.waypoint, dist_matrix, path)
     )
 end
 
@@ -417,8 +419,7 @@ function tender_sequential_nearest_neighbour(
     sortie_dist_matrices = [res[1] for res in sortie_mats_paths]
     feasible_paths = [res[2] for res in sortie_mats_paths]
 
-    # TODO: Consider re-reversing reversed paths to pass to get_linestrings
-    paths = [get_linestrings(feasible_paths[s], sorties[s]) for s in 1:length(feasible_paths)]
+    paths = [[feasible_path[s, s+1] for s in 1:size(feasible_path)[1]-1] for feasible_path in feasible_paths]
 
     return TenderSolution(
         cluster.id,
@@ -426,7 +427,7 @@ function tender_sequential_nearest_neighbour(
         waypoints[2],
         [
             Route(
-                sortie, sortie_dist_matrices[i], paths[i]
+                sortie, sortie_dist_matrices[i], vcat(paths[i]...)
             ) for (i, sortie) in enumerate(sorties)
         ],
         dist_matrix
