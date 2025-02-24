@@ -72,9 +72,25 @@ function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataF
     return dist_vector, path_vector
 end
 
+"""
+    point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)
+
+Check if a point is within an exclusion zone.
+
+# Arguments
+- `point::Point{2, Float64}`: Point to check.
+- `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
+
+# Returns
+- `true` if point is within an exclusion zone, `false` otherwise.
+"""
 function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)
     point_ag = AG.createpoint(point[1], point[2])
     return any(AG.contains.(exclusions.geometry, [point_ag]))
+end
+function point_in_exclusion(point::Point{2,Float64}, exclusion)
+point_ag = AG.createpoint(point[1], point[2])
+return any(AG.contains(exclusion, point_ag))
 end
 
 """
