@@ -48,7 +48,7 @@ adjust_waypoint(
     exclusions::DataFrame,
     )::Point{2, Float64}
 
-Adjust waypoint if inside exclusion zone to closest boundary point.
+Adjust waypoint if inside exclusion zone to closest boundary point outside exclusion zone.
 
 # Arguments
 - `waypoint` : Point{2, Float64} waypoint.
@@ -73,6 +73,7 @@ function adjust_waypoint(
         return waypoint
     end
 
+    # TODO Consider cases for multiple exclusion zones
     union_poly = reduce(AG.union, containing_polygons)
 
     exterior_ring = AG.getgeom(union_poly, 0)
@@ -80,10 +81,23 @@ function adjust_waypoint(
 
     boundary_points = [
         Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1
-        # if !any(AG.contains.(exclusions.geometry, [AG.createpoint(AG.getpoint(exterior_ring, i)...)]))
     ]
 
-    closest_point = argmin(p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2), boundary_points)
+    valid_boundary_points = [
+        pt for pt in boundary_points
+            if !point_in_exclusion(pt, union_poly)
+    ]
+
+    closest_point = argmin(
+        p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2),
+        valid_boundary_points
+    )
+
+    # Recursively call adjust_waypoint() until waypoint is outside exclusion zone
+    if point_in_exclusion(closest_point, exclusions)
+        return adjust_waypoint(closest_point, exclusions)
+    end
+
     return closest_point
 end
 
@@ -123,8 +137,10 @@ function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
         next_waypoint = Point{2, Float64}(2/3 * current_lon + 1/3 * next_lon, 2/3 * current_lat + 1/3 * next_lat)
 
         # Adjust waypoints if they are inside exclusion polygons
-        prev_waypoint = adjust_waypoint(prev_waypoint, exclusions)
-        next_waypoint = adjust_waypoint(next_waypoint, exclusions)
+        prev_waypoint = point_in_exclusion(prev_waypoint, exclusions) ?
+            adjust_waypoint(prev_waypoint, exclusions) : prev_waypoint
+        next_waypoint = point_in_exclusion(next_waypoint, exclusions) ?
+            adjust_waypoint(next_waypoint, exclusions) : next_waypoint
 
         waypoints[2*i-2] = prev_waypoint
         connecting_clusters[2*i-2] = (prev_clust, current_clust)
