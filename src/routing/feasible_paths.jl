@@ -62,7 +62,7 @@ function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataF
                 # TODO: Process elsewhere
                 # Check if any of the points are within an exclusion zone
                 if any(point_in_exclusion.([nodes[i], nodes[i+1]], [exclusions]))
-                    dist_vector[i, i+1] = Inf
+                    dist_vector[i] = Inf
                 else
                     dist_vector[i], path_vector[i] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[i+1], exclusions)
                 end
