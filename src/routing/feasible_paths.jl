@@ -218,14 +218,14 @@ function build_network!(
         return
     end
 
-    candidates, next_exclusion_idx = HierarchicalRouting.find_widest_points(
+    candidates, next_exclusion_idxs = HierarchicalRouting.find_widest_points(
         current_point,
         final_point,
         exclusions,
         current_exclusion
     )
 
-    for vertex in candidates
+    for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
 
         # Record new point/edge
         push!(points_from, current_point)

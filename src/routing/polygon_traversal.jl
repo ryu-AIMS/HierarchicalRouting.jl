@@ -1,13 +1,16 @@
 
 """
     find_widest_points(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    current_exclusion_idx::Int
-    )
+        current_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusions::DataFrame,
+        current_exclusion_idx::Int
+    )::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
 
-Find the vertices on each (left/right) side of the line that have the widest angle.
+Find the intermediate vertices between two points by using the widest visible vertices on
+each (left/right) side of the direct-line path by closest crossed polygon.
+If these intermediate vertices are not visible, the function is called recursively to find
+the widest visible vertices.
 
 # Arguments
 - `current_point::Point{2, Float64}`: The current point marking start of line.
@@ -16,24 +19,29 @@ Find the vertices on each (left/right) side of the line that have the widest ang
 - `current_exclusion_idx::Int`: The index of the current exclusion zone - to ignore.
 
 # Returns
-- `[furthest_vert_L, furthest_vert_R]`: The vertices with the widest left and right angular deviations from the line.
-- `polygon_idx::Int`: The index of the polygon crossed.
+- A vector of points representing the widest visible points on each side of the line.
+- A vector of polygon indices crossed by the line.
 """
 function find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
     current_exclusion_idx::Int
-)
-    max_angle_L, max_angle_R = 0.0, 0.0
-    furthest_vert_L, furthest_vert_R = nothing, nothing
+)::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
 
+    if is_visible(current_point, final_point, exclusions)
+        return [final_point], [0]
+    end
     # Find the first/next polygon that the line (current_point, final_point) crosses.
-    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.closest_crossed_polygon(current_point, final_point, exclusions, current_exclusion_idx)
+    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.
+        closest_crossed_polygon(current_point, final_point, exclusions, 0)
 
     if isnothing(polygon)
-        return [final_point], 0
+        return [final_point], [0]
     end
+
+    max_angle_L, max_angle_R = 0.0, 0.0
+    furthest_vert_L, furthest_vert_R = nothing, nothing
 
     # Base vector from current_point to final_point.
     base_vec = [
@@ -41,7 +49,6 @@ function find_widest_points(
         (final_point[2] - current_point[2])
     ]
 
-    # Find the widest polygon vertices on the left and right side of line
     for i in 0:n_pts - 1
         x, y, _ = AG.getpoint(exterior_ring, i)
         pt = Point{2, Float64}(x, y)
@@ -53,18 +60,44 @@ function find_widest_points(
         ]
 
         # Signed angle between base vector and vector to vertex
-        angle = vector_angle(base_vec, vec)
+        angle = HierarchicalRouting.vector_angle(base_vec, vec)
 
-        if angle > 0 && angle > max_angle_L
-            max_angle_L = angle
-            furthest_vert_L = pt
-        elseif angle < 0 && abs(angle) > max_angle_R
-            max_angle_R = abs(angle)
-            furthest_vert_R = pt
+        if HierarchicalRouting.is_visible(current_point, pt, exclusions) &&
+            pt != current_point
+            # TODO Try to avoid going backwards - i.e. angle > abs(π/2)
+            # ! only the case when point is in the convex hull of the exclusion zone
+            if angle > 0 && angle > max_angle_L
+                max_angle_L = angle
+                furthest_vert_L = pt
+            elseif angle < 0 && abs(angle) > max_angle_R
+                max_angle_R = abs(angle)
+                furthest_vert_R = pt
+            end
         end
     end
 
-    return [furthest_vert_L, furthest_vert_R], polygon_idx
+    candidates = Point{2,Float64}[]
+    poly_indices = Int[]
+
+    for vertex ∈ [furthest_vert_L, furthest_vert_R]
+        if !isnothing(vertex)
+            if is_visible(current_point, vertex, exclusions, [current_exclusion_idx])
+                push!(candidates, vertex)
+                push!(poly_indices, polygon_idx)
+            else
+                new_pts, new_poly_idx = find_widest_points(
+                    current_point,
+                    vertex,
+                    exclusions,
+                    current_exclusion_idx
+                )
+                append!(candidates, new_pts)
+                append!(poly_indices, new_poly_idx)
+            end
+        end
+    end
+
+    return candidates, poly_indices
 end
 
 # Compute the signed angle (radian) between base_vec and vec
