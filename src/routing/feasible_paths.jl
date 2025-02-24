@@ -210,10 +210,6 @@ function build_network!(
     )
 
     for vertex in candidates
-        # Skip vertices already visited
-        if vertex ∈ points_from
-            continue
-        end
 
         # Record new point/edge
         push!(points_from, current_point)
@@ -221,6 +217,10 @@ function build_network!(
         push!(exclusion_idx, next_exclusion_idx)
 
         if (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
+            continue
+        end
+        # Skip vertices already visited
+        if vertex ∈ points_from #|| isnothing(vertex) || vertex == current_point
             continue
         end
 
