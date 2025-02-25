@@ -33,8 +33,9 @@ function find_widest_points(
         return [final_point], [0]
     end
     # Find the first/next polygon that the line (current_point, final_point) crosses.
-    (polygon, exterior_ring, n_pts), polygon_idx = HierarchicalRouting.
-        closest_crossed_polygon(current_point, final_point, exclusions, 0)
+    (polygon, exterior_ring, n_pts), polygon_idx = closest_crossed_polygon(
+        current_point, final_point, exclusions, 0
+    )
 
     if isnothing(polygon)
         return [final_point], [0]
@@ -60,10 +61,9 @@ function find_widest_points(
         ]
 
         # Signed angle between base vector and vector to vertex
-        angle = HierarchicalRouting.vector_angle(base_vec, vec)
+        angle = vector_angle(base_vec, vec)
 
-        if HierarchicalRouting.is_visible(current_point, pt, exclusions) &&
-            pt != current_point
+        if is_visible(current_point, pt, exclusions) && pt != current_point
             # TODO Try to avoid going backwards - i.e. angle > abs(π/2)
             # ! only the case when point is in the convex hull of the exclusion zone
             if angle > 0 && angle > max_angle_L
