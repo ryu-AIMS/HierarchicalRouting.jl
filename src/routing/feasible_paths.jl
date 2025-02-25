@@ -227,16 +227,18 @@ function build_network!(
 
     for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
 
+        if isnothing(vertex) || vertex == current_point
+            continue
+        end
         # Record new point/edge
         push!(points_from, current_point)
         push!(points_to, vertex)
         push!(exclusion_idx, next_exclusion_idx)
 
-        if (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
-            continue
-        end
-        # Skip vertices already visited
-        if vertex ∈ points_from #|| isnothing(vertex) || vertex == current_point
+        # If verticex already visited/explored, skip
+        # If final exclusion zone reached, vertices added to graph later in build_graph()
+        if vertex ∈ points_from ||
+            (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
             continue
         end
 
