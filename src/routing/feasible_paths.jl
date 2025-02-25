@@ -124,13 +124,13 @@ function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::P
 
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
-    exclusion_idx = Int[]
+    exclusion_idxs = Int[]
 
     # TODO: check if path from current_point to (left_point, right_point) is feasible (no intersecting polygons in between)
     build_network!(
         points_from,
         points_to,
-        exclusion_idx,
+        exclusion_idxs,
         initial_point,
         final_point,
         exclusions,
@@ -189,7 +189,7 @@ end
     build_network!(
     points_from::Vector{Point{2, Float64}},
     points_to::Vector{Point{2, Float64}},
-    exclusion_idx::Vector{Union{Int,Nothing}},
+    exclusion_idxs::Vector{Int},
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
@@ -198,7 +198,7 @@ end
 )
 
 Build a network of points to connect to each other.
-Vectors `points_from`, `points_to`, and `exclusion_idx` are modified in place.
+Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
 
 # Returns
 - `nothing`
@@ -206,7 +206,7 @@ Vectors `points_from`, `points_to`, and `exclusion_idx` are modified in place.
 function build_network!(
     points_from::Vector{Point{2, Float64}},
     points_to::Vector{Point{2, Float64}},
-    exclusion_idx::Vector{Int},
+    exclusion_idxs::Vector{Int},
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
@@ -233,7 +233,7 @@ function build_network!(
         # Record new point/edge
         push!(points_from, current_point)
         push!(points_to, vertex)
-        push!(exclusion_idx, next_exclusion_idx)
+        push!(exclusion_idxs, next_exclusion_idx)
 
         # If verticex already visited/explored, skip
         # If final exclusion zone reached, vertices added to graph later in build_graph()
@@ -246,7 +246,7 @@ function build_network!(
         build_network!(
             points_from,
             points_to,
-            exclusion_idx,
+            exclusion_idxs,
             vertex,
             final_point,
             exclusions,
