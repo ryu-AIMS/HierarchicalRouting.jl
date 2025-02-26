@@ -94,10 +94,17 @@ return any(AG.contains(exclusion, point_ag))
 end
 
 """
-    shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame)
+    shortest_feasible_path(
+        initial_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusions::DataFrame
+    )
 
 Find the shortest feasible path between two points.
-Use A* between all vertices on polygons that intersect with straight line to finish, from start pt and any other intersecting polygons.
+- Build network of all polygon vertices that recursively intersect with line to finish, from
+start pt and any other intersecting polygons.
+- Build graph from network of points.
+- Use A* algorithm to find shortest path.
 
 # Arguments
 - `initial_point::Point{2, Float64}`: Starting point of path.
@@ -105,11 +112,14 @@ Use A* between all vertices on polygons that intersect with straight line to fin
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
 
 # Returns
-- `dist::Float64`: The distance of the shortest feasible path.
-- `path::Vector{SimpleWeightedGraph{Int64, Float64}.Edge}`: The shortest feasible path as a vector of edges.
+- The distance of the shortest feasible path.
+- The shortest feasible path as a vector of LineStrings.
 """
-function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame,
-    )
+function shortest_feasible_path(
+    initial_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+)::Tuple{Float64, Vector{LineString{2, Float64}}}
 
     # ! Under construction
     final_exclusion_idx = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
@@ -194,15 +204,12 @@ end
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusion::Union{Int,Nothing} = nothing,
-    final_exclusion_idx::Union{Int,Nothing} = nothing
+    current_exclusion_idx::Int,
+    final_exclusion_idx::Int
 )
 
 Build a network of points to connect to each other.
 Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
-
-# Returns
-- `nothing`
 """
 function build_network!(
     points_from::Vector{Point{2, Float64}},
@@ -211,11 +218,11 @@ function build_network!(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusion::Int,
+    current_exclusion_idx::Int,
     final_exclusion_idx::Int
 )
 
-    if current_point == final_point # || (current_exclusion == final_exclusion_idx && !isnothing(current_exclusion))
+    if current_point == final_point # || (current_exclusion_idx == final_exclusion_idx && !isnothing(current_exclusion_idx))
         return
     end
 
@@ -223,7 +230,7 @@ function build_network!(
         current_point,
         final_point,
         exclusions,
-        current_exclusion
+        current_exclusion_idx
     )
 
     for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
@@ -313,7 +320,11 @@ function build_graph(
     end
 
     # Collect connected points from network
-    chain_points = [Point{2,Float64}(p[1], p[2]) for p in unique(vcat(points_from, points_to, [final_point]))]
+    chain_points = [Point{2,Float64}(p[1], p[2])
+        for p in unique(vcat(
+            points_from, points_to, [final_point]
+        ))
+    ]
     all_points = vcat(chain_points, poly_vertices)
     unique_points = unique(all_points)
     n_points = length(unique_points)
