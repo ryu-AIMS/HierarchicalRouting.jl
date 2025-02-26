@@ -298,26 +298,10 @@ function build_graph(
     final_point::Point{2, Float64}
 )
     is_polygon = !isnothing(final_polygon)
-    poly_vertices = Point{2, Float64}[]
 
-    if is_polygon
-        exterior_ring = AG.getgeom(final_polygon, 0)
-        n_pts = AG.ngeom(exterior_ring)
-
-        vertices = AG.getpoint.([exterior_ring], 0:n_pts-1)
-        points_x, points_y = getindex.(vertices, 1), getindex.(vertices, 2)
-
-        # convex_hull = AG.convexhull(polygon)
-        # # Select points that are either outside or touching the convex hull
-        # points_ag = AG.createpoint.(points_x, points_y)
-        # points_outside_convex_hull = .!AG.contains.([convex_hull], points_ag)
-        # points_touching_convex_hull = AG.touches.([convex_hull], points_ag)
-        # target_points_mask::BitVector = points_outside_convex_hull .|| points_touching_convex_hull
-        # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
-        # n_pts = length(poly_vertices)
-
-        poly_vertices = Point{2, Float64}.(points_x, points_y)
-    end
+    poly_vertices = is_polygon ?
+        collect_polygon_vertices(final_polygon) :
+        Point{2, Float64}[]
 
     # Collect connected points from network
     chain_points = [Point{2,Float64}(p[1], p[2])
@@ -374,4 +358,24 @@ function build_graph(
     end
 
     return graph, unique_points, pt_to_idx[final_point]
+end
+
+function collect_polygon_vertices(polygon::AG.IGeometry)
+    exterior_ring = AG.getgeom(polygon, 0)
+    n_pts = AG.ngeom(exterior_ring)
+
+    vertices = AG.getpoint.([exterior_ring], 0:n_pts-1)
+    points_x, points_y = getindex.(vertices, 1), getindex.(vertices, 2)
+
+    # convex_hull = AG.convexhull(polygon)
+    # # Select points that are either outside or touching the convex hull
+    # points_ag = AG.createpoint.(points_x, points_y)
+    # points_outside_convex_hull = .!AG.contains.([convex_hull], points_ag)
+    # points_touching_convex_hull = AG.touches.([convex_hull], points_ag)
+    # target_points_mask::BitVector = points_outside_convex_hull .|| points_touching_convex_hull
+    # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
+    # n_pts = length(poly_vertices)
+
+    poly_vertices = Point{2, Float64}.(points_x, points_y)
+    return poly_vertices
 end
