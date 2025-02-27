@@ -121,32 +121,63 @@ function shortest_feasible_path(
     exclusions::DataFrame,
 )::Tuple{Float64, Vector{LineString{2, Float64}}}
 
-    # ! Under construction
     final_exclusion_idx = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
-    # initial_exclusion_idx = HierarchicalRouting.point_in_convexhull(initial_point, exclusions)
-
-    # # ! Workaround for now
-    # # If initial point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
-    # if !iszero(initial_point_in_exclusion_zone)
-    #     final_exclusion_idx = initial_exclusion_idx
-    #     initial_point, final_point = final_point, initial_point
-    # end
+    initial_exclusion_idx = HierarchicalRouting.point_in_convexhull(initial_point, exclusions)
 
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
     exclusion_idxs = Int[]
 
-    # TODO: check if path from current_point to (left_point, right_point) is feasible (no intersecting polygons in between)
-    build_network!(
-        points_from,
-        points_to,
-        exclusion_idxs,
-        initial_point,
-        final_point,
-        exclusions,
-        0,
-        final_exclusion_idx
-    )
+    if iszero(initial_exclusion_idx)
+        build_network!(
+            points_from,
+            points_to,
+            exclusion_idxs,
+            initial_point,
+            final_point,
+            exclusions,
+            0,
+            final_exclusion_idx
+        )
+    else
+        initial_polygon = exclusions[initial_exclusion_idx, :geometry]
+        poly_vertices = collect_polygon_vertices(initial_polygon)
+        visible_vertices = [v for v in poly_vertices if is_visible(initial_point, v, exclusions)]
+
+        # Connect each polygon vertex to the initial point if visible.
+        n_verts = length(visible_vertices)
+        append!(points_from, fill(initial_point, n_verts))
+        append!(points_to, visible_vertices)
+        append!(exclusion_idxs, fill(initial_exclusion_idx, n_verts))
+
+        # Add all polygon vertices to graph
+        n_vertices = length(poly_vertices)
+        q = poly_vertices[mod1.((1:n_vertices) .+ 1, n_vertices)]
+
+        append!(points_from, poly_vertices)
+        append!(points_to, q)
+        append!(exclusion_idxs, fill(initial_exclusion_idx, n_vertices))
+
+        # Get widest points to final point on polygon contianing initial point
+        widest_verts = find_widest_points(
+            final_point,
+            initial_point,
+            DataFrame(exclusions[initial_exclusion_idx,:]),
+            0
+        )[1]
+
+        # Continue building network from each of widest vertices to final point
+        build_network!.(
+            [points_from],
+            [points_to],
+            [exclusion_idxs],
+            widest_verts,
+            [final_point],
+            [exclusions],
+            [initial_exclusion_idx],
+            [final_exclusion_idx]
+        )
+    end
 
     graph, idx_to_point, initial_point_idx, final_point_idx = build_graph(
         points_from,
@@ -239,6 +270,12 @@ function build_network!(
         if isnothing(vertex) || vertex == current_point
             continue
         end
+
+        # If edge already exists in network, skip
+        if (current_point, vertex) ∈ zip(points_from, points_to)
+            continue
+        end
+
         # Record new point/edge
         push!(points_from, current_point)
         push!(points_to, vertex)
