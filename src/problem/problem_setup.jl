@@ -97,15 +97,19 @@ function load_problem(target_scenario::String="")
         joinpath(output_dir, "t_exclusion.gpkg"),
         joinpath(output_dir, "t_exclusion.tif")
     )
-    t_exclusions = unionize_overlaps!(
-        buffer_exclusions!(
-            simplify_exclusions!(
-                t_exclusions,
-                min_area=20,
-                simplify_tol=1
-            ),
-            buffer_dist=0.1
-        )
+    t_exclusions = simplify_exclusions!(
+        unionize_overlaps!(
+            buffer_exclusions!(
+                simplify_exclusions!(
+                    t_exclusions,
+                    min_area=20,
+                    simplify_tol=2
+                ),
+                buffer_dist=0.1
+            )
+        ),
+        min_area=20,
+        simplify_tol=2
     )
 
     mothership = Vessel(exclusion = ms_exclusions, weighting = config["parameters"]["weight_ms"])
