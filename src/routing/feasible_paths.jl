@@ -148,15 +148,16 @@ function shortest_feasible_path(
         final_exclusion_idx
     )
 
-    graph, idx_to_point, final_point_idx = build_graph(
+    graph, idx_to_point, initial_point_idx, final_point_idx = build_graph(
         points_from,
         points_to,
         exclusions,
         iszero(final_exclusion_idx) ? nothing : exclusions[final_exclusion_idx,:geometry],
+        initial_point,
         final_point
     )
 
-    path = a_star(graph, 1, final_point_idx, graph.weights)
+    path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
     linestring_path = [LineString([idx_to_point[segment.src], idx_to_point[segment.dst]]) for segment in path]
@@ -272,6 +273,7 @@ end
         points_to::Vector{Point{2, Float64}},
         exclusions::DataFrame,
         final_polygon::Union{Nothing, AG.IGeometry},
+        initial_point::Point{2, Float64},
         final_point::Point{2, Float64}
     )
 
@@ -283,11 +285,13 @@ If polygon is provided, connect it to visible points in graph and visible vertic
 - `points_to::Vector{Point{2, Float64}}`: Vector of points to connect to.
 - `exclusions::DataFrame`: DataFrame containing exclusion zones.
 - `polygon::Union{Nothing, AG.IGeometry}`: Polygon to connect to.
+- `initial_point::Point{2, Float64}`: Initial point to connect from.
 - `final_point::Point{2, Float64}`: Final point to connect to.
 
 # Returns
 - Graph object with edges connecting points.
 - Vector of unique points.
+- Index of initial point. Used in a_star to specify starting point.
 - Index of final point. Used in a_star to specify target point.
 """
 function build_graph(
@@ -295,6 +299,7 @@ function build_graph(
     points_to::Vector{Point{2, Float64}},
     exclusions::DataFrame,
     final_polygon::Union{Nothing, AG.IGeometry},
+    initial_point::Point{2, Float64},
     final_point::Point{2, Float64}
 )
     is_polygon = !isnothing(final_polygon)
@@ -331,33 +336,22 @@ function build_graph(
             p = poly_vertices[i]
             q = poly_vertices[mod1(i + 1, n_vertices)]
 
-        # Connect adjacent polygon vertices, and wrap around.
-            if is_visible(p, q, exclusions)
-                i_idx = pt_to_idx[p]
-                j_idx = pt_to_idx[q]
-                add_edge!(graph, i_idx, j_idx, euclidean(p, q))
-            end
+            # Connect adjacent polygon vertices, and wrap around.
+            i_idx = pt_to_idx[p]
+            j_idx = pt_to_idx[q]
+            add_edge!(graph, i_idx, j_idx, euclidean(p, q))
 
             # connect to visible points in the graph
             for point in chain_points
                 if is_visible(p, point, exclusions)
-                    i_idx = pt_to_idx[p]
                     j_idx = pt_to_idx[point]
                     add_edge!(graph, i_idx, j_idx, euclidean(p, point))
                 end
             end
         end
-        # Connect each polygon vertex to the final point if visible.
-        for p in poly_vertices
-            if is_visible(p, final_point, exclusions)
-                i_idx = pt_to_idx[p]
-                j_idx = pt_to_idx[final_point]
-                add_edge!(graph, i_idx, j_idx, euclidean(p, final_point))
-            end
-        end
     end
 
-    return graph, unique_points, pt_to_idx[final_point]
+    return graph, unique_points, pt_to_idx[initial_point], pt_to_idx[final_point]
 end
 
 function collect_polygon_vertices(polygon::AG.IGeometry)
