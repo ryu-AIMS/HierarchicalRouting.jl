@@ -64,8 +64,6 @@ function find_widest_points(
         angle = vector_angle(base_vec, vec)
 
         if is_visible(current_point, pt, exclusions) && pt != current_point
-            # TODO Try to avoid going backwards - i.e. angle > abs(π/2)
-            # ! only the case when point is in the convex hull of the exclusion zone
             if angle > 0 && angle > max_angle_L
                 max_angle_L = angle
                 furthest_vert_L = pt
@@ -81,7 +79,7 @@ function find_widest_points(
 
     for vertex ∈ [furthest_vert_L, furthest_vert_R]
         if !isnothing(vertex)
-            if is_visible(current_point, vertex, exclusions, [current_exclusion_idx])
+            if is_visible(current_point, vertex, exclusions)
                 push!(candidates, vertex)
                 push!(poly_indices, polygon_idx)
             else
