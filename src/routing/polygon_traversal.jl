@@ -4,7 +4,7 @@
         current_point::Point{2, Float64},
         final_point::Point{2, Float64},
         exclusions::DataFrame,
-        current_exclusion_idx::Int
+        visited_exclusion_idxs::Vector{Int} = [0]
     )::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
 
 Find the intermediate vertices between two points by using the widest visible vertices on
@@ -16,7 +16,7 @@ the widest visible vertices.
 - `current_point::Point{2, Float64}`: The current point marking start of line.
 - `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `current_exclusion_idx::Int`: The index of the current exclusion zone - to ignore.
+- `visited_exclusion_idxs::Vector{Int}`: Already-crossed exclusion zone indices.
 
 # Returns
 - A vector of points representing the widest visible points on each side of the line.
@@ -26,15 +26,17 @@ function find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusion_idx::Int = 0
+    visited_exclusion_idxs::Vector{Int} = [0]
 )::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
 
     if is_visible(current_point, final_point, exclusions)
         return [final_point], [0]
     end
-    # Find the first/next polygon that the line (current_point, final_point) crosses.
+
+    # Find the first polygon that the line (current_point, final_point) crosses,
+    # ignoring any polygons already visited.
     (polygon, exterior_ring, n_pts), polygon_idx = closest_crossed_polygon(
-        current_point, final_point, exclusions, 0
+        current_point, final_point, exclusions, visited_exclusion_idxs
     )
 
     if isnothing(polygon)
@@ -49,21 +51,23 @@ function find_widest_points(
     candidates = Point{2,Float64}[]
     poly_indices = Int[]
 
+    # For each vertex: record if visible, else recursively find widest visible vertices.
     for vertex ∈ [furthest_vert_L, furthest_vert_R]
-        if !isnothing(vertex)
-            if is_visible(current_point, vertex, exclusions)
-                push!(candidates, vertex)
+        if isnothing(vertex)
+            continue
+        end
+        if is_visible(current_point, vertex, exclusions, visited_exclusion_idxs)
+            push!(candidates, vertex)
                 push!(poly_indices, polygon_idx)
             else
-                new_pts, new_poly_idx = find_widest_points(
+            new_pts, new_poly_idxs = find_widest_points(
                     current_point,
                     vertex,
                     exclusions,
-                    current_exclusion_idx
+                union(visited_exclusion_idxs, [polygon_idx])
                 )
                 append!(candidates, new_pts)
-                append!(poly_indices, new_poly_idx)
-            end
+            append!(poly_indices, new_poly_idxs)
         end
     end
 
@@ -156,7 +160,7 @@ end
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusionn_idx::Int
+    visited_exclusion_idxs::Vector{Int}
     )
 
 Find polygons that intersect with a line segment.
@@ -165,7 +169,7 @@ Find polygons that intersect with a line segment.
 - `current_point::Point{2, Float64}`: The current point marking start of line.
 - `final_point::Point{2, Float64}`: The final point marking end of line.
 - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `current_exclusion_idx::Int`: The index of the current exclusion zone - to ignore.
+- `visited_exclusion_idxs::Vector{Int}`: Indices of exclusion zones already crossed.
 
 # Returns
 - `closest_polygon`: The polygon, LineString and number of vertices of the first/closest polygon intersecting with the line segment.
@@ -175,7 +179,7 @@ function closest_crossed_polygon(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusion_idx::Int
+    visited_exclusion_idxs::Vector{Int}
 )
     closest_polygon = (nothing, nothing, 0)
     min_dist = Inf
@@ -187,8 +191,8 @@ function closest_crossed_polygon(
     line_min_x, line_max_x = min(current_point[1], final_point[1]), max(current_point[1], final_point[1])
     line_min_y, line_max_y = min(current_point[2], final_point[2]), max(current_point[2], final_point[2])
 
-    for (i, row) in enumerate(eachrow(exclusions))
-        if i == current_exclusion_idx
+    for (i, row) ∈ enumerate(eachrow(exclusions))
+        if i in visited_exclusion_idxs
             continue
         end
 
