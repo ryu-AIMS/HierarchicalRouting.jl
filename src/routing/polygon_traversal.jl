@@ -227,8 +227,12 @@ function closest_crossed_polygon(
                 AG.touches(AG.createpoint(final_point[1], final_point[2]), geom)
             )
 
+            intersections = AG.intersection(line, geom)
+
+            pts = [AG.getgeom(intersections, i) for i in 0:AG.ngeom(intersections) - 1]
+
             # Find distance to polygon
-            dist = GO.distance(current_point, geom)
+            dist = minimum(GO.distance.([current_point], pts))
 
             # If closer than current closest polygon, update closest polygon
             if dist < min_dist
