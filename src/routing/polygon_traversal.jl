@@ -26,7 +26,7 @@ function find_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusion_idx::Int
+    current_exclusion_idx::Int = 0
 )::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
 
     if is_visible(current_point, final_point, exclusions)
