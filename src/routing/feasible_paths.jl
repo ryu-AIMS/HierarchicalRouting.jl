@@ -162,8 +162,7 @@ function shortest_feasible_path(
         widest_verts = find_widest_points(
             final_point,
             initial_point,
-            DataFrame(exclusions[initial_exclusion_idx,:]),
-            0
+            DataFrame(exclusions[initial_exclusion_idx,:])
         )[1]
 
         # Continue building network from each of widest vertices to final point
@@ -261,8 +260,7 @@ function build_network!(
     candidates, next_exclusion_idxs = HierarchicalRouting.find_widest_points(
         current_point,
         final_point,
-        exclusions,
-        current_exclusion_idx
+        exclusions
     )
 
     for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
