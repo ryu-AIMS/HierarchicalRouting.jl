@@ -41,38 +41,10 @@ function find_widest_points(
         return [final_point], [0]
     end
 
-    max_angle_L, max_angle_R = 0.0, 0.0
-    furthest_vert_L, furthest_vert_R = nothing, nothing
-
-    # Base vector from current_point to final_point.
-    base_vec = [
-        (final_point[1] - current_point[1]),
-        (final_point[2] - current_point[2])
-    ]
-
-    for i in 0:n_pts - 1
-        x, y, _ = AG.getpoint(exterior_ring, i)
-        pt = Point{2, Float64}(x, y)
-
-        # Vector from current_point to this vertex.
-        vec = [
-            (pt[1] - current_point[1]),
-            (pt[2] - current_point[2])
-        ]
-
-        # Signed angle between base vector and vector to vertex
-        angle = vector_angle(base_vec, vec)
-
-        if is_visible(current_point, pt, exclusions) && pt != current_point
-            if angle > 0 && angle > max_angle_L
-                max_angle_L = angle
-                furthest_vert_L = pt
-            elseif angle < 0 && abs(angle) > max_angle_R
-                max_angle_R = abs(angle)
-                furthest_vert_R = pt
-            end
-        end
-    end
+    # Search for the widest vertices (left and right) along the polygon's exterior.
+    furthest_vert_L, furthest_vert_R = search_widest_points(
+        current_point, final_point, exterior_ring, n_pts
+    )
 
     candidates = Point{2,Float64}[]
     poly_indices = Int[]
@@ -98,15 +70,85 @@ function find_widest_points(
     return candidates, poly_indices
 end
 
-# Compute the signed angle (radian) between base_vec and vec
-function vector_angle(base_vec::Vector{Float64}, vec::Vector{Float64})
+"""
+    vector_angle(base_vector::Vector{Float64}, candidate_vector::Vector{Float64})::Float64
 
+Calculate the signed angle (radians) of a candidate vector relative to a base vector.
+
+# Arguments
+- `base_vector::Vector{Float64}`: The base vector.
+- `candidate_vector::Vector{Float64}`: The candidate vector.
+
+# Returns
+- The signed angle between the two vectors in radians.
+"""
+function vector_angle(base_vector::Vector{Float64}, candidate_vector::Vector{Float64})
     # Cross product tells us the direction of the angle
-    cross = base_vec[1]*vec[2] - base_vec[2]*vec[1]
+    cross = base_vector[1]*candidate_vector[2] - base_vector[2]*candidate_vector[1]
     # Dot product tells us the magnitude of the angle
-    dot_val = base_vec[1]*vec[1] + base_vec[2]*vec[2]
+    dot_val = base_vector[1]*candidate_vector[1] + base_vector[2]*candidate_vector[2]
 
     return atan(cross, dot_val)
+end
+
+"""
+    search_widest_points(
+        current_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exterior_ring,
+        n_pts,
+    )::Tuple{Union{Point{2, Float64}, Nothing}, Union{Point{2, Float64}, Nothing}}
+
+Search for the widest visible vertices on each side of the base vector.
+
+# Arguments
+- `current_point::Point{2, Float64}`: The current point marking start of line.
+- `final_point::Point{2, Float64}`: The final point marking end of line.
+- `exterior_ring`: The exterior ring of the polygon.
+- `n_pts`: The number of vertices in the polygon.
+
+# Returns
+The widest visible polygon vertex on each (L/R) side of the base vector/line.
+"""
+function search_widest_points(
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exterior_ring,
+    n_pts,
+)
+    max_angle_L, max_angle_R = 0.0, 0.0
+    furthest_vert_L, furthest_vert_R = nothing, nothing
+
+    # Base vector from current_point to final_point to calc angle from
+    base_vector = [
+        final_point[1] - current_point[1],
+        final_point[2] - current_point[2]
+    ]
+
+    for i in 0:n_pts - 1
+        x, y, _ = AG.getpoint(exterior_ring, i)
+        pt = Point{2, Float64}(x, y)
+
+        # Vector from current_point to this vertex.
+        candidate_vector = [
+            (pt[1] - current_point[1]),
+            (pt[2] - current_point[2])
+        ]
+
+        # Signed angle between base vector and vector to vertex
+        angle = vector_angle(base_vector, candidate_vector)
+
+        if pt != current_point
+            if angle > 0 && angle > max_angle_L
+                max_angle_L = angle
+                furthest_vert_L = pt
+            elseif angle < 0 && abs(angle) > max_angle_R
+                max_angle_R = abs(angle)
+                furthest_vert_R = pt
+            end
+        end
+    end
+    return furthest_vert_L, furthest_vert_R
 end
 
 """
