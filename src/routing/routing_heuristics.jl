@@ -359,14 +359,14 @@ end
 
 """
     tender_sequential_nearest_neighbour(
-    cluster::Cluster,
-    waypoints::NTuple{2, Point{2, Float64}},
-    n_tenders::Int,
-    t_cap::Int,
-    exclusions::DataFrame
+        cluster::Cluster,
+        waypoints::NTuple{2, Point{2, Float64}},
+        n_tenders::Int,
+        t_cap::Int,
+        exclusions::DataFrame
     )
 
-Assign nodes to tenders sequentially based on nearest neighbor.
+Assign nodes to tenders sequentially (stop-by-stop) based on nearest neighbor.
 
 # Arguments
 - `cluster` : Cluster object containing nodes.
@@ -392,18 +392,18 @@ function tender_sequential_nearest_neighbour(
     t_cap::Int,
     exclusions::DataFrame
 )
-    nodes = [waypoints[1]]
-    append!(nodes, cluster.nodes)
+    nodes = [[waypoints[1]]; cluster.nodes]
+    full_nodes = vcat(nodes, [waypoints[2]])
 
-    dist_matrix = get_feasible_matrix(nodes, exclusions)[1]
+    # Compute the full feasible matrix and associated paths once.
+    dist_matrix, path_matrix = get_feasible_matrix(full_nodes, exclusions)
 
     tender_tours = [Int[] for _ in 1:n_tenders]
     visited = falses(length(nodes))
     visited[1] = true
+    visited[2:end] .= isinf.(dist_matrix[1, 2:length(nodes)])
 
-    visited[2:end] .= isinf.(dist_matrix[1, 2:end])
-
-    # for each tender in number of tenders, sequentially assign closest nodes tender-by-tender stop-by-stop
+    # sequentially assign closest un-visited nodes stop-by-stop, tender-by-tender
     for _ in 1:t_cap
         for t in 1:n_tenders
             if all(visited)
@@ -412,7 +412,7 @@ function tender_sequential_nearest_neighbour(
 
             current_node = isempty(tender_tours[t]) ? 1 : last(tender_tours[t])
 
-            distances = dist_matrix[current_node, :]
+            distances = dist_matrix[current_node, 1:length(nodes)]
             distances[visited] .= Inf
             nearest_idx = argmin(distances)
 
@@ -424,29 +424,33 @@ function tender_sequential_nearest_neighbour(
     # delete excess elements and remove empty tours
     tender_tours = filter(!isempty, tender_tours)
 
-    sorties = [
-        [
-            [nodes[stop] for stop in [[1]; t]];
-            [waypoints[2]]
+    routes = Route[]
+    for tour in tender_tours
+        # Route indices incl waypoints: (1), tour nodes, end (last index of full_nodes)
+        route_indices = vcat(1, tour, length(full_nodes))
+
+        # Submatrix for this route
+        route_matrix = dist_matrix[route_indices, route_indices]
+
+        route_paths = [
+            (i < j ?
+            path_matrix[i, j] :
+            path_matrix[j, i])
+            for (i, j) in zip(route_indices[1:end-1], route_indices[2:end])
         ]
-        for t in tender_tours
-    ]
 
-    sortie_mats_paths = [get_feasible_matrix(s, exclusions) for s in sorties]
-    sortie_dist_matrices = [res[1] for res in sortie_mats_paths]
-    feasible_paths = [res[2] for res in sortie_mats_paths]
-
-    paths = [[feasible_path[s, s+1] for s in 1:size(feasible_path)[1]-1] for feasible_path in feasible_paths]
+        push!(routes, Route(
+            cluster.nodes[tour.-1],
+            route_matrix,
+            vcat(route_paths...)
+        ))
+    end
 
     return TenderSolution(
         cluster.id,
         waypoints[1],
         waypoints[2],
-        [
-            Route(
-                sortie, sortie_dist_matrices[i], vcat(paths[i]...)
-            ) for (i, sortie) in enumerate(sorties)
-        ],
+        routes,
         dist_matrix
     )
 end
