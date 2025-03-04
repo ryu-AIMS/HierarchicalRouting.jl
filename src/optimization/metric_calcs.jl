@@ -42,12 +42,12 @@ function sortie_cost(sorties::Vector{Vector{Int64}}, dist_matrix::Matrix{Float64
 end
 
 """
-    tender_clust_cost(cluster::ClusterSolution)::Vector{Float64}
+    tender_clust_cost(tenders::TenderSolution)::Vector{Float64}
 
 Compute the cost of each sortie in a cluster.
 
 # Arguments
-- `tenters::TenderSolution` : Tender solution.
+- `tenders::TenderSolution` : Tender solution.
 
 # Returns
 - `sortie_dist` : The cost of each sortie in the cluster.

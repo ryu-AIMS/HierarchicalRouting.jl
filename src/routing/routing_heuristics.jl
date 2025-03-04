@@ -43,9 +43,9 @@ function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
 end
 
 """
-adjust_waypoint(
-    waypoint::Point{2, Float64},
-    exclusions::DataFrame,
+    adjust_waypoint(
+        waypoint::Point{2, Float64},
+        exclusions::DataFrame,
     )::Point{2, Float64}
 
 Adjust waypoint if inside exclusion zone to closest boundary point outside exclusion zone.
@@ -164,7 +164,7 @@ end
         nodes::DataFrame,
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
-        )
+    )
 
 Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to the depot.
 
@@ -186,7 +186,7 @@ function nearest_neighbour(
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
 )
-# TODO: Use vector rather than DataFrame for cluster_centroids
+    # TODO: Use vector rather than DataFrame for cluster_centroids
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids = HierarchicalRouting.adjust_waypoint.(
         [Point{2, Float64}(row.lon, row.lat) for row in eachrow(cluster_centroids)],
@@ -249,7 +249,7 @@ end
         dist_matrix::Matrix{Float64},
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
-        )
+    )
 
 Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
 

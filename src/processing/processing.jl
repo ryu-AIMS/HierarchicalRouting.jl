@@ -38,7 +38,7 @@ end
 """
     get_linestrings(graph_matrix::Matrix{
     Tuple{
-        Dict{Int64, Point{2, Float64}},
+        Vector{Point{2, Float64}},
         Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
     }},
     waypoints::Vector{Point{2, Float64}})

@@ -172,7 +172,8 @@ Find polygons that intersect with a line segment.
 - `visited_exclusion_idxs::Vector{Int}`: Indices of exclusion zones already crossed.
 
 # Returns
-- `closest_polygon`: The polygon, LineString and number of vertices of the first/closest polygon intersecting with the line segment.
+- `closest_polygon`: The polygon, LineString and number of vertices of the first/closest
+polygon intersecting with the line segment.
 - `polygon_idx`: The index of the(first) polygon crossed.
 """
 function closest_crossed_polygon(
@@ -185,11 +186,16 @@ function closest_crossed_polygon(
     min_dist = Inf
     polygon_idx = nothing
 
-    line = AG.createlinestring([current_point[1], final_point[1]], [current_point[2], final_point[2]])
+    line = AG.createlinestring(
+        [current_point[1], final_point[1]],
+        [current_point[2], final_point[2]]
+    )
 
     # Define bounding box for line to exclude polygons that do not intersect
-    line_min_x, line_max_x = min(current_point[1], final_point[1]), max(current_point[1], final_point[1])
-    line_min_y, line_max_y = min(current_point[2], final_point[2]), max(current_point[2], final_point[2])
+    line_min_x, line_max_x = min(current_point[1], final_point[1]),
+        max(current_point[1], final_point[1])
+    line_min_y, line_max_y = min(current_point[2], final_point[2]),
+        max(current_point[2], final_point[2])
 
     for (i, row) ∈ enumerate(eachrow(exclusions))
         if i in visited_exclusion_idxs
@@ -280,7 +286,8 @@ function is_visible(
     ])
 
     # TODO: CHECK if commented statement below is necessary/correct/overkill
-    return !AG.intersects(exclusion_poly, line_to_point) || AG.touches(exclusion_poly, line_to_point)
+    return !AG.intersects(exclusion_poly, line_to_point) ||
+        AG.touches(exclusion_poly, line_to_point)
 end
 
 """
