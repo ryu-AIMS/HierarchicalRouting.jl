@@ -39,5 +39,8 @@ include("processing/write_files.jl")
 
 export Plot
 
+export load_problem, initial_solution, improve_solution
+
+export process_problem, nearest_neighbour, two_opt, tender_sequential_nearest_neighbour
 
 end
