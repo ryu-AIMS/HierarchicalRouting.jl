@@ -10,9 +10,12 @@ Create a matrix of distances of feasible paths between waypoints accounting for 
 
 # Returns
 - `dist_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
-- `path_matrix` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of waypoints.
+- `path_matrix` : A vector of paths between waypoints, represented as LineStrings.
 """
-function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+function get_feasible_matrix(
+    nodes::Vector{Point{2, Float64}},
+    exclusions::DataFrame
+    )::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
     n_points = length(nodes)
     dist_matrix = zeros(Float64, n_points, n_points)
     path_matrix = fill(Vector{LineString{2, Float64}}(), n_points, n_points)
@@ -46,7 +49,8 @@ between sequential nodes, avoiding exclusions.
 
 # Arguments
 - `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
-- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given
+vehicle's cumulative environmental constraints.
 
 # Returns
 - `dist_vector::Vector{Float64}` : A vector of distances between waypoints.
