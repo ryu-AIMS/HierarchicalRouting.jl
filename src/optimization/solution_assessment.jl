@@ -1,8 +1,12 @@
 
 """
-    perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions::DataFrame = DataFrame())
+    perturb_swap_solution(
+        soln::MSTSolution,
+        clust_idx::Int=-1,
+        exclusions::DataFrame = DataFrame()
+    )
 
-Perturb the solution by swapping two nodes between two sorties in a cluster.
+Perturb the solution by swapping two nodes in a cluster.
 
 # Arguments
 - `soln` : Solution to perturb.
@@ -10,87 +14,79 @@ Perturb the solution by swapping two nodes between two sorties in a cluster.
 - `exclusions` : DataFrame of exclusions. Default = DataFrame().
 
 # Returns
-- `new_soln` : Perturbed solution.
+- Perturbed full solution.
 """
-function perturb_swap_solution(soln::MSTSolution, clust_idx::Int=-1, exclusions::DataFrame = DataFrame())
-    new_soln = deepcopy(soln)
+function perturb_swap_solution(
+    soln::MSTSolution,
+    clust_idx::Int=-1,
+    exclusions::DataFrame = DataFrame()
+)
+    # Choose a random cluster (assume fixed clustering) if none provided
+    clust_idx = clust_idx == -1 ? rand(1:length(soln.tenders)) : clust_idx
 
-    if clust_idx == -1
-        # Choose ONE random cluster - assume fixed clustering
-        clust_idx = rand(1:length(new_soln.tenders))
+    # Copy the tender solution to perturb
+    tender = deepcopy(soln.tenders[clust_idx])
+
+    # If < 2 sorties in cluster, no perturbation possible
+    if length(tender.sorties) < 2
+        return soln
     end
-    cluster = new_soln.tenders[clust_idx]
 
-    if length(cluster.sorties) < 2
-        # No perturbation possible if a cluster has less than 2 sorties
-        return new_soln
-    end
+    # Choose two random sorties from the cluster
+    sortie_a_idx, sortie_b_idx = rand(1:length(tender.sorties), 2)
+    sortie_a, sortie_b = tender.sorties[sortie_a_idx], tender.sorties[sortie_b_idx]
 
-    # Choose TWO random sorties from the cluster
-    sortie_a_idx, sortie_b_idx = rand(1:length(cluster.sorties), 2)
-    # TODO: Allow same sortie if not applying two-opt
-    sortie_a, sortie_b = cluster.sorties[sortie_a_idx], cluster.sorties[sortie_b_idx]
-
+    # No perturbation possible if a sortie has no nodes
     if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
-        # No perturbation possible if a sortie has no nodes
-        return new_soln
+        return soln
     end
 
-    # node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))
-
+    # Determine node indices to swap
     if sortie_a_idx == sortie_b_idx
-        # Ensure we select two distinct node indices from that sortie.
-        if length(sortie_a.nodes) < 2
-            return new_soln
-        elseif length(sortie_a.nodes) == 2
+        # Ensure two distinct node indices selected from same sortie
+        sortie_length = length(sortie_a.nodes)
+        if sortie_length < 2
+            return soln
+        elseif sortie_length == 2
             node_a_idx, node_b_idx = 1, 2
         else
-            node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes), 2)
+            node_a_idx, node_b_idx = rand(1:sortie_length, 2)
             while node_a_idx == node_b_idx
-                node_b_idx = rand(1:length(sortie_a.nodes))
+                node_b_idx = rand(1:sortie_length)
             end
         end
     else
         # Chose two random node indices from different sorties
-        node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes), 2)
+        node_a_idx = rand(1:length(sortie_a.nodes))
+        node_b_idx = rand(1:length(sortie_b.nodes))
     end
 
-    node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
-
     # Swap the nodes between the two sorties
-    new_soln.tenders[clust_idx].sorties[sortie_a_idx].nodes[node_a_idx] = node_b
-    new_soln.tenders[clust_idx].sorties[sortie_b_idx].nodes[node_b_idx] = node_a
+    node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
+    tender.sorties[sortie_a_idx].nodes[node_a_idx] = node_b
+    tender.sorties[sortie_b_idx].nodes[node_b_idx] = node_a
 
     # TODO:Re-run two-opt on the modified sorties
     # Recompute the feasible paths for the modified sorties
     updated_tender_tours = [
-        [
-            [soln.tenders[clust_idx].start];
-            sortie.nodes;
-            [soln.tenders[clust_idx].finish]
-        ]
-        for sortie in [
-            new_soln.tenders[clust_idx].sorties[sortie_a_idx]; new_soln.tenders[clust_idx].sorties[sortie_b_idx]
-        ]
-    ]
-
-    feasible_paths = Matrix{
-        Tuple{Dict{Int64, Point{2, Float64}}, Vector{SimpleWeightedEdge{Int64, Float64}}}
-    }[
-        get_feasible_matrix(s, exclusions)[2] for s in updated_tender_tours
+        [[tender.start]; sortie.nodes; [tender.finish]]
+        for sortie in [tender.sorties[sortie_a_idx], tender.sorties[sortie_b_idx]]
     ]
 
     # Update linestrings for the modified sorties
-    new_soln.tenders[clust_idx].line_strings[sortie_a_idx] = get_linestrings(feasible_paths[1], updated_tender_tours[1])
-    new_soln.tenders[clust_idx].line_strings[sortie_b_idx] = get_linestrings(feasible_paths[2], updated_tender_tours[2])
+    tender.sorties[sortie_a_idx] = Route(
+        tender.sorties[sortie_a_idx].nodes,
+        tender.sorties[sortie_a_idx].dist_matrix,
+        vcat(get_feasible_vector(updated_tender_tours[1], exclusions)[2]...)
+    )
+    tender.sorties[sortie_b_idx] = Route(
+        tenders[clust_idx].sorties[sortie_b_idx].nodes,
+        tenders[clust_idx].sorties[sortie_b_idx].dist_matrix,
+        vcat(get_feasible_vector(updated_tender_tours[2], exclusions)[2]...)
+    )
 
-    # TODO: Recompute the cost for each modified sortie
-    # This assumes a function `compute_sortie_cost` exists
-    # sortie1.cost = compute_sortie_cost(sortie1)
-    # sortie2.cost = compute_sortie_cost(sortie2)
-
-    # Update the tender's total cost if necessary
-    # tender.cost = sum(sortie.cost for sortie in tender.sorties)
+    tenders_all = [i == clust_idx ? tender : soln.tenders[i] for i in 1:length(soln.tenders)]
+    new_soln = MSTSolution(soln.clusters, soln.mothership, tenders_all)
 
     return new_soln
 end
