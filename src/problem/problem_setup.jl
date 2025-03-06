@@ -103,14 +103,14 @@ function load_problem(target_scenario::String="")
             buffer_exclusions!(
                 simplify_exclusions!(
                     t_exclusions,
-                    min_area=20,
-                    simplify_tol=2
+                    min_area=1E-7,
+                    simplify_tol=5E-5
                 ),
-                buffer_dist=0.1
+                buffer_dist=0#.1
             )
         ),
-        min_area=20,
-        simplify_tol=2
+        min_area=1E-7,
+        simplify_tol=5E-5
     )
 
     mothership = Vessel(exclusion = ms_exclusions, weighting = config["parameters"]["weight_ms"])

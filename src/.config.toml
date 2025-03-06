@@ -12,8 +12,8 @@ path = "outputs"
 [parameters]
 EPSG_code = 7844
 
-depot_x = 50.0
-depot_y = 200.0
+depot_x = 146.175 # 50.0
+depot_y = -16.84 # 200.0
 
 suitable_threshold = 50.0
 k = 5
