@@ -86,7 +86,8 @@ function load_problem(target_scenario::String="")
         joinpath(output_dir, "ms_exclusion.gpkg"),
         joinpath(output_dir, "ms_exclusion.tif")
     )
-    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
+    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |>
+        unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
     t_exclusions = process_exclusions(
         env_data["bathy"].rast_file,

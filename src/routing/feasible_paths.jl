@@ -20,21 +20,29 @@ Create matrices of distances and paths for feasible routes between waypoints acc
 function get_feasible_matrix(
     nodes::Vector{Point{2, Float64}},
     exclusions::DataFrame
-    )::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
+)::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
     n_points = length(nodes)
     dist_matrix = zeros(Float64, n_points, n_points)
     path_matrix = fill(Vector{LineString{2, Float64}}(), n_points, n_points)
 
-    for j in 1:n_points
-        for i in 1:j-1
-            if nodes[i] != nodes[j]
+    for point_j_idx in 1:n_points
+        for point_i_idx in 1:point_j_idx-1
+            point_nodes = getindex(nodes, [point_i_idx, point_j_idx])
+            if point_nodes[1] != point_nodes[2]
                 # TODO: Process elsewhere
                 # Check if any of the points are within an exclusion zone
-                if any(point_in_exclusion.([nodes[i], nodes[j]], [exclusions]))
-                    dist_matrix[i, j] = dist_matrix[j, i] = Inf
+                if any(point_in_exclusion.(point_nodes, [exclusions]))
+                    dist_matrix[point_i_idx, point_j_idx] =
+                        dist_matrix[point_j_idx, point_i_idx] =
+                        Inf
                 else
-                    dist_matrix[i, j], path_matrix[i, j] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[j], exclusions)
-                    dist_matrix[j, i] = dist_matrix[i, j]
+                    dist_matrix[point_i_idx, point_j_idx],
+                        path_matrix[point_i_idx, point_j_idx] =
+                            HierarchicalRouting.shortest_feasible_path(
+                                point_nodes[1], point_nodes[2], exclusions
+                            )
+                    dist_matrix[point_j_idx, point_i_idx] =
+                        dist_matrix[point_i_idx, point_j_idx]
                 end
             end
         end
@@ -66,16 +74,20 @@ function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataF
     dist_vector = zeros(Float64, n_points)
     path_vector = fill(Vector{LineString{2, Float64}}(), n_points)
 
-    for i in 1:n_points
-            if nodes[i] != nodes[i+1]
-                # TODO: Process elsewhere
-                # Check if any of the points are within an exclusion zone
-                if any(point_in_exclusion.([nodes[i], nodes[i+1]], [exclusions]))
-                    dist_vector[i] = Inf
-                else
-                    dist_vector[i], path_vector[i] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[i+1], exclusions)
-                end
+    for point_i_idx in 1:n_points
+        point_nodes = getindex(nodes, [point_i_idx, point_i_idx+1])
+        if nodes[point_i_idx] != nodes[point_i_idx+1]
+            # TODO: Process elsewhere
+            # Check if any of the points are within an exclusion zone
+            if any(point_in_exclusion.(point_nodes, [exclusions]))
+                dist_vector[point_i_idx] = Inf
+            else
+                dist_vector[point_i_idx], path_vector[point_i_idx] =
+                HierarchicalRouting.shortest_feasible_path(
+                    point_nodes[1], point_nodes[2], exclusions
+                )
             end
+        end
     end
 
     return dist_vector, path_vector
@@ -100,8 +112,7 @@ function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)
     return any(AG.contains.(exclusions.geometry, [point_ag]))
 end
 function point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)
-point_ag = AG.createpoint(point[1], point[2])
-return any(AG.contains(exclusion, point_ag))
+return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
 end
 
 """
@@ -131,7 +142,6 @@ function shortest_feasible_path(
     final_point::Point{2, Float64},
     exclusions::DataFrame,
 )::Tuple{Float64, Vector{LineString{2, Float64}}}
-
     final_exclusion_idx = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
     initial_exclusion_idx = HierarchicalRouting.point_in_convexhull(initial_point, exclusions)
 
@@ -153,7 +163,7 @@ function shortest_feasible_path(
     else
         initial_polygon = exclusions[initial_exclusion_idx, :geometry]
         poly_vertices = collect_polygon_vertices(initial_polygon)
-        visible_vertices = [v for v in poly_vertices if is_visible(initial_point, v, exclusions)]
+        visible_vertices = poly_vertices[is_visible.([initial_point], poly_vertices, [exclusions])]
 
         # Connect each polygon vertex to the initial point if visible.
         n_verts = length(visible_vertices)
@@ -208,9 +218,9 @@ end
 
 """
     point_in_convexhull(
-    point::Point{2, Float64},
-    exclusions::DataFrame
-)::Int
+        point::Point{2, Float64},
+        exclusions::DataFrame
+    )::Int
 
 Check if a point is within a convex hull of exclusion zones.
 
@@ -240,15 +250,15 @@ end
 
 """
     build_network!(
-    points_from::Vector{Point{2, Float64}},
-    points_to::Vector{Point{2, Float64}},
-    exclusion_idxs::Vector{Int},
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    current_exclusion_idx::Int,
-    final_exclusion_idx::Int
-)
+        points_from::Vector{Point{2, Float64}},
+        points_to::Vector{Point{2, Float64}},
+        exclusion_idxs::Vector{Int},
+        current_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusions::DataFrame,
+        current_exclusion_idx::Int,
+        final_exclusion_idx::Int
+    )
 
 Build a network of points to connect to each other.
 Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
@@ -416,6 +426,5 @@ function collect_polygon_vertices(polygon::AG.IGeometry)
     # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
     # n_pts = length(poly_vertices)
 
-    poly_vertices = Point{2, Float64}.(points_x, points_y)
-    return poly_vertices
+    return Point{2, Float64}.(points_x, points_y)
 end

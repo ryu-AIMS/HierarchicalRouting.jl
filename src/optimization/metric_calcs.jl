@@ -42,7 +42,12 @@ function sortie_cost(
 )::Vector{Float64}
     # TODO: Handling for empty tender tours
     sortie_dist = [dist_matrix[1, tour[1]] for tour in sorties]
-    sortie_dist .+= [length(tour) > 1 ? sum([dist_matrix[tour[i], tour[i+1]] for i in 1:(length(tour)-1)]) : 0 for tour in sorties]
+    sortie_dist .+= [
+        length(tour) > 1 ?
+            sum([dist_matrix[tour[i], tour[i+1]] for i in 1:(length(tour)-1)]) :
+            0
+        for tour in sorties
+    ]
     sortie_dist .+= [dist_matrix[tour[end], 1] for tour in sorties]
     return sortie_dist
 end
@@ -59,16 +64,19 @@ Compute the cost of each sortie in a cluster.
 The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
-    sortie_dist = [euclidean(tenders.start, sortie.nodes[1]) for sortie in tenders.sorties] # haversine
+    sortie_dist = [euclidean(tenders.start, sortie.nodes[1]) for sortie in tenders.sorties]
 
     sortie_dist .+= sum([
         length(sortie.nodes) > 1 ?
-        sum(euclidean.(sortie.nodes[1:end-1], sortie.nodes[2:end])) :
-        0.0
+            sum(euclidean.(sortie.nodes[1:end-1], sortie.nodes[2:end])) :
+            0.0
         for sortie in tenders.sorties
     ])
 
-    sortie_dist .+= euclidean.([sortie.nodes[end] for sortie in tenders.sorties], tenders.finish)
+    sortie_dist .+= euclidean.(
+        [sortie.nodes[end] for sortie in tenders.sorties],
+        tenders.finish
+    )
     return sortie_dist
 end
 

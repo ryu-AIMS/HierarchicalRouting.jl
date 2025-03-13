@@ -43,7 +43,7 @@ function perturb_swap_solution(
 
     # Determine node indices to swap
     if sortie_a_idx == sortie_b_idx
-        # Ensure two distinct node indices selected from same sortie
+        # Ensure two distinct node indices are selected from same sortie
         sortie_length = length(sortie_a.nodes)
         if sortie_length < 2
             return soln

@@ -189,8 +189,8 @@ function nearest_neighbour(
     # TODO: Use vector rather than DataFrame for cluster_centroids
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids = HierarchicalRouting.adjust_waypoint.(
-        [Point{2, Float64}(row.lon, row.lat) for row in eachrow(cluster_centroids)],
-        Ref(exclusions_mothership)
+        Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
+        [exclusions_mothership]
     )
 
     cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
