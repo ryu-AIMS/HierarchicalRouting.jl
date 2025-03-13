@@ -47,8 +47,8 @@ function polygonize_binary(rast::Raster)::DataFrame
     AG.setproj!(dataset, crs.val)
 
     # Create in-memory store for geometries
-    drive = AG.GDAL.gdalgetdriverbyname("Memory")
-    ds_shp = AG.GDAL.gdalcreate(drive, "", 0, 0, 0, AG.GDAL.GDT_Unknown, C_NULL)
+    drv = AG.GDAL.gdalgetdriverbyname("Memory")
+    geom_ds = AG.GDAL.gdalcreate(drv, "", 0, 0, 0, AG.GDAL.GDT_Unknown, C_NULL)
 
     # Define CRS
     gdal_ref = AG.GDAL.osrnewspatialreference(C_NULL)
@@ -56,7 +56,7 @@ function polygonize_binary(rast::Raster)::DataFrame
 
     # Create layer
     layer = AG.GDAL.gdaldatasetcreatelayer(
-        ds_shp,
+        geom_ds,
         "out",
         gdal_ref,
         AG.GDAL.wkbPolygon,
