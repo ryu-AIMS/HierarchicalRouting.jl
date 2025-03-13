@@ -94,9 +94,10 @@ function polygonize_binary(rast::Raster)::DataFrame
 
     # Close handles
     AG.destroy(band)
-    AG.GDAL.gdalclose(d)
-    AG.GDAL.gdalclose(ds_shp)
+    AG.destroy(d)
+    AG.GDAL.gdalclose(geom_ds)
     AG.GDAL.ogr_fld_destroy(field_defn)
+    AG.GDAL.gdalclose(field)
     AG.GDAL.osrrelease(gdal_ref)
 
     return DataFrame(geometry=layer_geoms)
