@@ -36,27 +36,36 @@ function target_threshold(targets::Raster, threshold::Float64)
 end
 
 """
-    get_linestrings(graph_matrix::Matrix{
-    Tuple{
-        Vector{Point{2, Float64}},
-        Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
-    }},
-    waypoints::Vector{Point{2, Float64}})
+    get_linestrings(
+        graph_matrix::Matrix{
+            Tuple{
+                Vector{Point{2, Float64}},
+                Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
+            }
+        },
+        waypoints::Vector{Point{2, Float64}}
+    )
 
-Between each sequential pair of waypoints: create a single LineString across all points defining its path.
+Between each sequential pair of waypoints: create a single LineString across all points
+defining its path.
 
 # Arguments
-- `graph_matrix::Matrix{Tuple{Dict{Int64, Point{2, Float64}}, Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}}}`: The graph matrix.
+- `graph_matrix::Matrix{
+    Vector{Point{2, Float64}},
+    Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}}}`:
+    The graph matrix.
 - `waypoints::Vector{Point{2, Float64}}`: The waypoints.
 
 # Returns
 - A vector of LineStrings.
 """
-function get_linestrings(graph_matrix::Matrix{
-    Tuple{
-        Vector{Point{2, Float64}},
-        Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
-    }},
+function get_linestrings(
+    graph_matrix::Matrix{
+        Tuple{
+            Vector{Point{2, Float64}},
+            Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}
+        }
+    },
     waypoints::Vector{Point{2, Float64}}
 )
 

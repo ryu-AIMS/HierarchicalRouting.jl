@@ -58,15 +58,15 @@ function find_widest_points(
         end
         if is_visible(current_point, vertex, exclusions, visited_exclusion_idxs)
             push!(candidates, vertex)
-                push!(poly_indices, polygon_idx)
-            else
+            push!(poly_indices, polygon_idx)
+        else
             new_pts, new_poly_idxs = find_widest_points(
-                    current_point,
-                    vertex,
-                    exclusions,
+                current_point,
+                vertex,
+                exclusions,
                 union(visited_exclusion_idxs, [polygon_idx])
-                )
-                append!(candidates, new_pts)
+            )
+            append!(candidates, new_pts)
             append!(poly_indices, new_poly_idxs)
         end
     end
@@ -101,7 +101,7 @@ end
         final_point::Point{2, Float64},
         exterior_ring,
         n_pts,
-    )::Tuple{Union{Point{2, Float64}, Nothing}, Union{Point{2, Float64}, Nothing}}
+    )::NTuple{2, Union{Point{2, Float64}, Nothing}}
 
 Search for the widest visible vertices on each side of the base vector.
 
@@ -119,7 +119,7 @@ function search_widest_points(
     final_point::Point{2, Float64},
     exterior_ring,
     n_pts,
-)
+)::NTuple{2, Union{Point{2, Float64}, Nothing}}
     max_angle_L, max_angle_R = 0.0, 0.0
     furthest_vert_L, furthest_vert_R = nothing, nothing
 
@@ -157,10 +157,10 @@ end
 
 """
     closest_crossed_polygon(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    visited_exclusion_idxs::Vector{Int}
+        current_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusions::DataFrame,
+        visited_exclusion_idxs::Vector{Int}
     )
 
 Find polygons that intersect with a line segment.
@@ -173,7 +173,7 @@ Find polygons that intersect with a line segment.
 
 # Returns
 - `closest_polygon`: The polygon, LineString and number of vertices of the first/closest
-polygon intersecting with the line segment.
+    polygon intersecting with the line segment.
 - `polygon_idx`: The index of the(first) polygon crossed.
 """
 function closest_crossed_polygon(
@@ -258,10 +258,10 @@ end
 
 """
     is_visible(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusion_poly
-)::Bool
+        current_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusion_poly
+    )::Bool
 
 Check if a point is visible from another point, given a single exclusion polygon.
     i.e. no exclusion zone intersects the straight line between them.

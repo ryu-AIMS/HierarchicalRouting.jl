@@ -1,16 +1,21 @@
 
 """
-    get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+    get_feasible_matrix(
+        nodes::Vector{Point{2, Float64}},
+        exclusions::DataFrame
+    )::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
 
-Create a matrix of distances of feasible paths between waypoints accounting for (avoiding) environmental constraints.
+Create matrices of distances and paths for feasible routes between waypoints accounting for
+    (avoiding) environmental constraints.
 
 # Arguments
 - `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
-- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
+- `exclusions::DataFrame` :Exclusion zones representing vehicle's environmental constraints.
 
 # Returns
 - `dist_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
-- `path_matrix` : A vector of paths between waypoints, represented as LineStrings.
+- `path_matrix::Matrix{Vector{LineString{2, Float64}}}` : A vector of paths between
+    waypoints.
 """
 function get_feasible_matrix(
     nodes::Vector{Point{2, Float64}},
@@ -78,12 +83,14 @@ end
 
 """
     point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)
+    point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)
 
 Check if a point is within an exclusion zone.
 
 # Arguments
 - `point::Point{2, Float64}`: Point to check.
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
+- `exclusion::AG.IGeometry`: One exclusion zone polygon from exclusions DataFrame.
 
 # Returns
 - `true` if point is within an exclusion zone, `false` otherwise.
@@ -92,7 +99,7 @@ function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)
     point_ag = AG.createpoint(point[1], point[2])
     return any(AG.contains.(exclusions.geometry, [point_ag]))
 end
-function point_in_exclusion(point::Point{2,Float64}, exclusion)
+function point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)
 point_ag = AG.createpoint(point[1], point[2])
 return any(AG.contains(exclusion, point_ag))
 end
@@ -102,7 +109,7 @@ end
         initial_point::Point{2, Float64},
         final_point::Point{2, Float64},
         exclusions::DataFrame
-    )
+    )::Tuple{Float64, Vector{LineString{2, Float64}}}
 
 Find the shortest feasible path between two points.
 - Build network of all polygon vertices that recursively intersect with line to finish, from

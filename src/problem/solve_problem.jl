@@ -2,12 +2,9 @@
 """
     initial_solution(problem::Problem)
 
-Generate an initial solution to the problem
-    for mothership
-        using the nearest neighbour heuristic, and then
-        improving the solution using the 2-opt heuristic;
-    for tenders
-        using the sequential nearest neighbour heuristic.
+Generate an initial solution to the problem for mothership using the nearest neighbour
+heuristic, and then improving the solution using the 2-opt heuristic; for tenders using
+the sequential nearest neighbour heuristic.
 
 # Arguments
 - `problem::Problem`: Problem instance to solve

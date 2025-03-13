@@ -1,7 +1,7 @@
 
 """
     perturb_swap_solution(
-        soln::MSTSolution,
+        soln::MSTSolution;
         clust_idx::Int=-1,
         exclusions::DataFrame = DataFrame()
     )
@@ -14,10 +14,10 @@ Perturb the solution by swapping two nodes in a cluster.
 - `exclusions` : DataFrame of exclusions. Default = DataFrame().
 
 # Returns
-- Perturbed full solution.
+Perturbed full solution.
 """
 function perturb_swap_solution(
-    soln::MSTSolution,
+    soln::MSTSolution;
     clust_idx::Int=-1,
     exclusions::DataFrame = DataFrame()
 )

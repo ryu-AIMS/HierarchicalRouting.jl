@@ -246,7 +246,6 @@ end
 """
     two_opt(
         ms_soln_current::MothershipSolution,
-        dist_matrix::Matrix{Float64},
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
     )
@@ -255,7 +254,6 @@ Apply the 2-opt heuristic to improve the current MothershipSolution route (by un
 
 # Arguments
 - `ms_soln_current` : Current MothershipSolution - from nearest_neighbour.
-- `dist_matrix` : Distance matrix between waypoints. Depot is the first, but not last point.
 - `exclusions_mothership` : DataFrame containing exclusion zones for mothership.
 - `exclusions_tender` : DataFrame containing exclusion zones for tenders.
 
