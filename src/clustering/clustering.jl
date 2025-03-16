@@ -46,16 +46,14 @@ end
     create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
 
 Calculate the centroids of the clusters in the raster.
-Depot included as cluster 0.
 
 # Arguments
 - `clusters` : Raster containing the cluster IDs.
-- `depot` : Optional depot point.
 
 # Returns
 A vector of Cluster objects.
 """
-function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
+function create_clusters(clusters::Raster{Int64, 2})
     unique_clusters = sort(unique(clusters))
 
     # Remove the zero cluster ID (if present)
@@ -63,9 +61,7 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
 
     cluster_vec = Cluster[]
 
-    if depot !== nothing
-        push!(cluster_vec, Cluster(id = 0, centroid = depot))
-    end
+
 
     x_coords = clusters.dims[1]
     y_coords = clusters.dims[2]
