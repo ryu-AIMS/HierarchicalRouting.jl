@@ -38,8 +38,7 @@ Exclusion zones for environmental constraint and vessel threshold provided.
 """
 function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
     # TODO: kwargs to specify max/min threshold values
-    exclusion_zones = (env_constraint .<= threshold) # .| (env_constraint .== env_constraint.missingval)
-    return exclusion_zones
+    return (env_constraint .!= env_constraint.missingval) .&& (env_constraint .>= threshold)
 end
 
 """
