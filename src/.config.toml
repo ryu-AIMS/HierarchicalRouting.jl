@@ -27,3 +27,6 @@ weight_t = 2.0
 
 n_tenders = 3
 t_cap = 2
+
+[DEBUG]
+debug_mode = true

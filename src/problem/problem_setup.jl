@@ -76,28 +76,46 @@ function load_problem(target_scenario::String="")
 
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
-    # process exclusions
-    ms_exclusion_zones_df = process_exclusions(
-        env_data["bathy"].rast_file,
-        config["parameters"]["depth_ms"],
-        subset,
-        EPSG_code,
-        bathy_subset_path,
-        joinpath(output_dir, "ms_exclusion.gpkg"),
-        joinpath(output_dir, "ms_exclusion.tif")
-    )
-    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |>
-        unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
+    # Process exclusions
+    if !(config["DEBUG"]["debug_mode"])
+        ms_exclusion_zones_df = process_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_ms"],
+            subset,
+            EPSG_code,
+            bathy_subset_path,
+            joinpath(output_dir, "ms_exclusion.gpkg"),
+            joinpath(output_dir, "ms_exclusion.tif")
+        )
+    else
+        ms_exclusion_zones_df = process_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_ms"],
+            subset,
+            EPSG_code
+        )
+    end
+    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
-    t_exclusions = process_exclusions(
-        env_data["bathy"].rast_file,
-        config["parameters"]["depth_t"],
-        subset,
-        EPSG_code,
-        bathy_subset_path,
-        joinpath(output_dir, "t_exclusion.gpkg"),
-        joinpath(output_dir, "t_exclusion.tif")
-    )
+    if !(config["DEBUG"]["debug_mode"])
+        t_exclusions = process_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_t"],
+            subset,
+            EPSG_code,
+            bathy_subset_path,
+            joinpath(output_dir, "t_exclusion.gpkg"),
+            joinpath(output_dir, "t_exclusion.tif")
+        )
+    else
+        t_exclusions = process_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_t"],
+            subset,
+            EPSG_code
+        )
+    end
+
     t_exclusions = simplify_exclusions!(
         unionize_overlaps!(
             buffer_exclusions!(

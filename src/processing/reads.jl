@@ -135,6 +135,18 @@ function process_exclusions(
 
     return exclusion_zones_df
 end
+function process_exclusions(
+    bathy_fullset_path,
+    vessel_draft,
+    subset,
+    EPSG_code
+)
+    bathy_dataset = Raster(bathy_fullset_path, mappedcrs=EPSG(EPSG_code), missingval=0)
+    bathy_subset = crop_to_subset(bathy_dataset, subset)
+    exclusion_zones = create_exclusion_zones(bathy_subset, vessel_draft)
+
+    return polygonize_binary(exclusion_zones)
+end
 
 """
     process_problem(problem::Problem)
