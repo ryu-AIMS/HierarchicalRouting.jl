@@ -41,24 +41,17 @@ Load the problem data from the configuration file and return a Problem object.
 - `target_scenario::String`: The name of the target scenario to load. Defaults to an empty string.
 
 # Returns
-- `problem::Problem`: The problem object containing the target scenario, depot, mothership, and tenders.
+The problem object containing the target scenario, depot, mothership, and tenders.
 """
 function load_problem(target_scenario::String="")
 
     config = TOML.parsefile(joinpath("src",".config.toml"))
-
     site_dir = config["data_dir"]["site"]
-    subset = GDF.read(first(glob("*.gpkg", site_dir)))
-
-    target_scenario_dir = config["data_dir"]["target_scenarios"]
-    if target_scenario == ""
-        target_scenario = first(glob("*", target_scenario_dir))
-    end
-
     depot = Point{2, Float64}(config["parameters"]["depot_x"], config["parameters"]["depot_y"])
     n_tenders = config["parameters"]["n_tenders"]
     t_cap = config["parameters"]["t_cap"]
     EPSG_code = config["parameters"]["EPSG_code"]
+    target_scenario = target_scenario == "" ? first(glob("*", config["data_dir"]["target_scenarios"])) : target_scenario
 
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
@@ -69,11 +62,11 @@ function load_problem(target_scenario::String="")
             rast_file = isempty(glob("*.tif", path)) ? nothing : first(glob("*.tif", path))
         ) for (subfolder, path) in env_paths
     )
-
     # TODO: Process all environmental constraints to create single cumulative exclusion zone
 
     output_dir = config["output_dir"]["path"]
 
+    subset = GDF.read(first(glob("*.gpkg", site_dir)))
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
     # Process exclusions
@@ -116,19 +109,15 @@ function load_problem(target_scenario::String="")
         )
     end
 
+    #! Functions NOT modiying in place
     t_exclusions = filter_and_simplify_exclusions!(
-        unionize_overlaps!(
-            buffer_exclusions!(
-                filter_and_simplify_exclusions!(
-                    t_exclusions,
-                    min_area=1E-7,
-                    simplify_tol=5E-5
-                ),
-                buffer_dist=0.0
-            )
-        ),
-        min_area=1E-7,
-        simplify_tol=5E-5
+        t_exclusions, min_area=1E-7, simplify_tol=5E-5
+    )
+    t_exclusions = buffer_exclusions!(t_exclusions, buffer_dist=0.0)
+    t_exclusions = unionize_overlaps!(t_exclusions)
+    #? Redundant 2nd call to simplify_exclusions!()
+    t_exclusions = filter_and_simplify_exclusions!(
+        t_exclusions, min_area=1E-7, simplify_tol=5E-5
     )
 
     mothership = Vessel(exclusion = ms_exclusions, weighting = config["parameters"]["weight_ms"])
