@@ -25,7 +25,7 @@ struct MSTSolution
 end
 
 """
-    create_exclusion_zones(env_constraint::Raster, threshold::Float64)
+    create_exclusion_zones(env_constraint::Raster, threshold::Float64)::Raster
 
 Create exclusion zones based on environmental raster data and vessel threshold.
 
@@ -36,9 +36,9 @@ Create exclusion zones based on environmental raster data and vessel threshold.
 # Returns
 Exclusion zones for environmental constraint and vessel threshold provided.
 """
-function create_exclusion_zones(env_constraint::Raster, threshold::Float64)
+function create_exclusion_zones(env_constraint::Raster, threshold::Float64)::Raster
     # TODO: kwargs to specify max/min threshold values
-    return (env_constraint .!= env_constraint.missingval) .&& (env_constraint .>= threshold)
+    return (env_constraint .!== env_constraint.missingval) .&& (env_constraint .>= threshold)
 end
 
 """
