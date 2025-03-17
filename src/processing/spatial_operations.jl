@@ -10,8 +10,9 @@ Simplify exclusions by removing small polygons, and simplifying geometry.
 
 # Arguments
 - `exclusions::DataFrame`: The DataFrame containing exclusion zones.
-- `min_area::Real`: The minimum area for exclusion polygons. Default = 50
-- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons, i.e., larger tol = more aggressive simplification. Default = ?
+- `min_area::Real`: The minimum area for exclusion polygons. Default = 3E-7
+- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons,
+    i.e., larger tol = more aggressive simplification. Default = 1E-4
 """
 function simplify_exclusions!(
     exclusions::DataFrame;
@@ -30,9 +31,9 @@ Buffer exclusion zones by a specified distance.
 
 # Arguments
 - `exclusions::DataFrame`: The DataFrame containing exclusion zones.
-- `buffer_dist::Real`: The buffer distance. Default = 1.0
+- `buffer_dist::Real`: The buffer distance. Default = 0.0
 """
-function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Real=0)#1E-4)
+function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Real=0.0)
     exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
     return exclusions
 end
