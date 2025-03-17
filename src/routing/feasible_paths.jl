@@ -1,272 +1,430 @@
 
 """
-    get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+    get_feasible_matrix(
+        nodes::Vector{Point{2, Float64}},
+        exclusions::DataFrame
+    )::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
 
-Create a matrix of distances of feasible paths between waypoints accounting for (avoiding) environmental constraints.
+Create matrices of distances and paths for feasible routes between waypoints accounting for
+    (avoiding) environmental constraints.
 
 # Arguments
 - `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
-- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given vehicle's cumulative environmental constraints.
-- `ignore_exclusions_flag::Bool` : Flag to ignore exclusions. Default is `true`.
+- `exclusions::DataFrame` :Exclusion zones representing vehicle's environmental constraints.
 
 # Returns
-- `feasible_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
-- `feasible_path` : A vector of tuples containing the graph, point to index mapping, and edges for each pair of waypoints.
+- `dist_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
+- `path_matrix::Matrix{Vector{LineString{2, Float64}}}` : A vector of paths between
+    waypoints.
 """
-function get_feasible_matrix(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame,
-    ignore_exclusions_flag::Bool = true
-    )
+function get_feasible_matrix(
+    nodes::Vector{Point{2, Float64}},
+    exclusions::DataFrame
+)::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
     n_points = length(nodes)
-    feasible_matrix = zeros(Float64, n_points, n_points)
-    feasible_path = fill((Dict{Int64, Point{2, Float64}}(), Vector{SimpleWeightedGraphs.SimpleWeightedEdge{Int64, Float64}}()), n_points, n_points)
+    dist_matrix = zeros(Float64, n_points, n_points)
+    path_matrix = fill(Vector{LineString{2, Float64}}(), n_points, n_points)
 
-    for j in 1:n_points
-        for i in 1:j-1
-            if nodes[i] != nodes[j]
+    for point_j_idx in 1:n_points
+        for point_i_idx in 1:point_j_idx-1
+            point_nodes = getindex(nodes, [point_i_idx, point_j_idx])
+            if point_nodes[1] != point_nodes[2]
                 # TODO: Process elsewhere
                 # Check if any of the points are within an exclusion zone
-                if any(
-                    AG.contains.(
-                        exclusions.geometry, Ref(AG.createpoint(nodes[j][1], nodes[j][2])))
-                ) ||
-                any(
-                    AG.contains.(
-                        exclusions.geometry, Ref(AG.createpoint(nodes[i][1], nodes[i][2])))
-                )
-                    feasible_matrix[i, j] = feasible_matrix[j, i] = Inf
+                if any(point_in_exclusion.(point_nodes, [exclusions]))
+                    dist_matrix[point_i_idx, point_j_idx] =
+                        dist_matrix[point_j_idx, point_i_idx] =
+                        Inf
                 else
-                    feasible_matrix[i, j], feasible_path[i,j] = HierarchicalRouting.shortest_feasible_path(nodes[i], nodes[j], exclusions, ignore_exclusions_flag)
-                    feasible_matrix[j, i] = feasible_matrix[i, j]
+                    dist_matrix[point_i_idx, point_j_idx],
+                        path_matrix[point_i_idx, point_j_idx] =
+                            HierarchicalRouting.shortest_feasible_path(
+                                point_nodes[1], point_nodes[2], exclusions
+                            )
+                    dist_matrix[point_j_idx, point_i_idx] =
+                        dist_matrix[point_i_idx, point_j_idx]
                 end
             end
         end
     end
 
-    return feasible_matrix, feasible_path
+    return dist_matrix, path_matrix
 end
 
 """
-    shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame)
+    get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+
+Create vectors of:
+- distances, and
+- feasible paths
+
+between sequential nodes, avoiding exclusions.
+
+# Arguments
+- `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
+- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given
+vehicle's cumulative environmental constraints.
+
+# Returns
+- `dist_vector::Vector{Float64}` : A vector of distances between waypoints.
+- `path_vector` : A vector of paths between waypoints, represented as LineStrings.
+"""
+function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+    n_points = length(nodes)-1
+    dist_vector = zeros(Float64, n_points)
+    path_vector = fill(Vector{LineString{2, Float64}}(), n_points)
+
+    for point_i_idx in 1:n_points
+        point_nodes = getindex(nodes, [point_i_idx, point_i_idx+1])
+        if nodes[point_i_idx] != nodes[point_i_idx+1]
+            # TODO: Process elsewhere
+            # Check if any of the points are within an exclusion zone
+            if any(point_in_exclusion.(point_nodes, [exclusions]))
+                dist_vector[point_i_idx] = Inf
+            else
+                dist_vector[point_i_idx], path_vector[point_i_idx] =
+                HierarchicalRouting.shortest_feasible_path(
+                    point_nodes[1], point_nodes[2], exclusions
+                )
+            end
+        end
+    end
+
+    return dist_vector, path_vector
+end
+
+"""
+    point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)
+    point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)
+
+Check if a point is within an exclusion zone.
+
+# Arguments
+- `point::Point{2, Float64}`: Point to check.
+- `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
+- `exclusion::AG.IGeometry`: One exclusion zone polygon from exclusions DataFrame.
+
+# Returns
+- `true` if point is within an exclusion zone, `false` otherwise.
+"""
+function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)
+    point_ag = AG.createpoint(point[1], point[2])
+    return any(AG.contains.(exclusions.geometry, [point_ag]))
+end
+function point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)
+return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
+end
+
+"""
+    shortest_feasible_path(
+        initial_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusions::DataFrame
+    )::Tuple{Float64, Vector{LineString{2, Float64}}}
 
 Find the shortest feasible path between two points.
-Use A* between all vertices on polygons that intersect with straight line to finish, from start pt and any other intersecting polygons.
+- Build network of all polygon vertices that recursively intersect with line to finish, from
+start pt and any other intersecting polygons.
+- Build graph from network of points.
+- Use A* algorithm to find shortest path.
 
 # Arguments
 - `initial_point::Point{2, Float64}`: Starting point of path.
 - `final_point::Point{2, Float64}`: Ending point of path.
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
-- `ignore_exclusions_flag::Bool`: Flag to ignore exclusions.
 
 # Returns
-- `dist::Float64`: The distance of the shortest feasible path.
-- `path::Vector{SimpleWeightedGraph{Int64, Float64}.Edge}`: The shortest feasible path as a vector of edges.
+- The distance of the shortest feasible path.
+- The shortest feasible path as a vector of LineStrings.
 """
-function shortest_feasible_path(initial_point::Point{2, Float64}, final_point::Point{2, Float64}, exclusions::DataFrame,
-    ignore_exclusions_flag::Bool
-    )
+function shortest_feasible_path(
+    initial_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+)::Tuple{Float64, Vector{LineString{2, Float64}}}
+    final_exclusion_idx = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
+    initial_exclusion_idx = HierarchicalRouting.point_in_convexhull(initial_point, exclusions)
 
-    final_exclusion_idx = nothing
-    if ignore_exclusions_flag
-        for (i, exclusion) in enumerate(eachrow(exclusions))
-            # If final point is within an exclusion zone, add all vertices of 'final' exclusion polygon to graph
-            if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(final_point[1], final_point[2]))
-                final_exclusion_idx = i
-                break
-            end
+    points_from = Point{2,Float64}[]
+    points_to = Point{2,Float64}[]
+    exclusion_idxs = Int[]
 
-            # If final point is within an exclusion zone, reverse route and add all vertices of 'final' exclusion polygon to graph
-            if AG.contains(AG.convexhull(exclusion.geometry), AG.createpoint(initial_point[1], initial_point[2]))
-                final_exclusion_idx = i
-                temp_point = initial_point
-                initial_point = final_point
-                final_point = temp_point
-                points = [initial_point]
-                break
-            end
-        end
+    if iszero(initial_exclusion_idx)
+        build_network!(
+            points_from,
+            points_to,
+            exclusion_idxs,
+            initial_point,
+            final_point,
+            exclusions,
+            0,
+            final_exclusion_idx
+        )
+    else
+        initial_polygon = exclusions[initial_exclusion_idx, :geometry]
+        poly_vertices = collect_polygon_vertices(initial_polygon)
+        visible_vertices = poly_vertices[is_visible.([initial_point], poly_vertices, [exclusions])]
+
+        # Connect each polygon vertex to the initial point if visible.
+        n_verts = length(visible_vertices)
+        append!(points_from, fill(initial_point, n_verts))
+        append!(points_to, visible_vertices)
+        append!(exclusion_idxs, fill(initial_exclusion_idx, n_verts))
+
+        # Add all polygon vertices to graph
+        n_vertices = length(poly_vertices)
+        q = poly_vertices[mod1.((1:n_vertices) .+ 1, n_vertices)]
+
+        append!(points_from, poly_vertices)
+        append!(points_to, q)
+        append!(exclusion_idxs, fill(initial_exclusion_idx, n_vertices))
+
+        # Get widest points to final point on polygon contianing initial point
+        widest_verts = find_widest_points(
+            final_point,
+            initial_point,
+            DataFrame(exclusions[initial_exclusion_idx,:])
+        )[1]
+
+        # Continue building network from each of widest vertices to final point
+        build_network!.(
+            [points_from],
+            [points_to],
+            [exclusion_idxs],
+            widest_verts,
+            [final_point],
+            [exclusions],
+            [initial_exclusion_idx],
+            [final_exclusion_idx]
+        )
     end
 
-    points = [initial_point]
-    parent_points = [initial_point]
-    current_node_idx = 1
-    exclusion_idx = [0]
-
-    """
-        process_point(
-        candidate_point::Point{2, Float64},
-        target_point::Union{Nothing, Point{2, Float64}},
-        exclusions::DataFrame,
-        ignore_exclusion_indices::Vector{Int}
-        )
-
-    Check if the line between two points is feasible, and add intermediate points to the path.
-
-    # Arguments
-    - `candidate_point::Point{2, Float64}`: The start of the line.
-    - `target_point::Union{Nothing, Point{2, Float64}}`: The end of the line.
-    - `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-    - `ignore_exclusion_indices::Vector{Int}`: The indices of the exclusion polygons to disregard for crossings - the polygons associated with candidate and target points.
-    """
-    function process_point(
-        candidate_point::Point{2, Float64},
-        target_point::Union{Nothing, Point{2, Float64}},
-        exclusions::DataFrame,
-        ignore_exclusion_indices::Vector{Int}
+    graph, idx_to_point, initial_point_idx, final_point_idx = build_graph(
+        points_from,
+        points_to,
+        exclusions,
+        iszero(final_exclusion_idx) ? nothing : exclusions[final_exclusion_idx,:geometry],
+        initial_point,
+        final_point
     )
-        if target_point !== nothing
-            new_vertices, new_exclusion_idx = HierarchicalRouting.find_widest_points(candidate_point, target_point, exclusions, ignore_exclusions_flag ? ignore_exclusion_indices : [0])
 
-            if target_point in new_vertices
-                push!(parent_points, candidate_point)
-                push!(points, target_point)
-                push!(exclusion_idx, ignore_exclusion_indices[1])
-                return
-            end
+    path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
+    dist = sum(graph.weights[p.src, p.dst] for p in path)
 
-            for intermediate_point in new_vertices
-                if intermediate_point !== nothing && intermediate_point !== target_point
-                    push!(parent_points, candidate_point)
-                    push!(points, intermediate_point)
-                    push!(exclusion_idx, new_exclusion_idx)
+    linestring_path = [LineString([idx_to_point[segment.src], idx_to_point[segment.dst]]) for segment in path]
+
+    return dist, linestring_path
+end
+
+"""
+    point_in_convexhull(
+        point::Point{2, Float64},
+        exclusions::DataFrame
+    )::Int
+
+Check if a point is within a convex hull of exclusion zones.
+
+# Arguments
+- `point::Point{2, Float64}`: Point to check.
+- `exclusions::DataFrame`: Exclusion zones.
+
+# Returns
+- Index of exclusion zone if point is within a convex hull, 0 otherwise.
+"""
+function point_in_convexhull(
+    point::Point{2, Float64},
+    exclusions::DataFrame
+)::Int
+    point_ag = AG.createpoint(point[1], point[2])
+    convex_exclusions_ag = AG.convexhull.(exclusions.geometry)
+
+    point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [point_ag])
+
+    # If point is within an exclusion zone, add all polygon vertices to graph
+    # ? Consider cases where point is within the convex hull of multiple polygons
+    # findall(final_point_in_exclusion_zone)
+    exclusion_index = findfirst(point_in_exclusion_zone)
+
+    return isnothing(exclusion_index) ? 0 : exclusion_index
+end
+
+"""
+    build_network!(
+        points_from::Vector{Point{2, Float64}},
+        points_to::Vector{Point{2, Float64}},
+        exclusion_idxs::Vector{Int},
+        current_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusions::DataFrame,
+        current_exclusion_idx::Int,
+        final_exclusion_idx::Int
+    )
+
+Build a network of points to connect to each other.
+Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
+"""
+function build_network!(
+    points_from::Vector{Point{2, Float64}},
+    points_to::Vector{Point{2, Float64}},
+    exclusion_idxs::Vector{Int},
+    current_point::Point{2, Float64},
+    final_point::Point{2, Float64},
+    exclusions::DataFrame,
+    current_exclusion_idx::Int,
+    final_exclusion_idx::Int
+)
+
+    if current_point == final_point # || (current_exclusion_idx == final_exclusion_idx && !isnothing(current_exclusion_idx))
+        return
+    end
+
+    candidates, next_exclusion_idxs = HierarchicalRouting.find_widest_points(
+        current_point,
+        final_point,
+        exclusions
+    )
+
+    for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
+
+        if isnothing(vertex) || vertex == current_point
+            continue
+        end
+
+        # If edge already exists in network, skip
+        if (current_point, vertex) ∈ zip(points_from, points_to)
+            continue
+        end
+
+        # Record new point/edge
+        push!(points_from, current_point)
+        push!(points_to, vertex)
+        push!(exclusion_idxs, next_exclusion_idx)
+
+        # If verticex already visited/explored, skip
+        # If final exclusion zone reached, vertices added to graph later in build_graph()
+        if vertex ∈ points_from ||
+            (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
+            continue
+        end
+
+        # Continue building network from this vertex to final point
+        build_network!(
+            points_from,
+            points_to,
+            exclusion_idxs,
+            vertex,
+            final_point,
+            exclusions,
+            next_exclusion_idx,
+            final_exclusion_idx
+        )
+    end
+    # TODO: check if path from current_point to next/intermediate point is feasible (no intersecting polygons in between)
+
+end
+
+"""
+    build_graph(
+        points_from::Vector{Point{2, Float64}},
+        points_to::Vector{Point{2, Float64}},
+        exclusions::DataFrame,
+        final_polygon::Union{Nothing, AG.IGeometry},
+        initial_point::Point{2, Float64},
+        final_point::Point{2, Float64}
+    )
+
+Build a graph network from a set of points.
+If polygon is provided, connect it to visible points in graph and visible vertices.
+
+# Arguments
+- `points_from::Vector{Point{2, Float64}}`: Vector of points to connect from.
+- `points_to::Vector{Point{2, Float64}}`: Vector of points to connect to.
+- `exclusions::DataFrame`: DataFrame containing exclusion zones.
+- `polygon::Union{Nothing, AG.IGeometry}`: Polygon to connect to.
+- `initial_point::Point{2, Float64}`: Initial point to connect from.
+- `final_point::Point{2, Float64}`: Final point to connect to.
+
+# Returns
+- Graph object with edges connecting points.
+- Vector of unique points.
+- Index of initial point. Used in a_star to specify starting point.
+- Index of final point. Used in a_star to specify target point.
+"""
+function build_graph(
+    points_from::Vector{Point{2, Float64}},
+    points_to::Vector{Point{2, Float64}},
+    exclusions::DataFrame,
+    final_polygon::Union{Nothing, AG.IGeometry},
+    initial_point::Point{2, Float64},
+    final_point::Point{2, Float64}
+)
+    is_polygon = !isnothing(final_polygon)
+
+    poly_vertices = is_polygon ?
+        collect_polygon_vertices(final_polygon) :
+        Point{2, Float64}[]
+
+    # Collect connected points from network
+    chain_points = [Point{2,Float64}(p[1], p[2])
+        for p in unique(vcat(
+            points_from, points_to, [final_point]
+        ))
+    ]
+    all_points = vcat(chain_points, poly_vertices)
+    unique_points = unique(all_points)
+    n_points = length(unique_points)
+
+    # Create the graph with one vertex per unique point.
+    graph = SimpleWeightedGraph(n_points)
+
+    # Map points to indices
+    pt_to_idx = Dict{Point{2, Float64}, Int}(unique_points .=> collect(1:n_points))
+
+    # Add candidate (chain) edges.
+    for (p,q) in zip(points_from, points_to)
+        add_edge!(graph, pt_to_idx[p], pt_to_idx[q], euclidean(p, q))
+    end
+
+    # Add polygon edges if a polygon was provided.
+    if is_polygon
+        n_vertices = length(poly_vertices)
+        for i in 1:n_vertices
+            p = poly_vertices[i]
+            q = poly_vertices[mod1(i + 1, n_vertices)]
+
+            # Connect adjacent polygon vertices, and wrap around.
+            i_idx = pt_to_idx[p]
+            j_idx = pt_to_idx[q]
+            add_edge!(graph, i_idx, j_idx, euclidean(p, q))
+
+            # connect to visible points in the graph
+            for point in chain_points
+                if is_visible(p, point, exclusions)
+                    j_idx = pt_to_idx[point]
+                    add_edge!(graph, i_idx, j_idx, euclidean(p, point))
                 end
             end
         end
     end
 
-    while current_node_idx <= length(points)
-        current_point = points[current_node_idx]
-        if current_point == final_point || current_point in points[1:current_node_idx - 1] || exclusion_idx[current_node_idx] == final_exclusion_idx
-            current_node_idx += 1
-            continue
-        end
-
-        # Find edge points of next intersecting exclusion polygon, and polygon index
-        vertices, current_exclusion_idx = HierarchicalRouting.find_widest_points(current_point, final_point, exclusions, ignore_exclusions_flag ? [exclusion_idx[current_node_idx]] : [0])
-
-        # TODO: check if path from current_point to (left_point, right_point) is feasible (no intersecting polygons in between)
-        process_point.(
-            Ref(current_point),
-            vertices,
-            Ref(exclusions),
-            Ref([current_exclusion_idx, exclusion_idx[current_node_idx]])
-        )
-
-        current_node_idx += 1
-    end
-
-    g, point_to_idx, idx_to_point = build_graph(
-        points,
-        parent_points,
-        isnothing(final_exclusion_idx) ? nothing : exclusions[final_exclusion_idx,:geometry],
-        final_point
-    )
-
-    path = a_star(g, 1, point_to_idx[final_point], g.weights)
-    dist = sum(g.weights[p.src, p.dst] for p in path)
-
-    return dist, (idx_to_point, path)
+    return graph, unique_points, pt_to_idx[initial_point], pt_to_idx[final_point]
 end
 
-"""
-    build_graph(pts::Vector{Point{2, Float64}}, exclusions::DataFrame)::SimpleWeightedGraph{Int64, Float64}
+function collect_polygon_vertices(polygon::AG.IGeometry)
+    exterior_ring = AG.getgeom(polygon, 0)
+    n_pts = AG.ngeom(exterior_ring)
 
-Construct a simple weighted graph between given points that do not intersect exclusions.
+    vertices = AG.getpoint.([exterior_ring], 0:n_pts-1)
+    points_x, points_y = getindex.(vertices, 1), getindex.(vertices, 2)
 
-# Arguments
-- `points::Vector{Point{2, Float64}`: A vector of points respresenting ordered end points.
-- `parent_points::Vector{Point{2, Float64}`: A vector of points representing ordered start points.
-- `polygon` : Polygon provided if it's convex hull contains final point.
-    Include all vertices of exclusion polygon in graph.
-- `final_point` : Include final point in graph.
-    Provided if final point is within the convex hull of an exclusion zone.
+    # convex_hull = AG.convexhull(polygon)
+    # # Select points that are either outside or touching the convex hull
+    # points_ag = AG.createpoint.(points_x, points_y)
+    # points_outside_convex_hull = .!AG.contains.([convex_hull], points_ag)
+    # points_touching_convex_hull = AG.touches.([convex_hull], points_ag)
+    # target_points_mask::BitVector = points_outside_convex_hull .|| points_touching_convex_hull
+    # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
+    # n_pts = length(poly_vertices)
 
-# Returns
-- `g::SimpleWeightedGraph{Int64, Float64}`: A simple weighted graph of all points/edges.
-- `point_to_idx::Dict{Point{2, Float64}, Int64}`: A dictionary mapping points to indices.
-- `idx_to_point::Dict{Int64, Point{2, Float64}`: A dictionary mapping indices to points.
-"""
-function build_graph(
-    points::Vector{Point{2, Float64}},
-    parent_points::Vector{Point{2, Float64}},
-    polygon,
-    final_point
-    )
-    # Dictionaries to map unique points and their indices
-    point_to_idx = Dict{Point{2, Float64}, Int64}()
-    idx_to_point = Dict{Int64, Point{2, Float64}}()
-    idx_counter = 0
-
-    for pt in points
-        if !haskey(point_to_idx, pt)
-            idx_counter += 1
-            point_to_idx[pt] = idx_counter
-            idx_to_point[idx_counter] = pt
-        end
-    end
-
-    poly_vertices = []
-    n_pts = 0
-    if !isnothing(polygon)
-        # Add all polygon vertices/edges to graph
-        exterior_ring = AG.getgeom(polygon, 0)
-        n_pts = AG.ngeom(exterior_ring)
-        poly_vertices = [
-            Point{2,Float64}(
-                AG.getpoint(exterior_ring, i)[1],
-                AG.getpoint(exterior_ring, i)[2]
-            ) for i in 0:n_pts-1
-        ]
-
-        for v in poly_vertices
-            if !haskey(point_to_idx, v)
-                idx_counter += 1
-                point_to_idx[v] = idx_counter
-                idx_to_point[idx_counter] = v
-            end
-        end
-
-        # Ensure final_point is in dictionaries
-        if !haskey(point_to_idx, final_point)
-            idx_counter += 1
-            point_to_idx[final_point] = idx_counter
-            idx_to_point[idx_counter] = final_point
-        end
-    end
-
-    g = SimpleWeightedGraph(idx_counter)
-
-    # Add edges between points & parents (points[1] has no parent)
-    for i in 2:length(points)
-        pt_i = points[i]
-        parent_pt = parent_points[i]
-
-        idx_pt = point_to_idx[pt_i]
-        idx_parent = point_to_idx[parent_pt]
-
-        add_edge!(g, idx_parent, idx_pt, euclidean(pt_i, parent_pt)) # haversine
-    end
-
-    # If `polygon`: Add edges between polygon vertices and final point if is_visible
-    if !isnothing(polygon)
-        final_pt_idx = point_to_idx[final_point]
-        for i in 1:n_pts
-            pt_i = poly_vertices[i]
-            idx_i = point_to_idx[pt_i]
-
-            # Connect adjacent vertex (wrapping around)
-            j = (i % n_pts) + 1
-
-            pt_j = poly_vertices[j]
-            idx_j = point_to_idx[pt_j]
-
-            add_edge!(g, idx_i, idx_j, euclidean(pt_i, pt_j))
-
-            # Add edge between polygon vertex and final_point if is_visible
-            if is_visible(pt_i, final_point, polygon)
-                add_edge!(g, idx_i, final_pt_idx, euclidean(pt_i, final_point))
-            end
-        end
-    end
-
-    return g, point_to_idx, idx_to_point
+    return Point{2, Float64}.(points_x, points_y)
 end

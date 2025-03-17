@@ -2,12 +2,9 @@
 """
     initial_solution(problem::Problem)
 
-Generate an initial solution to the problem
-    for mothership
-        using the nearest neighbour heuristic, and then
-        improving the solution using the 2-opt heuristic;
-    for tenders
-        using the sequential nearest neighbour heuristic.
+Generate an initial solution to the problem for mothership using the nearest neighbour
+heuristic, and then improving the solution using the 2-opt heuristic; for tenders using
+the sequential nearest neighbour heuristic.
 
 # Arguments
 - `problem::Problem`: Problem instance to solve
@@ -21,12 +18,19 @@ function initial_solution(problem::Problem)
     clusters, cluster_centroids_df = process_problem(problem)
 
     # Nearest Neighbour to generate initial mothership route & matrix
-    ms_soln_NN = nearest_neighbour(cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion)
+    ms_soln_NN = nearest_neighbour(
+        cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
+    )
 
     # 2-opt to improve the NN soln
-    ms_soln_2opt = two_opt(ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion)
+    ms_soln_2opt = two_opt(
+        ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
+    )
 
-    clust_seq = [i for i in ms_soln_2opt.cluster_sequence.id if i!==0 && i <= length(clusters)]
+    clust_seq = filter(
+        i -> i != 0 && i <= length(clusters),
+        ms_soln_2opt.cluster_sequence.id
+    )
     tender_soln = HierarchicalRouting.TenderSolution[]
 
     for (i, cluster_id) in enumerate(clust_seq)

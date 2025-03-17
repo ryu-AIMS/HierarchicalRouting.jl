@@ -86,7 +86,8 @@ function load_problem(target_scenario::String="")
         joinpath(output_dir, "ms_exclusion.gpkg"),
         joinpath(output_dir, "ms_exclusion.tif")
     )
-    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |> unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
+    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |>
+        unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
 
     t_exclusions = process_exclusions(
         env_data["bathy"].rast_file,
@@ -97,15 +98,19 @@ function load_problem(target_scenario::String="")
         joinpath(output_dir, "t_exclusion.gpkg"),
         joinpath(output_dir, "t_exclusion.tif")
     )
-    t_exclusions = unionize_overlaps!(
-        buffer_exclusions!(
-            simplify_exclusions!(
-                t_exclusions,
-                min_area=20,
-                simplify_tol=1
-            ),
-            buffer_dist=0.1
-        )
+    t_exclusions = simplify_exclusions!(
+        unionize_overlaps!(
+            buffer_exclusions!(
+                simplify_exclusions!(
+                    t_exclusions,
+                    min_area=20,
+                    simplify_tol=2
+                ),
+                buffer_dist=0.1
+            )
+        ),
+        min_area=20,
+        simplify_tol=2
     )
 
     mothership = Vessel(exclusion = ms_exclusions, weighting = config["parameters"]["weight_ms"])

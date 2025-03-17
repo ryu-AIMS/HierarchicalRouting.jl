@@ -280,7 +280,11 @@ function linestrings!(
     # Plot LineStrings
     for (idx, line_string) in enumerate(line_strings)
         line_color = color[idx]
-        points = [Point(p[1], p[2]) for l in line_string for p in l.points]
+
+        # If line_string is a single LineString, iterate over its points directly.
+        points = hasproperty(line_string, :points) ?
+                 [Point(p[1], p[2]) for p in line_string.points] :
+                 [Point(p[1], p[2]) for l in line_string for p in l.points]
         lines!(ax, points, color = line_color, linewidth = 2)
     end
 
