@@ -124,7 +124,7 @@ function load_problem(target_scenario::String="")
                     min_area=1E-7,
                     simplify_tol=5E-5
                 ),
-                buffer_dist=0#.1
+                buffer_dist=0.0
             )
         ),
         min_area=1E-7,
