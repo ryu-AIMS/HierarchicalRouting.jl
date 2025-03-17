@@ -38,7 +38,7 @@ function process_targets(
 )
     if endswith(suitable_targets_all_path, ".geojson")
         suitable_targets_poly = GDF.read(suitable_targets_all_path)
-        suitable_targets_centroids = [AG.centroid(polygon) for polygon in suitable_targets_poly.geometry]
+        suitable_targets_centroids = AG.centroid.(suitable_targets_poly.geometry)
         suitable_targets_centroids_pts = [AG.getpoint(centroid, 0)[1:2] for centroid in suitable_targets_centroids]
 
         resolution = 0.0001
