@@ -39,6 +39,36 @@ function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Float64=0.0)::Da
 end
 
 """
+    linestring_to_polygon(
+        linestring::AG.IGeometry{AG.wkbLineString}
+    )::AG.IGeometry{AG.wkbPolygon}
+
+Convert a LineString to a Polygon.
+
+# Arguments
+- `linestring`: The LineString to convert.
+
+# Returns
+The converted Polygon.
+"""
+function linestring_to_polygon(
+    linestring::AG.IGeometry{AG.wkbLineString}
+)::AG.IGeometry{AG.wkbPolygon}
+    num_points::Int = AG.ngeom(linestring)
+    points::Vector{NTuple{2, Float64}} = collect(
+        zip(
+            AG.getx.([linestring], 0:num_points-1),
+            AG.gety.([linestring], 0:num_points-1)
+        )
+    )
+
+    # Close the LineString if open
+    points = points[1] != points[end] ? vcat(points, points[1]) : points
+
+    return AG.createpolygon([points])
+end
+
+"""
     unionize_overlaps(exclusions::DataFrame)::DataFrame
 
 Unionize overlapping exclusion zones.
@@ -49,29 +79,6 @@ The DataFrame containing exclusion zones.
 function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     geometries = exclusions.geometry
     n = length(geometries)
-
-    """
-        linestring_to_polygon(linestring::AG.IGeometry{AG.wkbLineString})::AG.IGeometry{AG.wkbPolygon}
-
-    Convert a LineString to a Polygon.
-
-    # Arguments
-    - `linestring::AG.IGeometry{AG.wkbLineString}`: The LineString to convert.
-
-    # Returns
-    - `polygon::AG.IGeometry{AG.wkbPolygon}`: The converted Polygon.
-    """
-    function linestring_to_polygon(linestring::AG.IGeometry{AG.wkbLineString})
-        num_points = AG.ngeom(linestring)
-        points = [(AG.getx(linestring, i), AG.gety(linestring, i)) for i in 0:num_points-1]
-
-        # Close the LineString if open
-        if points[1] != points[end]
-            push!(points, points[1])
-        end
-
-        return AG.createpolygon([points])
-    end
 
     for i in 1:n
         geom1 = geometries[i]
