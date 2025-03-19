@@ -118,7 +118,7 @@ end
 
 Compute the critical path cost of the solution.
 This is the longest path for a return trip, quantified as the sum of:
-- the sum (`cluster_cost`) of the longest path within each cluster (`cluster_cost_each`),
+- the sum (`cluster_cost_total`) of the longest path within each cluster (`cluster_cost_each`),
     i.e., the sum of the maximum(sortie, mothership) cost within each cluster, and
 - the sum of the mothership cost between clusters: `tow_cost`.
 
@@ -136,13 +136,14 @@ function critical_path(
 
     # Within clusters
     longest_sortie_cost = maximum.(tender_clust_dist.(soln.tenders)) .* vessel_weightings[2]
-    mothership_sub_clust_cost = mothership_dist_within_clusts(soln.mothership.route) * vessel_weightings[1]
+    mothership_sub_clust_cost = mothership_dist_within_clusts(soln.mothership.route) *
+        vessel_weightings[1]
 
     cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
-    cluster_cost = sum(cluster_cost_each)
+    cluster_cost_total = sum(cluster_cost_each)
 
     # Between clusters
-    tow_cost = (mothership_dist_between_clusts(soln.mothership.route) * vessel_weightings[1])
+    tow_cost = mothership_dist_between_clusts(soln.mothership.route) * vessel_weightings[1]
 
-    return cluster_cost + tow_cost
+    return cluster_cost_total + tow_cost
 end

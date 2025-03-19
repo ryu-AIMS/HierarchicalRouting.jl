@@ -88,7 +88,7 @@ Saved in the output directory, using the EPSG code from the config file.
 - `exclusions_ms::DataFrame`: Mothership exclusions.
 - `exclusions_tenders::DataFrame`: Tenders exclusions.
 """
-function export_exclusions(problem::HierarchicalRouting.Problem)
+function export_exclusions(problem::Problem)
     exclusions_ms = problem.mothership.exclusion
     exclusions_tenders = problem.tenders.exclusion
 
