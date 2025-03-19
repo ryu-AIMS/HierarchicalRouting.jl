@@ -1,17 +1,17 @@
 
 """
-    return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})
+    return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
 
 Calculate the total distance of a route starting from index 1, and returning to index 1.
 
 # Arguments
-- `route` : Vector of cluster indices.
-- `dist_matrix` : Distance matrix between clusters.
+- `route`: Vector of cluster indices.
+- `dist_matrix`: Distance matrix between clusters.
 
 # Returns
 Total distance of the return route.
 """
-function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})
+function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
     total_dist = 0.0
     n = length(route)  # Adjust for duplicate last point as the start point)
 
@@ -22,7 +22,7 @@ function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64
 end
 
 """
-    sortie_cost(
+    sortie_dist(
         sortie::Vector{Vector{Int64}},
         dist_matrix::Matrix{Float64}
     )::Vector{Float64}
@@ -30,13 +30,13 @@ end
 Calculate the total distance of all sorties.
 
 # Arguments
-- `sorties` : Vector of Vector of node indices.
-- `dist_matrix` : Distance matrix between nodes.
+- `sorties`: Vector of Vector of node indices.
+- `dist_matrix`: Distance matrix between nodes.
 
 # Returns
 Vector of total distance of each sortie.
 """
-function sortie_cost(
+function sortie_dist(
     sorties::Vector{Vector{Int64}},
     dist_matrix::Matrix{Float64}
 )::Vector{Float64}
@@ -58,7 +58,7 @@ end
 Compute the cost of each sortie in a cluster.
 
 # Arguments
-- `tenders::TenderSolution` : Tender solution.
+- `tenders`: Tender solution.
 
 # Returns
 The cost of each sortie in the cluster.
@@ -81,53 +81,58 @@ function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
 end
 
 """
-    mothership_dist_between_clusts(route::Route)
+    mothership_dist_between_clusts(route::Route)::Float64
 
 Compute the cost of the mothership route between clusters, not including across each cluster.
 
 # Arguments
-- `route::Route` : Full mothership route between waypoints.
+- `route`: Full mothership route between waypoints.
 
 # Returns
 - The sum of (haversine) mothership distances between clusters.
 """
-function mothership_dist_between_clusts(route::Route)
+function mothership_dist_between_clusts(route::Route)::Float64
     return sum(haversine(route.nodes[i], route.nodes[i+1]) for i in 1:2:(length(route.nodes)))
 end
 
 """
-    mothership_dist_within_clusts(route::Route)
+    mothership_dist_within_clusts(route::Route)::Vector{Float64}
 
 Compute the cost of the mothership within each cluster, not including between clusters.
 
 # Arguments
-- `route::Route` : Full mothership route between waypoints.
+- `route`: Full mothership route between waypoints.
 
 # Returns
-- The sum of (haversine) mothership distances within each cluster.
+- The (haversine) mothership distance within each cluster.
 """
-function mothership_dist_within_clusts(route::Route)
+function mothership_dist_within_clusts(route::Route)::Vector{Float64}
     return [haversine(route.nodes[i], route.nodes[i+1]) for i in 2:2:(length(route.nodes)-1)]
 end
 
 """
-    critical_path(soln::MSTSolution, vessel_weightings::NTuple{2, Float64}=(1.0, 1.0))
+    critical_path(
+        soln::MSTSolution,
+        vessel_weightings::NTuple{2, Float64}=(1.0, 1.0)
+    )::Float64
 
 Compute the critical path cost of the solution.
 This is the longest path for a return trip, quantified as the sum of:
-    - the longest path within each cluster - `cluster_cost_each`,
-        i.e., the maximum(sortie, mothership) cost within each cluster
-        summed for `cluster_cost`, and
-    - the sum of the mothership cost between clusters - `tow_cost`.
+- the sum (`cluster_cost`) of the longest path within each cluster (`cluster_cost_each`),
+    i.e., the sum of the maximum(sortie, mothership) cost within each cluster, and
+- the sum of the mothership cost between clusters: `tow_cost`.
 
 # Arguments
-- `soln::MSTSolution` : The solution to evaluate.
-- `vessel_weightings::NTuple{2, Float64}` : The weightings for mothership and sortie costs.
+- `soln`: The solution to evaluate.
+- `vessel_weightings`: The weightings for mothership and sortie costs.
 
 # Returns
 The total (critical path) cost of the solution.
 """
-function critical_path(soln::MSTSolution, vessel_weightings::NTuple{2, Float64}=(1.0, 1.0))
+function critical_path(
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2, Float64}=(1.0, 1.0)
+)::Float64
 
     # Within clusters
     longest_sortie_cost = maximum.(tender_clust_dist.(soln.tenders)) .* vessel_weightings[2]

@@ -13,10 +13,10 @@ If these intermediate vertices are not visible, the function is called recursive
 the widest visible vertices.
 
 # Arguments
-- `current_point::Point{2, Float64}`: The current point marking start of line.
-- `final_point::Point{2, Float64}`: The final point marking end of line.
-- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `visited_exclusion_idxs::Vector{Int}`: Already-crossed exclusion zone indices.
+- `current_point`: The current point marking start of line.
+- `final_point`: The final point marking end of line.
+- `exclusions`: The dataframe containing the polygon exclusions.
+- `visited_exclusion_idxs`: Already-crossed exclusion zone indices.
 
 # Returns
 - A vector of points representing the widest visible points on each side of the line.
@@ -75,18 +75,22 @@ function find_widest_points(
 end
 
 """
-    vector_angle(base_vector::Vector{Float64}, candidate_vector::Vector{Float64})::Float64
+    vector_angle(
+        base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
+    )::Float64
 
 Calculate the signed angle (radians) of a candidate vector relative to a base vector.
 
 # Arguments
-- `base_vector::Vector{Float64}`: The base vector.
-- `candidate_vector::Vector{Float64}`: The candidate vector.
+- `base_vector`: The base vector.
+- `candidate_vector`: The candidate vector.
 
 # Returns
 - The signed angle between the two vectors in radians.
 """
-function vector_angle(base_vector::Vector{Float64}, candidate_vector::Vector{Float64})
+function vector_angle(
+    base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
+)::Float64
     # Cross product tells us the direction of the angle
     cross = base_vector[1]*candidate_vector[2] - base_vector[2]*candidate_vector[1]
     # Dot product tells us the magnitude of the angle
@@ -99,15 +103,15 @@ end
     search_widest_points(
         current_point::Point{2, Float64},
         final_point::Point{2, Float64},
-        exterior_ring,
-        n_pts,
+        exterior_ring::AG.IGeometry{AG.wkbLineString},
+        n_pts::Int32,
     )::NTuple{2, Union{Point{2, Float64}, Nothing}}
 
 Search for the widest visible vertices on each side of the base vector.
 
 # Arguments
-- `current_point::Point{2, Float64}`: The current point marking start of line.
-- `final_point::Point{2, Float64}`: The final point marking end of line.
+- `current_point`: The current point marking start of line.
+- `final_point`: The final point marking end of line.
 - `exterior_ring`: The exterior ring of the polygon.
 - `n_pts`: The number of vertices in the polygon.
 
@@ -117,8 +121,8 @@ The widest visible polygon vertex on each (L/R) side of the base vector/line.
 function search_widest_points(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
-    exterior_ring,
-    n_pts,
+    exterior_ring::AG.IGeometry{AG.wkbLineString},
+    n_pts::Int32,
 )::NTuple{2, Union{Point{2, Float64}, Nothing}}
     max_angle_L, max_angle_R = 0.0, 0.0
     furthest_vert_L, furthest_vert_R = nothing, nothing
@@ -161,30 +165,47 @@ end
         final_point::Point{2, Float64},
         exclusions::DataFrame,
         visited_exclusion_idxs::Vector{Int}
-    )
+    )::Tuple{
+        Tuple{
+            Union{AG.IGeometry{AG.wkbPolygon}, Nothing},
+            Union{AG.IGeometry{AG.wkbLineString}, Nothing},
+            Int32
+        },
+        Int64
+    }
 
 Find polygons that intersect with a line segment.
 
 # Arguments
-- `current_point::Point{2, Float64}`: The current point marking start of line.
-- `final_point::Point{2, Float64}`: The final point marking end of line.
-- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `visited_exclusion_idxs::Vector{Int}`: Indices of exclusion zones already crossed.
+- `current_point`: The current point marking start of line.
+- `final_point`: The final point marking end of line.
+- `exclusions`: The dataframe containing the polygon exclusions.
+- `visited_exclusion_idxs`: Indices of exclusion zones already crossed.
 
 # Returns
-- `closest_polygon`: The polygon, LineString and number of vertices of the first/closest
-    polygon intersecting with the line segment.
-- `polygon_idx`: The index of the(first) polygon crossed.
+- `closest_polygon`: The
+    - `geometry`: polygon geometry,
+    - `exterior_ring`: LineString of the polygon's exterior, and
+    - `n_pts`: number of vertices in the polygon,\n
+    of the first/closest polygon intersecting with the line segment.
+- `polygon_idx`: The index of the (first) polygon crossed.
 """
 function closest_crossed_polygon(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
     visited_exclusion_idxs::Vector{Int}
-)
+)::Tuple{
+    Tuple{
+        Union{AG.IGeometry{AG.wkbPolygon}, Nothing},
+        Union{AG.IGeometry{AG.wkbLineString}, Nothing},
+        Int32
+    },
+    Int64
+}
     closest_polygon = (nothing, nothing, 0)
     min_dist = Inf
-    polygon_idx = nothing
+    polygon_idx = 0
 
     line = AG.createlinestring(
         [current_point[1], final_point[1]],
@@ -260,24 +281,32 @@ end
     is_visible(
         current_point::Point{2, Float64},
         final_point::Point{2, Float64},
-        exclusion_poly
+        exclusion_poly::AG.IGeometry
+    )::Bool
+    is_visible(
+        current_point::Point{2, Float64},
+        final_point::Point{2, Float64},
+        exclusions::DataFrame,
+        current_exclusions_idx::Vector{Int} = [0]
     )::Bool
 
-Check if a point is visible from another point, given a single exclusion polygon.
-    i.e. no exclusion zone intersects the straight line between them.
+Check if a point is visible from another point, given a vector of, or single exclusion
+    polygon/s. i.e. no exclusion zone intersects the straight line between them.
 
 # Arguments
-- `current_point::Point{2, Float64}`: The current point marking start of line.
-- `final_point::Point{2, Float64}`: The final point marking end of line.
+- `current_point`: The current point marking start of line.
+- `final_point`: The final point marking end of line.
 - `exclusion_poly`: The exclusion polygon.
+- `exclusions`: The dataframe containing the polygon exclusions.
+- `current_exclusions_idx`: The indices of the exclusion zones that have already been crossed.
 
 # Returns
-- `Bool`: True if the line between the two points is visible, false otherwise.
+`true` if the line between the two points is visible, `false` otherwise.
 """
 function is_visible(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
-    exclusion_poly
+    exclusion_poly::AG.IGeometry{AG.wkbPolygon}
 )::Bool
 
     line_to_point = AG.createlinestring([
@@ -289,27 +318,6 @@ function is_visible(
     return !AG.intersects(exclusion_poly, line_to_point) ||
         AG.touches(exclusion_poly, line_to_point)
 end
-
-"""
-    is_visible(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
-    exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int} = [0]
-    )::Bool
-
-Check if a point is visible from another point, considering a vector of polygons.
-    i.e. no exclusion zone intersects the straight line between them.
-
-# Arguments
-- `current_point::Point{2, Float64}`: The current point marking start of line.
-- `final_point::Point{2, Float64}`: The final point marking end of line.
-- `exclusions::DataFrame`: The dataframe containing the polygon exclusions.
-- `current_exclusions_idx::Vector{Int}`: The indices of the exclusion zones that have already been crossed.
-
-# Returns
-- `Bool`: True if the line between the two points is visible, false otherwise.
-"""
 function is_visible(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},

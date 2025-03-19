@@ -1,5 +1,5 @@
 """
-    target_threshold(targets::Raster, threshold::Float64)
+    target_threshold(targets::Raster, threshold::Float64)::Raster
 
 Mask the target raster based on the specified threshold value.
 i.e. set all values below the threshold to 0.
@@ -11,7 +11,7 @@ i.e. set all values below the threshold to 0.
 # Returns
 - A masked raster.
 """
-function target_threshold(targets::Raster, threshold::Float64)
+function target_threshold(targets::Raster, threshold::Float64)::Raster
     # TODO: add min/max argument flag, or use a range
     # TODO: include masks for other environmental constraints
     masked_raster = targets .* (targets .>= threshold)
