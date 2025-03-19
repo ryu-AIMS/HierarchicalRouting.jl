@@ -9,12 +9,12 @@ Create matrices of distances and paths for feasible routes between waypoints acc
     (avoiding) environmental constraints.
 
 # Arguments
-- `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
-- `exclusions::DataFrame` :Exclusion zones representing vehicle's environmental constraints.
+- `nodes`: Vector of lat long tuples.
+- `exclusions`: Exclusion zones representing vehicle's environmental constraints.
 
 # Returns
-- `dist_matrix::Matrix{Float64}` : A matrix of distances between waypoints.
-- `path_matrix::Matrix{Vector{LineString{2, Float64}}}` : A vector of paths between
+- `dist_matrix`: A matrix of distances between waypoints.
+- `path_matrix`: A vector of paths between
     waypoints.
 """
 function get_feasible_matrix(
@@ -52,24 +52,27 @@ function get_feasible_matrix(
 end
 
 """
-    get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+    get_feasible_vector(
+        nodes::Vector{Point{2, Float64}}, exclusions::DataFrame
+    )::Tuple{Vector{Float64}, Vector{Vector{LineString{2, Float64}}}}
 
-Create vectors of:
+Create vectors of feasible:
 - distances, and
-- feasible paths
-
+- paths
 between sequential nodes, avoiding exclusions.
 
 # Arguments
-- `nodes::Vector{Point{2, Float64}}` : Vector of lat long tuples.
-- `exclusions::DataFrame` : DataFrame containing exclusion zones representing given
-vehicle's cumulative environmental constraints.
+- `nodes`: Vector of lat long tuples.
+- `exclusions`: DataFrame containing exclusion zones representing given vehicle's cumulative
+environmental constraints.
 
 # Returns
-- `dist_vector::Vector{Float64}` : A vector of distances between waypoints.
-- `path_vector` : A vector of paths between waypoints, represented as LineStrings.
+- `dist_vector`: A vector of distances between waypoints.
+- `path_vector`: A vector of paths between waypoints, represented as LineStrings.
 """
-function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataFrame)
+function get_feasible_vector(
+    nodes::Vector{Point{2, Float64}}, exclusions::DataFrame
+)::Tuple{Vector{Float64}, Vector{Vector{LineString{2, Float64}}}}
     n_points = length(nodes)-1
     dist_vector = zeros(Float64, n_points)
     path_vector = fill(Vector{LineString{2, Float64}}(), n_points)
@@ -94,24 +97,24 @@ function get_feasible_vector(nodes::Vector{Point{2, Float64}}, exclusions::DataF
 end
 
 """
-    point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)
-    point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)
+    point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
+    point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
 
 Check if a point is within an exclusion zone.
 
 # Arguments
-- `point::Point{2, Float64}`: Point to check.
+- `point`: Point to check.
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
-- `exclusion::AG.IGeometry`: One exclusion zone polygon from exclusions DataFrame.
+- `exclusion::AG.IGeometry`: One exclusion zone polygon/geometry from a DataFrame.
 
 # Returns
 - `true` if point is within an exclusion zone, `false` otherwise.
 """
-function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)
+function point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
     point_ag = AG.createpoint(point[1], point[2])
     return any(AG.contains.(exclusions.geometry, [point_ag]))
 end
-function point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)
+function point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
 return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
 end
 
@@ -129,9 +132,9 @@ start pt and any other intersecting polygons.
 - Use A* algorithm to find shortest path.
 
 # Arguments
-- `initial_point::Point{2, Float64}`: Starting point of path.
-- `final_point::Point{2, Float64}`: Ending point of path.
-- `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
+- `initial_point`: Starting point of path.
+- `final_point`: Ending point of path.
+- `exclusions`: A DataFrame containing exclusion zone polygons.
 
 # Returns
 - The distance of the shortest feasible path.
@@ -225,8 +228,8 @@ end
 Check if a point is within a convex hull of exclusion zones.
 
 # Arguments
-- `point::Point{2, Float64}`: Point to check.
-- `exclusions::DataFrame`: Exclusion zones.
+- `point`: Point to check.
+- `exclusions`: Exclusion zones.
 
 # Returns
 - Index of exclusion zone if point is within a convex hull, 0 otherwise.
@@ -258,7 +261,7 @@ end
         exclusions::DataFrame,
         current_exclusion_idx::Int,
         final_exclusion_idx::Int
-    )
+    )::Nothing
 
 Build a network of points to connect to each other.
 Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
@@ -272,7 +275,7 @@ function build_network!(
     exclusions::DataFrame,
     current_exclusion_idx::Int,
     final_exclusion_idx::Int
-)
+)::Nothing
 
     if current_point == final_point # || (current_exclusion_idx == final_exclusion_idx && !isnothing(current_exclusion_idx))
         return
@@ -331,18 +334,18 @@ end
         final_polygon::Union{Nothing, AG.IGeometry},
         initial_point::Point{2, Float64},
         final_point::Point{2, Float64}
-    )
+    )::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
 
 Build a graph network from a set of points.
 If polygon is provided, connect it to visible points in graph and visible vertices.
 
 # Arguments
-- `points_from::Vector{Point{2, Float64}}`: Vector of points to connect from.
-- `points_to::Vector{Point{2, Float64}}`: Vector of points to connect to.
-- `exclusions::DataFrame`: DataFrame containing exclusion zones.
-- `polygon::Union{Nothing, AG.IGeometry}`: Polygon to connect to.
-- `initial_point::Point{2, Float64}`: Initial point to connect from.
-- `final_point::Point{2, Float64}`: Final point to connect to.
+- `points_from`: Vector of points to connect from.
+- `points_to`: Vector of points to connect to.
+- `exclusions`: DataFrame containing exclusion zones.
+- `final_polygon`: Polygon to connect to.
+- `initial_point`: Initial point to connect from.
+- `final_point`: Final point to connect to.
 
 # Returns
 - Graph object with edges connecting points.
@@ -357,7 +360,7 @@ function build_graph(
     final_polygon::Union{Nothing, AG.IGeometry},
     initial_point::Point{2, Float64},
     final_point::Point{2, Float64}
-)
+)::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
     is_polygon = !isnothing(final_polygon)
 
     poly_vertices = is_polygon ?
@@ -410,7 +413,18 @@ function build_graph(
     return graph, unique_points, pt_to_idx[initial_point], pt_to_idx[final_point]
 end
 
-function collect_polygon_vertices(polygon::AG.IGeometry)
+"""
+    collect_polygon_vertices(polygon::AG.IGeometry)::Vector{Point{2, Float64}}
+
+Collect all vertices of a polygon.
+
+# Arguments
+- `polygon`: Polygon to collect vertices from.
+
+# Returns
+- Vector of polygon vertices.
+"""
+function collect_polygon_vertices(polygon::AG.IGeometry)::Vector{Point{2, Float64}}
     exterior_ring = AG.getgeom(polygon, 0)
     n_pts = AG.ngeom(exterior_ring)
 

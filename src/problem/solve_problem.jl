@@ -1,19 +1,19 @@
 
 """
-    initial_solution(problem::Problem)
+    initial_solution(problem::Problem)::MSTSolution
 
-Generate an initial solution to the problem for mothership using the nearest neighbour
-heuristic, and then improving the solution using the 2-opt heuristic; for tenders using
-the sequential nearest neighbour heuristic.
+Generate a solution to the problem for:
+- the mothership by using the nearest neighbour heuristic to generate an initial solution,
+    and then improving using the 2-opt heuristic, and
+-  for tenders using the sequential nearest neighbour heuristic.
 
 # Arguments
-- `problem::Problem`: Problem instance to solve
+- `problem`: Problem instance to solve
 
 # Returns
-- `soln_best::MSTSolution`: Best solution found
-- `z_best::Float64`: Best objective value found
+Best total MSTSolution found
 """
-function initial_solution(problem::Problem)
+function initial_solution(problem::Problem)::MSTSolution
     # Load problem data
     clusters::Vector{Cluster} = process_problem(problem)
 
@@ -62,24 +62,24 @@ end
         objective_function::Function,
         perturb_function::Function,
         exclusions::DataFrame = DataFrame(),
-        max_iterations::Int = 100_000,
+        max_iterations::Int = 5_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95
-    )
+    )::Tuple{MSTSolution, Float64}
 
 Improve the solution using the optimization function `opt_function`
     with the objective function `objective_function` and
     the perturbation function `perturb_function`.
 
 # Arguments
-- `soln::MSTSolution`: Initial solution to improve
-- `opt_function::Function`: Optimization function to use
-- `objective_function::Function`: Objective function to use
-- `perturb_function::Function`: Perturbation function to use
-- `exclusions::DataFrame = DataFrame()`: Exclusions DataFrame
-- `max_iterations::Int = 5_000`: Maximum number of iterations
-- `temp_init::Float64 = 500.0`: Initial temperature for simulated annealing
-- `cooling_rate::Float64 = 0.95`: Cooling rate for simulated annealing
+- `soln`: Initial solution to improve
+- `opt_function`: Optimization function to use
+- `objective_function`: Objective function to use
+- `perturb_function`: Perturbation function to use
+- `exclusions = DataFrame()`: Exclusions DataFrame
+- `max_iterations = 5_000`: Maximum number of iterations
+- `temp_init = 500.0`: Initial temperature for simulated annealing
+- `cooling_rate = 0.95`: Cooling rate for simulated annealing
 
 # Returns
 - `soln_best::MSTSolution`: Best solution found
@@ -94,7 +94,7 @@ function improve_solution(
     max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95
-)
+)::Tuple{MSTSolution, Float64}
     soln_best, z_best = opt_function(soln, objective_function, perturb_function, exclusions, max_iterations, temp_init, cooling_rate)
     return soln_best, z_best
 end

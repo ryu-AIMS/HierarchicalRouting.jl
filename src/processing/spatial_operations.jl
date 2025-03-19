@@ -2,8 +2,8 @@
 """
     filter_and_simplify_exclusions!(
         exclusions::DataFrame;
-        min_area::Float64=3E-7,
-        simplify_tol::Float64=1E-4
+        min_area::Float64=3E-5,
+        simplify_tol::Float64=1E-3
     )::DataFrame
 
 Remove small polygons and simplify geometry based on tolerance values.
@@ -16,9 +16,9 @@ Remove small polygons and simplify geometry based on tolerance values.
 """
 function filter_and_simplify_exclusions!(
     exclusions::DataFrame;
-    min_area::Float64=3E-7,
-    simplify_tol::Float64=1E-4
-    )::DataFrame
+    min_area::Float64=1E-5,
+    simplify_tol::Float64=1E-3
+)::DataFrame
     exclusions = exclusions[AG.geomarea.(exclusions.geometry) .>= min_area, :]
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
     return exclusions
@@ -44,9 +44,9 @@ end
 Unionize overlapping exclusion zones.
 
 # Arguments
-- `exclusions::DataFrame`: The DataFrame containing exclusion zones.
+The DataFrame containing exclusion zones.
 """
-function unionize_overlaps!(exclusions::DataFrame)
+function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     geometries = exclusions.geometry
     n = length(geometries)
 

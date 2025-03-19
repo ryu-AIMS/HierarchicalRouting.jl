@@ -1,42 +1,42 @@
 
 """
     process_targets(
-    clustered_targets_path::String,
-    k::Int,
-    cluster_tolerance::Real,
-    suitable_targets_all_path::String,
-    suitable_threshold::Real,
-    target_subset_path::String,
-    subset::DataFrame,
-    EPSG_code::Int
-    )
+        clustered_targets_path::String,
+        k::Int8,
+        cluster_tolerance::Float64,
+        suitable_targets_all_path::String,
+        suitable_threshold::Float64,
+        target_subset_path::String,
+        subset::DataFrame,
+        EPSG_code::Int16
+    )::Raster{Int64}
 
 Generate a clustered targets raster by reading in the suitable target location data,
 applying thresholds and cropping to a target subset, and then clustering.
 
 # Arguments
-- `clustered_targets_path::String`: The path to the clustered targets raster.
-- `k::Int`: The number of clusters.
-- `cluster_tolerance::Real`: The cluster tolerance.
-- `suitable_targets_all_path::String`: The path to the suitable targets dataset.
-- `suitable_threshold::Real`: The suitable targets threshold.
-- `target_subset_path::String`: The path to the target subset raster.
-- `subset::DataFrame`: The DataFrame containing the study area boundary.
-- `EPSG_code::Int`: The EPSG code for the study area.
+- `clustered_targets_path`: The path to the clustered targets raster.
+- `k`: The number of clusters.
+- `cluster_tolerance`: The cluster tolerance.
+- `suitable_targets_all_path`: The path to the suitable targets dataset.
+- `suitable_threshold`: The suitable targets threshold.
+- `target_subset_path`: The path to the target subset raster.
+- `subset`: The DataFrame containing the study area boundary.
+- `EPSG_code`: The EPSG code for the study area.
 
 # Returns
-A raster of clustered targets.
+The clustered targets raster, classified by cluster ID number.
 """
 function process_targets(
-    clustered_targets_path,
-    k,
-    cluster_tolerance,
-    suitable_targets_all_path,
-    suitable_threshold,
-    target_subset_path,
-    subset,
-    EPSG_code
-)
+    clustered_targets_path::String,
+    k::Int8,
+    cluster_tolerance::Float64,
+    suitable_targets_all_path::String,
+    suitable_threshold::Float64,
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int16
+)::Raster{Int64}
     if endswith(suitable_targets_all_path, ".geojson")
         suitable_targets_poly = GDF.read(suitable_targets_all_path)
         suitable_targets_centroids = AG.centroid.(suitable_targets_poly.geometry)
@@ -61,38 +61,38 @@ end
 
 """
     read_and_polygonize_exclusions(
-    bathy_fullset_path,
-    vessel_draft,
-    subset,
-    EPSG_code,
-    bathy_subset_path,
-    exclusion_gpkg_path,
-    exclusion_tif_path
-    )
+        bathy_fullset_path::String,
+        vessel_draft::Float64,
+        subset::DataFrame,
+        EPSG_code::Int16,
+        bathy_subset_path::String,
+        exclusion_gpkg_path::String,
+        exclusion_tif_path::String
+    )::DataFrame
 
 Create exclusion zones from environmental constraints.
 
 # Arguments
-- `bathy_fullset_path::String`: The path to the full bathymetry dataset.
-- `vessel_draft::Real`: The vessel draft/depth.
-- `subset::DataFrame`: The DataFrame containing the study area boundary.
-- `EPSG_code::Int`: The EPSG code for the study area.
-- `bathy_subset_path::String`: The path to the subset bathymetry dataset.
-- `exclusion_gpkg_path::String`: The path to the exclusion zones GeoPackage.
-- `exclusion_tif_path::String`: The path to the exclusion zones raster.
+- `bathy_fullset_path`: The path to the full bathymetry dataset.
+- `vessel_draft`: The vessel draft/depth.
+- `subset`: The DataFrame containing the study area boundary.
+- `EPSG_code`: The EPSG code for the study area.
+- `bathy_subset_path`: The path to the subset bathymetry dataset.
+- `exclusion_gpkg_path`: The path to the exclusion zones GeoPackage.
+- `exclusion_tif_path`: The path to the exclusion zones raster.
 
 # Returns
-- `exclusion_zones_df::DataFrame`: The DataFrame containing the exclusion zones.
+The DataFrame containing the exclusion zones.
 """
 function read_and_polygonize_exclusions(
-    bathy_fullset_path,
-    vessel_draft,
-    subset,
-    EPSG_code,
-    bathy_subset_path,
-    exclusion_gpkg_path,
-    exclusion_tif_path
-)
+    bathy_fullset_path::String,
+    vessel_draft::Float64,
+    subset::DataFrame,
+    EPSG_code::Int16,
+    bathy_subset_path::String,
+    exclusion_gpkg_path::String,
+    exclusion_tif_path::String
+)::DataFrame
     # TODO: Generalize for all available environmental constraints
     # TODO: Generalize for ms and tender vessels
     # Create exclusion zones from environmental constraints
@@ -128,11 +128,11 @@ function read_and_polygonize_exclusions(
     return exclusion_zones_df
 end
 function read_and_polygonize_exclusions(
-    bathy_fullset_path,
-    vessel_draft,
-    subset,
-    EPSG_code
-)
+    bathy_fullset_path::String,
+    vessel_draft::Float64,
+    subset::DataFrame,
+    EPSG_code::Int16
+)::DataFrame
     bathy_dataset = Raster(bathy_fullset_path; mappedcrs=EPSG(EPSG_code), lazy=true)
     bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
     exclusion_zones = create_exclusion_zones(bathy_subset, vessel_draft)
@@ -141,23 +141,23 @@ function read_and_polygonize_exclusions(
 end
 
 """
-    process_problem(problem::Problem)
+    process_problem(problem::Problem)::Vector{Cluster}
 
 Read and process problem data to generate an initial solution.
 
 # Arguments
-- `problem::Problem`: The problem data in the form of a `HierarchicalRouting::Problem` struct.
+- `problem`: The problem data.
 
 # Returns
 Vector of clustered locations.
 """
-function process_problem(problem::Problem)
+function process_problem(problem::Problem)::Vector{Cluster}
     config = TOML.parsefile(joinpath("src", ".config.toml"))
 
     suitable_threshold = config["parameters"]["suitable_threshold"]
-    k = config["parameters"]["k"]
+    k::Int8 = config["parameters"]["k"]
     cluster_tolerance = config["parameters"]["cluster_tolerance"]
-    EPSG_code = config["parameters"]["EPSG_code"]
+    EPSG_code::Int16 = config["parameters"]["EPSG_code"]
 
     target_scenario = problem.target_scenario
     suitable_targets_prefix = target_scenario[1:findlast(".", target_scenario)[1]-1]

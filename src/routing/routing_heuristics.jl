@@ -30,8 +30,8 @@ end
 Create exclusion zones based on environmental raster data and vessel threshold.
 
 # Arguments
-- `env_constraint` : Environmental constraint raster.
-- `threshold` : Threshold for given vessel's environmental constraint.
+- `env_constraint`: Environmental constraint raster.
+- `threshold`: Threshold for given vessel's environmental constraint.
 
 # Returns
 Exclusion zones for environmental constraint and vessel threshold provided.
@@ -48,10 +48,6 @@ end
     )::Point{2, Float64}
 
 Adjust waypoint if inside exclusion zone to closest boundary point outside exclusion zone.
-
-# Arguments
-- `waypoint` : Point{2, Float64} waypoint.
-- `exclusions` : DataFrame containing exclusion zones.
 
 # Returns
 Adjusted waypoint if inside exclusion zone, else original waypoint.
@@ -108,12 +104,12 @@ For each cluster, waypoint 1/3 dist before and after cluster centroid,
 unless within exclusion zone, then adjust to closest boundary point.
 
 # Arguments
-- `sequence` : id, amd centroid lat, long coordinates in sequence; including depot as the first and last rows wwith id=0.
-- `exclusions` : DataFrame containing exclusion zones.
+- `sequence`: `id`, and centroid (`lat`, `long`) coordinates in sequence; including depot as
+    the first and last rows with `id=0`.
+- `exclusions`: DataFrame containing exclusion zones.
 
 # Returns
-- `waypoint_df` : DataFrame for each waypoint on route. Depot included as first and last rows.
-                    Cols: waypoint::Point{2, Float64}, connecting_clusters::NTuple{2, Int64} reference to previous and next id.
+- A DataFrame containing waypoints and connecting clusters.
 """
 function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
     # TODO: Implement convex hull exclusion zones
@@ -160,31 +156,32 @@ end
 
 """
     nearest_neighbour(
-        nodes::DataFrame,
+        cluster_centroids::DataFrame,
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
-    )
+    )::MothershipSolution
 
-Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to the depot.
+Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to
+the depot.
 
 # Arguments
-- `nodes` : DataFrame containing id, lat, lon. Depot is cluster 0 in row 1.
-- `exclusions_mothership` : DataFrame containing exclusion zones for mothership.
-- `exclusions_tender` : DataFrame containing exclusion zones for tenders.
+- `cluster_centroids`: DataFrame containing id, lat, lon. Depot has `id=0` in row 1.
+- `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
+- `exclusions_tender`: DataFrame containing exclusion zones for tenders.
 
 # Returns
-- `solution` : MothershipSolution object containing:
-    - `cluster_sequence` : Centroid sequence DataFrame (containing id, lat, lon).
-    - `route` : Route object containing waypoints, distance matrix, and line strings.
-        - `nodes` : Vector of Point{2, Float64} waypoints.
-        - `dist_matrix` : Distance matrix between centroids.
-        - `line_strings` : Vector of LineString objects for each path.
+MothershipSolution object containing:
+- `cluster_sequence`: Centroid sequence DataFrame (containing id, lat, lon).
+- `route`: Route object containing waypoints, distance matrix, and line strings.
+    - `nodes`: Vector of Point{2, Float64} waypoints.
+    - `dist_matrix`: Distance matrix between centroids.
+    - `line_strings`: Vector of LineString objects for each path.
 """
 function nearest_neighbour(
     cluster_centroids::DataFrame,
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
-)
+)::MothershipSolution
     # TODO: Use vector rather than DataFrame for cluster_centroids
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids = HierarchicalRouting.adjust_waypoint.(
@@ -247,28 +244,28 @@ end
         ms_soln_current::MothershipSolution,
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
-    )
+    )::MothershipSolution
 
 Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
 
 # Arguments
-- `ms_soln_current` : Current MothershipSolution - from nearest_neighbour.
-- `exclusions_mothership` : DataFrame containing exclusion zones for mothership.
-- `exclusions_tender` : DataFrame containing exclusion zones for tenders.
+- `ms_soln_current`: Current MothershipSolution - from nearest_neighbour.
+- `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
+- `exclusions_tender`: DataFrame containing exclusion zones for tenders.
 
 # Returns
-- `solution` : MothershipSolution object containing:
-    - `cluster_sequence` : DataFrame of cluster centroids in sequence (containing id, lon, lat).
-    - `route` : Route object containing waypoints, distance matrix, and line strings.
-        - `nodes` : Vector of Point{2, Float64} waypoints.
-        - `dist_matrix` : Distance matrix between centroids.
-        - `line_strings` : Vector of LineString objects for each path.
+MothershipSolution object containing:
+    - `cluster_sequence`: DataFrame of cluster centroids in sequence (containing id, lon, lat).
+    - `route`: Route object containing waypoints, distance matrix, and line strings.
+        - `nodes`: Vector of Point{2, Float64} waypoints.
+        - `dist_matrix`: Distance matrix between centroids.
+        - `line_strings`: Vector of LineString objects for each path.
 """
 function two_opt(
     ms_soln_current::MothershipSolution,
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
-)
+)::MothershipSolution
 
     cluster_centroids = ms_soln_current.cluster_sequence
     dist_matrix = ms_soln_current.route.dist_matrix
@@ -322,34 +319,34 @@ function two_opt(
 end
 
 """
-    two_opt_swap(route::Vector{Int64}, i::Int, j::Int)
+    two_opt_swap(route::Vector{Int64}, i::Int, j::Int)::Vector{Int64}
 
 Swap two points in a route.
 
 # Arguments
-- `route` : Vector of cluster indices.
-- `i` : Index of the first point to swap.
-- `j` : Index of the second point to swap.
+- `route`: Vector of cluster indices.
+- `i`: Index of the first point to swap.
+- `j`: Index of the second point to swap.
 
 # Returns
 Route with swapped points.
 """
-function two_opt_swap(route::Vector{Int64}, i::Int, j::Int)
+function two_opt_swap(route::Vector{Int64}, i::Int, j::Int)::Vector{Int64}
     return vcat(route[1:(i-1)], reverse(route[i:j]), route[(j+1):end])
 end
 
 """
-    orient_route(route::Vector{Int64})
+    orient_route(route::Vector{Int64})::Vector{Int64}
 
 Orient the route such that it starts with the depot (1).
 
 # Arguments
-- `route` : Vector of cluster indices.
+- `route`: Vector of cluster indices.
 
 # Returns
 Route starting with the depot.
 """
-function orient_route(route::Vector{Int64})
+function orient_route(route::Vector{Int64})::Vector{Int64}
     idx = findfirst(==(1), route)
     return vcat(route[idx:end], route[1:idx-1])
 end
@@ -358,37 +355,37 @@ end
     tender_sequential_nearest_neighbour(
         cluster::Cluster,
         waypoints::NTuple{2, Point{2, Float64}},
-        n_tenders::Int,
-        t_cap::Int,
+        n_tenders::Int8,
+        t_cap::Int16,
         exclusions::DataFrame
-    )
+    )::TenderSolution
 
 Assign nodes to tenders sequentially (stop-by-stop) based on nearest neighbor.
 
 # Arguments
-- `cluster` : Cluster object containing nodes.
-- `waypoints` : Tuple of start and end waypoints.
-- `n_tenders` : Number of tenders.
-- `t_cap` : Tender capacity.
-- `exclusions` : DataFrame containing exclusion zones.
+- `cluster`: Cluster object containing nodes.
+- `waypoints`: Tuple of start and end waypoints.
+- `n_tenders`: Number of tenders.
+- `t_cap`: Tender capacity.
+- `exclusions`: DataFrame containing exclusion zones.
 
 # Returns
-- `solution` : TenderRoutingSolution object containing:
-    - `cluster_id` : Cluster ID.
-    - `start` : Start waypoint.
-    - `finish` : End waypoint.
-    - `sorties` : Vector of Sortie objects containing nodes and sortie distance.
-        - `nodes` : Vector of Point{2, Float64} waypoints.
-        - `dist_matrix` : Distance matrix between nodes.
-        - `line_strings` : Vector of LineString objects for each path.
+- `solution`: TenderRoutingSolution object containing:
+    - `cluster_id`: Cluster ID.
+    - `start`: Start waypoint.
+    - `finish`: End waypoint.
+    - `sorties`: Vector of Sortie objects containing nodes and sortie distance.
+        - `nodes`: Vector of Point{2, Float64} waypoints.
+        - `dist_matrix`: Distance matrix between nodes.
+        - `line_strings`: Vector of LineString objects for each path.
 """
 function tender_sequential_nearest_neighbour(
     cluster::Cluster,
     waypoints::NTuple{2, Point{2, Float64}},
-    n_tenders::Int,
-    t_cap::Int,
+    n_tenders::Int8,
+    t_cap::Int16,
     exclusions::DataFrame
-)
+)::TenderSolution
     nodes = [[waypoints[1]]; cluster.nodes]
     full_nodes = vcat(nodes, [waypoints[2]])
 

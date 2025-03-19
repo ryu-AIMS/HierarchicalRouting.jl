@@ -33,24 +33,24 @@ struct Problem
 end
 
 """
-    load_problem(target_scenario::String="")
+    load_problem(target_scenario::String="")::Problem
 
 Load the problem data from the configuration file and return a Problem object.
 
 # Arguments
-- `target_scenario::String`: The name of the target scenario to load. Defaults to an empty string.
+- `target_scenario`: The name of the target scenario to load. Defaults to an empty string.
 
 # Returns
 The problem object containing the target scenario, depot, mothership, and tenders.
 """
-function load_problem(target_scenario::String="")
+function load_problem(target_scenario::String="")::Problem
 
     config = TOML.parsefile(joinpath("src",".config.toml"))
     site_dir = config["data_dir"]["site"]
     depot = Point{2, Float64}(config["parameters"]["depot_x"], config["parameters"]["depot_y"])
     n_tenders = config["parameters"]["n_tenders"]
     t_cap = config["parameters"]["t_cap"]
-    EPSG_code = config["parameters"]["EPSG_code"]
+    EPSG_code::Int16 = config["parameters"]["EPSG_code"]
     target_scenario = target_scenario == "" ? first(glob("*", config["data_dir"]["target_scenarios"])) : target_scenario
 
     env_constraints_dir = config["data_dir"]["env_constraints"]
