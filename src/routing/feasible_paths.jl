@@ -38,7 +38,7 @@ function get_feasible_matrix(
                 else
                     dist_matrix[point_i_idx, point_j_idx],
                         path_matrix[point_i_idx, point_j_idx] =
-                            HierarchicalRouting.shortest_feasible_path(
+                            shortest_feasible_path(
                                 point_nodes[1], point_nodes[2], exclusions
                             )
                     dist_matrix[point_j_idx, point_i_idx] =
@@ -86,7 +86,7 @@ function get_feasible_vector(
                 dist_vector[point_i_idx] = Inf
             else
                 dist_vector[point_i_idx], path_vector[point_i_idx] =
-                HierarchicalRouting.shortest_feasible_path(
+                shortest_feasible_path(
                     point_nodes[1], point_nodes[2], exclusions
                 )
             end
@@ -145,8 +145,8 @@ function shortest_feasible_path(
     final_point::Point{2, Float64},
     exclusions::DataFrame,
 )::Tuple{Float64, Vector{LineString{2, Float64}}}
-    final_exclusion_idx = HierarchicalRouting.point_in_convexhull(final_point, exclusions)
-    initial_exclusion_idx = HierarchicalRouting.point_in_convexhull(initial_point, exclusions)
+    final_exclusion_idx = point_in_convexhull(final_point, exclusions)
+    initial_exclusion_idx = point_in_convexhull(initial_point, exclusions)
 
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
@@ -276,12 +276,11 @@ function build_network!(
     current_exclusion_idx::Int,
     final_exclusion_idx::Int
 )::Nothing
-
-    if current_point == final_point # || (current_exclusion_idx == final_exclusion_idx && !isnothing(current_exclusion_idx))
+    if current_point == final_point
         return
     end
 
-    candidates, next_exclusion_idxs = HierarchicalRouting.find_widest_points(
+    candidates, next_exclusion_idxs = find_widest_points(
         current_point,
         final_point,
         exclusions
@@ -432,7 +431,7 @@ function collect_polygon_vertices(polygon::AG.IGeometry)::Vector{Point{2, Float6
     points_x, points_y = getindex.(vertices, 1), getindex.(vertices, 2)
 
     # convex_hull = AG.convexhull(polygon)
-    # # Select points that are either outside or touching the convex hull
+    # #! Select points that are either outside or touching the convex hull
     # points_ag = AG.createpoint.(points_x, points_y)
     # points_outside_convex_hull = .!AG.contains.([convex_hull], points_ag)
     # points_touching_convex_hull = AG.touches.([convex_hull], points_ag)

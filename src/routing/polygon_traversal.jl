@@ -126,7 +126,6 @@ function search_widest_points(
 )::NTuple{2, Union{Point{2, Float64}, Nothing}}
     max_angle_L, max_angle_R = 0.0, 0.0
     furthest_vert_L, furthest_vert_R = nothing, nothing
-
     # Base vector from current_point to final_point to calc angle from
     base_vector = [
         final_point[1] - current_point[1],
@@ -273,7 +272,6 @@ function closest_crossed_polygon(
             end
         end
     end
-
     return closest_polygon, polygon_idx
 end
 

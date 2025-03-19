@@ -116,9 +116,16 @@ function load_problem(target_scenario::String="")::Problem
     #? Redundant 2nd call to simplify_exclusions!()
     t_exclusions = simplify_exclusions!(t_exclusions, min_area=1E-8, simplify_tol=5E-5)
 
-    mothership = Vessel(exclusion = ms_exclusions, weighting = config["parameters"]["weight_ms"])
-    tenders = Vessel(exclusion = t_exclusions, capacity = t_cap, number = n_tenders, weighting = config["parameters"]["weight_t"])
+    mothership = Vessel(
+        exclusion = ms_exclusions,
+        weighting = config["parameters"]["weight_ms"]
+    )
+    tenders = Vessel(
+        exclusion = t_exclusions,
+        capacity = t_cap,
+        number = n_tenders,
+        weighting = config["parameters"]["weight_t"]
+    )
 
-    problem = Problem(target_scenario, depot, mothership, tenders)
-    return problem
+    return Problem(target_scenario, depot, mothership, tenders)
 end
