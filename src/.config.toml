@@ -17,7 +17,7 @@ depot_y = -16.84
 
 suitable_threshold = 50.0
 k = 5
-cluster_tolerance = 1.0
+cluster_tolerance = 5E-5
 
 depth_ms = -10.0
 depth_t = -5.0

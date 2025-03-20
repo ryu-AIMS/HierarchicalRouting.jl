@@ -1,5 +1,6 @@
 
 using Clustering
+using Random
 
 @kwdef struct Cluster
     id::Int
@@ -27,21 +28,24 @@ A new raster containing the cluster IDs.
 function apply_kmeans_clustering(
     raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
 )::Raster{Int64, 2}
-    indices = findall(x -> x != 0, raster)
-    coordinates = [(Tuple(index)[1], Tuple(index)[2]) for index in indices]
-    coordinates_array = hcat([collect(c) for c in coordinates]...)
+    indices::Vector{CartesianIndex{2}} = findall(!=(0), raster)
+    n::Int = length(indices)
+    coordinates_array = Matrix{Float64}(undef, 2, n)
 
-    clustering = kmeans(coordinates_array, k; tol=tol)
+    # Row/col indices from each CartesianIndex
+    rows::Vector{Int64} = getindex.(indices, 1)
+    cols::Vector{Int64} = getindex.(indices, 2)
 
-    rows = [coord[1] for coord in coordinates]
-    cols = [coord[2] for coord in coordinates]
+    # Fill the coordinate matrix using the corresponding dimension arrays
+    coordinates_array[1, :] .= raster.dims[1][rows]
+    coordinates_array[2, :] .= raster.dims[2][cols]
 
-    clustered_targets = copy(raster)
+    clustering = kmeans(coordinates_array, k; distance=Haversine(), tol=tol, rng=Random.seed!(1))
+
+    clustered_targets::Raster{Int64, 2} = copy(raster)
+    #? Necessary
     clustered_targets .= 0
-
-    for i in 1:length(rows)
-        clustered_targets[rows[i], cols[i]] = clustering.assignments[i]
-    end
+    clustered_targets[indices] .= clustering.assignments
 
     return clustered_targets
 end
