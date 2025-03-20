@@ -13,7 +13,7 @@ import GeoInterface as GI
 import GeometryOps as GO
 import GeoDataFrames as GDF
 
-import Distances: haversine
+using Distances
 using Graphs, SimpleWeightedGraphs
 
 include("problem/problem_setup.jl")
