@@ -382,7 +382,7 @@ function build_graph(
 
     # Add candidate (chain) edges.
     for (p,q) in zip(points_from, points_to)
-        add_edge!(graph, pt_to_idx[p], pt_to_idx[q], euclidean(p, q))
+        add_edge!(graph, pt_to_idx[p], pt_to_idx[q], haversine(p, q))
     end
 
     # Add polygon edges if a polygon was provided.
@@ -395,13 +395,13 @@ function build_graph(
             # Connect adjacent polygon vertices, and wrap around.
             i_idx = pt_to_idx[p]
             j_idx = pt_to_idx[q]
-            add_edge!(graph, i_idx, j_idx, euclidean(p, q))
+            add_edge!(graph, i_idx, j_idx, haversine(p, q))
 
             # connect to visible points in the graph
             for point in chain_points
                 if is_visible(p, point, exclusions)
                     j_idx = pt_to_idx[point]
-                    add_edge!(graph, i_idx, j_idx, euclidean(p, point))
+                    add_edge!(graph, i_idx, j_idx, haversine(p, point))
                 end
             end
         end

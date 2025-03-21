@@ -1,20 +1,3 @@
-
-"""
-    crop_to_subset(spatial_dataset::Raster, subset::DataFrame)
-
-Extract a subset from the given `spatial_dataset` raster based on the specified `subset`.
-
-# Arguments
-- `spatial_dataset::Raster`: The spatial dataset from which to extract the subset.
-- `subset::DataFrame`: The subset DataFrame containing geometries in area.
-
-# Returns
-- A cropped raster based on the subset area.
-"""
-function crop_to_subset(spatial_dataset::Raster, subset::DataFrame)
-    return Rasters.crop(spatial_dataset, to=subset.geom)
-end
-
 """
     target_threshold(targets::Raster, threshold::Float64)
 

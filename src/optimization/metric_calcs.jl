@@ -64,16 +64,16 @@ Compute the cost of each sortie in a cluster.
 The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
-    sortie_dist = [euclidean(tenders.start, sortie.nodes[1]) for sortie in tenders.sorties]
+    sortie_dist = [haversine(tenders.start, sortie.nodes[1]) for sortie in tenders.sorties]
 
     sortie_dist .+= sum([
         length(sortie.nodes) > 1 ?
-            sum(euclidean.(sortie.nodes[1:end-1], sortie.nodes[2:end])) :
-            0.0
+        sum(haversine.(sortie.nodes[1:end-1], sortie.nodes[2:end])) :
+        0.0
         for sortie in tenders.sorties
     ])
 
-    sortie_dist .+= euclidean.(
+    sortie_dist .+= haversine.(
         [sortie.nodes[end] for sortie in tenders.sorties],
         tenders.finish
     )
@@ -89,10 +89,10 @@ Compute the cost of the mothership route between clusters, not including across 
 - `route::Route` : Full mothership route between waypoints.
 
 # Returns
-The sum of (euclidean) mothership distances between clusters.
+- The sum of (haversine) mothership distances between clusters.
 """
 function mothership_dist_between_clusts(route::Route)
-    return sum(euclidean(route.nodes[i], route.nodes[i+1]) for i in 1:2:(length(route.nodes)))
+    return sum(haversine(route.nodes[i], route.nodes[i+1]) for i in 1:2:(length(route.nodes)))
 end
 
 """
@@ -104,10 +104,10 @@ Compute the cost of the mothership within each cluster, not including between cl
 - `route::Route` : Full mothership route between waypoints.
 
 # Returns
-The sum of (euclidean) mothership distances across/within each cluster.
+- The sum of (haversine) mothership distances within each cluster.
 """
 function mothership_dist_within_clusts(route::Route)
-    return [euclidean(route.nodes[i], route.nodes[i+1]) for i in 2:2:(length(route.nodes)-1)]
+    return [haversine(route.nodes[i], route.nodes[i+1]) for i in 2:2:(length(route.nodes)-1)]
 end
 
 """

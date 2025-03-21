@@ -67,9 +67,11 @@ function create_clusters(clusters::Raster{Int64, 2}, depot=nothing)
         push!(cluster_vec, Cluster(id = 0, centroid = depot))
     end
 
+    x_coords = clusters.dims[1]
+    y_coords = clusters.dims[2]
     # Push Cluster object to cluster centroid vector
     for id in unique_clusters
-        nodes = [(i[1], i[2]) for i in findall(==(id), clusters)]
+        nodes = [(x_coords[i[1]], y_coords[i[2]]) for i in findall(==(id), clusters)]
 
         col_cent = mean([node[1] for node in nodes])
         row_cent = mean([node[2] for node in nodes])

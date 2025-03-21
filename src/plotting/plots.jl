@@ -290,7 +290,7 @@ function linestrings!(
 
     if labels
         # Annotate waypoints by sequence
-        text!(ax, waypoint_matrix[:,1], waypoint_matrix[:,2] .+ 30, text = string.(0:size(waypoint_matrix,1)-1), align = (:center, :center), color = :black)
+        text!(ax, waypoint_matrix[:,1], waypoint_matrix[:,2] .+ 0.002, text = string.(0:size(waypoint_matrix,1)-1), align = (:center, :center), color = :black)
     end
     return ax
 end
@@ -348,4 +348,5 @@ function tenders!(
 end
 
 
+export clusters, clusters!, exclusions, exclusions!, linestrings, linestrings!, tenders, tenders!
 end
