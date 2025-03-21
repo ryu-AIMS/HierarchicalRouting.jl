@@ -160,7 +160,6 @@ function shortest_feasible_path(
             initial_point,
             final_point,
             exclusions,
-            0,
             final_exclusion_idx
         )
     else
@@ -197,7 +196,6 @@ function shortest_feasible_path(
             widest_verts,
             [final_point],
             [exclusions],
-            [initial_exclusion_idx],
             [final_exclusion_idx]
         )
     end
@@ -259,7 +257,6 @@ end
         current_point::Point{2, Float64},
         final_point::Point{2, Float64},
         exclusions::DataFrame,
-        current_exclusion_idx::Int,
         final_exclusion_idx::Int
     )::Nothing
 
@@ -273,7 +270,6 @@ function build_network!(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    current_exclusion_idx::Int,
     final_exclusion_idx::Int
 )::Nothing
     if current_point == final_point
@@ -317,7 +313,6 @@ function build_network!(
             vertex,
             final_point,
             exclusions,
-            next_exclusion_idx,
             final_exclusion_idx
         )
     end
