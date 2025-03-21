@@ -19,9 +19,8 @@ function filter_and_simplify_exclusions!(
     min_area::Float64=1E-5,
     simplify_tol::Float64=1E-3
 )::DataFrame
-    exclusions = exclusions[AG.geomarea.(exclusions.geometry) .>= min_area, :]
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
-    return exclusions
+    return exclusions[AG.geomarea.(exclusions.geometry) .>= min_area, :]
 end
 
 """
@@ -125,7 +124,6 @@ function unionize_overlaps!(exclusions::DataFrame)::DataFrame
 
     # Remove duplicate unionized geometries
     unique_geometries = unique(geometries[.!AG.isempty.(geometries)])
-    exclusions = DataFrame(geometry = unique_geometries)
 
-    return exclusions
+    return DataFrame(geometry = unique_geometries)
 end

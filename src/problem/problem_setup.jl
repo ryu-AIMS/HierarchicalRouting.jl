@@ -20,9 +20,9 @@ using TOML
 
 @kwdef struct Vessel
     exclusion::DataFrame
-    capacity::Int64 = typemax(Int64)
-    number::Int64 = 1
-    weighting::Float64 = 1.0
+    capacity::Int16 = typemax(Int16)
+    number::Int8 = 1
+    weighting::Float16 = 1.0
 end
 
 struct Problem
@@ -44,14 +44,19 @@ Load the problem data from the configuration file and return a Problem object.
 The problem object containing the target scenario, depot, mothership, and tenders.
 """
 function load_problem(target_scenario::String="")::Problem
-
     config = TOML.parsefile(joinpath("src",".config.toml"))
-    site_dir = config["data_dir"]["site"]
-    depot = Point{2, Float64}(config["parameters"]["depot_x"], config["parameters"]["depot_y"])
-    n_tenders = config["parameters"]["n_tenders"]
-    t_cap = config["parameters"]["t_cap"]
+
+    draft_ms::Float64 = config["parameters"]["depth_ms"]
+    draft_t::Float64 = config["parameters"]["depth_t"]
+    n_tenders::Int8 = config["parameters"]["n_tenders"]
+    t_cap::Int16 = config["parameters"]["t_cap"]
     EPSG_code::Int16 = config["parameters"]["EPSG_code"]
-    target_scenario = target_scenario == "" ? first(glob("*", config["data_dir"]["target_scenarios"])) : target_scenario
+    target_scenario::String = target_scenario == "" ?
+        first(glob("*", config["data_dir"]["target_scenarios"])) :
+        target_scenario
+    depot::Point{2, Float64} = Point{2, Float64}(
+        config["parameters"]["depot_x"], config["parameters"]["depot_y"]
+    )
 
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
@@ -64,16 +69,17 @@ function load_problem(target_scenario::String="")::Problem
     )
     # TODO: Process all environmental constraints to create single cumulative exclusion zone
 
-    output_dir = config["output_dir"]["path"]
-
+    site_dir = config["data_dir"]["site"]
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
+
+    output_dir = config["output_dir"]["path"]
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
     # Process exclusions
     if !(config["DEBUG"]["debug_mode"])
         ms_exclusion_zones_df = read_and_polygonize_exclusions(
             env_data["bathy"].rast_file,
-            config["parameters"]["depth_ms"],
+            draft_ms,
             subset,
             EPSG_code,
             bathy_subset_path,
@@ -83,17 +89,18 @@ function load_problem(target_scenario::String="")::Problem
     else
         ms_exclusion_zones_df = read_and_polygonize_exclusions(
             env_data["bathy"].rast_file,
-            config["parameters"]["depth_ms"],
+            draft_ms,
             subset,
             EPSG_code
         )
     end
-    ms_exclusions = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |> buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions! |> unionize_overlaps!
+    ms_exclusions::DataFrame = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |>
+        buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions!
 
     if !(config["DEBUG"]["debug_mode"])
         t_exclusions = read_and_polygonize_exclusions(
             env_data["bathy"].rast_file,
-            config["parameters"]["depth_t"],
+            draft_t,
             subset,
             EPSG_code,
             bathy_subset_path,
@@ -103,7 +110,7 @@ function load_problem(target_scenario::String="")::Problem
     else
         t_exclusions = read_and_polygonize_exclusions(
             env_data["bathy"].rast_file,
-            config["parameters"]["depth_t"],
+            draft_t,
             subset,
             EPSG_code
         )

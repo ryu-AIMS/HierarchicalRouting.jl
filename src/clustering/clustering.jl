@@ -62,26 +62,24 @@ Calculate the centroids of the clusters in the raster.
 A vector of `Cluster` objects.
 """
 function calculate_cluster_centroids(clusters_raster::Raster{Int64, 2})::Vector{Cluster}
-    unique_clusters = sort(unique(clusters_raster))
-    unique_clusters = unique_clusters[unique_clusters .!= 0]
-    clusters = Cluster[]
+    unique_clusters = sort(unique(clusters_raster[clusters_raster .!= 0]))
+    clusters_vector = Vector{Cluster}(undef, length(unique_clusters))
 
     x_coords = clusters_raster.dims[1]
     y_coords = clusters_raster.dims[2]
-    # Push Cluster object to cluster centroid vector
+
     for id in unique_clusters
         nodes = [(x_coords[i[1]], y_coords[i[2]]) for i in findall(==(id), clusters_raster)]
         col_cent = mean([node[1] for node in nodes])
         row_cent = mean([node[2] for node in nodes])
 
-        push!(clusters, Cluster(
+        clusters_vector[id] = Cluster(
             id = id,
             centroid = Point{2, Float64}(col_cent, row_cent),
-            nodes = [Point{2, Float64}(node[1], node[2]) for node in nodes])
+            nodes = [Point{2, Float64}(node[1], node[2]) for node in nodes]
         )
     end
-
-    return clusters
+    return clusters_vector
 end
 
 """

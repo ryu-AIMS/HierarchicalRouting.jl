@@ -44,18 +44,14 @@ function find_widest_points(
     end
 
     # Search for the widest vertices (left and right) along the polygon's exterior.
-    furthest_vert_L, furthest_vert_R = search_widest_points(
+    widest_vertices::NTuple{2, Union{Point{2, Float64}, Nothing}} = search_widest_points(
         current_point, final_point, exterior_ring, n_pts
     )
 
     candidates = Point{2,Float64}[]
     poly_indices = Int[]
-
     # For each vertex: record if visible, else recursively find widest visible vertices.
-    for vertex ∈ [furthest_vert_L, furthest_vert_R]
-        if isnothing(vertex)
-            continue
-        end
+    for vertex::Point{2,Float64} ∈ filter(!isnothing, (widest_vertices))
         if is_visible(current_point, vertex, exclusions, visited_exclusion_idxs)
             push!(candidates, vertex)
             push!(poly_indices, polygon_idx)
@@ -155,7 +151,7 @@ function search_widest_points(
             end
         end
     end
-    return furthest_vert_L, furthest_vert_R
+    return (furthest_vert_L, furthest_vert_R)
 end
 
 """
@@ -193,7 +189,7 @@ function closest_crossed_polygon(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
     exclusions::DataFrame,
-    visited_exclusion_idxs::Vector{Int}
+    visited_exclusion_idxs::Vector{Int64}
 )::Tuple{
     Tuple{
         Union{AG.IGeometry{AG.wkbPolygon}, Nothing},
@@ -206,25 +202,24 @@ function closest_crossed_polygon(
     min_dist = Inf
     polygon_idx = 0
 
-    line = AG.createlinestring(
+    line::AG.IGeometry{AG.wkbLineString} = AG.createlinestring(
         [current_point[1], final_point[1]],
         [current_point[2], final_point[2]]
     )
 
     # Define bounding box for line to exclude polygons that do not intersect
-    line_min_x, line_max_x = min(current_point[1], final_point[1]),
+    line_min_x::Float64, line_max_x::Float64 = min(current_point[1], final_point[1]),
         max(current_point[1], final_point[1])
-    line_min_y, line_max_y = min(current_point[2], final_point[2]),
+    line_min_y::Float64, line_max_y::Float64 = min(current_point[2], final_point[2]),
         max(current_point[2], final_point[2])
 
-    for (i, row) ∈ enumerate(eachrow(exclusions))
+    for (i, geom::AG.IGeometry{AG.wkbPolygon}) ∈ enumerate(exclusions.geometry)
         if i in visited_exclusion_idxs
             continue
         end
 
-        geom = row.geometry
-        exterior_ring = AG.getgeom(geom, 0)
-        n_pts = AG.ngeom(exterior_ring)
+        exterior_ring::AG.IGeometry{AG.wkbLineString} = AG.getgeom(geom, 0)
+        n_pts::Int32 = AG.ngeom(exterior_ring)
 
         # Check if any polygon vertices are inside the line's bounding box
         vertex_in_line_bbox = any(
@@ -239,11 +234,12 @@ function closest_crossed_polygon(
             poly_xs, poly_ys, _ = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
 
             line_in_polygon_bbox = (
-                line_min_x <= maximum(poly_xs) &&
-                line_max_x >= minimum(poly_xs) &&
-                line_min_y <= maximum(poly_ys) &&
-                line_max_y >= minimum(poly_ys)
+                line_min_x <= maximum(view(poly_xs,1:n_pts)) &&
+                line_max_x >= minimum(view(poly_xs,1:n_pts)) &&
+                line_min_y <= maximum(view(poly_ys,1:n_pts)) &&
+                line_max_y >= minimum(view(poly_ys,1:n_pts))
             )
+
         end
 
         # Skip polygons with no vertices in or crossing bounding box
@@ -257,12 +253,12 @@ function closest_crossed_polygon(
                 AG.touches(AG.createpoint(final_point[1], final_point[2]), geom)
             )
 
-            intersections = AG.intersection(line, geom)
+            intersections::AG.IGeometry = AG.intersection(line, geom)
 
-            pts = [AG.getgeom(intersections, i) for i in 0:AG.ngeom(intersections) - 1]
+            pts::Vector{AG.IGeometry} = get_pts(intersections)
 
             # Find distance to polygon
-            dist = minimum(GO.distance.([current_point], pts))
+            dist::Float64 = minimum(GO.distance.([current_point], pts))
 
             # If closer than current closest polygon, update closest polygon
             if dist < min_dist
@@ -274,6 +270,15 @@ function closest_crossed_polygon(
     end
     return closest_polygon, polygon_idx
 end
+
+function get_pts(intersections::AG.IGeometry{AG.wkbPoint})
+    return [intersections]
+end
+function get_pts(intersections::AG.IGeometry)
+    n = AG.ngeom(intersections)
+    return AG.getgeom.(Ref(intersections), 0:n-1)
+end
+
 
 """
     is_visible(
@@ -307,7 +312,7 @@ function is_visible(
     exclusion_poly::AG.IGeometry{AG.wkbPolygon}
 )::Bool
 
-    line_to_point = AG.createlinestring([
+    line_to_point::AG.IGeometry{AG.wkbLineString} = AG.createlinestring([
         (current_point[1], current_point[2]),
         (final_point[1], final_point[2])
     ])
@@ -323,14 +328,14 @@ function is_visible(
     current_exclusions_idx::Vector{Int} = [0]
 )::Bool
 
-    for i in 1:size(exclusions, 1)
-
+    for i ∈ 1:size(exclusions, 1)
+        geometry_i::AG.IGeometry{AG.wkbPolygon} = exclusions.geometry[i]
         # Skip exclusion zones
-        if i in current_exclusions_idx || AG.isempty(exclusions.geometry[i])
+        if AG.isempty(geometry_i) || i ∈ current_exclusions_idx
             continue
         end
 
-        if !is_visible(current_point, final_point, exclusions.geometry[i])
+        if !is_visible(current_point, final_point, geometry_i)
             return false
         end
     end
