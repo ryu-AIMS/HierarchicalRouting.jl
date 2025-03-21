@@ -12,13 +12,8 @@ Calculate the total distance of a route starting from index 1, and returning to 
 Total distance of the return route.
 """
 function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
-    total_dist = 0.0
-    n = length(route)  # Adjust for duplicate last point as the start point)
-
-    total_dist = sum([dist_matrix[route[i], route[i + 1]] for i in 1:n-1])
-
-    total_dist += dist_matrix[route[n], route[1]]
-    return total_dist
+    return sum(getindex.(Ref(dist_matrix), route[1:end-1], route[2:end])) +
+        dist_matrix[route[end], route[1]] # Return to start
 end
 
 """
@@ -40,15 +35,20 @@ function sortie_dist(
     sorties::Vector{Vector{Int64}},
     dist_matrix::Matrix{Float64}
 )::Vector{Float64}
-    # TODO: Handling for empty tender tours
-    sortie_dist = [dist_matrix[1, tour[1]] for tour in sorties]
-    sortie_dist .+= [
-        length(tour) > 1 ?
-            sum([dist_matrix[tour[i], tour[i+1]] for i in 1:(length(tour)-1)]) :
-            0
-        for tour in sorties
-    ]
-    sortie_dist .+= [dist_matrix[tour[end], 1] for tour in sorties]
+    sorties = filter(!isempty, sorties)
+    n = length(sorties)
+    sortie_dist = Vector{Float64}(undef, n)
+
+    for i in 1:n
+        tour = sorties[i]
+        m = length(tour)
+
+        dist = dist_matrix[1, tour[1]] # dist from depot (node 1) to first node
+        dist += m > 1 ? sum(getindex.(Ref(dist_matrix), tour[1:m-1], tour[2:m])) : 0.0
+        dist += dist_matrix[tour[end], 1] # dist from last node back to depot
+
+        sortie_dist[i] = dist
+    end
     return sortie_dist
 end
 
@@ -64,7 +64,11 @@ Compute the cost of each sortie in a cluster.
 The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
-    sortie_dist = [haversine(tenders.start, sortie.nodes[1]) for sortie in tenders.sorties]
+    #! update to use dist_matrix (stored)
+    sortie_dist::Vector{Float64} = haversine.(
+        Ref(tenders.start),
+        getindex.(getproperty.(tenders.sorties, :nodes), 1)
+    )
 
     sortie_dist .+= sum([
         length(sortie.nodes) > 1 ?
@@ -92,7 +96,7 @@ Compute the cost of the mothership route between clusters, not including across 
 - The sum of (haversine) mothership distances between clusters.
 """
 function mothership_dist_between_clusts(route::Route)::Float64
-    return sum(haversine(route.nodes[i], route.nodes[i+1]) for i in 1:2:(length(route.nodes)))
+    return sum(haversine.(route.nodes[1:2:end-1], route.nodes[2:2:end]))
 end
 
 """
@@ -107,7 +111,7 @@ Compute the cost of the mothership within each cluster, not including between cl
 - The (haversine) mothership distance within each cluster.
 """
 function mothership_dist_within_clusts(route::Route)::Vector{Float64}
-    return [haversine(route.nodes[i], route.nodes[i+1]) for i in 2:2:(length(route.nodes)-1)]
+    return haversine.(route.nodes[2:2:end-1], route.nodes[3:2:end])
 end
 
 """

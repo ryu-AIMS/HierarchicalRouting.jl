@@ -164,9 +164,9 @@ function shortest_feasible_path(
             final_exclusion_idx
         )
     else
-        initial_polygon = exclusions[initial_exclusion_idx, :geometry]
-        poly_vertices = collect_polygon_vertices(initial_polygon)
-        visible_vertices = poly_vertices[is_visible.([initial_point], poly_vertices, [exclusions])]
+        initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[initial_exclusion_idx, :geometry]
+        poly_vertices::Vector{Point{2, Float64}} = collect_polygon_vertices(initial_polygon)
+        visible_vertices = poly_vertices[is_visible.(Ref(initial_point), poly_vertices, Ref(exclusions))]
 
         # Connect each polygon vertex to the initial point if visible.
         n_verts = length(visible_vertices)
@@ -356,25 +356,26 @@ function build_graph(
     points_from::Vector{Point{2, Float64}},
     points_to::Vector{Point{2, Float64}},
     exclusions::DataFrame,
-    final_polygon::Union{Nothing, AG.IGeometry},
+    final_polygon::Union{Nothing, AG.IGeometry{AG.wkbPolygon}},
     initial_point::Point{2, Float64},
     final_point::Point{2, Float64}
 )::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
     is_polygon = !isnothing(final_polygon)
 
-    poly_vertices = is_polygon ?
+    poly_vertices::Vector{Point{2, Float64}} = is_polygon ?
         collect_polygon_vertices(final_polygon) :
         Point{2, Float64}[]
 
     # Collect connected points from network
-    chain_points = [Point{2,Float64}(p[1], p[2])
+    #? Use `Set`?
+    chain_points::Vector{Point{2, Float64}} = [Point{2,Float64}(p[1], p[2])
         for p in unique(vcat(
             points_from, points_to, [final_point]
         ))
     ]
-    all_points = vcat(chain_points, poly_vertices)
-    unique_points = unique(all_points)
-    n_points = length(unique_points)
+    all_points::Vector{Point{2, Float64}} = vcat(chain_points, poly_vertices)
+    unique_points::Vector{Point{2, Float64}} = unique(all_points)
+    n_points::Int = length(unique_points)
 
     # Create the graph with one vertex per unique point.
     graph = SimpleWeightedGraph(n_points)
@@ -391,12 +392,12 @@ function build_graph(
     if is_polygon
         n_vertices = length(poly_vertices)
         for i in 1:n_vertices
-            p = poly_vertices[i]
-            q = poly_vertices[mod1(i + 1, n_vertices)]
+            p::Point{2, Float64} = poly_vertices[i]
+            q::Point{2, Float64} = poly_vertices[mod1(i + 1, n_vertices)]
 
             # Connect adjacent polygon vertices, and wrap around.
-            i_idx = pt_to_idx[p]
-            j_idx = pt_to_idx[q]
+            i_idx::Int = pt_to_idx[p]
+            j_idx::Int = pt_to_idx[q]
             add_edge!(graph, i_idx, j_idx, haversine(p, q))
 
             # connect to visible points in the graph
@@ -423,12 +424,15 @@ Collect all vertices of a polygon.
 # Returns
 - Vector of polygon vertices.
 """
-function collect_polygon_vertices(polygon::AG.IGeometry)::Vector{Point{2, Float64}}
+function collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon})::Vector{Point{2, Float64}}
     exterior_ring = AG.getgeom(polygon, 0)
     n_pts = AG.ngeom(exterior_ring)
+    pts = Vector{Point{2,Float64}}(undef, n_pts)
 
-    vertices = AG.getpoint.([exterior_ring], 0:n_pts-1)
-    points_x, points_y = getindex.(vertices, 1), getindex.(vertices, 2)
+    @inbounds for i in 1:n_pts
+        pt = AG.getpoint(exterior_ring, i - 1)
+        pts[i] = Point{2,Float64}(pt[1], pt[2])
+    end
 
     # convex_hull = AG.convexhull(polygon)
     # #! Select points that are either outside or touching the convex hull
@@ -439,5 +443,5 @@ function collect_polygon_vertices(polygon::AG.IGeometry)::Vector{Point{2, Float6
     # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
     # n_pts = length(poly_vertices)
 
-    return Point{2, Float64}.(points_x, points_y)
+    return pts
 end

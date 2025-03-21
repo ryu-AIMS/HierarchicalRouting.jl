@@ -15,7 +15,7 @@ Best total MSTSolution found
 """
 function initial_solution(problem::Problem)::MSTSolution
     # Load problem data
-    clusters::Vector{Cluster} = process_problem(problem)
+    clusters::Vector{Cluster} = process_problem(problem);
 
     cluster_centroids_df::DataFrame = DataFrame(
         id  = [0; 1:length(clusters)],
@@ -24,32 +24,31 @@ function initial_solution(problem::Problem)::MSTSolution
     )
 
     # Nearest Neighbour to generate initial mothership route & matrix
-    ms_soln_NN = nearest_neighbour(
+    ms_soln_NN::MothershipSolution = nearest_neighbour(
         cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
-    )
+    );
 
     # 2-opt to improve the NN soln
-    ms_soln_2opt = two_opt(
+    ms_soln_2opt::MothershipSolution = two_opt(
         ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
-    )
+    );
 
-    clust_seq = filter(
+    clust_seq::Vector{Int64} = filter(
         i -> i != 0 && i <= length(clusters),
         ms_soln_2opt.cluster_sequence.id
     )
-    tender_soln = HierarchicalRouting.TenderSolution[]
+    tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
 
     for (i, cluster_id) in enumerate(clust_seq)
-        start_waypoint =  ms_soln_2opt.route.nodes[2 * i]
-        end_waypoint =  ms_soln_2opt.route.nodes[2 * i + 1]
+        start_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i]
+        end_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i + 1]
         @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
 
-        t_solution = tender_sequential_nearest_neighbour(
+        tender_soln[i] = tender_sequential_nearest_neighbour(
             clusters[cluster_id],
             (start_waypoint, end_waypoint),
-            problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion)
-
-        push!(tender_soln, t_solution)
+            problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion
+        )
     end
 
     return MSTSolution(clusters, ms_soln_2opt, tender_soln)

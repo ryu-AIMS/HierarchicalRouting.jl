@@ -70,21 +70,22 @@ function adjust_waypoint(
     end
 
     # TODO Consider cases for multiple exclusion zones
-    union_poly = reduce(AG.union, containing_polygons)
+    union_poly::AG.IGeometry{AG.wkbPolygon} = reduce(AG.union, containing_polygons)
 
-    exterior_ring = AG.getgeom(union_poly, 0)
-    n_points = AG.ngeom(exterior_ring)
+    exterior_ring::AG.IGeometry{AG.wkbLineString} = AG.getgeom(union_poly, 0)
+    n_points::Int32 = AG.ngeom(exterior_ring)
 
-    boundary_points = [
-        Point(AG.getpoint(exterior_ring, i)[1:2]...) for i in 0:n_points - 1
+    boundary_points::Vector{Point{2, Float64}} = map(
+        pt -> Point(pt[1], pt[2]),
+        AG.getpoint.(Ref(exterior_ring), 0:n_points-1)
+        )
+
+
+    valid_boundary_points::Vector{Point{2, Float64}} = boundary_points[
+        .!point_in_exclusion.(boundary_points, Ref(union_poly))
     ]
 
-    valid_boundary_points = [
-        pt for pt in boundary_points
-            if !point_in_exclusion(pt, union_poly)
-    ]
-
-    closest_point = argmin(
+    closest_point::Point{2, Float64} = argmin(
         p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2),
         valid_boundary_points
     )
@@ -187,9 +188,9 @@ function nearest_neighbour(
 )::MothershipSolution
     # TODO: Use vector rather than DataFrame for cluster_centroids
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
-    feasible_centroids = HierarchicalRouting.adjust_waypoint.(
+    feasible_centroids::Vector{Point{2, Float64}} = adjust_waypoint.(
         Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
-        [exclusions_mothership]
+        Ref(exclusions_mothership)
     )
 
     cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
@@ -201,32 +202,34 @@ function nearest_neighbour(
         exclusions_mothership
     )[1]
 
-    num_clusters = size(dist_matrix, 1) - 1  # excludes the depot
-    visited = falses(num_clusters + 1)
-    tour = Int[]
+    tour_length = size(dist_matrix, 1)
+    visited = falses(tour_length)
+    tour = Vector{Int64}(undef, tour_length + 1)
     total_distance = 0.0
 
+    idx = 1
     current_location = 1
-    push!(tour, current_location)
+    tour[1] = current_location
     visited[current_location] = true
 
-    while length(tour) <= num_clusters
+    while idx < tour_length
+        idx += 1
         distances = dist_matrix[current_location, :]
         distances[visited] .= Inf
         nearest_idx = argmin(distances)
 
-        push!(tour, nearest_idx)
+        tour[idx] = nearest_idx
         total_distance += dist_matrix[current_location, nearest_idx]
         visited[nearest_idx] = true
         current_location = nearest_idx
     end
 
     # Return to the depot and adjust cluster_sequence to zero-based indexing
-    push!(tour, 1)
+    tour[end] = 1
     total_distance += dist_matrix[current_location, 1]
-    cluster_sequence = tour .- 1
+    tour .-= 1
 
-    ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.id) for id in cluster_sequence], :]
+    ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.id) for id in tour], :]
 
     # combine exclusions for mothership and tenders
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
@@ -281,7 +284,7 @@ function two_opt(
     end
 
     # Initialize route as ordered waypoints
-    best_route = [row.id+1 for row in eachrow(cluster_centroids)] # cluster_centroids = cluster_centroids[1:end-1, :]
+    best_route = cluster_centroids.id .+ 1
     best_distance = return_route_distance(best_route, dist_matrix)
     improved = true
 
@@ -397,10 +400,13 @@ function tender_sequential_nearest_neighbour(
     # Compute the full feasible matrix and associated paths once.
     dist_matrix, path_matrix = get_feasible_matrix(full_nodes, exclusions)
 
-    tender_tours = [Int[] for _ in 1:n_tenders]
-    visited = falses(length(nodes))
+    tender_tours = [Vector{Int}(undef, t_cap) for _ in 1:n_tenders]
+    tour_lengths = zeros(Int, n_tenders)
+    n_nodes = length(nodes)
+
+    visited = falses(n_nodes)
     visited[1] = true
-    visited[2:end] .= isinf.(dist_matrix[1, 2:length(nodes)])
+    visited[2:end] .= isinf.(dist_matrix[1, 2:n_nodes])
 
     # sequentially assign closest un-visited nodes stop-by-stop, tender-by-tender
     for _ in 1:t_cap
@@ -409,22 +415,28 @@ function tender_sequential_nearest_neighbour(
                 break
             end
 
-            current_node = isempty(tender_tours[t]) ? 1 : last(tender_tours[t])
+            current_node = tour_lengths[t] == 0 ? 1 : tender_tours[t][tour_lengths[t]]
 
-            distances = dist_matrix[current_node, 1:length(nodes)]
+            #? Will this change the original matrix?
+            distances = dist_matrix[current_node, 1:n_nodes]
             distances[visited] .= Inf
             nearest_idx = argmin(distances)
 
-            push!(tender_tours[t], nearest_idx)
+            tour_lengths[t] += 1
+            tender_tours[t][tour_lengths[t]] = nearest_idx
+
             visited[nearest_idx] = true
         end
     end
 
-    # delete excess elements and remove empty tours
-    tender_tours = filter(!isempty, tender_tours)
+    # delete excess elements and remove empty tours by slicing tender_tours to tour_lengths
+    tender_tours = filter(
+        !isempty,
+        [tour[1:tour_lengths[t]] for (t, tour) in enumerate(tender_tours)]
+    )
 
-    routes = Route[]
-    for tour in tender_tours
+    routes = Vector{Route}(undef, length(tender_tours))
+    for (t, tour) in enumerate(tender_tours)
         # Route indices incl waypoints: (1), tour nodes, end (last index of full_nodes)
         route_indices = vcat(1, tour, length(full_nodes))
 
@@ -432,20 +444,14 @@ function tender_sequential_nearest_neighbour(
         route_matrix = dist_matrix[route_indices, route_indices]
 
         route_paths = [
-            (
-                i < j ?
-                path_matrix[i, j] :
-                path_matrix[j, i]
-            )
+            (i < j ? path_matrix[i, j] : path_matrix[j, i])
             for (i, j) in zip(route_indices[1:end-1], route_indices[2:end])
         ]
 
-        push!(routes,
-            Route(
-                cluster.nodes[tour.-1],
-                route_matrix,
-                vcat(route_paths...)
-            )
+        routes[t] = Route(
+            cluster.nodes[tour.-1],
+            route_matrix,
+            vcat(route_paths...)
         )
     end
 
