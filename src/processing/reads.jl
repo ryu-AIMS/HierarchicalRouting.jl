@@ -59,7 +59,7 @@ function process_targets(
 end
 
 """
-    process_exclusions(
+    read_and_polygonize_exclusions(
     bathy_fullset_path,
     vessel_draft,
     subset,
@@ -83,7 +83,7 @@ Create exclusion zones from environmental constraints.
 # Returns
 - `exclusion_zones_df::DataFrame`: The DataFrame containing the exclusion zones.
 """
-function process_exclusions(
+function read_and_polygonize_exclusions(
     bathy_fullset_path,
     vessel_draft,
     subset,
@@ -126,7 +126,7 @@ function process_exclusions(
 
     return exclusion_zones_df
 end
-function process_exclusions(
+function read_and_polygonize_exclusions(
     bathy_fullset_path,
     vessel_draft,
     subset,

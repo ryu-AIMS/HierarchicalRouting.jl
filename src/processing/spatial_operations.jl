@@ -1,20 +1,20 @@
 
 """
-    simplify_exclusions!(
+    filter_and_simplify_exclusions!(
         exclusions::DataFrame;
         min_area::Float64=3E-7,
         simplify_tol::Float64=1E-4
     )::DataFrame
 
-Removing small polygons and simplify geometry based on respective tolerance values.
+Remove small polygons and simplify geometry based on tolerance values.
 
 # Arguments
 - `exclusions`: The DataFrame containing exclusion zones.
 - `min_area`: The minimum area for exclusion polygons.
-- `simplify_tol`: The tolerance value for simplifying the exclusion polygons,
+- `simplify_tol`: The tolerance value for simplifying the exclusion polygons, \n
     i.e., larger tol = more aggressive simplification.
 """
-function simplify_exclusions!(
+function filter_and_simplify_exclusions!(
     exclusions::DataFrame;
     min_area::Float64=3E-7,
     simplify_tol::Float64=1E-4
