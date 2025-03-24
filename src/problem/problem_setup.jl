@@ -76,41 +76,59 @@ function load_problem(target_scenario::String="")
 
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
-    # process exclusions
-    ms_exclusion_zones_df = process_exclusions(
-        env_data["bathy"].rast_file,
-        config["parameters"]["depth_ms"],
-        subset,
-        EPSG_code,
-        bathy_subset_path,
-        joinpath(output_dir, "ms_exclusion.gpkg"),
-        joinpath(output_dir, "ms_exclusion.tif")
-    )
-    ms_exclusions = ms_exclusion_zones_df |> simplify_exclusions! |> buffer_exclusions! |>
-        unionize_overlaps! |> simplify_exclusions! |> unionize_overlaps!
+    # Process exclusions
+    if !(config["DEBUG"]["debug_mode"])
+        ms_exclusion_zones_df = read_and_polygonize_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_ms"],
+            subset,
+            EPSG_code,
+            bathy_subset_path,
+            joinpath(output_dir, "ms_exclusion.gpkg"),
+            joinpath(output_dir, "ms_exclusion.tif")
+        )
+    else
+        ms_exclusion_zones_df = read_and_polygonize_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_ms"],
+            subset,
+            EPSG_code
+        )
+    end
+    ms_exclusions = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |> buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions! |> unionize_overlaps!
 
-    t_exclusions = process_exclusions(
-        env_data["bathy"].rast_file,
-        config["parameters"]["depth_t"],
-        subset,
-        EPSG_code,
-        bathy_subset_path,
-        joinpath(output_dir, "t_exclusion.gpkg"),
-        joinpath(output_dir, "t_exclusion.tif")
-    )
-    t_exclusions = simplify_exclusions!(
+    if !(config["DEBUG"]["debug_mode"])
+        t_exclusions = read_and_polygonize_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_t"],
+            subset,
+            EPSG_code,
+            bathy_subset_path,
+            joinpath(output_dir, "t_exclusion.gpkg"),
+            joinpath(output_dir, "t_exclusion.tif")
+        )
+    else
+        t_exclusions = read_and_polygonize_exclusions(
+            env_data["bathy"].rast_file,
+            config["parameters"]["depth_t"],
+            subset,
+            EPSG_code
+        )
+    end
+
+    t_exclusions = filter_and_simplify_exclusions!(
         unionize_overlaps!(
             buffer_exclusions!(
-                simplify_exclusions!(
+                filter_and_simplify_exclusions!(
                     t_exclusions,
-                    min_area=20,
-                    simplify_tol=2
+                    min_area=1E-7,
+                    simplify_tol=5E-5
                 ),
-                buffer_dist=0.1
+                buffer_dist=0.0
             )
         ),
-        min_area=20,
-        simplify_tol=2
+        min_area=1E-7,
+        simplify_tol=5E-5
     )
 
     mothership = Vessel(exclusion = ms_exclusions, weighting = config["parameters"]["weight_ms"])

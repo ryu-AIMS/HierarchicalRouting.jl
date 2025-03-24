@@ -1,38 +1,39 @@
 
 """
-    simplify_exclusions!(
-    exclusions::DataFrame;
-    min_area::Real=50,
-    simplify_tol::Real=2
+    filter_and_simplify_exclusions!(
+        exclusions::DataFrame;
+        min_area::Float64=3E-7,
+        simplify_tol::Float64=1E-4
     )::DataFrame
 
-Simplify exclusions by removing small polygons, and simplifying geometry.
+Remove small polygons and simplify geometry based on tolerance values.
 
 # Arguments
-- `exclusions::DataFrame`: The DataFrame containing exclusion zones.
-- `min_area::Real`: The minimum area for exclusion polygons. Default = 50
-- `simplify_tol::Real`: The tolerance value for simplifying the exclusion polygons, i.e., larger tol = more aggressive simplification. Default = 2
+- `exclusions`: The DataFrame containing exclusion zones.
+- `min_area`: The minimum area for exclusion polygons.
+- `simplify_tol`: The tolerance value for simplifying the exclusion polygons, \n
+    i.e., larger tol = more aggressive simplification.
 """
-function simplify_exclusions!(
+function filter_and_simplify_exclusions!(
     exclusions::DataFrame;
-    min_area::Real=50,
-    simplify_tol::Real=2
-    )
+    min_area::Float64=3E-7,
+    simplify_tol::Float64=1E-4
+    )::DataFrame
     exclusions = exclusions[AG.geomarea.(exclusions.geometry) .>= min_area, :]
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
     return exclusions
 end
 
 """
-    buffer_exclusions!(exclusions::DataFrame, buffer_dist=1.0)::DataFrame
+    buffer_exclusions!(exclusions::DataFrame; buffer_dist::Float64=0.0)::DataFrame
 
 Buffer exclusion zones by a specified distance.
 
 # Arguments
-- `exclusions::DataFrame`: The DataFrame containing exclusion zones.
-- `buffer_dist::Real`: The buffer distance. Default = 1.0
+- `exclusions`: The DataFrame containing exclusion zones.
+- `buffer_dist`: The buffer distance.
 """
-function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Real=2.0)
+function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Float64=0.0)::DataFrame
     exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
     return exclusions
 end

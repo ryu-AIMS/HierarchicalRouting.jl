@@ -43,6 +43,9 @@ tend_depth = -5.0           # Tender draft
 
 n_tenders = 3               # Number of tenders available
 t_cap = 2                   # Max number of sites a tender can visit in each deployment sortie
+
+[DEBUG]
+debug_mode = false          # Set to false to disable result caching for debugging purposes
 ```
 
 By convention, this file is named `.config.toml` (note the leading `.`).

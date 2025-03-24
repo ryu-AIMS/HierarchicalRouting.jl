@@ -36,39 +36,30 @@ function process_targets(
     subset,
     EPSG_code
 )
-    # TODO Generalize
-    # if isfile(clustered_targets_path)
-    #     return Raster(clustered_targets_path, mappedcrs=EPSG(EPSG_code))
-    # else
-        # Read deployment locations
-        # if isfile(target_subset_path)
-        #     # TODO: Check this works...
-        #     suitable_targets_subset = Raster(target_subset_path, mappedcrs=EPSG(EPSG_code))
-        # else
-        if endswith(suitable_targets_all_path, ".geojson")
-            suitable_targets_poly = GDF.read(suitable_targets_all_path)
-            suitable_targets_centroids = [AG.centroid(polygon) for polygon in suitable_targets_poly.geometry]
-            suitable_targets_centroids_pts = [AG.getpoint(centroid,0)[1:2] for centroid in suitable_targets_centroids]
+    if endswith(suitable_targets_all_path, ".geojson")
+        suitable_targets_poly = GDF.read(suitable_targets_all_path)
+        suitable_targets_centroids = AG.centroid.(suitable_targets_poly.geometry)
+        suitable_targets_centroids_pts = [AG.getpoint(centroid, 0)[1:2] for centroid in suitable_targets_centroids]
 
-            resolution = 0.0001
-            suitable_targets_all = Rasters.rasterize(last, suitable_targets_centroids_pts; res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code))
-        else
-            suitable_targets_all = Raster(suitable_targets_all_path, mappedcrs=EPSG(EPSG_code))
-            suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
-        end
-        suitable_targets_subset = crop_to_subset(suitable_targets_all, subset)
-        if !isfile(target_subset_path)
-            write(target_subset_path, suitable_targets_subset; force=true)
-        end
-        # end
-        clustered_targets = cluster_raster(suitable_targets_subset, k; tol=cluster_tolerance)
-        write(clustered_targets_path, clustered_targets; force=true)
-        return clustered_targets
-    # end
+        resolution = 0.0001
+        suitable_targets_all = Rasters.rasterize(last, suitable_targets_centroids_pts; res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code))
+    else
+        suitable_targets_all = Raster(suitable_targets_all_path; mappedcrs=EPSG(EPSG_code), lazy=true)
+        suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
+    end
+
+    suitable_targets_subset = read(Rasters.crop(suitable_targets_all; to=subset.geom))
+    if !isfile(target_subset_path)
+        write(target_subset_path, suitable_targets_subset; force=true)
+    end
+
+    clustered_targets = cluster_raster(suitable_targets_subset, k; tol=cluster_tolerance)
+    write(clustered_targets_path, clustered_targets; force=true)
+    return clustered_targets
 end
 
 """
-    process_exclusions(
+    read_and_polygonize_exclusions(
     bathy_fullset_path,
     vessel_draft,
     subset,
@@ -92,7 +83,7 @@ Create exclusion zones from environmental constraints.
 # Returns
 - `exclusion_zones_df::DataFrame`: The DataFrame containing the exclusion zones.
 """
-function process_exclusions(
+function read_and_polygonize_exclusions(
     bathy_fullset_path,
     vessel_draft,
     subset,
@@ -108,31 +99,44 @@ function process_exclusions(
         exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     else
         if isfile(exclusion_tif_path)
-            exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code), missingval=0)
-            exclusion_zones_bool = Raster(exclusion_zones_int .!= 0, dims(exclusion_zones_int))
+            exclusion_zones_int = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
+            exclusion_zones_bool = exclusion_zones_int .!= 0
         else
             # Load environmental constraints
             # Bathymetry
             if isfile(bathy_subset_path)
-                bathy_subset = Raster(bathy_subset_path, mappedcrs=EPSG(EPSG_code), missingval=0)
+                bathy_subset = Raster(bathy_subset_path; mappedcrs=EPSG(EPSG_code))
             else
-                bathy_dataset = Raster(bathy_fullset_path, mappedcrs=EPSG(EPSG_code), missingval=0)
-                bathy_subset = crop_to_subset(bathy_dataset, subset)
+                bathy_dataset = Raster(bathy_fullset_path; mappedcrs=EPSG(EPSG_code), lazy=true)
+                bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
                 write(bathy_subset_path, bathy_subset; force=true)
             end
+
             exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
-            write(exclusion_tif_path, convert.(Int64, exclusion_zones_bool); force=true)
+            write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
         end
 
-        exclusion_zones_df = exclusion_zones_bool |> to_multipolygon |> to_dataframe
+        exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
         GDF.write(
             exclusion_gpkg_path,
             exclusion_zones_df;
             crs=EPSG(EPSG_code)
         )
-        exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     end
+
     return exclusion_zones_df
+end
+function read_and_polygonize_exclusions(
+    bathy_fullset_path,
+    vessel_draft,
+    subset,
+    EPSG_code
+)
+    bathy_dataset = Raster(bathy_fullset_path; mappedcrs=EPSG(EPSG_code), lazy=true)
+    bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
+    exclusion_zones = create_exclusion_zones(bathy_subset, vessel_draft)
+
+    return polygonize_binary(exclusion_zones)
 end
 
 """
