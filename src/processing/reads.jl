@@ -151,7 +151,7 @@ function read_and_polygonize_exclusions(
 end
 
 """
-    process_problem(problem::Problem)::Vector{Cluster}
+    cluster_problem(problem::Problem)::Vector{Cluster}
 
 Read and process problem data to generate an initial solution.
 
@@ -161,7 +161,7 @@ Read and process problem data to generate an initial solution.
 # Returns
 Vector of clustered locations.
 """
-function process_problem(problem::Problem)::Vector{Cluster}
+function cluster_problem(problem::Problem)::Vector{Cluster}
     config = TOML.parsefile(joinpath("src", ".config.toml"))
 
     suitable_threshold::Float64 = config["parameters"]["suitable_threshold"]

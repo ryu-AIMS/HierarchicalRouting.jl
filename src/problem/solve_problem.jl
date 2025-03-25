@@ -15,7 +15,7 @@ Best total MSTSolution found
 """
 function initial_solution(problem::Problem)::MSTSolution
     # Load problem data
-    clusters::Vector{Cluster} = process_problem(problem);
+    clusters::Vector{Cluster} = cluster_problem(problem);
 
     cluster_centroids_df::DataFrame = DataFrame(
         id  = [0; 1:length(clusters)],
