@@ -298,6 +298,10 @@ end
 
 """
     is_visible(
+        line_to_point::AG.IGeometry{AG.wkbLineString},
+        exclusion_poly::AG.IGeometry{AG.wkbPolygon}
+    )::Bool
+    is_visible(
         current_point::Point{2, Float64},
         final_point::Point{2, Float64},
         exclusion_poly::AG.IGeometry{AG.wkbPolygon}
@@ -313,6 +317,7 @@ Check if a point is visible from another point, given a vector of, or single exc
     polygon/s. i.e. no exclusion zone intersects the straight line between them.
 
 # Arguments
+- `line_to_point`: The line from the current point to the final point.
 - `current_point`: The current point marking start of line.
 - `final_point`: The final point marking end of line.
 - `exclusion_poly`: The exclusion polygon.
@@ -322,6 +327,14 @@ Check if a point is visible from another point, given a vector of, or single exc
 # Returns
 `true` if the line between the two points is visible, `false` otherwise.
 """
+function is_visible(
+    line_to_point::AG.IGeometry{AG.wkbLineString},
+    exclusion_poly::AG.IGeometry{AG.wkbPolygon}
+)::Bool
+    # TODO: CHECK if commented statement below is necessary/correct/overkill
+    return !AG.intersects(exclusion_poly, line_to_point) ||
+        AG.touches(exclusion_poly, line_to_point) # TODO: Remove touches?
+end
 function is_visible(
     current_point::Point{2, Float64},
     final_point::Point{2, Float64},
@@ -356,6 +369,7 @@ function is_visible(
     ])
 
     isempty_geo = AG.isempty
+    inner_visible = is_visible
 
     for (i, geometry) ∈ enumerate(geometries)
         # Skip exclusion zones
@@ -363,7 +377,7 @@ function is_visible(
             continue
         end
 
-        if !is_visible(current_point, final_point, geometry_i)
+        if !inner_visible(line_to_point, geometry)
             return false
         end
     end
