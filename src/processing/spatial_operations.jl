@@ -87,8 +87,7 @@ function unionize_overlaps!(exclusions::DataFrame)::DataFrame
             geom_a = linestring_to_polygon(AG.getgeom(geom1, 0))
             for j in 1:AG.ngeom(geom1) - 1
                 geom_b = linestring_to_polygon(AG.getgeom(geom1, j))
-
-                if AG.intersects(geom_a, geom_b) #|| AG.overlaps(geom_a, geom_b) || AG.contains(geom_a, geom_b) || AG.contains(geom_b, geom_a)
+                if AG.intersects(geom_a, geom_b)
                     geom_a = AG.union(geom_a, geom_b)
                 end
             end

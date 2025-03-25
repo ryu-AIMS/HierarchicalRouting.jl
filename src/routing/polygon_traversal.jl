@@ -39,7 +39,7 @@ function find_widest_points(
         current_point, final_point, exclusions, visited_exclusion_idxs
     )
 
-    if isnothing(polygon)
+    if AG.isempty(polygon)
         return [final_point], [0]
     end
 
@@ -128,8 +128,13 @@ function search_widest_points(
         final_point[2] - current_point[2]
     ]
 
+    getpoint = AG.getpoint
+    x::Float64, y::Float64 = 0.0, 0.0
+    pt = Point{2, Float64}(x, y)
+    candidate_tuple::Tuple{Float64, Float64} = (0.0, 0.0)
+    angle::Float64 = 0.0
     for i in 0:n_pts - 1
-        x, y, _ = AG.getpoint(exterior_ring, i)
+        x, y, _ = getpoint(exterior_ring, i)
         pt = Point{2, Float64}(x, y)
 
         # Vector from current_point to this vertex.
@@ -162,8 +167,8 @@ end
         visited_exclusion_idxs::Vector{Int}
     )::Tuple{
         Tuple{
-            Union{AG.IGeometry{AG.wkbPolygon}, Nothing},
-            Union{AG.IGeometry{AG.wkbLineString}, Nothing},
+            AG.IGeometry{AG.wkbPolygon},
+            AG.IGeometry{AG.wkbLineString},
             Int32
         },
         Int64
@@ -178,7 +183,7 @@ Find polygons that intersect with a line segment.
 - `visited_exclusion_idxs`: Indices of exclusion zones already crossed.
 
 # Returns
-- `closest_polygon`: The
+- `closest_polygon`: A tuple containing the:
     - `geometry`: polygon geometry,
     - `exterior_ring`: LineString of the polygon's exterior, and
     - `n_pts`: number of vertices in the polygon,\n
@@ -192,13 +197,13 @@ function closest_crossed_polygon(
     visited_exclusion_idxs::Vector{Int64}
 )::Tuple{
     Tuple{
-        Union{AG.IGeometry{AG.wkbPolygon}, Nothing},
-        Union{AG.IGeometry{AG.wkbLineString}, Nothing},
+        AG.IGeometry{AG.wkbPolygon},
+        AG.IGeometry{AG.wkbLineString},
         Int32
     },
     Int64
 }
-    closest_polygon = (nothing, nothing, 0)
+    closest_polygon = (AG.creategeom(AG.wkbPolygon), AG.creategeom(AG.wkbLineString), 0)
     min_dist = Inf
     polygon_idx = 0
 
@@ -208,10 +213,10 @@ function closest_crossed_polygon(
     )
 
     # Define bounding box for line to exclude polygons that do not intersect
-    line_min_x::Float64, line_max_x::Float64 = min(current_point[1], final_point[1]),
-        max(current_point[1], final_point[1])
-    line_min_y::Float64, line_max_y::Float64 = min(current_point[2], final_point[2]),
-        max(current_point[2], final_point[2])
+    line_min_x::Float64 = min(current_point[1], final_point[1])
+    line_max_x::Float64 = max(current_point[1], final_point[1])
+    line_min_y::Float64 = min(current_point[2], final_point[2])
+    line_max_y::Float64 = max(current_point[2], final_point[2])
 
     for (i, geom::AG.IGeometry{AG.wkbPolygon}) ∈ enumerate(exclusions.geometry)
         if i in visited_exclusion_idxs
@@ -258,7 +263,12 @@ function closest_crossed_polygon(
             pts::Vector{AG.IGeometry} = get_pts(intersections)
 
             # Find distance to polygon
-            dist::Float64 = minimum(GO.distance.([current_point], pts))
+            dist::Float64 = minimum(
+                GO.distance.(
+                    [current_point]::Vector{Point{2, Float64}},
+                    pts
+                )
+            )
 
             # If closer than current closest polygon, update closest polygon
             if dist < min_dist
@@ -284,7 +294,7 @@ end
     is_visible(
         current_point::Point{2, Float64},
         final_point::Point{2, Float64},
-        exclusion_poly::AG.IGeometry
+        exclusion_poly::AG.IGeometry{AG.wkbPolygon}
     )::Bool
     is_visible(
         current_point::Point{2, Float64},
@@ -311,7 +321,6 @@ function is_visible(
     final_point::Point{2, Float64},
     exclusion_poly::AG.IGeometry{AG.wkbPolygon}
 )::Bool
-
     line_to_point::AG.IGeometry{AG.wkbLineString} = AG.createlinestring([
         (current_point[1], current_point[2]),
         (final_point[1], final_point[2])
@@ -327,11 +336,24 @@ function is_visible(
     exclusions::DataFrame,
     current_exclusions_idx::Vector{Int} = [0]
 )::Bool
+    #! Broadcast/vectorise function
+    current_exclusions = Set{Int}()
+    sizehint!(current_exclusions, length(current_exclusions_idx))
+    for idx in current_exclusions_idx
+        push!(current_exclusions, idx)
+    end
 
-    for i ∈ 1:size(exclusions, 1)
-        geometry_i::AG.IGeometry{AG.wkbPolygon} = exclusions.geometry[i]
+    geometries::Vector{AG.IGeometry{AG.wkbPolygon}} = exclusions.geometry
+    line_to_point::AG.IGeometry{AG.wkbLineString} = AG.createlinestring([
+        (current_point[1], current_point[2]),
+        (final_point[1], final_point[2])
+    ])
+
+    isempty_geo = AG.isempty
+
+    for (i, geometry) ∈ enumerate(geometries)
         # Skip exclusion zones
-        if AG.isempty(geometry_i) || i ∈ current_exclusions_idx
+        if isempty_geo(geometry) || (i ∈ current_exclusions)
             continue
         end
 

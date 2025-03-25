@@ -163,9 +163,17 @@ function shortest_feasible_path(
             final_exclusion_idx
         )
     else
-        initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[initial_exclusion_idx, :geometry]
+        initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
+            initial_exclusion_idx, :geometry
+        ]
         poly_vertices::Vector{Point{2, Float64}} = collect_polygon_vertices(initial_polygon)
-        visible_vertices = poly_vertices[is_visible.(Ref(initial_point), poly_vertices, Ref(exclusions))]
+        visible_vertices = poly_vertices[
+            is_visible.(
+                Ref(initial_point),
+                poly_vertices,
+                Ref(exclusions)
+            )
+        ]
 
         # Connect each polygon vertex to the initial point if visible.
         n_verts = length(visible_vertices)
@@ -204,7 +212,8 @@ function shortest_feasible_path(
         points_from,
         points_to,
         exclusions,
-        iszero(final_exclusion_idx) ? nothing : exclusions[final_exclusion_idx,:geometry],
+        iszero(final_exclusion_idx) ?
+        AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx,:geometry],
         initial_point,
         final_point
     )
@@ -212,7 +221,10 @@ function shortest_feasible_path(
     path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
-    linestring_path = [LineString([idx_to_point[segment.src], idx_to_point[segment.dst]]) for segment in path]
+    linestring_path = [
+        LineString([idx_to_point[segment.src], idx_to_point[segment.dst]])
+        for segment in path
+    ]
 
     return dist, linestring_path
 end
@@ -317,7 +329,6 @@ function build_network!(
         )
     end
     # TODO: check if path from current_point to next/intermediate point is feasible (no intersecting polygons in between)
-
 end
 
 """
@@ -325,7 +336,7 @@ end
         points_from::Vector{Point{2, Float64}},
         points_to::Vector{Point{2, Float64}},
         exclusions::DataFrame,
-        final_polygon::Union{Nothing, AG.IGeometry},
+        final_polygon::AG.IGeometry{AG.wkbPolygon},
         initial_point::Point{2, Float64},
         final_point::Point{2, Float64}
     )::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
@@ -351,11 +362,11 @@ function build_graph(
     points_from::Vector{Point{2, Float64}},
     points_to::Vector{Point{2, Float64}},
     exclusions::DataFrame,
-    final_polygon::Union{Nothing, AG.IGeometry{AG.wkbPolygon}},
+    final_polygon::AG.IGeometry{AG.wkbPolygon},
     initial_point::Point{2, Float64},
     final_point::Point{2, Float64}
 )::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
-    is_polygon = !isnothing(final_polygon)
+    is_polygon = !AG.isempty(final_polygon)
 
     poly_vertices::Vector{Point{2, Float64}} = is_polygon ?
         collect_polygon_vertices(final_polygon) :
@@ -409,7 +420,8 @@ function build_graph(
 end
 
 """
-    collect_polygon_vertices(polygon::AG.IGeometry)::Vector{Point{2, Float64}}
+    collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
+    )::Vector{Point{2, Float64}}
 
 Collect all vertices of a polygon.
 
@@ -419,7 +431,8 @@ Collect all vertices of a polygon.
 # Returns
 - Vector of polygon vertices.
 """
-function collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon})::Vector{Point{2, Float64}}
+function collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
+)::Vector{Point{2, Float64}}
     exterior_ring = AG.getgeom(polygon, 0)
     n_pts = AG.ngeom(exterior_ring)
     pts = Vector{Point{2,Float64}}(undef, n_pts)

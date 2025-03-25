@@ -60,40 +60,51 @@ end
         opt_function::Function,
         objective_function::Function,
         perturb_function::Function,
-        exclusions::DataFrame = DataFrame(),
+        exclusions::DataFrame = DataFrame();
         max_iterations::Int = 5_000,
         temp_init::Float64 = 500.0,
-        cooling_rate::Float64 = 0.95
+        cooling_rate::Float64 = 0.95,
+        static_limit::Int = 150
     )::Tuple{MSTSolution, Float64}
 
-Improve the solution using the optimization function `opt_function`
-    with the objective function `objective_function` and
-    the perturbation function `perturb_function`.
+Improve the solution using the optimization function `opt_function` with the objective \n
+function `objective_function` and the perturbation function `perturb_function`.
 
 # Arguments
 - `soln`: Initial solution to improve
 - `opt_function`: Optimization function to use
 - `objective_function`: Objective function to use
 - `perturb_function`: Perturbation function to use
-- `exclusions = DataFrame()`: Exclusions DataFrame
-- `max_iterations = 5_000`: Maximum number of iterations
-- `temp_init = 500.0`: Initial temperature for simulated annealing
-- `cooling_rate = 0.95`: Cooling rate for simulated annealing
+- `exclusions`: Exclusions DataFrame
+- `max_iterations`: Maximum number of iterations
+- `temp_init`: Initial temperature for simulated annealing
+- `cooling_rate`: Cooling rate for simulated annealing
+- `static_limit`: Number of iterations to allow stagnation before early exit
 
 # Returns
-- `soln_best::MSTSolution`: Best solution found
-- `z_best::Float64`: Best objective value found
+- `soln_best`: Solution with lowest objective value found
+- `z_best`: Objective value associated with the best solution
 """
 function improve_solution(
     soln::MSTSolution,
     opt_function::Function,
     objective_function::Function,
     perturb_function::Function,
-    exclusions::DataFrame = DataFrame(),
+    exclusions::DataFrame = DataFrame();
     max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
-    cooling_rate::Float64 = 0.95
+    cooling_rate::Float64 = 0.95,
+    static_limit::Int = 150
 )::Tuple{MSTSolution, Float64}
-    soln_best, z_best = opt_function(soln, objective_function, perturb_function, exclusions, max_iterations, temp_init, cooling_rate)
+    soln_best, z_best = opt_function(
+        soln,
+        objective_function,
+        perturb_function,
+        exclusions,
+        max_iterations,
+        temp_init,
+        cooling_rate,
+        static_limit
+    )
     return soln_best, z_best
 end

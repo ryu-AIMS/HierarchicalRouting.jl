@@ -438,7 +438,10 @@ function tender_sequential_nearest_neighbour(
     routes = Vector{Route}(undef, length(tender_tours))
     for (t, tour) in enumerate(tender_tours)
         # Route indices incl waypoints: (1), tour nodes, end (last index of full_nodes)
-        route_indices = vcat(1, tour, length(full_nodes))
+        route_indices = Vector{Int}(undef, length(tour) + 2)
+        route_indices[1] = 1
+        route_indices[2:end-1] = tour
+        route_indices[end] = length(full_nodes)
 
         # Submatrix for this route
         route_matrix = dist_matrix[route_indices, route_indices]
