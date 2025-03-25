@@ -74,16 +74,25 @@ end
     vector_angle(
         base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
     )::Float64
+    vector_angle(
+        base_vector::Vector{Float64}, candidate_tuple::Tuple{Float64, Float64}
+    )::Float64
 
 Calculate the signed angle (radians) of a candidate vector relative to a base vector.
 
 # Arguments
 - `base_vector`: The base vector.
 - `candidate_vector`: The candidate vector.
+- `candidate_tuple`: The candidate vector as a tuple.
 
 # Returns
 - The signed angle between the two vectors in radians.
 """
+function vector_angle(
+    base_vector::Vector{Float64}, candidate_tuple::Tuple{Float64, Float64}
+)::Float64
+    return vector_angle(base_vector, collect(candidate_tuple))
+end
 function vector_angle(
     base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
 )::Float64
@@ -137,14 +146,11 @@ function search_widest_points(
         x, y, _ = getpoint(exterior_ring, i)
         pt = Point{2, Float64}(x, y)
 
-        # Vector from current_point to this vertex.
-        candidate_vector = [
-            (pt[1] - current_point[1]),
-            (pt[2] - current_point[2])
-        ]
+        # Tuple from current_point to this vertex.
+        candidate_tuple = ((pt[1] - current_point[1]), (pt[2] - current_point[2]))
 
         # Signed angle between base vector and vector to vertex
-        angle = vector_angle(base_vector, candidate_vector)
+        angle = vector_angle(base_vector, candidate_tuple)
 
         if pt != current_point
             if angle > 0 && angle > max_angle_L
