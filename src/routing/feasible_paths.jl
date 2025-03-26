@@ -379,40 +379,64 @@ function build_graph(
             points_from, points_to, [final_point]
         ))
     ]
-    all_points::Vector{Point{2, Float64}} = vcat(chain_points, poly_vertices)
-    unique_points::Vector{Point{2, Float64}} = unique(all_points)
+
+    unique_points::Vector{Point{2, Float64}} = unique(vcat(chain_points, poly_vertices))
     n_points::Int = length(unique_points)
 
     # Create the graph with one vertex per unique point.
     graph = SimpleWeightedGraph(n_points)
 
     # Map points to indices
-    pt_to_idx = Dict{Point{2, Float64}, Int}(unique_points .=> collect(1:n_points))
+    pt_to_idx = Dict{Point{2, Float64}, Int}(unique_points .=> 1:n_points)
 
     # Add candidate (chain) edges.
-    for (p,q) in zip(points_from, points_to)
-        add_edge!(graph, pt_to_idx[p], pt_to_idx[q], haversine(p, q))
-    end
+    add_edge!.(Ref(graph),
+        map(p -> pt_to_idx[p], points_from),
+        map(q -> pt_to_idx[q], points_to),
+        haversine.(points_from, points_to)
+    )
 
-    # Add polygon edges if a polygon was provided.
-    if is_polygon
-        n_vertices = length(poly_vertices)
-        for i in 1:n_vertices
-            p::Point{2, Float64} = poly_vertices[i]
-            q::Point{2, Float64} = poly_vertices[mod1(i + 1, n_vertices)]
+    # Only add polygon edges and extra visible connections if:
+    # 1. A polygon is provided, AND
+    # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
+    if is_polygon && !is_visible(initial_point, final_point, final_polygon)
 
-            # Connect adjacent polygon vertices, and wrap around.
-            i_idx::Int = pt_to_idx[p]
-            j_idx::Int = pt_to_idx[q]
-            add_edge!(graph, i_idx, j_idx, haversine(p, q))
+        # Get vectors of polygon vertices (from, to) and their corresponding indices
+        i_vertices::Vector{Point{2, Float64}} = poly_vertices[1:end-1]
+        j_vertices::Vector{Point{2, Float64}} = poly_vertices[2:end]
+        i_idxs::Vector{Int} = map(i -> pt_to_idx[i], i_vertices)
+        j_idxs::Vector{Int} = map(j -> pt_to_idx[j], j_vertices)
 
-            # connect to visible points in the graph
-            for point in chain_points
-                if is_visible(p, point, exclusions)
-                    j_idx = pt_to_idx[point]
-                    add_edge!(graph, i_idx, j_idx, haversine(p, point))
-                end
+        # Add edges connecting all polygon vertices
+        add_edge!.(
+            Ref(graph),
+            i_idxs,
+            j_idxs,
+            haversine.(i_vertices, j_vertices)
+        )
+
+        # Connect all visible points to polygon vertices
+        for i in poly_vertices
+            visible_points = filter(pt -> is_visible(i, pt, exclusions), chain_points)
+            if !isempty(visible_points)
+                # Compute indices for all visible points and distances in one go.
+                add_edge!.(
+                    Ref(graph),
+                    Ref(pt_to_idx[i]),
+                    map(pt -> pt_to_idx[pt], visible_points),
+                    haversine.(Ref(i), visible_points)
+                )
             end
+        end
+
+        # Connect polygon vertices if not complete loop
+        if poly_vertices[1] != poly_vertices[end]
+            add_edge!(
+                graph,
+                pt_to_idx[poly_vertices[end]],
+                pt_to_idx[poly_vertices[1]],
+                haversine(poly_vertices[end], poly_vertices[1])
+            )
         end
     end
 
