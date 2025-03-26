@@ -331,9 +331,8 @@ function is_visible(
     line_to_point::AG.IGeometry{AG.wkbLineString},
     exclusion_poly::AG.IGeometry{AG.wkbPolygon}
 )::Bool
-    # TODO: CHECK if commented statement below is necessary/correct/overkill
     return !AG.intersects(exclusion_poly, line_to_point) ||
-        AG.touches(exclusion_poly, line_to_point) # TODO: Remove touches?
+        AG.touches(exclusion_poly, line_to_point)
 end
 function is_visible(
     current_point::Point{2, Float64},
@@ -344,10 +343,7 @@ function is_visible(
         (current_point[1], current_point[2]),
         (final_point[1], final_point[2])
     ])
-
-    # TODO: CHECK if commented statement below is necessary/correct/overkill
-    return !AG.intersects(exclusion_poly, line_to_point) ||
-        AG.touches(exclusion_poly, line_to_point)
+    return is_visible(line_to_point, exclusion_poly)
 end
 function is_visible(
     current_point::Point{2, Float64},
@@ -368,16 +364,13 @@ function is_visible(
         (final_point[1], final_point[2])
     ])
 
-    isempty_geo = AG.isempty
-    inner_visible = is_visible
-
     for (i, geometry) ∈ enumerate(geometries)
         # Skip exclusion zones
-        if isempty_geo(geometry) || (i ∈ current_exclusions)
+        if AG.isempty(geometry) || (i ∈ current_exclusions)
             continue
         end
 
-        if !inner_visible(line_to_point, geometry)
+        if !is_visible(line_to_point, geometry)
             return false
         end
     end
