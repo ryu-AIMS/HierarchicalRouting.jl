@@ -80,8 +80,8 @@ function perturb_swap_solution(
         vcat(get_feasible_vector(updated_tender_tours[1], exclusions)[2]...)
     )
     tender.sorties[sortie_b_idx] = Route(
-        tenders[clust_idx].sorties[sortie_b_idx].nodes,
-        tenders[clust_idx].sorties[sortie_b_idx].dist_matrix,
+        tender.sorties[sortie_b_idx].nodes,
+        tender.sorties[sortie_b_idx].dist_matrix,
         vcat(get_feasible_vector(updated_tender_tours[2], exclusions)[2]...)
     )
 
