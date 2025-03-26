@@ -59,7 +59,7 @@ function adjust_waypoint(
 
     waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
 
-    containing_polygons = [
+    containing_polygons::Vector{AG.IGeometry{AG.wkbPolygon}} = [
         AG.convexhull(polygon)
         for polygon in exclusions.geometry
             if AG.contains(AG.convexhull(polygon), waypoint_geom)
@@ -75,18 +75,27 @@ function adjust_waypoint(
     exterior_ring::AG.IGeometry{AG.wkbLineString} = AG.getgeom(union_poly, 0)
     n_points::Int32 = AG.ngeom(exterior_ring)
 
-    boundary_points::Vector{Point{2, Float64}} = map(
-        pt -> Point(pt[1], pt[2]),
-        AG.getpoint.(Ref(exterior_ring), 0:n_points-1)
-        )
+    boundary_points = Vector{Point{2, Float64}}(undef, n_points)
+    pt = AG.creategeom(AG.wkbPoint)
 
+    # iterate safely within all vertices on the exterior ring to populate pts
+    @inbounds for i in 1:n_points
+        pt = AG.getpoint(exterior_ring, i - 1) # 0-based indexing
+        boundary_points[i] = Point(pt[1], pt[2])
+    end
 
-    valid_boundary_points::Vector{Point{2, Float64}} = boundary_points[
-        .!point_in_exclusion.(boundary_points, Ref(union_poly))
-    ]
+    valid_boundary_points = Point{2, Float64}[]
+    sizehint!(valid_boundary_points, length(boundary_points))
+    @inbounds for p in boundary_points
+        # If a point is not in the union (exclusion), it’s valid.
+        if !point_in_exclusion(p, union_poly)
+            push!(valid_boundary_points, p)
+        end
+    end
 
+    # ignore `sqrt` for performance - gives same result
     closest_point::Point{2, Float64} = argmin(
-        p -> sqrt((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2),
+        p -> ((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2),
         valid_boundary_points
     )
 
