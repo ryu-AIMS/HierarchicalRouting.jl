@@ -137,13 +137,12 @@ function search_widest_points(
         final_point[2] - current_point[2]
     ]
 
-    getpoint = AG.getpoint
     x::Float64, y::Float64 = 0.0, 0.0
     pt = Point{2, Float64}(x, y)
     candidate_tuple::Tuple{Float64, Float64} = (0.0, 0.0)
     angle::Float64 = 0.0
     for i in 0:n_pts - 1
-        x, y, _ = getpoint(exterior_ring, i)
+        x, y, _ = AG.getpoint(exterior_ring, i)
         pt = Point{2, Float64}(x, y)
 
         # Tuple from current_point to this vertex.
@@ -180,7 +179,7 @@ end
         Int64
     }
 
-Find polygons that intersect with a line segment.
+Find the first polygon that is intersected by a line between two given points.
 
 # Arguments
 - `current_point`: The current point marking start of line.
@@ -303,6 +302,18 @@ function closest_crossed_polygon(
     return closest_polygon, polygon_idx
 end
 
+"""
+    get_pts(intersections::AG.IGeometry{AG.wkbPoint})::Vector{AG.IGeometry}
+    get_pts(intersections::AG.IGeometry)::Vector{AG.IGeometry}
+
+Get the points from the intersection geometry.
+
+# Arguments
+- `intersections`: The intersection geometry.
+
+# Returns
+- A vector of points from the intersection geometry.
+"""
 function get_pts(intersections::AG.IGeometry{AG.wkbPoint})
     return [intersections]
 end
@@ -310,7 +321,6 @@ function get_pts(intersections::AG.IGeometry)
     n = AG.ngeom(intersections)
     return AG.getgeom.(Ref(intersections), 0:n-1)
 end
-
 
 """
     is_visible(
