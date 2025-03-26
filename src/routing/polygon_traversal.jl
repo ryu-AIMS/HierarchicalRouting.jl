@@ -209,16 +209,30 @@ function closest_crossed_polygon(
     },
     Int64
 }
+    # Create placeholder variables
+    exterior_ring::AG.IGeometry{AG.wkbLineString} = AG.creategeom(AG.wkbLineString)
+    n_pts::Int32 = 0
+    pt_ref = Ref{NTuple{3, Float64}}()
+    vertex_in_line_bbox::Bool = false
+    line_in_polygon_bbox::Bool = false
+
+    current_point_geom = AG.createpoint(current_point[1], current_point[2])
+    final_point_geom = AG.createpoint(final_point[1], final_point[2])
+
     closest_polygon = (AG.creategeom(AG.wkbPolygon), AG.creategeom(AG.wkbLineString), 0)
     min_dist = Inf
     polygon_idx = 0
 
+    # Set vector lengths for polygon vertices with length of 100
+    poly_xs = Vector{Float64}(undef, 100)
+    poly_ys = Vector{Float64}(undef, 100)
+
+    # Define bounding box for line to exclude polygons that do not intersect
     line::AG.IGeometry{AG.wkbLineString} = AG.createlinestring(
         [current_point[1], final_point[1]],
         [current_point[2], final_point[2]]
     )
 
-    # Define bounding box for line to exclude polygons that do not intersect
     line_min_x::Float64 = min(current_point[1], final_point[1])
     line_max_x::Float64 = max(current_point[1], final_point[1])
     line_min_y::Float64 = min(current_point[2], final_point[2])
@@ -229,49 +243,51 @@ function closest_crossed_polygon(
             continue
         end
 
-        exterior_ring::AG.IGeometry{AG.wkbLineString} = AG.getgeom(geom, 0)
-        n_pts::Int32 = AG.ngeom(exterior_ring)
+        exterior_ring = AG.getgeom(geom, 0)
+        n_pts = AG.ngeom(exterior_ring)
+
+        # Resize bitvector and arrays if length of polygon vertices exceeds current size
+        if n_pts > length(poly_xs)
+            size_diff = n_pts - length(poly_xs)
+            append!(poly_xs, Vector{Float64}(undef, size_diff))
+            append!(poly_ys, Vector{Float64}(undef, size_diff))
+        end
 
         # Check if any polygon vertices are inside the line's bounding box
-        vertex_in_line_bbox = any(
-            line_min_x <= AG.getpoint(exterior_ring, j)[1] <= line_max_x &&
-            line_min_y <= AG.getpoint(exterior_ring, j)[2] <= line_max_y
-            for j in 0:n_pts - 1
-        )
+        vertex_in_line_bbox = false
+        @inbounds for i in 1:n_pts
+            pt_ref = AG.getpoint(exterior_ring, i - 1)
+            x = poly_xs[i] = pt_ref[1]
+            y = poly_ys[i] = pt_ref[2]
+
+            if (line_min_x ≤ x ≤ line_max_x) && (line_min_y ≤ y ≤ line_max_y)
+                vertex_in_line_bbox = true
+                break
+            end
+        end
 
         # Check if line crosses bounding box
-        line_in_polygon_bbox = false
-        if !vertex_in_line_bbox
-            poly_xs, poly_ys, _ = [AG.getpoint(exterior_ring, j) for j in 0:n_pts - 1]
-
-            line_in_polygon_bbox = (
-                line_min_x <= maximum(view(poly_xs,1:n_pts)) &&
-                line_max_x >= minimum(view(poly_xs,1:n_pts)) &&
-                line_min_y <= maximum(view(poly_ys,1:n_pts)) &&
-                line_max_y >= minimum(view(poly_ys,1:n_pts))
-            )
-
-        end
+        line_in_polygon_bbox = !vertex_in_line_bbox ? (
+            line_min_x <= maximum(view(poly_xs,1:n_pts)) &&
+            line_max_x >= minimum(view(poly_xs,1:n_pts)) &&
+            line_min_y <= maximum(view(poly_ys,1:n_pts)) &&
+            line_max_y >= minimum(view(poly_ys,1:n_pts))
+        ) : false
 
         # Skip polygons with no vertices in or crossing bounding box
         if !vertex_in_line_bbox && !line_in_polygon_bbox
             continue
         end
 
+        # Check if line crosses polygon or touches both current and final points
         if AG.crosses(line, geom) ||
-            (
-                AG.touches(AG.createpoint(current_point[1], current_point[2]), geom) &&
-                AG.touches(AG.createpoint(final_point[1], final_point[2]), geom)
-            )
+            (AG.touches(current_point_geom, geom) && AG.touches(final_point_geom, geom))
 
             intersections::AG.IGeometry = AG.intersection(line, geom)
-
             pts::Vector{AG.IGeometry} = get_pts(intersections)
-
-            # Find distance to polygon
             dist::Float64 = minimum(
                 GO.distance.(
-                    [current_point]::Vector{Point{2, Float64}},
+                    Ref{Point{2,Float64}}(current_point),
                     pts
                 )
             )
