@@ -26,15 +26,16 @@ function perturb_swap_solution(
 
     # Copy the tender solution to perturb
     tender = deepcopy(soln.tenders[clust_idx])
+    sorties = tender.sorties
 
     # If < 2 sorties in cluster, no perturbation possible
-    if length(tender.sorties) < 2
+    if length(sorties) < 2
         return soln
     end
 
-    # Choose two random sorties from the cluster
-    sortie_a_idx, sortie_b_idx = rand(1:length(tender.sorties), 2)
-    sortie_a, sortie_b = tender.sorties[sortie_a_idx], tender.sorties[sortie_b_idx]
+    # Choose two random sorties from the cluster, ALLOWING for same sortie selection
+    sortie_a_idx, sortie_b_idx = rand(1:length(sorties), 2)
+    sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
     # No perturbation possible if a sortie has no nodes
     if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
@@ -63,25 +64,25 @@ function perturb_swap_solution(
 
     # Swap the nodes between the two sorties
     node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
-    tender.sorties[sortie_a_idx].nodes[node_a_idx] = node_b
-    tender.sorties[sortie_b_idx].nodes[node_b_idx] = node_a
+    sortie_a.nodes[node_a_idx] = node_b
+    sortie_b.nodes[node_b_idx] = node_a
 
     # TODO:Re-run two-opt on the modified sorties
     # Recompute the feasible paths for the modified sorties
     updated_tender_tours = [
         [[tender.start]; sortie.nodes; [tender.finish]]
-        for sortie in [tender.sorties[sortie_a_idx], tender.sorties[sortie_b_idx]]
+        for sortie in [sortie_a, sortie_b]
     ]
 
     # Update linestrings for the modified sorties
-    tender.sorties[sortie_a_idx] = Route(
-        tender.sorties[sortie_a_idx].nodes,
-        tender.sorties[sortie_a_idx].dist_matrix,
+    sorties[sortie_a_idx] = Route(
+        sortie_a.nodes,
+        sortie_a.dist_matrix,
         vcat(get_feasible_vector(updated_tender_tours[1], exclusions)[2]...)
     )
-    tender.sorties[sortie_b_idx] = Route(
-        tender.sorties[sortie_b_idx].nodes,
-        tender.sorties[sortie_b_idx].dist_matrix,
+    sorties[sortie_b_idx] = Route(
+        sortie_b.nodes,
+        sortie_b.dist_matrix,
         vcat(get_feasible_vector(updated_tender_tours[2], exclusions)[2]...)
     )
 
