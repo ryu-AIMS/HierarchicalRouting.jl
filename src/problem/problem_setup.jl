@@ -116,16 +116,11 @@ function load_problem(target_scenario::String="")::Problem
         )
     end
 
-    #! Functions NOT modiying in place
-    t_exclusions = filter_and_simplify_exclusions!(
-        t_exclusions, min_area=1E-7, simplify_tol=5E-5
-    )
-    t_exclusions = buffer_exclusions!(t_exclusions, buffer_dist=0.0)
-    t_exclusions = unionize_overlaps!(t_exclusions)
+    filter_and_simplify_exclusions!(t_exclusions, min_area=1E-7, simplify_tol=5E-4)
+    buffer_exclusions!(t_exclusions, buffer_dist=0.0)
+    unionize_overlaps!(t_exclusions)
     #? Redundant 2nd call to simplify_exclusions!()
-    t_exclusions = filter_and_simplify_exclusions!(
-        t_exclusions, min_area=1E-7, simplify_tol=5E-5
-    )
+    filter_and_simplify_exclusions!(t_exclusions, min_area=1E-7, simplify_tol=5E-4)
 
     mothership = Vessel(
         exclusion = ms_exclusions,
