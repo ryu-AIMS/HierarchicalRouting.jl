@@ -3,7 +3,8 @@
     perturb_swap_solution(
         soln::MSTSolution,
         clust_idx::Int64=-1,
-        exclusions::DataFrame = DataFrame()
+        exclusions::DataFrame = DataFrame();
+        enforce_diff_sortie::Bool = false
     )::MSTSolution
 
 Perturb the solution by swapping two nodes in a cluster.
@@ -12,6 +13,7 @@ Perturb the solution by swapping two nodes in a cluster.
 - `soln`: Solution to perturb.
 - `clust_idx`: Index of the cluster to perturb. Default = -1 randomly selects a cluster.
 - `exclusions`: DataFrame of exclusions. Default = DataFrame().
+- `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
 # Returns
 Perturbed full solution.
@@ -19,7 +21,8 @@ Perturbed full solution.
 function perturb_swap_solution(
     soln::MSTSolution,
     clust_idx::Int64=-1,
-    exclusions::DataFrame = DataFrame()
+    exclusions::DataFrame = DataFrame();
+    enforce_diff_sortie::Bool = false
 )::MSTSolution
     # Choose a random cluster (assume fixed clustering) if none provided
     clust_idx = clust_idx == -1 ? rand(1:length(soln.tenders)) : clust_idx
@@ -33,8 +36,12 @@ function perturb_swap_solution(
         return soln
     end
 
-    # Choose two random sorties from the cluster, ALLOWING for same sortie selection
-    sortie_a_idx, sortie_b_idx = rand(1:length(sorties), 2)
+    # Choose two random sorties to swap nodes between
+    # if enforce_diff_sortie is true: ensure different sorties are selected
+    sortie_a_idx, sortie_b_idx = enforce_diff_sortie ?
+        shuffle(1:length(sorties))[1:2] :
+        rand(1:length(sorties), 2)
+
     sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
     # No perturbation possible if a sortie has no nodes
