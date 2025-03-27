@@ -293,6 +293,11 @@ function build_network!(
         exclusions
     )
 
+    # Preallocate enough extra capacity assuming candidate point is added
+    sizehint!(points_from, length(points_from) + length(candidates))
+    sizehint!(points_to, length(points_to) + length(candidates))
+    sizehint!(exclusion_idxs, length(exclusion_idxs) + length(candidates))
+
     for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
 
         if isnothing(vertex) || vertex == current_point

@@ -50,6 +50,9 @@ function find_widest_points(
 
     candidates = Point{2,Float64}[]
     poly_indices = Int[]
+    sizehint!(candidates, length(widest_vertices))
+    sizehint!(poly_indices, length(widest_vertices))
+
     # For each vertex: record if visible, else recursively find widest visible vertices.
     for vertex::Point{2,Float64} ∈ filter(!isnothing, (widest_vertices))
         if is_visible(current_point, vertex, exclusions, visited_exclusion_idxs)
