@@ -51,10 +51,7 @@ function perturb_swap_solution(
         elseif sortie_length == 2
             node_a_idx, node_b_idx = 1, 2
         else
-            node_a_idx, node_b_idx = rand(1:sortie_length, 2)
-            while node_a_idx == node_b_idx
-                node_b_idx = rand(1:sortie_length)
-            end
+            node_a_idx, node_b_idx = shuffle(1:sortie_length)[1:2]
         end
     else
         # Chose two random node indices from different sorties
