@@ -78,16 +78,22 @@ function perturb_swap_solution(
         for sortie in [sortie_a, sortie_b]
     ]
 
-    # Update linestrings for the modified sorties
+    # Get new linestrings
+    linestrings::Vector{Vector{Vector{LineString{2, Float64}}}} = getindex.(
+        get_feasible_vector.(updated_tender_tours, Ref(exclusions)),
+        2
+    )
+
+    # Update the modified sorties
     sorties[sortie_a_idx] = Route(
         sortie_a.nodes,
         sortie_a.dist_matrix,
-        vcat(get_feasible_vector(updated_tender_tours[1], exclusions)[2]...)
+        vcat(linestrings[1]...)
     )
     sorties[sortie_b_idx] = Route(
         sortie_b.nodes,
         sortie_b.dist_matrix,
-        vcat(get_feasible_vector(updated_tender_tours[2], exclusions)[2]...)
+        vcat(linestrings[2]...)
     )
 
     tenders_all::Vector{TenderSolution} = [
