@@ -81,6 +81,7 @@ function polygonize_binary(rast::Raster)::DataFrame
     # there are.
     n_features = AG.GDAL.ogr_l_getfeaturecount(layer, 1)
     layer_geoms = Vector{AG.IGeometry}()
+    sizehint!(layer_geoms, n_features)
     for i in 0:(n_features-1)
         feat = AG.Feature(AG.GDAL.ogr_l_getfeature(layer, i))
         field_val = AG.getfield(feat, 0)  # Get first field (C is a zero-indexed language)
