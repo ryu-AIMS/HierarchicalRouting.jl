@@ -175,19 +175,18 @@ function shortest_feasible_path(
             )
         ]
 
-        # Connect each polygon vertex to the initial point if visible.
-        n_verts = length(visible_vertices)
-        append!(points_from, fill(initial_point, n_verts))
-        append!(points_to, visible_vertices)
-        append!(exclusion_idxs, fill(initial_exclusion_idx, n_verts))
+        # Connect each polygon vertex to the initial point if visible, and
+        # add all polygon vertices to graph
+        n_vis_verts = length(visible_vertices)
+        n_total_verts = length(poly_vertices)
+        next_poly_vert = circshift(poly_vertices, -1)
 
-        # Add all polygon vertices to graph
-        n_vertices = length(poly_vertices)
-        q = poly_vertices[mod1.((1:n_vertices) .+ 1, n_vertices)]
-
-        append!(points_from, poly_vertices)
-        append!(points_to, q)
-        append!(exclusion_idxs, fill(initial_exclusion_idx, n_vertices))
+        append!(points_from, vcat(fill(initial_point, n_vis_verts), poly_vertices))
+        append!(points_to, vcat(visible_vertices, next_poly_vert))
+        append!(exclusion_idxs, vcat(
+            fill(initial_exclusion_idx, n_vis_verts),
+            fill(initial_exclusion_idx, n_total_verts))
+        )
 
         # Get widest points to final point on polygon contianing initial point
         widest_verts = find_widest_points(
