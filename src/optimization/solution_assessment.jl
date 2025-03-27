@@ -73,7 +73,7 @@ function perturb_swap_solution(
 
     # TODO:Re-run two-opt on the modified sorties
     # Recompute the feasible paths for the modified sorties
-    updated_tender_tours = [
+    updated_tender_tours::Vector{Vector{Point{2, Float64}}} = [
         [[tender.start]; sortie.nodes; [tender.finish]]
         for sortie in [sortie_a, sortie_b]
     ]
@@ -90,7 +90,7 @@ function perturb_swap_solution(
         vcat(get_feasible_vector(updated_tender_tours[2], exclusions)[2]...)
     )
 
-    tenders_all = [
+    tenders_all::Vector{TenderSolution} = [
         i == clust_idx ?
         tender :
         soln.tenders[i]
