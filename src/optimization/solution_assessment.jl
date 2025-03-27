@@ -4,13 +4,13 @@
         soln::MSTSolution,
         clust_idx::Int64=-1,
         exclusions::DataFrame = DataFrame()
-    )
+    )::MSTSolution
 
 Perturb the solution by swapping two nodes in a cluster.
 
 # Arguments
 - `soln`: Solution to perturb.
-- `clust_idx`: Index of the cluster to perturb. Default = -1.
+- `clust_idx`: Index of the cluster to perturb. Default = -1 randomly selects a cluster.
 - `exclusions`: DataFrame of exclusions. Default = DataFrame().
 
 # Returns
@@ -20,7 +20,7 @@ function perturb_swap_solution(
     soln::MSTSolution,
     clust_idx::Int64=-1,
     exclusions::DataFrame = DataFrame()
-)
+)::MSTSolution
     # Choose a random cluster (assume fixed clustering) if none provided
     clust_idx = clust_idx == -1 ? rand(1:length(soln.tenders)) : clust_idx
 
