@@ -126,9 +126,7 @@ function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     unique_geometries = unique(geometries[.!AG.isempty.(geometries)])
 
     empty!(exclusions)
-    for geom in unique_geometries
-        push!(exclusions, (geometry = geom,))
-    end
+    append!(exclusions, [(geometry = geom,) for geom in unique_geometries])
 
     return exclusions
 end
