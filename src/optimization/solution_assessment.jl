@@ -1,24 +1,24 @@
 
 """
     perturb_swap_solution(
-        soln::MSTSolution;
-        clust_idx::Int=-1,
+        soln::MSTSolution,
+        clust_idx::Int64=-1,
         exclusions::DataFrame = DataFrame()
     )
 
 Perturb the solution by swapping two nodes in a cluster.
 
 # Arguments
-- `soln` : Solution to perturb.
-- `clust_idx` : Index of the cluster to perturb. Default = -1.
-- `exclusions` : DataFrame of exclusions. Default = DataFrame().
+- `soln`: Solution to perturb.
+- `clust_idx`: Index of the cluster to perturb. Default = -1.
+- `exclusions`: DataFrame of exclusions. Default = DataFrame().
 
 # Returns
 Perturbed full solution.
 """
 function perturb_swap_solution(
-    soln::MSTSolution;
-    clust_idx::Int=-1,
+    soln::MSTSolution,
+    clust_idx::Int64=-1,
     exclusions::DataFrame = DataFrame()
 )
     # Choose a random cluster (assume fixed clustering) if none provided
@@ -85,10 +85,14 @@ function perturb_swap_solution(
         vcat(get_feasible_vector(updated_tender_tours[2], exclusions)[2]...)
     )
 
-    tenders_all = [i == clust_idx ? tender : soln.tenders[i] for i in 1:length(soln.tenders)]
-    new_soln = MSTSolution(soln.clusters, soln.mothership, tenders_all)
+    tenders_all = [
+        i == clust_idx ?
+        tender :
+        soln.tenders[i]
+        for i in 1:length(soln.tenders)
+    ]
 
-    return new_soln
+    return MSTSolution(soln.clusters, soln.mothership, tenders_all)
 end
 
 """
@@ -106,18 +110,18 @@ end
 Simulated Annealing optimization algorithm to optimize the solution.
 
 # Arguments
-- `soln_init` : Initial solution.
-- `objective_function` : Function to evaluate the solution.
-- `perturb_function` : Function to perturb the solution.
-- `exclusions` : DataFrame of exclusions. Default = DataFrame().
-- `max_iterations` : Maximum number of iterations. Default = 5_000.
-- `temp_init` : Initial temperature. Default = 500.0.
-- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.95 = 95%.
-- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 150.
+- `soln_init`: Initial solution.
+- `objective_function`: Function to evaluate the solution.
+- `perturb_function`: Function to perturb the solution.
+- `exclusions`: DataFrame of exclusions. Default = DataFrame().
+- `max_iterations`: Maximum number of iterations. Default = 5_000.
+- `temp_init`: Initial temperature. Default = 500.0.
+- `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.95 = 95%.
+- `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
 
 # Returns
-- `soln_best` : Best solution::MSTSolution found.
-- `obj_best` : Objective value of the best solution.
+- `soln_best`: Best solution::MSTSolution found.
+- `obj_best`: Objective value of the best solution.
 """
 function simulated_annealing(
     soln_init::MSTSolution,
