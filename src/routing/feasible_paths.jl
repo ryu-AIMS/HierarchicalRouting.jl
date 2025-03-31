@@ -152,6 +152,7 @@ function shortest_feasible_path(
     points_to = Point{2,Float64}[]
     exclusion_idxs = Int[]
 
+    # If initial point is not within an exclusion zone
     if iszero(initial_exclusion_idx)
         build_network!(
             points_from,
@@ -163,6 +164,7 @@ function shortest_feasible_path(
             final_exclusion_idx
         )
     else
+        # Collect all visible polygon vertices
         initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
             initial_exclusion_idx, :geometry
         ]
@@ -183,10 +185,7 @@ function shortest_feasible_path(
 
         append!(points_from, vcat(fill(initial_point, n_vis_verts), poly_vertices))
         append!(points_to, vcat(visible_vertices, next_poly_vert))
-        append!(exclusion_idxs, vcat(
-            fill(initial_exclusion_idx, n_vis_verts),
-            fill(initial_exclusion_idx, n_total_verts))
-        )
+        append!(exclusion_idxs, fill(initial_exclusion_idx, (n_vis_verts + n_total_verts)))
 
         # Get widest points to final point on polygon contianing initial point
         widest_verts = find_widest_points(
@@ -207,6 +206,7 @@ function shortest_feasible_path(
         )
     end
 
+    # Build graph from network of points
     graph, idx_to_point, initial_point_idx, final_point_idx = build_graph(
         points_from,
         points_to,
@@ -217,13 +217,13 @@ function shortest_feasible_path(
         final_point
     )
 
+    # Use A* algorithm to find shortest path
     path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
-    linestring_path = [
-        LineString([idx_to_point[segment.src], idx_to_point[segment.dst]])
-        for segment in path
-    ]
+    linestring_path::Vector{LineString} = (
+        s -> LineString([idx_to_point[s.src], idx_to_point[s.dst]])
+    ).(path)
 
     return dist, linestring_path
 end
