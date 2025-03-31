@@ -42,9 +42,7 @@ function apply_kmeans_clustering(
 
     clustering = kmeans(coordinates_array, k; distance=Haversine(), tol=tol, rng=Random.seed!(1))
 
-    clustered_targets::Raster{Int64, 2} = copy(raster)
-    #? Necessary
-    clustered_targets .= 0
+    clustered_targets::Raster{Int64, 2} = similar(raster, Int64)
     clustered_targets[indices] .= clustering.assignments
 
     return clustered_targets
