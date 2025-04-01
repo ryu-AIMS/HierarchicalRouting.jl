@@ -42,26 +42,30 @@ function validate_vessel(capacity::Int16, number::Int8, weighting::Float16)::Vec
     return errors
 end
 
+struct Targets
+    path::String
+    gdf
+end
+
 struct Problem
-    scenario_name::String
-    target_scenario::DataFrame
     depot::Point{2, Float64}
+    targets::Targets
     mothership::Vessel
     tenders::Vessel
 end
 
 """
-    load_problem(target_scenario::String)::Problem
+    load_problem(target_path::String)::Problem
 
 Load the problem data from the configuration file and return a Problem object.
 
 # Arguments
-- `target_scenario`: The name of the target scenario to load.
+- `target_path`: The name of the target scenario to load.
 
 # Returns
 The problem object.
 """
-function load_problem(target_scenario::String)::Problem
+function load_problem(target_path::String)::Problem
     config = TOML.parsefile(".config.toml")
 
     draft_ms::Float64 = config["parameters"]["depth_ms"]
@@ -71,7 +75,7 @@ function load_problem(target_scenario::String)::Problem
     EPSG_code::Int16 = config["parameters"]["EPSG_code"]
 
     scenario_name = try
-        split(split(split(target_scenario, "/")[end], "\\")[end], ".")[1]
+        split(split(split(target_path, "/")[end], "\\")[end], ".")[1]
     catch
         ""
     end
@@ -79,6 +83,11 @@ function load_problem(target_scenario::String)::Problem
     depot::Point{2, Float64} = Point{2, Float64}(
         config["parameters"]["depot_x"], config["parameters"]["depot_y"]
     )
+
+    # Build the full path and read the GeoJSON
+    # TODO: allow for raster
+    target_gdf = GDF.read(target_path)
+    targets = Targets(target_path, target_gdf)
 
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
@@ -155,6 +164,5 @@ function load_problem(target_scenario::String)::Problem
         weighting = Float16(config["parameters"]["weight_t"]) #! user-defined
     )
 
-    target_scenario_df = GDF.read(target_scenario)
-    return Problem(scenario_name, target_scenario_df, depot, mothership, tenders)
+    return Problem(depot, targets, mothership, tenders)
 end
