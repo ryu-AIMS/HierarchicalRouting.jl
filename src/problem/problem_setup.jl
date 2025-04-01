@@ -25,9 +25,14 @@ using TOML
     weighting::Float16 = 1.0
 end
 
+struct Targets
+    path::String
+    gdf
+end
+
 struct Problem
-    target_scenario::String
     depot::Point{2, Float64}
+    targets::Targets
     mothership::Vessel
     tenders::Vessel
 end
@@ -51,12 +56,21 @@ function load_problem(target_scenario::String="")::Problem
     n_tenders::Int8 = config["parameters"]["n_tenders"]
     t_cap::Int16 = config["parameters"]["t_cap"]
     EPSG_code::Int16 = config["parameters"]["EPSG_code"]
-    target_scenario::String = target_scenario == "" ?
+
+    # Determine target scenario file if not provided
+    target_scenario_dir = config["data_dir"]["target_scenarios"]
+    target_path::String = target_scenario == "" ?
         first(glob("*", config["data_dir"]["target_scenarios"])) :
-        target_scenario
+        joinpath(target_scenario_dir, target_scenario)
+
     depot::Point{2, Float64} = Point{2, Float64}(
         config["parameters"]["depot_x"], config["parameters"]["depot_y"]
     )
+
+    # Build the full path and read the GeoJSON
+    # TODO: allow for raster
+    target_gdf = GDF.read(target_path)
+    targets = Targets(target_path, target_gdf)
 
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
@@ -133,5 +147,5 @@ function load_problem(target_scenario::String="")::Problem
         weighting = config["parameters"]["weight_t"]
     )
 
-    return Problem(target_scenario, depot, mothership, tenders)
+    return Problem(depot, targets, mothership, tenders)
 end
