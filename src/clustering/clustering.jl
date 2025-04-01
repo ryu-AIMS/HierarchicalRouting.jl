@@ -112,21 +112,23 @@ function generate_target_clusters(
     clustered_targets_path::String,
     k::Int8,
     cluster_tolerance::Float64,
-    suitable_targets_all_path::String,
+    targets::Targets,
     suitable_threshold::Float64,
     target_subset_path::String,
     subset::DataFrame,
     EPSG_code::Int16
 )::Vector{Cluster}
     cluster_raster = process_targets(
-        clustered_targets_path,
+        targets,
         k,
         cluster_tolerance,
-        suitable_targets_all_path,
         suitable_threshold,
         target_subset_path,
         subset,
         EPSG_code
     )
+
+    write(clustered_targets_path, cluster_raster; force = true)
+
     return calculate_cluster_centroids(cluster_raster)
 end
