@@ -1,7 +1,7 @@
-
+    
 """
     process_targets(
-        clustered_targets_path::String,
+        targets::Targets,
         k::Int8,
         cluster_tolerance::Float64,
         suitable_targets_all_path::String,
@@ -15,10 +15,9 @@ Generate a clustered targets raster by reading in the suitable target location d
 applying thresholds and cropping to a target subset, and then clustering.
 
 # Arguments
-- `clustered_targets_path`: The path to the clustered targets raster.
+- `targets`: The targets object containing the target geometries.
 - `k`: The number of clusters.
 - `cluster_tolerance`: The cluster tolerance.
-- `suitable_targets_all_path`: The path to the suitable targets dataset.
 - `suitable_threshold`: The suitable targets threshold.
 - `target_subset_path`: The path to the target subset raster.
 - `subset`: The DataFrame containing the study area boundary.
@@ -28,33 +27,29 @@ applying thresholds and cropping to a target subset, and then clustering.
 The clustered targets raster, classified by cluster ID number.
 """
 function process_targets(
-    clustered_targets_path::String,
+    targets::Targets,
     k::Int8,
     cluster_tolerance::Float64,
-    suitable_targets_all_path::String,
     suitable_threshold::Float64,
     target_subset_path::String,
     subset::DataFrame,
     EPSG_code::Int16
 )::Raster{Int64}
-        if endswith(suitable_targets_all_path, ".geojson")
-            resolution = 0.0001
-            suitable_targets_poly::DataFrame = GDF.read(suitable_targets_all_path)
-            suitable_targets_centroids::Vector{AG.IGeometry{AG.wkbPoint}} =
-                AG.centroid.(suitable_targets_poly.geometry)
-            suitable_targets_centroids_pts::Vector{NTuple{2, Float64}} =
-                (x -> x[1:2]).(AG.getpoint.(suitable_targets_centroids, 0))
-            suitable_targets_all = Rasters.rasterize(
-                last, suitable_targets_centroids_pts;
-                res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code)
-            )
+    resolution = 0.0001 #! Hardcoded for now, but should be set -> in config file?
+    if endswith(targets.path, ".geojson")
+        suitable_targets_centroids::Vector{AG.IGeometry{AG.wkbPoint}} = AG.centroid.(targets.gdf.geometry)
+        suitable_targets_centroids_pts::Vector{NTuple{2, Float64}} = 
+            (x -> x[1:2]).(AG.getpoint.(suitable_targets_centroids, 0))
+        suitable_targets_all = Rasters.rasterize(
+            last, suitable_targets_centroids_pts;
+            res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code)
+        )
     else
-            suitable_targets_all = Raster(
-                suitable_targets_all_path, mappedcrs=EPSG(EPSG_code)
-            )
-            suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
-        end
-            suitable_targets_subset::Raster = Rasters.crop(suitable_targets_all, to=subset.geom)
+        suitable_targets_all = Raster(targets.path, mappedcrs=EPSG(EPSG_code))
+        suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
+    end
+    
+    suitable_targets_subset::Raster = Rasters.crop(suitable_targets_all, to=subset.geom)
     if !isfile(target_subset_path)
         write(target_subset_path, suitable_targets_subset; force=true)
     end
@@ -62,7 +57,6 @@ function process_targets(
         clustered_targets::Raster{Int64, 2} = apply_kmeans_clustering(
             suitable_targets_subset, k; tol=cluster_tolerance
         )
-    write(clustered_targets_path, clustered_targets; force=true)
     return clustered_targets
 end
 
@@ -171,22 +165,24 @@ function cluster_problem(problem::Problem)::Vector{Cluster}
 
     site_dir::String = config["data_dir"]["site"]
     subset::DataFrame = GDF.read(first(glob("*.gpkg", site_dir)))
+    suitable_targets_filename = splitext(basename(problem.targets.path))[1]
 
     output_dir::String = config["output_dir"]["path"]
-    target_scenario_dir = config["data_dir"]["target_scenarios"]
-    scenario_name::String = problem.scenario_name
+
     clustered_targets_path::String = joinpath(
         output_dir,
-        "clustered_$(scenario_name)_targets_k=$(k).tif"
+        "clustered_$(suitable_targets_filename)_targets_k=$(k).tif"
     )
-    target_subset_path::String = joinpath(output_dir, "target_subset_$(scenario_name).tif")
-    suitable_targets_all_path::String = joinpath(target_scenario_dir, scenario_name*".geojson")
+    target_subset_path::String = joinpath(
+        output_dir,
+        "target_subset_$(suitable_targets_filename).tif"
+    )
 
     clusters::Vector{Cluster} = generate_target_clusters(
         clustered_targets_path,
         k,
         cluster_tolerance,
-        suitable_targets_all_path,
+        problem.targets,
         suitable_threshold,
         target_subset_path,
         subset,
