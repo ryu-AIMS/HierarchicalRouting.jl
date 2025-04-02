@@ -176,7 +176,7 @@ function process_targets(
         )
     else
         suitable_targets_all = process_raster_targets(
-            targets.path,
+            targets,
             EPSG_code,
             suitable_threshold
         )
