@@ -132,3 +132,61 @@ function generate_target_clusters(
 
     return calculate_cluster_centroids(cluster_raster)
 end
+
+"""
+    process_targets(
+    clustered_targets_path::String,
+    k::Int,
+    cluster_tolerance::Real,
+    suitable_targets_all_path::String,
+    suitable_threshold::Real,
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int
+    )
+
+Process target locations to generate clusters.
+
+# Arguments
+- `targets::Targets`: The targets object containing the target geometries.
+- `k::Int`: The number of clusters.
+- `cluster_tolerance::Real`: The cluster tolerance.
+- `suitable_targets_all_path::String`: The path to the suitable targets dataset.
+- `suitable_threshold::Real`: The suitable targets threshold.
+- `target_subset_path::String`: The path to the target subset raster.
+- `subset::DataFrame`: The DataFrame containing the study area boundary.
+- `EPSG_code::Int`: The EPSG code for the study area.
+
+# Returns
+- `clustered_targets::Raster`: The clustered targets raster, classified by cluster ID number.
+"""
+function process_targets(
+    targets::Targets,
+    k,
+    cluster_tolerance,
+    suitable_threshold,
+    target_subset_path,
+    subset,
+    EPSG_code
+)
+    if endswith(targets.path, ".geojson")
+        suitable_targets_all = process_geometry_targets(
+            targets.gdf.geometry,
+            EPSG_code)
+    else
+        suitable_targets_all = process_raster_targets(
+            targets.path,
+            EPSG_code,
+            suitable_threshold
+        )
+    end
+
+    suitable_targets_subset = read(Rasters.crop(suitable_targets_all; to=subset.geom))
+    if !isfile(target_subset_path)
+        write(target_subset_path, suitable_targets_subset; force=true)
+    end
+
+    clustered_targets = cluster_raster(suitable_targets_subset, k; tol=cluster_tolerance)
+
+    return clustered_targets
+end
