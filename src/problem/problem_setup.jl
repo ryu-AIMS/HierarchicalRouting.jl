@@ -44,7 +44,8 @@ end
 
 struct Targets
     path::String
-    gdf
+    gdf::DataFrame
+    disturbance_gdf::DataFrame
 end
 
 struct Problem
@@ -84,10 +85,13 @@ function load_problem(target_path::String)::Problem
         config["parameters"]["depot_x"], config["parameters"]["depot_y"]
     )
 
+    wave_disturbance_dir = config["data_dir"]["wave_disturbances"]
+    wave_disturbance = GDF.read(first(glob("*.geojson", wave_disturbance_dir)))
+
     # Build the full path and read the GeoJSON
     # TODO: allow for raster
     target_gdf = GDF.read(target_path)
-    targets = Targets(target_path, target_gdf)
+    targets = Targets(target_path, target_gdf, wave_disturbance)
 
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
