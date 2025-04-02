@@ -4,7 +4,7 @@ site = "data/site"
 env_constraints = "data/env_constraints"
 targets = "data/targets"
 target_scenarios = "data/targets/scenarios"
-
+wave_disturbances = "data/env_disturbances/waves"
 
 [output_dir]
 path = "outputs"
