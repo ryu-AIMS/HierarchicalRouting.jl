@@ -171,11 +171,11 @@ function process_targets(
 )
     if endswith(targets.path, ".geojson")
         suitable_targets_all = process_geometry_targets(
-            targets.gdf.geometry,
+            targets,
             EPSG_code)
     else
         suitable_targets_all = process_raster_targets(
-            targets.path,
+            targets,
             EPSG_code,
             suitable_threshold
         )
