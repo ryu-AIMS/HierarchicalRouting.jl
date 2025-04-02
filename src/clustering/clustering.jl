@@ -12,7 +12,7 @@ end
 
 """
     apply_kmeans_clustering(
-        raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
+        raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
     )::Raster{Int64, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
@@ -26,9 +26,9 @@ Cluster targets sites by applying k-means to target (non-zero) cells in a raster
 A new raster containing the cluster IDs.
 """
 function apply_kmeans_clustering(
-    raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
+    raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
 )::Raster{Int64, 2}
-    indices::Vector{CartesianIndex{2}} = findall(!=(0), raster)
+    indices::Vector{CartesianIndex{2}} = findall(x -> x != raster.missingval, raster)
     n::Int = length(indices)
     coordinates_array = Matrix{Float64}(undef, 2, n)
 
