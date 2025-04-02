@@ -37,16 +37,16 @@ function process_targets(
 )::Raster{Int64}
     resolution = 0.0001 #! Hardcoded for now, but should be set -> in config file?
     if endswith(targets.path, ".geojson")
-        suitable_targets_centroids::Vector{AG.IGeometry{AG.wkbPoint}} = AG.centroid.(targets.gdf.geometry)
-        suitable_targets_centroids_pts::Vector{NTuple{2, Float64}} = 
-            (x -> x[1:2]).(AG.getpoint.(suitable_targets_centroids, 0))
-        suitable_targets_all = Rasters.rasterize(
-            last, suitable_targets_centroids_pts;
-            res=resolution, missingval=0, fill=1, crs=EPSG(EPSG_code)
+        suitable_targets_all = process_geometry_targets(
+            targets.gdf.geometry,
+            EPSG_code
         )
     else
-        suitable_targets_all = Raster(targets.path, mappedcrs=EPSG(EPSG_code))
-        suitable_targets_all = target_threshold(suitable_targets_all, suitable_threshold)
+        suitable_targets_all = process_raster_targets(
+            targets.path,
+            EPSG_code,
+            suitable_threshold
+        )
     end
     
     suitable_targets_subset::Raster = Rasters.crop(suitable_targets_all, to=subset.geom)
@@ -58,6 +58,56 @@ function process_targets(
             suitable_targets_subset, k; tol=cluster_tolerance
         )
     return clustered_targets
+end
+
+"""
+    process_geometry_targets(
+        geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+        EPSG_code::Int
+    )
+
+Read and process target location geometries to generate a rasterized representation.
+
+# Arguments
+- `geometries::Vector{AG.IGeometry{AG.wkbPolygon}}`: A vector of geometries representing the target locations.
+- `EPSG_code::Int`: The EPSG code for the coordinate reference system.
+
+# Returns
+- A rasterized representation of the target locations.
+"""
+function process_geometry_targets(
+    geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+    EPSG_code::Int
+)
+    # Compute centroids from the geometries in the GeoDataFrame
+    suitable_targets_centroids = AG.centroid.(geometries)
+    suitable_targets_centroids_pts = [AG.getpoint(centroid, 0)[1:2] for centroid in suitable_targets_centroids]
+    resolution = 0.0001 #! Hardcoded for now, but should be set -> in config file?
+    # Rasterize the centroids into a raster of suitable targets
+    return Rasters.rasterize(last, suitable_targets_centroids_pts;
+        res = resolution,
+        missingval = 0,
+        fill = 1,
+        crs = EPSG(EPSG_code)
+    )
+end
+
+"""
+    process_raster_targets(target_path::String, EPSG_code::Int, suitable_threshold)
+
+Read and mask target locations from a raster file.
+
+# Arguments
+- `target_path::String`: The path to the raster file containing target locations.
+- `EPSG_code::Int`: The EPSG code for the coordinate reference system.
+- `suitable_threshold::Real`: The threshold value for suitable targets.
+
+# Returns
+- A rasterized representation of the target locations.
+"""
+function process_raster_targets(target_path::String, EPSG_code::Int, suitable_threshold)
+    suitable_targets_all = Raster(target_path; mappedcrs = EPSG(EPSG_code), lazy = true)
+    return target_threshold(suitable_targets_all, suitable_threshold)
 end
 
 """
