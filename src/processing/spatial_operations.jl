@@ -2,8 +2,8 @@
 """
     filter_and_simplify_exclusions!(
         exclusions::DataFrame;
-        min_area::Float64=3E-7,
-        simplify_tol::Float64=1E-4
+        min_area::Float64=3E-5,
+        simplify_tol::Float64=1E-3
     )::DataFrame
 
 Remove small polygons and simplify geometry based on tolerance values.
@@ -16,11 +16,11 @@ Remove small polygons and simplify geometry based on tolerance values.
 """
 function filter_and_simplify_exclusions!(
     exclusions::DataFrame;
-    min_area::Float64=3E-7,
-    simplify_tol::Float64=1E-4
-    )::DataFrame
-    exclusions = exclusions[AG.geomarea.(exclusions.geometry) .>= min_area, :]
+    min_area::Float64=1E-5,
+    simplify_tol::Float64=1E-3
+)::DataFrame
     exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
+    filter!(row -> AG.geomarea(row.geometry) >= min_area, exclusions)
     return exclusions
 end
 
@@ -39,39 +39,46 @@ function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Float64=0.0)::Da
 end
 
 """
+    linestring_to_polygon(
+        linestring::AG.IGeometry{AG.wkbLineString}
+    )::AG.IGeometry{AG.wkbPolygon}
+
+Convert a LineString to a Polygon.
+
+# Arguments
+- `linestring`: The LineString to convert.
+
+# Returns
+The converted Polygon.
+"""
+function linestring_to_polygon(
+    linestring::AG.IGeometry{AG.wkbLineString}
+)::AG.IGeometry{AG.wkbPolygon}
+    num_points::Int = AG.ngeom(linestring)
+    points::Vector{NTuple{2, Float64}} = collect(
+        zip(
+            AG.getx.([linestring], 0:num_points-1),
+            AG.gety.([linestring], 0:num_points-1)
+        )
+    )
+
+    # Close the LineString if open
+    points = points[1] != points[end] ? vcat(points, points[1]) : points
+
+    return AG.createpolygon([points])
+end
+
+"""
     unionize_overlaps(exclusions::DataFrame)::DataFrame
 
 Unionize overlapping exclusion zones.
 
 # Arguments
-- `exclusions::DataFrame`: The DataFrame containing exclusion zones.
+- `exclusions`: The DataFrame containing exclusion zones.
 """
-function unionize_overlaps!(exclusions::DataFrame)
+function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     geometries = exclusions.geometry
     n = length(geometries)
-
-    """
-        linestring_to_polygon(linestring::AG.IGeometry{AG.wkbLineString})::AG.IGeometry{AG.wkbPolygon}
-
-    Convert a LineString to a Polygon.
-
-    # Arguments
-    - `linestring::AG.IGeometry{AG.wkbLineString}`: The LineString to convert.
-
-    # Returns
-    - `polygon::AG.IGeometry{AG.wkbPolygon}`: The converted Polygon.
-    """
-    function linestring_to_polygon(linestring::AG.IGeometry{AG.wkbLineString})
-        num_points = AG.ngeom(linestring)
-        points = [(AG.getx(linestring, i), AG.gety(linestring, i)) for i in 0:num_points-1]
-
-        # Close the LineString if open
-        if points[1] != points[end]
-            push!(points, points[1])
-        end
-
-        return AG.createpolygon([points])
-    end
 
     for i in 1:n
         geom1 = geometries[i]
@@ -81,8 +88,7 @@ function unionize_overlaps!(exclusions::DataFrame)
             geom_a = linestring_to_polygon(AG.getgeom(geom1, 0))
             for j in 1:AG.ngeom(geom1) - 1
                 geom_b = linestring_to_polygon(AG.getgeom(geom1, j))
-
-                if AG.intersects(geom_a, geom_b) #|| AG.overlaps(geom_a, geom_b) || AG.contains(geom_a, geom_b) || AG.contains(geom_b, geom_a)
+                if AG.intersects(geom_a, geom_b)
                     geom_a = AG.union(geom_a, geom_b)
                 end
             end
@@ -118,7 +124,9 @@ function unionize_overlaps!(exclusions::DataFrame)
 
     # Remove duplicate unionized geometries
     unique_geometries = unique(geometries[.!AG.isempty.(geometries)])
-    exclusions = DataFrame(geometry = unique_geometries)
+
+    empty!(exclusions)
+    append!(exclusions, [(geometry = geom,) for geom in unique_geometries])
 
     return exclusions
 end

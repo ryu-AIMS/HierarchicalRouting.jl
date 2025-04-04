@@ -1,40 +1,48 @@
 
 """
     perturb_swap_solution(
-        soln::MSTSolution;
-        clust_idx::Int=-1,
-        exclusions::DataFrame = DataFrame()
-    )
+        soln::MSTSolution,
+        clust_idx::Int64=-1,
+        exclusions::DataFrame = DataFrame();
+        enforce_diff_sortie::Bool = false
+    )::MSTSolution
 
 Perturb the solution by swapping two nodes in a cluster.
 
 # Arguments
-- `soln` : Solution to perturb.
-- `clust_idx` : Index of the cluster to perturb. Default = -1.
-- `exclusions` : DataFrame of exclusions. Default = DataFrame().
+- `soln`: Solution to perturb.
+- `clust_idx`: Index of the cluster to perturb. Default = -1 randomly selects a cluster.
+- `exclusions`: DataFrame of exclusions. Default = DataFrame().
+- `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
 # Returns
 Perturbed full solution.
 """
 function perturb_swap_solution(
-    soln::MSTSolution;
-    clust_idx::Int=-1,
-    exclusions::DataFrame = DataFrame()
-)
+    soln::MSTSolution,
+    clust_idx::Int64=-1,
+    exclusions::DataFrame = DataFrame();
+    enforce_diff_sortie::Bool = false
+)::MSTSolution
     # Choose a random cluster (assume fixed clustering) if none provided
     clust_idx = clust_idx == -1 ? rand(1:length(soln.tenders)) : clust_idx
 
     # Copy the tender solution to perturb
     tender = deepcopy(soln.tenders[clust_idx])
+    sorties = tender.sorties
 
     # If < 2 sorties in cluster, no perturbation possible
-    if length(tender.sorties) < 2
+    if length(sorties) < 2
         return soln
     end
 
-    # Choose two random sorties from the cluster
-    sortie_a_idx, sortie_b_idx = rand(1:length(tender.sorties), 2)
-    sortie_a, sortie_b = tender.sorties[sortie_a_idx], tender.sorties[sortie_b_idx]
+    # Choose two random sorties to swap nodes between
+    # if enforce_diff_sortie is true: ensure different sorties are selected
+    sortie_a_idx, sortie_b_idx = enforce_diff_sortie ?
+        shuffle(1:length(sorties))[1:2] :
+        rand(1:length(sorties), 2)
+
+    sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
     # No perturbation possible if a sortie has no nodes
     if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
@@ -50,10 +58,7 @@ function perturb_swap_solution(
         elseif sortie_length == 2
             node_a_idx, node_b_idx = 1, 2
         else
-            node_a_idx, node_b_idx = rand(1:sortie_length, 2)
-            while node_a_idx == node_b_idx
-                node_b_idx = rand(1:sortie_length)
-            end
+            node_a_idx, node_b_idx = shuffle(1:sortie_length)[1:2]
         end
     else
         # Chose two random node indices from different sorties
@@ -63,32 +68,38 @@ function perturb_swap_solution(
 
     # Swap the nodes between the two sorties
     node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
-    tender.sorties[sortie_a_idx].nodes[node_a_idx] = node_b
-    tender.sorties[sortie_b_idx].nodes[node_b_idx] = node_a
+    sortie_a.nodes[node_a_idx] = node_b
+    sortie_b.nodes[node_b_idx] = node_a
 
     # TODO:Re-run two-opt on the modified sorties
     # Recompute the feasible paths for the modified sorties
-    updated_tender_tours = [
+    updated_tender_tours::Vector{Vector{Point{2, Float64}}} = [
         [[tender.start]; sortie.nodes; [tender.finish]]
-        for sortie in [tender.sorties[sortie_a_idx], tender.sorties[sortie_b_idx]]
+        for sortie in [sortie_a, sortie_b]
     ]
 
-    # Update linestrings for the modified sorties
-    tender.sorties[sortie_a_idx] = Route(
-        tender.sorties[sortie_a_idx].nodes,
-        tender.sorties[sortie_a_idx].dist_matrix,
-        vcat(get_feasible_vector(updated_tender_tours[1], exclusions)[2]...)
-    )
-    tender.sorties[sortie_b_idx] = Route(
-        tender.sorties[sortie_b_idx].nodes,
-        tender.sorties[sortie_b_idx].dist_matrix,
-        vcat(get_feasible_vector(updated_tender_tours[2], exclusions)[2]...)
+    # Get new linestrings
+    linestrings::Vector{Vector{Vector{LineString{2, Float64}}}} = getindex.(
+        get_feasible_vector.(updated_tender_tours, Ref(exclusions)),
+        2
     )
 
-    tenders_all = [i == clust_idx ? tender : soln.tenders[i] for i in 1:length(soln.tenders)]
-    new_soln = MSTSolution(soln.clusters, soln.mothership, tenders_all)
+    # Update the modified sorties
+    sorties[sortie_a_idx] = Route(
+        sortie_a.nodes,
+        sortie_a.dist_matrix,
+        vcat(linestrings[1]...)
+    )
+    sorties[sortie_b_idx] = Route(
+        sortie_b.nodes,
+        sortie_b.dist_matrix,
+        vcat(linestrings[2]...)
+    )
 
-    return new_soln
+    tenders_all::Vector{TenderSolution} = soln.tenders
+    tenders_all[clust_idx] = tender
+
+    return MSTSolution(soln.clusters, soln.mothership, tenders_all)
 end
 
 """
@@ -106,18 +117,18 @@ end
 Simulated Annealing optimization algorithm to optimize the solution.
 
 # Arguments
-- `soln_init` : Initial solution.
-- `objective_function` : Function to evaluate the solution.
-- `perturb_function` : Function to perturb the solution.
-- `exclusions` : DataFrame of exclusions. Default = DataFrame().
-- `max_iterations` : Maximum number of iterations. Default = 5_000.
-- `temp_init` : Initial temperature. Default = 500.0.
-- `cooling_rate` : Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.95 = 95%.
-- `static_limit` : Number of iterations to allow stagnation before early exit. Default = 150.
+- `soln_init`: Initial solution.
+- `objective_function`: Function to evaluate the solution.
+- `perturb_function`: Function to perturb the solution.
+- `exclusions`: DataFrame of exclusions. Default = DataFrame().
+- `max_iterations`: Maximum number of iterations. Default = 5_000.
+- `temp_init`: Initial temperature. Default = 500.0.
+- `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.95 = 95%.
+- `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
 
 # Returns
-- `soln_best` : Best solution::MSTSolution found.
-- `obj_best` : Objective value of the best solution.
+- `soln_best`: Best solution::MSTSolution found.
+- `obj_best`: Objective value of the best solution.
 """
 function simulated_annealing(
     soln_init::MSTSolution,
