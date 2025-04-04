@@ -128,6 +128,5 @@ function generate_target_clusters(
         subset,
         EPSG_code
     )
-    clusters = calculate_cluster_centroids(cluster_raster)
-    return clusters
+    return calculate_cluster_centroids(cluster_raster)
 end
