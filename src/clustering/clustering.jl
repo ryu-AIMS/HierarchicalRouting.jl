@@ -12,7 +12,7 @@ end
 
 """
     apply_kmeans_clustering(
-        raster::Raster{Int, 2}, k::Int64; tol::Float64=1.0
+        raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
     )::Raster{Int64, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.

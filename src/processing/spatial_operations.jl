@@ -74,7 +74,7 @@ end
 Unionize overlapping exclusion zones.
 
 # Arguments
-The DataFrame containing exclusion zones.
+- `exclusions`: The DataFrame containing exclusion zones.
 """
 function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     geometries = exclusions.geometry
