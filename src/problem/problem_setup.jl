@@ -126,7 +126,7 @@ function load_problem(target_path::String)::Problem
         wave_disturbance
     )
     suitable_targets_subset = process_geometry_targets(
-        target_gdf_subset.geometry, disturbance_data_subset, EPSG_code
+        target_gdf_subset.geometry, EPSG_code
     )
     indices::Vector{CartesianIndex{2}} = findall(
         x -> x != suitable_targets_subset.missingval,

@@ -13,7 +13,7 @@ end
 """
     apply_kmeans_clustering(
         raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
-    )::Raster{Int64, 2}
+    )::Raster{Int, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
 
@@ -26,7 +26,7 @@ Cluster targets sites by applying k-means to target (non-zero) cells in a raster
 A new raster containing the cluster IDs.
 """
 function apply_kmeans_clustering(
-    raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
+    raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
 )::Raster{Int64, 2}
     indices::Vector{CartesianIndex{2}} = findall(x -> x != raster.missingval, raster)
     n::Int = length(indices)
@@ -171,7 +171,7 @@ function process_targets(
 )::Raster{Int64}
     if endswith(targets.path, ".geojson")
         suitable_targets_all = process_geometry_targets(
-            targets,
+            targets.gdf.geometry,
             EPSG_code
         )
     else
