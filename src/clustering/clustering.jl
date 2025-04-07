@@ -13,7 +13,7 @@ end
 """
     apply_kmeans_clustering(
         raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
-    )::Raster{Int, 2}
+    )::Raster{Int64, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
 
@@ -40,7 +40,7 @@ function apply_kmeans_clustering(
     coordinates_array[1, :] .= raster.dims[1][rows]
     coordinates_array[2, :] .= raster.dims[2][cols]
 
-    clustering = kmeans(coordinates_array, k; distance=Haversine(), tol=tol, rng=Random.seed!(1))
+    clustering = kmeans(coordinates_array, k; tol=tol, rng=Random.seed!(1))
 
     clustered_targets::Raster{Int64, 2} = similar(raster, Int64)
     clustered_targets[indices] .= clustering.assignments
