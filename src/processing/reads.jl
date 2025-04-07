@@ -24,22 +24,14 @@ function process_geometry_targets(
 )
     # Compute centroids from the geometries in the GeoDataFrame
     target_centroids = AG.centroid.(targets.gdf.geometry)
-    target_centroid_pts = [Point{2, Float64}(AG.getpoint(centroid, 0)[1:2]) for centroid in target_centroids]
+    target_centroid_pts = (p -> Point{2,Float64}(p[1:2])).(
+        AG.getpoint.(target_centroids, 0)
+    )
 
-    wave_values = Vector{Union{Missing, Float64}}(undef, length(target_centroids))
-
-    for (i, pt) in enumerate(target_centroid_pts)
-        wave_val = missing
-        # Iterate over each disturbance polygon to see if the point falls within it.
-        for row in eachrow(targets.disturbance_gdf)
-            # row.geometry should be the polygon geometry.
-            if point_in_exclusion(pt, row.geometry)
-                wave_val = row.Hs_MEAN
-                break  # Stop at the first matching polygon.
-            end
-        end
-        wave_values[i] = wave_val
-    end
+    wave_values = assign_wave_data(
+        target_centroid_pts,
+        targets.disturbance_gdf
+    )
 
     return Rasters.rasterize(last, [(t[1],t[2]) for t in target_centroid_pts];
         res = resolution,

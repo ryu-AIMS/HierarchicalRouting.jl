@@ -17,3 +17,26 @@ function target_threshold(targets::Raster, threshold::Float64)::Raster
     masked_raster = targets .* (targets .>= threshold)
     return masked_raster
 end
+
+function assign_wave_data(
+    nodes::Vector{Point{2, Float64}},
+    disturbance_data::DataFrame
+)::Vector{Float64}
+    disturbance_values = Vector{Union{Missing, Float64}}(undef, length(nodes))
+    wave_val::Float64 = 0.0
+
+    for (i, pt) in enumerate(nodes)
+        wave_val = 0.0
+
+        for row in eachrow(disturbance_data)
+            if HierarchicalRouting.point_in_exclusion(pt, row.geometry)
+                wave_val = row.Hs_MEAN
+                break
+            end
+        end
+        disturbance_values[i] = wave_val
+    end
+
+    return disturbance_values
+end
+
