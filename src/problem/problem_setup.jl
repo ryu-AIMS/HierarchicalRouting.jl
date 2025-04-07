@@ -91,11 +91,14 @@ function load_problem(target_path::String)::Problem
     # Build the full path and read the GeoJSON
     # TODO: allow for raster
     target_gdf = GDF.read(target_path)
-    targets = Targets(target_path, target_gdf, wave_disturbance)
+    disturbance_data = wave_disturbance
 
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
-    env_paths = Dict(subfolder => joinpath(env_constraints_dir, subfolder) for subfolder in env_subfolders)
+    env_paths = Dict(
+        subfolder => joinpath(env_constraints_dir, subfolder)
+        for subfolder in env_subfolders
+    )
     env_data = Dict(
         subfolder => (
             env_dir = path,
@@ -106,6 +109,28 @@ function load_problem(target_path::String)::Problem
 
     site_dir = config["data_dir"]["site"]
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
+
+    suitable_targets_subset = Rasters.crop(
+        process_geometry_targets(target_gdf.geometry, disturbance_data, EPSG_code),
+        to=subset.geom
+    )
+    indices::Vector{CartesianIndex{2}} = findall(
+        x -> x != suitable_targets_subset.missingval,
+        suitable_targets_subset
+    )
+    coords::Vector{Point{2, Float64}} = [
+        Point(
+            suitable_targets_subset.dims[1][idx[1]],
+            suitable_targets_subset.dims[2][idx[2]]
+        )
+        for idx in indices
+    ]
+
+    wave_df = create_disturbance_data_dataframe(
+        coords,
+        disturbance_data
+    )
+    targets = Targets(target_path, target_gdf, wave_df)
 
     output_dir = config["output_dir"]["path"]
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
