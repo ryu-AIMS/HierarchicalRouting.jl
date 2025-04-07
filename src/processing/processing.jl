@@ -40,3 +40,22 @@ function assign_wave_data(
     return disturbance_values
 end
 
+function create_disturbance_data_dataframe(
+    nodes::Vector{Point{2, Float64}},
+    disturbance_data::DataFrame
+)::DataFrame
+    wave_values = Vector{Float64}(undef, length(nodes))
+    wave_val::Float64 = 0.0
+    for (i, pt) in enumerate(nodes)
+        wave_val = 0.0
+        for row in eachrow(disturbance_data)
+            if HierarchicalRouting.point_in_exclusion(pt, row.geometry)
+                wave_val = row.Hs_MEAN
+                break
+            end
+        end
+        wave_values[i] = wave_val
+    end
+
+    return DataFrame(node = nodes, wave_value = wave_values)
+end
