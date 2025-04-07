@@ -88,11 +88,6 @@ function load_problem(target_path::String)::Problem
     wave_disturbance_dir = config["data_dir"]["wave_disturbances"]
     wave_disturbance = GDF.read(first(glob("*.geojson", wave_disturbance_dir)))
 
-    # Build the full path and read the GeoJSON
-    # TODO: allow for raster
-    target_gdf = GDF.read(target_path)
-    disturbance_data = wave_disturbance
-
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
     env_paths = Dict(
@@ -109,10 +104,29 @@ function load_problem(target_path::String)::Problem
 
     site_dir = config["data_dir"]["site"]
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
+    subset_min_x = minimum(getfield.(AG.envelope.(subset.geom), 1))
+    subset_max_x = maximum(getfield.(AG.envelope.(subset.geom), 2))
+    subset_min_y = minimum(getfield.(AG.envelope.(subset.geom), 3))
+    subset_max_y = maximum(getfield.(AG.envelope.(subset.geom), 4))
 
-    suitable_targets_subset = Rasters.crop(
-        process_geometry_targets(target_gdf.geometry, disturbance_data, EPSG_code),
-        to=subset.geom
+    # Build the full path and read the GeoJSON
+    target_gdf = GDF.read(target_path)
+    target_gdf_subset = filter(
+        row -> within_bbox(
+            row.geometry,
+            subset_min_x, subset_max_x, subset_min_y, subset_max_y
+        ),
+        target_gdf
+    )
+    disturbance_data_subset = filter(
+        row -> within_bbox(
+            row.geometry,
+            subset_min_x, subset_max_x, subset_min_y, subset_max_y
+        ),
+        wave_disturbance
+    )
+    suitable_targets_subset = process_geometry_targets(
+        target_gdf_subset.geometry, disturbance_data_subset, EPSG_code
     )
     indices::Vector{CartesianIndex{2}} = findall(
         x -> x != suitable_targets_subset.missingval,
@@ -128,9 +142,9 @@ function load_problem(target_path::String)::Problem
 
     wave_df = create_disturbance_data_dataframe(
         coords,
-        disturbance_data
+        disturbance_data_subset
     )
-    targets = Targets(target_path, target_gdf, wave_df)
+    targets = Targets(target_path, target_gdf_subset, wave_df)
 
     output_dir = config["output_dir"]["path"]
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
@@ -194,4 +208,9 @@ function load_problem(target_path::String)::Problem
     )
 
     return Problem(depot, targets, mothership, tenders)
+end
+
+function within_bbox(geom, min_x, max_x, min_y, max_y)
+    env = AG.envelope(geom)
+    env.MinX ≥ min_x && env.MaxX ≤ max_x && env.MinY ≥ min_y && env.MaxY ≤ max_y
 end
