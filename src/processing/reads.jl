@@ -5,12 +5,19 @@
         EPSG_code::Int16,
         resolution::Float64 = 0.0001
     )
-
+    process_geometry_targets(
+        geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+        disturbance_gdf::DataFrame,
+        EPSG_code::Int16,
+        resolution::Float64 = 0.0001
+    )
 
 Read and process target location geometries to generate a rasterized representation.
 
 # Arguments
 - `targets`: The object containing target locations and disturbance polygons.
+- `geometries`: A vector of geometries representing target locations.
+- `disturbance_gdf`: A DataFrame containing disturbance polygons.
 - `EPSG_code`: The EPSG code for the coordinate reference system.
 - `resolution`: The resolution for the rasterization process.
 
@@ -37,6 +44,30 @@ function process_geometry_targets(
         res = resolution,
         missingval = -9999.0,
         fill = wave_values,
+        crs = EPSG(EPSG_code)
+    )
+end
+function process_geometry_targets(
+    geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+    disturbance_gdf::DataFrame,
+    EPSG_code::Int16,
+    resolution::Float64 = 0.0001 #! Hardcoded for now, but should be set -> in config file?
+)
+    # Compute centroids from the geometries
+    target_centroids = AG.centroid.(geometries)
+    target_centroid_pts = (p -> Point{2,Float64}(p[1:2])).(
+        AG.getpoint.(target_centroids, 0)
+    )
+
+    wave_values = assign_wave_data(
+        target_centroid_pts,
+        disturbance_gdf
+    )
+
+    return Rasters.rasterize(last, [(t[1],t[2]) for t in target_centroid_pts];
+        res = resolution,
+        missingval = -9999.0,
+        fill = wave_values, #! Revert back to 1?
         crs = EPSG(EPSG_code)
     )
 end
