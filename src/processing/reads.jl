@@ -4,7 +4,7 @@
         geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
         EPSG_code::Int16,
         resolution::Float64 = 0.0001
-    )
+    )::Raster{Int}
 
 Read and process target location geometries to generate a rasterized representation.
 
@@ -36,7 +36,9 @@ function process_geometry_targets(
 end
 
 """
-    process_raster_targets(targets::Targets, EPSG_code::Int, suitable_threshold)
+    process_raster_targets(
+        targets::Targets, EPSG_code::Int, suitable_threshold
+    )::Raster{Int}
 
 Read and mask target locations from a raster file.
 
@@ -48,7 +50,9 @@ Read and mask target locations from a raster file.
 # Returns
 - A rasterized representation of the target locations.
 """
-function process_raster_targets(targets::Targets, EPSG_code::Int, suitable_threshold)
+function process_raster_targets(
+    targets::Targets, EPSG_code::Int, suitable_threshold
+)::Raster{Int}
     # TODO: fill in with wave data!!
     suitable_targets_all = Raster(targets.path; mappedcrs = EPSG(EPSG_code), lazy = true)
     return target_threshold(suitable_targets_all, suitable_threshold)
