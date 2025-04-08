@@ -114,32 +114,50 @@ function apply_kmeans_clustering(
 end
 
 """
-    calculate_cluster_centroids(cluster_raster::Raster{Int64, 2})::Vector{Cluster}
+    calculate_cluster_centroids(
+    cluster_raster::Raster{Int64, 2};
+    cluster_ids=[]
+)::Vector{Cluster}
 
 Calculate the centroids of the clusters in the raster.
 
 # Arguments
 - `clusters_raster`: Raster containing the cluster IDs.
+- `cluster_ids`: Optional list of cluster IDs to assign to the clusters.
 
 # Returns
 A vector of `Cluster` objects.
 """
-function calculate_cluster_centroids(clusters_raster::Raster{Int64, 2})::Vector{Cluster}
-    unique_clusters = sort(unique(clusters_raster[clusters_raster .!= 0]))
+function calculate_cluster_centroids(
+    clusters_raster::Raster{Int64, 2};
+    cluster_ids=[]
+)::Vector{Cluster}
+    unique_clusters = Vector{Int64}(undef, 0)
+
+    if cluster_ids == []
+        unique_clusters = clusters_raster[clusters_raster .!= clusters_raster.missingval]
+        unique_clusters = sort(unique(unique_clusters))
+    else
+        if length(cluster_ids) != maximum(clusters_raster)
+            error("Length of cluster IDs given do not match number of clusters in raster.")
+        end
+        unique_clusters = cluster_ids
+    end
+
     clusters_vector = Vector{Cluster}(undef, length(unique_clusters))
 
     x_coords = clusters_raster.dims[1]
     y_coords = clusters_raster.dims[2]
 
-    for id in unique_clusters
+    for (id, ex_id) in enumerate(unique_clusters)
         nodes = [(x_coords[i[1]], y_coords[i[2]]) for i in findall(==(id), clusters_raster)]
         col_cent = mean([node[1] for node in nodes])
         row_cent = mean([node[2] for node in nodes])
 
         clusters_vector[id] = Cluster(
-            id = id,
+            id = ex_id,
             centroid = Point{2, Float64}(col_cent, row_cent),
-            nodes = [Point{2, Float64}(node[1], node[2]) for node in nodes]
+            nodes = Point{2, Float64}.(nodes)
         )
     end
     return clusters_vector
