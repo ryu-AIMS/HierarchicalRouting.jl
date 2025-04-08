@@ -42,6 +42,9 @@ function disturb_clusters(
         disturbance_raster,
         Int8(num_clusters);
     )
+    if all(x -> x == reclustered_disturbed_targets.missingval, reclustered_disturbed_targets)
+        return remaining_clusters
+    end
     disturbed_clusters = calculate_cluster_centroids(
         reclustered_disturbed_targets;
         cluster_ids=getfield.(remaining_clusters, :id)
