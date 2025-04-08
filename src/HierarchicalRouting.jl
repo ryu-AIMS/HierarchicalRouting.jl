@@ -32,6 +32,7 @@ include("optimization/metric_calcs.jl")
 include("optimization/solution_assessment.jl")
 
 include("problem/solve_problem.jl")
+include("problem/disturbance_events.jl")
 
 include("plotting/plots.jl")
 
