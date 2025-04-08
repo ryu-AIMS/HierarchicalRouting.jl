@@ -55,8 +55,17 @@ end
 function apply_kmeans_clustering(
     raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
 )::Raster{Int64, 2}
+    # TODO: Split this function into two separate functions, it does more than original fn
+    #! 1st: 3D clustering to generate disturbance clusters,
+    #! 2nd: 2D clustering to generate target clusters (as above)
     indices::Vector{CartesianIndex{2}} = findall(!=(raster.missingval), raster)
-    n::Int = length(indices)
+    n::Int = length(indices) # number of target sites remaining
+
+    if n <= k
+        @warn "No disturbance, as (deployment targets <= clusters required)"
+        empty_raster = similar(raster, Int64, missingval=0)
+        return empty_raster
+    end
 
     # 2D coordinate matrix for clustering
     coordinates_array_3d = Matrix{Float64}(undef, 3, n)
@@ -64,8 +73,11 @@ function apply_kmeans_clustering(
     coordinates_array_3d[2, :] .= raster.dims[2][getindex.(indices, 2)]
     coordinates_array_3d[3, :] .= [raster[i] for i in indices]
 
-    # Create k_d (random number between k:k^2) clusters to create disturbance on subset
-    k_d = rand(k:k^2)
+    # Create k_d clusters to create disturbance on subset
+    k_d_lower = min(n, k+1)
+    k_d_upper = min(max(k+1, n, k^2), n)
+    k_d = rand(k_d_lower:k_d_upper)
+
     disturbance_clusters = kmeans(
         coordinates_array_3d,
         k_d;
@@ -92,6 +104,14 @@ function apply_kmeans_clustering(
     surviving_mask = disturbance_scores .<= disturbance_magnitude
     coordinates_array_2d_disturbed = coordinates_array_3d[1:2, surviving_mask]
     indices = indices[surviving_mask]
+
+    if k > length(indices)
+        #! Too many nodes/clusters removed! Change threshold,
+        #! or use a different method e.g. remove cluster with highest scores
+        error(
+            "$k clusters required from $(length(indices)) remaining node/s.\nToo many nodes removed!"
+        )
+    end
 
     #re-cluster the remaining nodes into k clusters
     clustering = kmeans(
