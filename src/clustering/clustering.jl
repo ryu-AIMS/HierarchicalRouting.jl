@@ -125,6 +125,63 @@ function apply_kmeans_clustering(
 end
 
 """
+    update_cluster_assignments(
+        cluster_raster::Raster{Int64, 2},
+        prev_centroids::Dict{Int64, Point{2,Float64}}
+    )::Raster{Int64, 2}
+
+Update cluster assignments in the raster to match previous cluster numbering, based on
+matching closest clster centroids.
+
+# Arguments
+- `cluster_raster`: Raster containing the new cluster IDs.
+- `prev_centroids`: Dictionary mapping previous cluster IDs to their centroids.
+
+# Returns
+- A new raster with updated cluster assignments to match the previous numbering.
+"""
+function update_cluster_assignments(
+    cluster_raster::Raster{Int64, 2},
+    prev_centroids::Dict{Int64, Point{2,Float64}}
+)::Raster{Int64, 2}
+    unique_new = Set(cluster_raster[cluster_raster .!= cluster_raster.missingval])
+
+    # Compute new centroids from the cluster_raster
+    new_centroids = Dict{Int64, Point{2,Float64}}()
+    for new_id in unique_new
+        indices = findall(x -> x == new_id, cluster_raster)
+        mean_lon = mean(cluster_raster.dims[1][getindex.(indices, 1)])
+        mean_lat = mean(cluster_raster.dims[2][getindex.(indices, 2)])
+        new_centroids[new_id] = (mean_lon, mean_lat)
+    end
+
+    # Map cluster IDs from new to previous clusters
+    cluster_mapping = Dict{Int64, Int64}()
+    for new_id in unique_new
+        new_centroid = new_centroids[new_id]
+        prev_closest = nothing
+        best_distance = Inf
+        # Iterate over the previous clusters.
+        for (prev_id, prev_centroid) in prev_centroids
+            dist = GO.distance(new_centroid, prev_centroid)
+            if dist < best_distance
+                best_distance = dist
+                prev_closest = prev_id
+            end
+        end
+        cluster_mapping[new_id] = prev_closest
+    end
+
+    #? default args for similar?
+    updated_raster = similar(cluster_raster, Int64, missingval=cluster_raster.missingval)
+    for new_id in unique_new
+        updated_raster[cluster_raster .== new_id] .= cluster_mapping[new_id]
+    end
+
+    return updated_raster
+end
+
+"""
     calculate_cluster_centroids(
     cluster_raster::Raster{Int64, 2};
     cluster_ids=[]
