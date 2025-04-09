@@ -40,15 +40,22 @@ function disturb_clusters(
         missingval = -9999.0,
         fill = filtered_df.wave_value,
     )
-    reclustered_disturbed_targets = apply_kmeans_clustering(
+    disturbed_targets = apply_kmeans_clustering(
         disturbance_raster,
         Int8(num_clusters);
     )
-    if all(x -> x == reclustered_disturbed_targets.missingval, reclustered_disturbed_targets)
+    if all(x -> x == disturbed_targets.missingval, disturbed_targets)
         return remaining_clusters
     end
+
+    # Update the cluster assignments based on previous numbering
+    updated_disturbed_targets = update_cluster_assignments(
+        disturbed_targets,
+        Dict(c.id => c.centroid for c in remaining_clusters)
+    )
+
     disturbed_clusters = calculate_cluster_centroids(
-        reclustered_disturbed_targets;
+        updated_disturbed_targets;
         cluster_ids=getfield.(remaining_clusters, :id)
     )
 
