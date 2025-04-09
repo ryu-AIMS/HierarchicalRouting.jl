@@ -285,7 +285,8 @@ function linestrings!(
         points = hasproperty(line_string, :points) ?
                  [Point(p[1], p[2]) for p in line_string.points] :
                  [Point(p[1], p[2]) for l in line_string for p in l.points]
-        lines!(ax, points, color = line_color, linewidth = 2)
+        line_width = line_color == :black ? 3 : 2
+        lines!(ax, points, color = line_color, linewidth = line_width)
     end
 
     if labels
