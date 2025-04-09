@@ -25,10 +25,12 @@ function disturb_clusters(
     num_clusters = length(remaining_clusters)
     remaining_nodes = [node for cluster in remaining_clusters for node in cluster.nodes]
 
-    # mask df to only include nodes in the remaining clusters
-    filtered_df = DataFrame()
-    for cluster in remaining_clusters
-        append!(filtered_df, filter(row -> row.node in cluster.nodes, disturbance_df))
+    # Filter the disturbance_df so that it only includes rows with nodes in remaining_nodes
+    filtered_df = filter(row -> row.node in remaining_nodes, disturbance_df)
+
+    if nrow(filtered_df) != length(remaining_nodes)
+        @warn "Warning: Expected $(length(remaining_nodes)) nodes, but filtered df contains $(nrow(filtered_df))"
+        #? Why mismatch? Nodes in exclusions? Why not previously identified?
     end
 
     disturbance_raster = Rasters.rasterize(
