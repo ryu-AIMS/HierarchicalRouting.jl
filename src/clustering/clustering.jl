@@ -201,15 +201,12 @@ function calculate_cluster_centroids(
     cluster_ids=[]
 )::Vector{Cluster}
     unique_clusters = Vector{Int64}(undef, 0)
+    valid_clusters = unique(clusters_raster[clusters_raster .!= clusters_raster.missingval])
 
-    if isempty(cluster_ids)
-        unique_clusters = clusters_raster[clusters_raster .!= clusters_raster.missingval]
-        unique_clusters = sort(unique(unique_clusters))
-    else
-        if length(cluster_ids) != maximum(clusters_raster)
-            error("Length of cluster IDs given do not match number of clusters in raster.")
-        end
-        unique_clusters = cluster_ids
+    unique_clusters = isempty(cluster_ids) ? sort(valid_clusters) : cluster_ids
+
+    if !isempty(cluster_ids) && length(cluster_ids) != length(valid_clusters)
+        error("Length of cluster IDs given do not match number of clusters in raster.")
     end
 
     clusters_vector = Vector{Cluster}(undef, length(unique_clusters))
@@ -218,7 +215,8 @@ function calculate_cluster_centroids(
     y_coords = clusters_raster.dims[2]
 
     for (id, ex_id) in enumerate(unique_clusters)
-        nodes = [(x_coords[i[1]], y_coords[i[2]]) for i in findall(==(id), clusters_raster)]
+        node_indices = findall(==(ex_id), clusters_raster)
+        nodes = [(x_coords[i[1]], y_coords[i[2]]) for i in node_indices]
         col_cent = mean([node[1] for node in nodes])
         row_cent = mean([node[2] for node in nodes])
 
