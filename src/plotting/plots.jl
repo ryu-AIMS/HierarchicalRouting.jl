@@ -347,6 +347,20 @@ function tenders!(
     end
     return ax
 end
+function tenders!(
+    ax::Axis,
+    tender_soln::Vector{HierarchicalRouting.TenderSolution},
+    num_clusters::Int64
+)
+    colormap = distinguishable_colors(num_clusters + 2)[3:end]
+
+    # TODO: Plot critical path (longest) thicker than other paths
+    for t_soln in tender_soln
+        color = colormap[t_soln.id]
+        linestrings!.(ax, t_soln.sorties, color = color)
+    end
+    return ax
+end
 
 
 export clusters, clusters!, exclusions, exclusions!, linestrings, linestrings!, tenders, tenders!
