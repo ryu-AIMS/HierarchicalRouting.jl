@@ -99,13 +99,10 @@ function apply_kmeans_clustering(
     # Assign the disturbance value to every node in the cluster
     disturbance_scores .= cluster_means[disturbance_clusters.assignments]
 
-    # create a threshold to remove nodes with a score above the threshold
-    #? change distribution to make threshold more likely to be higher
-    disturbance_magnitude = minimum(disturbance_scores) +
-        rand()*(maximum(disturbance_scores) - minimum(disturbance_scores))
+    # remove nodes with the highest disturbance score
+    max_disturbance_score = maximum(disturbance_scores)
+    surviving_mask = disturbance_scores .!= max_disturbance_score
 
-    # Remove nodes with a score above the threshold
-    surviving_mask = disturbance_scores .<= disturbance_magnitude
     coordinates_array_2d_disturbed = coordinates_array_3d[1:2, surviving_mask]
     indices = indices[surviving_mask]
 
