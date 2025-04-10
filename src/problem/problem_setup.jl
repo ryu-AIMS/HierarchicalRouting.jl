@@ -44,7 +44,7 @@ Load the problem data from the configuration file and return a Problem object.
 The problem object containing the target scenario, depot, mothership, and tenders.
 """
 function load_problem(target_scenario::String="")::Problem
-    config = TOML.parsefile(joinpath("src",".config.toml"))
+    config = TOML.parsefile(".config.toml")
 
     draft_ms::Float64 = config["parameters"]["depth_ms"]
     draft_t::Float64 = config["parameters"]["depth_t"]
