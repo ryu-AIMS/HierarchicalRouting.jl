@@ -174,11 +174,13 @@ function cluster_problem(problem::Problem)::Vector{Cluster}
 
     output_dir::String = config["output_dir"]["path"]
     target_scenario_dir = config["data_dir"]["target_scenarios"]
-    target_scenario::String = problem.target_scenario
-    suitable_targets_prefix::String = target_scenario[1:findlast(".",target_scenario)[1]-1]
-    clustered_targets_path::String = joinpath(output_dir, "clustered_$(suitable_targets_prefix)_targets_k=$(k).tif")
-    target_subset_path::String = joinpath(output_dir, "target_subset_$(suitable_targets_prefix).tif")
-    suitable_targets_all_path::String = joinpath(target_scenario_dir, target_scenario)
+    scenario_name::String = problem.scenario_name
+    clustered_targets_path::String = joinpath(
+        output_dir,
+        "clustered_$(scenario_name)_targets_k=$(k).tif"
+    )
+    target_subset_path::String = joinpath(output_dir, "target_subset_$(scenario_name).tif")
+    suitable_targets_all_path::String = joinpath(target_scenario_dir, scenario_name*".geojson")
 
     clusters::Vector{Cluster} = generate_target_clusters(
         clustered_targets_path,
