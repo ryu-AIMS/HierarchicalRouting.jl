@@ -34,17 +34,17 @@ struct Problem
 end
 
 """
-    load_problem(target_scenario::String="")::Problem
+    load_problem(target_scenario::String)::Problem
 
 Load the problem data from the configuration file and return a Problem object.
 
 # Arguments
-- `target_scenario`: The name of the target scenario to load. Defaults to an empty string.
+- `target_scenario`: The name of the target scenario to load.
 
 # Returns
-The problem object containing the target scenario, depot, mothership, and tenders.
+The problem object.
 """
-function load_problem(target_scenario::String="")::Problem
+function load_problem(target_scenario::String)::Problem
     config = TOML.parsefile(".config.toml")
 
     draft_ms::Float64 = config["parameters"]["depth_ms"]
