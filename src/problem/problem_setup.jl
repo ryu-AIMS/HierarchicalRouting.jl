@@ -26,7 +26,8 @@ using TOML
 end
 
 struct Problem
-    target_scenario::String
+    scenario_name::String
+    target_scenario::DataFrame
     depot::Point{2, Float64}
     mothership::Vessel
     tenders::Vessel
@@ -51,9 +52,13 @@ function load_problem(target_scenario::String="")::Problem
     n_tenders::Int8 = config["parameters"]["n_tenders"]
     t_cap::Int16 = config["parameters"]["t_cap"]
     EPSG_code::Int16 = config["parameters"]["EPSG_code"]
-    target_scenario::String = target_scenario == "" ?
-        first(glob("*", config["data_dir"]["target_scenarios"])) :
-        target_scenario
+
+    scenario_name = try
+        split(split(split(target_scenario, "/")[end], "\\")[end], ".")[1]
+    catch
+        ""
+    end
+
     depot::Point{2, Float64} = Point{2, Float64}(
         config["parameters"]["depot_x"], config["parameters"]["depot_y"]
     )
@@ -133,5 +138,6 @@ function load_problem(target_scenario::String="")::Problem
         weighting = Float16(config["parameters"]["weight_t"]) #! user-defined
     )
 
-    return Problem(target_scenario, depot, mothership, tenders)
+    target_scenario_df = GDF.read(target_scenario)
+    return Problem(scenario_name, target_scenario_df, depot, mothership, tenders)
 end
