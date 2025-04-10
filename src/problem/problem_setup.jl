@@ -21,8 +21,8 @@ using TOML
 @kwdef struct Vessel
     exclusion::DataFrame
     capacity::Int16 = typemax(Int16)
-    number::Int8 = 1
-    weighting::Float16 = 1.0
+    number::Int8 = Int8(1)
+    weighting::Float16 = Float16(1.0)
 end
 
 struct Problem
@@ -124,13 +124,13 @@ function load_problem(target_scenario::String="")::Problem
 
     mothership = Vessel(
         exclusion = ms_exclusions,
-        weighting = config["parameters"]["weight_ms"]
+        weighting = Float16(config["parameters"]["weight_ms"]) #! user-defined
     )
     tenders = Vessel(
         exclusion = t_exclusions,
         capacity = t_cap,
         number = n_tenders,
-        weighting = config["parameters"]["weight_t"]
+        weighting = Float16(config["parameters"]["weight_t"]) #! user-defined
     )
 
     return Problem(target_scenario, depot, mothership, tenders)
