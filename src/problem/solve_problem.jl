@@ -23,34 +23,37 @@ function initial_solution(problem::Problem)::MSTSolution
         i -> i != 0 && i <= length(clusters),
         ms_route.cluster_sequence.id
     )
+
+    disturbance_clusters::Set{Int64} = Set((2, 4)) #! disturbance events are hardcoded for now at/before 2 and 4
     tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
-    cluster_set::Vector{Vector{Cluster}} = Vector{Vector{Cluster}}(undef, length(clust_seq))
-    disturbed_clusters::Vector{Cluster} = Vector{Cluster}(undef, length(clust_seq))
+    cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
+
+    disturbance_index = 1
+    cluster_set[1] = clusters
 
     for (i, cluster_id) in enumerate(clust_seq)
         start_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i]
         end_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i + 1]
         @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
 
-        disturbed_clusters = i==1 ? clusters : cluster_set[i-1]
-
-        if i ∈ (2,4) #! disturbance events are hardcoded for now at/before 2 and 4
-            disturbed_clusters = sort(
+        if i ∈ disturbance_clusters
+            @info "Disturbance event at $(ms_route.route.nodes[2*i-1]): before $(i)th cluster_id:$(cluster_id)"
+            disturbance_index += 1
+            cluster_set[disturbance_index] = clusters = sort(
                 vcat(
-                    disturbed_clusters[clust_seq][1:i-1],
+                    clusters[clust_seq][1:i-1],
                     disturb_clusters(
-                        disturbed_clusters[clust_seq][i:end],
+                        clusters[clust_seq][i:end],
                         problem.targets.disturbance_gdf
                     )
                 ),
                 by = x -> x.id
             )
         end
-        cluster_set[i] = disturbed_clusters
 
         #? order by deployment sequence, rather than ID
         tender_soln[i] = tender_sequential_nearest_neighbour(
-            disturbed_clusters[cluster_id],
+            clusters[cluster_id],
             (start_waypoint, end_waypoint),
             problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion
         )
