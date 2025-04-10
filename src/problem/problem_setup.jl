@@ -23,6 +23,23 @@ using TOML
     capacity::Int16 = typemax(Int16)
     number::Int8 = Int8(1)
     weighting::Float16 = Float16(1.0)
+
+    function Vessel(exclusion::DataFrame, capacity::Int16, number::Int8, weighting::Float16)
+        errors = validate_vessel(capacity, number, weighting)
+        if isempty(errors)
+            return new(exclusion, capacity, number, weighting)
+        else
+            throw(ArgumentError(join(errors, "\n")))
+        end
+    end
+end
+
+function validate_vessel(capacity::Int16, number::Int8, weighting::Float16)::Vector{String}
+    errors::Vector{String} = []
+    (weighting <= 0.0) ? push!(errors, "Weighting must be greater than 0") : 0
+    (capacity <= 0) ? push!(errors, "Capacity must be greater than 0") : 0
+    (number <= 0) ? push!(errors, "Number of vessels must be greater than 0") : 0
+    return errors
 end
 
 struct Problem
