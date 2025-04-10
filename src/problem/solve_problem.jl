@@ -16,12 +16,7 @@ Best total MSTSolution found
 function initial_solution(problem::Problem)::MSTSolution
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(problem);
-
-    cluster_centroids_df::DataFrame = DataFrame(
-        id  = [0; 1:length(clusters)],
-        lon = [problem.depot[1]; [clust.centroid[1] for clust in clusters]],
-        lat = [problem.depot[2]; [clust.centroid[2] for clust in clusters]]
-    )
+    cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN::MothershipSolution = nearest_neighbour(

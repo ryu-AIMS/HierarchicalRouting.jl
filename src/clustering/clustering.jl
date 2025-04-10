@@ -11,6 +11,35 @@ using Random
 end
 
 """
+    generate_cluster_df(
+        clusters::Vector{Cluster},
+        depot::Point{2, Float64}
+    )::DataFrame
+
+Generate a DataFrame representing clusters vector containing the cluster centroids and their
+IDs.
+
+# Arguments
+- `clusters`: A vector of `Cluster` objects.
+- `depot`: A point representing the start/end of the route.
+
+# Returns
+- A DataFrame with the clusters: ID's and lon/lat of centroids.
+"""
+function generate_cluster_df(
+    clusters::Vector{Cluster},
+    depot::Point{2, Float64}
+)::DataFrame
+
+    cluster_centroids_df::DataFrame = DataFrame(
+        id  = [0; 1:length(clusters)],
+        lon = [depot[1]; [clust.centroid[1] for clust in clusters]],
+        lat = [depot[2]; [clust.centroid[2] for clust in clusters]]
+    )
+    return cluster_centroids_df
+end
+
+"""
     apply_kmeans_clustering(
         raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
     )::Raster{Int64, 2}
