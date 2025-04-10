@@ -18,27 +18,18 @@ function initial_solution(problem::Problem)::MSTSolution
     clusters::Vector{Cluster} = cluster_problem(problem);
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
-    # Nearest Neighbour to generate initial mothership route & matrix
-    ms_soln_NN::MothershipSolution = nearest_neighbour(
-        cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
-    );
-
-    # 2-opt to improve the NN soln
-    ms_soln_2opt::MothershipSolution = two_opt(
-        ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
-    );
-
+    ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
     clust_seq::Vector{Int64} = filter(
         i -> i != 0 && i <= length(clusters),
-        ms_soln_2opt.cluster_sequence.id
+        ms_route.cluster_sequence.id
     )
     tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
     cluster_set::Vector{Vector{Cluster}} = Vector{Vector{Cluster}}(undef, length(clust_seq))
     disturbed_clusters::Vector{Cluster} = Vector{Cluster}(undef, length(clust_seq))
 
     for (i, cluster_id) in enumerate(clust_seq)
-        start_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i]
-        end_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i + 1]
+        start_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i]
+        end_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i + 1]
         @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
 
         disturbed_clusters = i==1 ? clusters : cluster_set[i-1]
@@ -65,7 +56,23 @@ function initial_solution(problem::Problem)::MSTSolution
         )
     end
 
-    return MSTSolution(clusters, cluster_set, ms_soln_2opt, tender_soln)
+    return MSTSolution(cluster_set, ms_route, tender_soln)
+end
+
+function optimize_mothership_route(
+    problem::Problem,
+    cluster_centroids_df::DataFrame
+)::MothershipSolution
+        # Nearest Neighbour to generate initial mothership route & matrix
+        ms_soln_NN::MothershipSolution = nearest_neighbour(
+            cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
+        );
+
+        # 2-opt to improve the NN soln
+        ms_soln_2opt::MothershipSolution = two_opt(
+            ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
+        );
+    return ms_soln_2opt
 end
 
 """
