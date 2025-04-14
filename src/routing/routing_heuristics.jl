@@ -226,14 +226,26 @@ end
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
     )::MothershipSolution
+    nearest_neighbour(
+        cluster_centroids::DataFrame,
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        current_point::Point{2, Float64},
+        ex_ms_route::MothershipSolution,
+        cluster_seq_idx::Int64
+    )::MothershipSolution
 
-Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to
-the depot.
+Apply the nearest neighbor algorithm:
+- starting from the depot (1st row/col) and returning to the depot, or
+- starting from the current point and returning to the depot.
 
 # Arguments
 - `cluster_centroids`: DataFrame containing id, lat, lon. Depot has `id=0` in row 1.
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
+- `current_point`: Point{2, Float64} representing the current location of the mothership.
+- `ex_ms_route`: MothershipSolution object containing the existing route.
+- `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
 
 # Returns
 MothershipSolution object containing:
@@ -306,6 +318,96 @@ function nearest_neighbour(
     return MothershipSolution(
         cluster_sequence=ordered_centroids,
         route=Route(waypoints.waypoint, dist_matrix, path)
+    )
+end
+function nearest_neighbour(
+    cluster_centroids::DataFrame,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+    current_point::Point{2, Float64},
+    ex_ms_route::MothershipSolution,
+    cluster_seq_idx::Int64
+)::MothershipSolution
+    # TODO: Use vector rather than DataFrame for cluster_centroids
+    # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
+    feasible_centroids::Vector{Point{2, Float64}} = adjust_waypoint.(
+        Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
+        Ref(exclusions_mothership)
+    )
+    cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
+    cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
+
+    # Create distance matrix between start, end, and feasible cluster centroids
+    dist_matrix = get_feasible_matrix(
+        vcat([current_point], feasible_centroids),
+        exclusions_mothership
+    )[1]
+    centroid_matrix = dist_matrix[3:end, 3:end]
+    current_dist_vector = dist_matrix[1, 3:end]
+    end_dist_vector = dist_matrix[2, 3:end]
+
+    tour_length = size(centroid_matrix, 1)
+    visited = falses(tour_length)
+    tour = Vector{Int64}(undef, tour_length)
+
+    current_location = argmin(current_dist_vector)
+    total_distance = current_dist_vector[current_location]
+    tour[1] = current_location
+    visited[current_location] = true
+    idx = 1
+
+    while !all(visited)
+        idx += 1
+        distances = centroid_matrix[current_location, :]
+        distances[visited] .= Inf
+        nearest_idx = argmin(distances)
+
+        tour[idx] = nearest_idx
+        total_distance += distances[nearest_idx]
+        visited[nearest_idx] = true
+        current_location = nearest_idx
+    end
+
+    # Return to the depot and adjust cluster_sequence to zero-based indexing
+    push!(tour, 0)
+    total_distance += end_dist_vector[current_location]
+
+    ordered_centroids = cluster_centroids[tour.+1,:]
+
+    # combine exclusions for mothership and tenders
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(
+        current_point,
+        vcat(DataFrame(ex_ms_route.cluster_sequence[cluster_seq_idx,:]), ordered_centroids),
+        exclusions_all
+    )
+
+    # Calc feasible path between waypoints.
+    _, waypoint_path_vector = get_feasible_vector(
+        waypoints.waypoint, exclusions_mothership
+    )
+    ex_path = ex_ms_route.route.line_strings[
+        1:findfirst(
+            x -> x == ex_ms_route.route.nodes[2 * cluster_seq_idx - 1],
+            getindex.(getproperty.(ex_ms_route.route.line_strings, :points), 2)
+        )
+    ]
+    new_path = vcat(waypoint_path_vector...)
+    full_path = vcat(ex_path, new_path...)
+
+    return MothershipSolution(
+        cluster_sequence=vcat(
+            ex_ms_route.cluster_sequence[1:cluster_seq_idx,:],
+            ordered_centroids
+        ),
+        route=Route(
+            vcat(
+                ex_ms_route.route.nodes[1:2*cluster_seq_idx-2],
+                waypoints.waypoint
+            ),
+            dist_matrix,
+            full_path
+        )
     )
 end
 
