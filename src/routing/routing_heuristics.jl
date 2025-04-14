@@ -20,7 +20,7 @@ end
 
 struct MSTSolution
     cluster_sets::Vector{Vector{Cluster}}
-    mothership::MothershipSolution
+    mothership_routes::Vector{MothershipSolution}
     tenders::Vector{TenderSolution}
 end
 
