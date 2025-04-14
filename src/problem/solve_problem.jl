@@ -28,8 +28,11 @@ function initial_solution(problem::Problem)::MSTSolution
     tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
     cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
 
+    ms_soln_sets = Vector{MothershipSolution}(undef, length(clust_seq))
+
     disturbance_index = 1
     cluster_set[1] = clusters
+    ms_soln_sets[1] = ms_route
 
     for (i, cluster_id) in enumerate(clust_seq)
         start_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i]
@@ -59,7 +62,7 @@ function initial_solution(problem::Problem)::MSTSolution
         )
     end
 
-    return MSTSolution(cluster_set, ms_route, tender_soln)
+    return MSTSolution(cluster_set, ms_soln_sets, tender_soln)
 end
 
 function optimize_mothership_route(
