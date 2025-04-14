@@ -35,12 +35,8 @@ function initial_solution(problem::Problem)::MSTSolution
     ms_soln_sets[1] = ms_route
 
     for (i, cluster_id) in enumerate(clust_seq)
-        start_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i]
-        end_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i + 1]
-        @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
-
         if i ∈ disturbance_clusters
-            @info "Disturbance event at $(ms_route.route.nodes[2*i-1]): before $(i)th cluster_id:$(cluster_id)"
+            @info "Disturbance event at $(ms_route.route.nodes[2*i-1]): before $(i)th cluster_id=$(cluster_id)"
             disturbance_index += 1
             cluster_set[disturbance_index] = clusters = sort(
                 vcat(
@@ -53,6 +49,10 @@ function initial_solution(problem::Problem)::MSTSolution
                 by = x -> x.id
             )
         end
+
+        start_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i]
+        end_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i + 1]
+        @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
 
         #? order by deployment sequence, rather than ID
         tender_soln[i] = tender_sequential_nearest_neighbour(
