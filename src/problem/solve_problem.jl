@@ -48,6 +48,15 @@ function initial_solution(problem::Problem)::MSTSolution
                 ),
                 by = x -> x.id
             )
+            cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
+
+            ms_soln_sets[disturbance_index] = ms_route = optimize_mothership_route(
+                problem,
+                cluster_centroids_df,
+                i,
+                ms_route,
+                getfield.(clusters[clust_seq][1:i-1], :id)
+            )
         end
 
         start_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i]
@@ -79,6 +88,31 @@ function optimize_mothership_route(
             ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
         );
     return ms_soln_2opt
+end
+function optimize_mothership_route(
+    problem::Problem,
+    cluster_centroids_df::DataFrame,
+    cluster_seq_idx::Int64,
+    ms_route::MothershipSolution,
+    cluster_ids_visited::Vector{Int64}
+)::MothershipSolution
+        start_point::Point{2, Float64} =  ms_route.route.nodes[2 * cluster_seq_idx - 1]
+
+        remaining_clusters_df::DataFrame = filter(
+            row -> row.id ∉ cluster_ids_visited,
+            cluster_centroids_df
+        )
+
+        # Nearest Neighbour to generate initial mothership route & matrix
+        ms_soln_NN::MothershipSolution = nearest_neighbour(
+            remaining_clusters_df,
+            problem.mothership.exclusion, problem.tenders.exclusion,
+            start_point,
+            ms_route,
+            cluster_seq_idx
+        );
+
+    return ms_route
 end
 
 """
