@@ -118,7 +118,14 @@ function optimize_mothership_route(
             cluster_seq_idx
         );
 
-    return ms_route
+    # 2-opt to improve the NN soln
+    ms_soln_2opt::MothershipSolution = two_opt(
+        ms_soln_NN,
+        problem.mothership.exclusion, problem.tenders.exclusion,
+        cluster_seq_idx
+    );
+
+    return ms_soln_2opt
 end
 
 """

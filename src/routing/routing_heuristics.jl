@@ -416,13 +416,21 @@ end
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
     )::MothershipSolution
+    two_opt(
+        ms_soln_current::MothershipSolution,
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        cluster_seq_idx::Int64
+    )::MothershipSolution
 
-Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
+Apply the 2-opt heuristic to improve the current MothershipSolution route by uncrossing
+crossed links between waypoints for the whole route or between current location and depot.
 
 # Arguments
 - `ms_soln_current`: Current MothershipSolution - from nearest_neighbour.
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
+- `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
 
 # Returns
 MothershipSolution object containing:
@@ -486,6 +494,71 @@ function two_opt(
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
         route=Route(waypoints.waypoint, dist_matrix, path)
+    )
+end
+function two_opt(
+    ms_soln_current::MothershipSolution,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+    cluster_seq_idx::Int64
+)::MothershipSolution
+    # TODO: only apply to the route between the current cluster and the depot
+    # TODO: Then concatenate the new route with the existing route
+    cluster_centroids = ms_soln_current.cluster_sequence
+    dist_matrix = ms_soln_current.route.dist_matrix
+
+    # If depot is last row, remove
+    if cluster_centroids.id[1] == cluster_centroids.id[end]
+        cluster_centroids = cluster_centroids[1:end-1, :]
+    end
+
+    # Initialize route as ordered waypoints
+    best_route = cluster_centroids.id .+ 1
+    best_distance = return_route_distance(best_route, dist_matrix)
+    improved = true
+
+    while improved
+        improved = false
+        for j in cluster_seq_idx:(length(best_route) - 1)
+            for i in (j + 1):length(best_route)
+                new_route = two_opt_swap(best_route, j, i)
+                new_distance = return_route_distance(new_route, dist_matrix)
+
+                if new_distance < best_distance
+                    best_route = new_route
+                    best_distance = new_distance
+                    improved = true
+                    @info "Improved by swapping $(j) and $(i)"
+                end
+            end
+        end
+    end
+
+    # Re-orient route to start from and end at the depot, and adjust to zero-based indexing
+    best_route = orient_route(best_route)
+    push!(best_route, best_route[1])
+    best_route .-= 1
+
+    ordered_nodes = cluster_centroids[
+        [findfirst(==(id), cluster_centroids.id) for id in best_route], :
+    ]
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(ordered_nodes, exclusions_all)
+    updated_waypoints = vcat(
+        ms_soln_current.route.nodes[1:2*cluster_seq_idx-1],
+        waypoints.waypoint[2*cluster_seq_idx:end]
+    )
+
+    _, waypoint_path_vector = get_feasible_vector(
+        updated_waypoints,
+        exclusions_mothership
+    )
+
+    path = vcat(waypoint_path_vector...)
+
+    return MothershipSolution(
+        cluster_sequence=ordered_nodes,
+        route=Route(updated_waypoints, dist_matrix, path)
     )
 end
 
