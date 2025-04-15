@@ -27,27 +27,28 @@ function initial_solution(problem::Problem)::MSTSolution
     disturbance_clusters::Set{Int64} = Set((2, 4)) #! disturbance events are hardcoded for now at/before 2 and 4
     tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
     cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
-
     ms_soln_sets = Vector{MothershipSolution}(undef, length(clust_seq))
 
-    disturbance_index = 1
     cluster_set[1] = clusters
     ms_soln_sets[1] = ms_route
 
-    for (i, cluster_id) in enumerate(clust_seq)
+    i = 1
+    disturbance_index = 1
+    while i <= length(clust_seq)
+        cluster_id::Int64 = clust_seq[i];
         if i ∈ disturbance_clusters
-            @info "Disturbance event at $(ms_route.route.nodes[2*i-1]): before $(i)th cluster_id=$(cluster_id)"
+            @info "Disturbance event at $(ms_route.route.nodes[2i-1]): before $(i)th cluster_id=$(cluster_id)"
             disturbance_index += 1
-            cluster_set[disturbance_index] = clusters = sort(
-                vcat(
-                    clusters[clust_seq][1:i-1],
-                    disturb_clusters(
-                        clusters[clust_seq][i:end],
-                        problem.targets.disturbance_gdf
-                    )
-                ),
-                by = x -> x.id
+            clusters = vcat(
+                clusters[clust_seq][1:i-1],
+                disturb_clusters(
+                    clusters[clust_seq][i:end],
+                    problem.targets.disturbance_gdf
+                )
             )
+            sort!(clusters, by = x -> x.id)
+            cluster_set[disturbance_index] = clusters
+
             cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
             ms_soln_sets[disturbance_index] = ms_route = optimize_mothership_route(
@@ -57,18 +58,23 @@ function initial_solution(problem::Problem)::MSTSolution
                 ms_route,
                 getfield.(clusters[clust_seq][1:i-1], :id)
             )
+            clust_seq = filter(
+                i -> i != 0 && i <= length(clusters),
+                ms_route.cluster_sequence.id
+            );
         end
 
-        start_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i]
-        end_waypoint::Point{2, Float64} =  ms_route.route.nodes[2 * i + 1]
-        @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
+        start_waypoint::Point{2, Float64} = ms_route.route.nodes[2i]
+        end_waypoint::Point{2, Float64} = ms_route.route.nodes[2i + 1]
+        cluster::Cluster = clusters[clust_seq][i]
+        @info "$(i): Clust $(cluster.id) from $(start_waypoint) to $(end_waypoint)"
 
-        #? order by deployment sequence, rather than ID
         tender_soln[i] = tender_sequential_nearest_neighbour(
-            clusters[cluster_id],
+            cluster,
             (start_waypoint, end_waypoint),
             problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion
         )
+        i+=1
     end
 
     return MSTSolution(cluster_set, ms_soln_sets, tender_soln)
