@@ -80,6 +80,33 @@ function initial_solution(problem::Problem)::MSTSolution
     return MSTSolution(cluster_set, ms_soln_sets, tender_soln)
 end
 
+"""
+    optimize_mothership_route(
+        problem::Problem,
+        cluster_centroids_df::DataFrame
+    )::MothershipSolution
+    optimize_mothership_route(
+        problem::Problem,
+        cluster_centroids_df::DataFrame,
+        cluster_seq_idx::Int64,
+        ms_route::MothershipSolution,
+        cluster_ids_visited::Vector{Int64}
+    )::MothershipSolution
+
+Generate an optimized mothership route using the nearest neighbour heuristic and 2-opt for:
+- the whole mothership route to/from the depot, or
+- the remaining/partial mothership route to clusters based on current position.
+
+# Arguments
+- `problem`: Problem instance to solve
+- `cluster_centroids_df`: DataFrame containing cluster centroids
+- `cluster_seq_idx`: Index of the cluster sequence
+- `ms_route`: Current mothership route
+- `cluster_ids_visited`: Vector of cluster IDs that have been visited
+
+# Returns
+- The optimized mothership route as a `MothershipSolution` object.
+"""
 function optimize_mothership_route(
     problem::Problem,
     cluster_centroids_df::DataFrame
@@ -102,21 +129,21 @@ function optimize_mothership_route(
     ms_route::MothershipSolution,
     cluster_ids_visited::Vector{Int64}
 )::MothershipSolution
-        start_point::Point{2, Float64} =  ms_route.route.nodes[2 * cluster_seq_idx - 1]
+    start_point::Point{2, Float64} =  ms_route.route.nodes[2 * cluster_seq_idx - 1]
 
-        remaining_clusters_df::DataFrame = filter(
-            row -> row.id ∉ cluster_ids_visited,
-            cluster_centroids_df
-        )
+    remaining_clusters_df::DataFrame = filter(
+        row -> row.id ∉ cluster_ids_visited,
+        cluster_centroids_df
+    )
 
-        # Nearest Neighbour to generate initial mothership route & matrix
-        ms_soln_NN::MothershipSolution = nearest_neighbour(
-            remaining_clusters_df,
-            problem.mothership.exclusion, problem.tenders.exclusion,
-            start_point,
-            ms_route,
-            cluster_seq_idx
-        );
+    # Nearest Neighbour to generate initial mothership route & matrix
+    ms_soln_NN::MothershipSolution = nearest_neighbour(
+        remaining_clusters_df,
+        problem.mothership.exclusion, problem.tenders.exclusion,
+        start_point,
+        ms_route,
+        cluster_seq_idx
+    );
 
     # 2-opt to improve the NN soln
     ms_soln_2opt::MothershipSolution = two_opt(
