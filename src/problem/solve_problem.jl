@@ -27,7 +27,7 @@ function initial_solution(problem::Problem)::MSTSolution
     disturbance_clusters::Set{Int64} = Set((2, 4)) #! disturbance events are hardcoded for now at/before 2 and 4
     tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
     cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
-    ms_soln_sets = Vector{MothershipSolution}(undef, length(clust_seq))
+    ms_soln_sets = Vector{MothershipSolution}(undef, length(disturbance_clusters)+1)
 
     cluster_set[1] = clusters
     ms_soln_sets[1] = ms_route
