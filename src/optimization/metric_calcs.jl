@@ -144,17 +144,18 @@ function critical_path(
     soln::MSTSolution,
     vessel_weightings::NTuple{2, Float64}=(1.0, 1.0)
 )::Float64
-
     # Within clusters
-    longest_sortie_cost = maximum.(tender_clust_dist.(soln.tenders)) .* vessel_weightings[2]
-    mothership_sub_clust_cost = mothership_dist_within_clusts(soln.mothership.route) *
+    cluster_sorties = tender_clust_dist.(soln.tenders)
+    cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
+    longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
+    mothership_sub_clust_cost = mothership_dist_within_clusts(soln.mothership_routes[end].route) *
         vessel_weightings[1]
 
     cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
     cluster_cost_total = sum(cluster_cost_each)
 
     # Between clusters
-    tow_cost = mothership_dist_between_clusts(soln.mothership.route) * vessel_weightings[1]
+    tow_cost = mothership_dist_between_clusts(soln.mothership_routes[end].route) * vessel_weightings[1]
 
     return cluster_cost_total + tow_cost
 end
