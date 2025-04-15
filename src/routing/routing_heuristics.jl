@@ -371,15 +371,26 @@ function nearest_neighbour(
     push!(tour, 0)
     total_distance += end_dist_vector[current_location]
 
-    ordered_centroids = cluster_centroids[tour.+1,:]
+    sequenced_remaining_centroids = cluster_centroids[tour.+1,:]
 
     # combine exclusions for mothership and tenders
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
     waypoints = get_waypoints(
         current_point,
-        vcat(DataFrame(ex_ms_route.cluster_sequence[cluster_seq_idx,:]), ordered_centroids),
+        vcat(DataFrame(ex_ms_route.cluster_sequence[cluster_seq_idx,:]), sequenced_remaining_centroids),
         exclusions_all
     )
+
+    cluster_sequence = vcat(
+        ex_ms_route.cluster_sequence[1:cluster_seq_idx,:],
+        sequenced_remaining_centroids
+    )
+    ordered_clusters = sort(cluster_sequence[1:end-1,:], :id)
+    ordered_nodes = Point{2, Float64}.(ordered_clusters.lon, ordered_clusters.lat)
+    updated_full_dist_matrix = get_feasible_matrix(
+        ordered_nodes,
+        exclusions_mothership
+    )[1]
 
     # Calc feasible path between waypoints.
     _, waypoint_path_vector = get_feasible_vector(
@@ -395,16 +406,13 @@ function nearest_neighbour(
     full_path = vcat(ex_path, new_path...)
 
     return MothershipSolution(
-        cluster_sequence=vcat(
-            ex_ms_route.cluster_sequence[1:cluster_seq_idx,:],
-            ordered_centroids
-        ),
+        cluster_sequence=cluster_sequence,
         route=Route(
             vcat(
                 ex_ms_route.route.nodes[1:2*cluster_seq_idx-2],
                 waypoints.waypoint
             ),
-            dist_matrix,
+            updated_full_dist_matrix,
             full_path
         )
     )
