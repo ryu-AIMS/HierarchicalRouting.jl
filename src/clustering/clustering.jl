@@ -104,7 +104,7 @@ function apply_kmeans_clustering(
     coordinates_array_3d = Matrix{Float64}(undef, 3, n)
     coordinates_array_3d[1, :] .= raster.dims[1][getindex.(indices, 1)]
     coordinates_array_3d[2, :] .= raster.dims[2][getindex.(indices, 2)]
-    coordinates_array_3d[3, :] .= [raster[i] for i in indices]
+    coordinates_array_3d[3, :] .= raster[indices]
 
     # Create k_d clusters to create disturbance on subset
     k_d_lower = min(n, k+1)
@@ -120,15 +120,17 @@ function apply_kmeans_clustering(
 
     # Create a score based on the disturbance values for each cluster
     disturbance_scores = Vector{Float64}(undef, length(indices))
-    # Calculate the mean disturbance value for each cluster
-    cluster_means = [
+    # Calculate the mean disturbance value for each cluster with stochastic perturbation
+    w = 1.0 # weight for the environmental disturbance value
+    t = 1.0 # perturbation weighting factor
+    cluster_disturbance_vals = w*[
         mean(coordinates_array_3d[3, disturbance_clusters.assignments .== i])
         for i in 1:k_d
-    ]
+    ] .+ t*rand(-1.0:0.01:1.0, k_d)
     # Assign the disturbance value to every node in the cluster
-    disturbance_scores .= cluster_means[disturbance_clusters.assignments]
+    disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
 
-    # remove nodes with the highest disturbance score
+    # remove nodes with the highest disturbance score - i.e. one cluster
     max_disturbance_score = maximum(disturbance_scores)
     surviving_mask = disturbance_scores .!= max_disturbance_score
 
