@@ -546,7 +546,10 @@ function two_opt(
     best_route = orient_route(best_route)
     push!(best_route, best_route[1])
     best_route .-= 1
-
+    best_route = orient_route(
+        best_route,
+        ms_soln_current.cluster_sequence.id[1:cluster_seq_idx]
+    )
     ordered_nodes = cluster_centroids[
         [findfirst(==(id), cluster_centroids.id) for id in best_route], :
     ]
@@ -601,6 +604,19 @@ Route starting with the depot.
 function orient_route(route::Vector{Int64})::Vector{Int64}
     idx = findfirst(==(1), route)
     return vcat(route[idx:end], route[1:idx-1])
+end
+function orient_route(route::Vector{Int64}, start_segment::Vector{Int64})::Vector{Int64}
+    if length(start_segment) < 2
+        throw(ArgumentError("start_segment must have at least 2 elements"))
+    end
+    if start_segment[2] == route[2]
+        return route
+    elseif start_segment[2] == route[end-1]
+        return reverse(route)
+    else
+        throw(ArgumentError("start_segment does not match route"))
+    end
+    return
 end
 
 """
