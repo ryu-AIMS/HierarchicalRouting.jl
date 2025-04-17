@@ -41,7 +41,7 @@ end
 
 """
     apply_kmeans_clustering(
-        raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
+        raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
     )::Raster{Int64, 2}
     apply_kmeans_clustering(
         raster::Raster{Float64, 2},
@@ -366,7 +366,7 @@ function process_targets(
         )
     end
 
-    suitable_targets_subset::Raster = Rasters.crop(suitable_targets_all, to=subset.geom)
+    suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
     if !isfile(target_subset_path)
         write(target_subset_path, suitable_targets_subset; force=true)
     end
