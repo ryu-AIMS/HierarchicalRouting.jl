@@ -119,7 +119,7 @@ function apply_kmeans_clustering(
     )
 
     # Create a score based on the disturbance values for each cluster
-    disturbance_scores = Vector{Float64}(undef, length(indices))
+    disturbance_scores = Vector{Float64}(undef, n)
     # Calculate the mean disturbance value for each cluster with stochastic perturbation
     w = 1.0 # weight for the environmental disturbance value
     t = 1.0 # perturbation weighting factor
@@ -136,12 +136,13 @@ function apply_kmeans_clustering(
 
     coordinates_array_2d_disturbed = coordinates_array_3d[1:2, surviving_mask]
     indices = indices[surviving_mask]
+    n = length(indices) # update number of target sites remaining
 
-    if k > length(indices)
+    if k > n
         #! Too many nodes/clusters removed! Change threshold,
         #! or use a different method e.g. remove cluster with highest scores
         error(
-            "$k clusters required from $(length(indices)) remaining node/s.\nToo many nodes removed!"
+            "$k clusters required from $(n) remaining node/s.\nToo many nodes removed!"
         )
     end
 
