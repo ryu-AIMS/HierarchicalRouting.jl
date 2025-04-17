@@ -1,6 +1,7 @@
 
 using Clustering
 using Random
+using Hungarian
 
 @kwdef struct Cluster
     id::Int
@@ -192,21 +193,7 @@ function update_cluster_assignments(
     end
 
     # Map cluster IDs from new to previous clusters
-    cluster_mapping = Dict{Int64, Int64}()
-    for new_id in unique_new
-        new_centroid = new_centroids[new_id]
-        prev_closest = nothing
-        best_distance = Inf
-        # Iterate over the previous clusters.
-        for (prev_id, prev_centroid) in prev_centroids
-            dist = GO.distance(new_centroid, prev_centroid)
-            if dist < best_distance
-                best_distance = dist
-                prev_closest = prev_id
-            end
-        end
-        cluster_mapping[new_id] = prev_closest
-    end
+    cluster_mapping = one_to_one_mapping_hungarian(new_centroids, prev_centroids)
 
     #? default args for similar?
     updated_raster = similar(cluster_raster, Int64, missingval=cluster_raster.missingval)
@@ -215,6 +202,26 @@ function update_cluster_assignments(
     end
 
     return updated_raster
+end
+
+function one_to_one_mapping_hungarian(
+    new_centroids::Dict{Int64,Point{2,Float64}},
+    prev_centroids::Dict{Int64,Point{2,Float64}}
+)::Dict{Int64,Int64}
+    new_ids  = collect(keys(new_centroids))
+    prev_ids = collect(keys(prev_centroids))
+    n, m = length(new_ids), length(prev_ids)
+
+    costs = Array{Float64}(undef, n, m)
+    for (i, nid) in enumerate(new_ids), (j, pid) in enumerate(prev_ids)
+        costs[i, j] = GO.distance(new_centroids[nid], prev_centroids[pid])
+    end
+
+    assignment, _ = hungarian(costs)
+
+    return Dict{Int64,Int64}(
+        new_ids[i] => prev_ids[assignment[i]] for i in 1:length(new_ids)
+    )
 end
 
 """
