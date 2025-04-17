@@ -187,7 +187,7 @@ Read and process problem data to generate an initial solution.
 Vector of clustered locations.
 """
 function cluster_problem(problem::Problem)::Vector{Cluster}
-    config = TOML.parsefile(joinpath("src", ".config.toml"))
+    config = TOML.parsefile(".config.toml")
 
     suitable_threshold::Float64 = config["parameters"]["suitable_threshold"]
     k::Int8 = config["parameters"]["k"]
