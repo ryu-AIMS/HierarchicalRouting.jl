@@ -35,7 +35,7 @@ function process_geometry_targets(
         AG.getpoint.(target_centroids, 0)
     )
 
-    wave_values = assign_wave_data(
+    wave_values = assign_disturbance_data(
         target_centroid_pts,
         targets.disturbance_gdf
     )
@@ -59,7 +59,7 @@ function process_geometry_targets(
         AG.getpoint.(target_centroids, 0)
     )
 
-    wave_values = assign_wave_data(
+    wave_values = assign_disturbance_data(
         target_centroid_pts,
         disturbance_gdf
     )
