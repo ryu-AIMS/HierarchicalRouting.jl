@@ -54,6 +54,18 @@ function initial_solution(
                     problem.tenders.exclusion
                 )
             )
+
+            removed_nodes = setdiff(
+                vcat([c.nodes for c in cluster_set[disturbance_index-1]]...),
+                vcat([c.nodes for c in clusters]...)
+            )
+            if !isempty(removed_nodes)
+                @info "Removed nodes due to disturbance event (since previous cluster):"
+                for c in removed_nodes
+                    @info "\t$(c)"
+                end
+            end
+
             sort!(clusters, by = x -> x.id)
             cluster_set[disturbance_index] = clusters
 
