@@ -13,7 +13,7 @@ Create matrices of distances and paths for feasible routes between waypoints acc
 - `exclusions`: Exclusion zones representing vehicle's environmental constraints.
 
 # Returns
-- `dist_matrix`: A matrix of distances between waypoints.
+- `dist_matrix`: A matrix of distances (in metres) between waypoints.
 - `path_matrix`: A vector of paths between
     waypoints.
 """
@@ -67,7 +67,7 @@ between sequential nodes, avoiding exclusions.
 environmental constraints.
 
 # Returns
-- `dist_vector`: A vector of distances between waypoints.
+- `dist_vector`: A vector of distances (in metres) between waypoints.
 - `path_vector`: A vector of paths between waypoints, represented as LineStrings.
 """
 function get_feasible_vector(
@@ -111,7 +111,7 @@ Create a vector of feasible distances between the current location and each targ
 - `exclusions`: Exclusion zones representing vehicle's environmental constraints.
 
 # Returns
-- A vector of fesaible distances between the current location and each target point.
+- A vector of feasible distances (m) between the current location and each target point.
 """
 function get_feasible_distances(
     current_location::Point{2, Float64},
@@ -185,7 +185,7 @@ start pt and any other intersecting polygons.
 - `exclusions`: A DataFrame containing exclusion zone polygons.
 
 # Returns
-- The distance of the shortest feasible path.
+- The distance of the shortest feasible path (in metres).
 - The shortest feasible path as a vector of LineStrings.
 """
 function shortest_feasible_path(
