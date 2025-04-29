@@ -45,14 +45,16 @@ end
         k::Int8,
         current_location::Point{2, Float64},
         exclusions::DataFrame;
-        tol::Float64=1.0
+        tol::Float64=1.0,
+        dist_weighting::Float64=1E-5
     )::Raster{Int64, 2}
     apply_kmeans_clustering(
         raster::Raster{Float64, 2},
         k::Int8,
         current_location::Point{2, Float64},
         exclusions::DataFrame;
-        tol::Float64=1.0
+        tol::Float64=1.0,
+        dist_weighting::Float64=1E-5
     )::Raster{Int64, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
@@ -67,6 +69,8 @@ Clustering considers feasible distances from the current location as a 3rd dimen
 - `current_location`: Current location of the mothership.
 - `exclusions`: DataFrame containing the exclusion zones.
 - `tol`: Tolerance for kmeans convergence.
+- `dist_weighting`: Weighting factor for the distances (in kms) to be stored in 3d array, compared
+    against lat/lons.
 
 # Returns
 A raster containing new clusters, with cluster IDs assigned to each target site.
@@ -76,7 +80,8 @@ function apply_kmeans_clustering(
     k::Int8,
     current_location::Point{2, Float64},
     exclusions::DataFrame;
-    tol::Float64=1.0
+    tol::Float64=1.0,
+    dist_weighting::Float64=1E-5
 )::Raster{Int64, 2}
     indices::Vector{CartesianIndex{2}} = findall(x -> x != raster.missingval, raster)
     rows::Vector{Int64} = getindex.(indices, 1)
@@ -84,7 +89,6 @@ function apply_kmeans_clustering(
 
     points = Point{2,Float64}.(zip(raster.dims[1][rows], raster.dims[2][cols]))
 
-    dist_weighting = 5E-5
     dist_vector = dist_weighting .* get_feasible_distances(
         current_location,
         points,
@@ -113,7 +117,8 @@ function apply_kmeans_clustering(
     k::Int8,
     current_location::Point{2, Float64},
     exclusions::DataFrame;
-    tol::Float64=1.0
+    tol::Float64=1.0,
+    dist_weighting::Float64=1E-5
 )::Raster{Int64, 2}
     # TODO: Split this function into two separate functions, it does more than original fn
     #! 1st: 3D clustering to generate disturbance clusters,
@@ -185,7 +190,6 @@ function apply_kmeans_clustering(
         remaining_pts,
         exclusions
     )
-    dist_weighting = 1E-5 # weight for distances to be comparable to coordinates.
 
     # Filter out infeasible points using infeasible_point_indxs
     feasible_idxs = findall(x -> x != Inf, dist_vector)
