@@ -103,6 +103,7 @@ function apply_kmeans_clustering(
     clustering = kmeans(coordinates_array, k; tol=tol, rng=Random.seed!(1))
 
     clustered_targets::Raster{Int64, 2} = similar(raster, Int64)
+    clustered_targets .= clustered_targets.missingval
     clustered_targets[indices[feasible_idxs]] .= clustering.assignments
 
     return clustered_targets
@@ -123,6 +124,7 @@ function apply_kmeans_clustering(
     if n <= k
         @warn "No disturbance, as (deployment targets <= clusters required)"
         empty_raster = similar(raster, Int64, missingval=0)
+        empty_raster .= empty_raster.missingval
         return empty_raster
     end
 
@@ -201,6 +203,7 @@ function apply_kmeans_clustering(
     )
 
     clustered_targets = similar(raster, Int64, missingval=0)
+    clustered_targets .= clustered_targets.missingval
     clustered_targets[indices[feasible_idxs]] .= clustering.assignments
 
     return clustered_targets
@@ -242,6 +245,8 @@ function update_cluster_assignments(
 
     #? default args for similar?
     updated_raster = similar(cluster_raster, Int64, missingval=cluster_raster.missingval)
+    updated_raster .= updated_raster.missingval
+
     for new_id in unique_new
         updated_raster[cluster_raster .== new_id] .= cluster_mapping[new_id]
     end
