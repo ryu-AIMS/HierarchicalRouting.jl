@@ -362,6 +362,14 @@ function tenders!(
     return ax
 end
 
+function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
+    base_color_float64 = ColorTypes.RGB{Float64}(
+        float(base_color.r),
+        float(base_color.g),
+        float(base_color.b)
+    )
+    return ColorTypes.HSV(base_color_float64).h
+end
 
 export clusters, clusters!, exclusions, exclusions!, linestrings, linestrings!, tenders, tenders!
 end
