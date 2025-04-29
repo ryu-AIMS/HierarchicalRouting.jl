@@ -97,6 +97,54 @@ function get_feasible_vector(
 end
 
 """
+    get_feasible_distances(
+        current_location::Point{2, Float64},
+        targets::Vector{Point{2, Float64}},
+        exclusions::DataFrame
+    )::Vector{Float64}
+
+Create a vector of feasible distances between the current location and each target point.
+
+# Arguments
+- `current_location`: Current location of the vehicle.
+- `targets`: Vector of target points.
+- `exclusions`: Exclusion zones representing vehicle's environmental constraints.
+
+# Returns
+- A vector of fesaible distances between the current location and each target point.
+"""
+function get_feasible_distances(
+    current_location::Point{2, Float64},
+    targets::Vector{Point{2, Float64}},
+    exclusions::DataFrame
+)::Vector{Float64}
+    n_points = length(targets)
+    dist_vector = zeros(Float64, n_points)
+
+    if point_in_exclusion(current_location, exclusions)
+        #! Should never be in exclusion zone
+        dist_vector .= Inf
+        return dist_vector
+    end
+
+    for point_i_idx in 1:n_points
+        point_nodes = [current_location, targets[point_i_idx]]
+
+        # Check if any of the points are within an exclusion zone
+        if point_in_exclusion(targets[point_i_idx], exclusions)
+            #! Should never be in exclusion zone
+            dist_vector[point_i_idx] = Inf
+        else
+            dist_vector[point_i_idx], _ = shortest_feasible_path(
+                point_nodes[1], point_nodes[2], exclusions
+            )
+        end
+    end
+
+    return dist_vector
+end
+
+"""
     point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
     point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
 
