@@ -82,11 +82,15 @@ function apply_kmeans_clustering(
     return clustered_targets
 end
 function apply_kmeans_clustering(
-    raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
+    raster::Raster{Float64, 2},
+    k::Int8,
+    current_location::Point{2, Float64},
+    exclusions::DataFrame;
+    tol::Float64=1.0
 )::Raster{Int64, 2}
     # TODO: Split this function into two separate functions, it does more than original fn
     #! 1st: 3D clustering to generate disturbance clusters,
-    #! 2nd: 2D clustering to generate target clusters (as above)
+    #! 2nd: 3D clustering to generate target clusters (as above)
     indices::Vector{CartesianIndex{2}} = findall(!=(raster.missingval), raster)
     n::Int = length(indices) # number of target sites remaining
 
@@ -96,7 +100,7 @@ function apply_kmeans_clustering(
         return empty_raster
     end
 
-    # 2D coordinate matrix for clustering
+    # 3D coordinate matrix for clustering
     coordinates_array_3d = Matrix{Float64}(undef, 3, n)
     coordinates_array_3d[1, :] .= raster.dims[1][getindex.(indices, 1)]
     coordinates_array_3d[2, :] .= raster.dims[2][getindex.(indices, 2)]
@@ -126,7 +130,7 @@ function apply_kmeans_clustering(
     # Assign the disturbance value to every node in the cluster
     disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
 
-    # remove nodes with the highest disturbance score - i.e. one cluster
+    # remove nodes in the cluster with the highest disturbance score
     max_disturbance_score = maximum(disturbance_scores)
     surviving_mask = disturbance_scores .!= max_disturbance_score
 
@@ -142,16 +146,36 @@ function apply_kmeans_clustering(
         )
     end
 
+    remaining_pts = Point{2,Float64}.(
+        coordinates_array_2d_disturbed[1, :],
+        coordinates_array_2d_disturbed[2, :]
+    )
+
+    # Fill vector with feasible distance from depot to each target site
+    dist_vector = get_feasible_distances(
+        current_location,
+        remaining_pts,
+        exclusions
+    )
+    dist_weighting = 1E-5 # weight for distances to be comparable to coordinates.
+
+    # Filter out infeasible points using infeasible_point_indxs
+    feasible_idxs = findall(x -> x != Inf, dist_vector)
+    coordinates_array_2d_disturbed = coordinates_array_2d_disturbed[:, feasible_idxs]
+    filtered_dists = dist_weighting .* dist_vector[feasible_idxs]
+
+    coordinates_array_3d_disturbed = [coordinates_array_2d_disturbed; filtered_dists']
+
     #re-cluster the remaining nodes into k clusters
     clustering = kmeans(
-        coordinates_array_2d_disturbed,
+        coordinates_array_3d_disturbed,
         k;
         tol=tol,
-        rng=Random.seed!(1)
+        rng=Random.seed!(2)
     )
 
     clustered_targets = similar(raster, Int64, missingval=0)
-    clustered_targets[indices] .= clustering.assignments
+    clustered_targets[indices[feasible_idxs]] .= clustering.assignments
 
     return clustered_targets
 end
