@@ -60,24 +60,38 @@ Cluster targets sites by applying k-means to target (non-zero) cells in a raster
 A new raster containing the cluster IDs.
 """
 function apply_kmeans_clustering(
-    raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
+    raster::Raster{Int, 2},
+    k::Int8,
+    current_location::Point{2, Float64},
+    exclusions::DataFrame;
+    tol::Float64=1.0
 )::Raster{Int64, 2}
     indices::Vector{CartesianIndex{2}} = findall(x -> x != raster.missingval, raster)
-    n::Int = length(indices)
-    coordinates_array = Matrix{Float64}(undef, 2, n)
-
-    # Row/col indices from each CartesianIndex
     rows::Vector{Int64} = getindex.(indices, 1)
     cols::Vector{Int64} = getindex.(indices, 2)
 
-    # Fill the coordinate matrix using the corresponding dimension arrays
-    coordinates_array[1, :] .= raster.dims[1][rows]
-    coordinates_array[2, :] .= raster.dims[2][cols]
+    points = Point{2,Float64}.(zip(raster.dims[1][rows], raster.dims[2][cols]))
+
+    dist_weighting = 5E-5
+    dist_vector = dist_weighting .* get_feasible_distances(
+        current_location,
+        points,
+        exclusions
+    )
+
+    feasible_idxs = findall(x -> x != Inf, dist_vector)
+    feasible_points = points[feasible_idxs]
+
+    # 3D coordinate matrix of feasible points for clustering
+    coordinates_array = Matrix{Float64}(undef, 3, length(feasible_points))
+    coordinates_array[1, :] .= getindex.(feasible_points, 1)
+    coordinates_array[2, :] .= getindex.(feasible_points, 2)
+    coordinates_array[3, :] = dist_vector[feasible_idxs]'
 
     clustering = kmeans(coordinates_array, k; tol=tol, rng=Random.seed!(1))
 
     clustered_targets::Raster{Int64, 2} = similar(raster, Int64)
-    clustered_targets[indices] .= clustering.assignments
+    clustered_targets[indices[feasible_idxs]] .= clustering.assignments
 
     return clustered_targets
 end
@@ -327,7 +341,9 @@ function generate_target_clusters(
     suitable_threshold::Float64,
     target_subset_path::String,
     subset::DataFrame,
-    EPSG_code::Int16
+    EPSG_code::Int16,
+    current_location::Point{2, Float64},
+    exclusions::DataFrame;
 )::Vector{Cluster}
     cluster_raster = process_targets(
         targets,
@@ -336,7 +352,9 @@ function generate_target_clusters(
         suitable_threshold,
         target_subset_path,
         subset,
-        EPSG_code
+        EPSG_code,
+        current_location,
+        exclusions
     )
 
     write(clustered_targets_path, cluster_raster; force = true)
@@ -378,7 +396,9 @@ function process_targets(
     suitable_threshold::Float64,
     target_subset_path::String,
     subset::DataFrame,
-    EPSG_code::Int16
+    EPSG_code::Int16,
+    current_location::Point{2, Float64},
+    exclusions::DataFrame;
 )::Raster{Int64}
     if endswith(targets.path, ".geojson")
         suitable_targets_all = process_geometry_targets(
@@ -399,7 +419,7 @@ function process_targets(
     end
 
     clustered_targets::Raster{Int64, 2} = apply_kmeans_clustering(
-        suitable_targets_subset, k; tol=cluster_tolerance
+        suitable_targets_subset, k, current_location, exclusions; tol=cluster_tolerance
     )
     return clustered_targets
 end

@@ -192,7 +192,9 @@ function cluster_problem(problem::Problem)::Vector{Cluster}
         suitable_threshold,
         target_subset_path,
         subset,
-        EPSG_code
+        EPSG_code,
+        problem.depot,
+        problem.tenders.exclusion,
     )
 
     return clusters
