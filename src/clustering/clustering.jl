@@ -41,23 +41,35 @@ end
 
 """
     apply_kmeans_clustering(
-        raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
+        raster::Raster{Int, 2},
+        k::Int8,
+        current_location::Point{2, Float64},
+        exclusions::DataFrame;
+        tol::Float64=1.0
     )::Raster{Int64, 2}
     apply_kmeans_clustering(
-        raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
-    )::Raster{Int, 2}
+        raster::Raster{Float64, 2},
+        k::Int8,
+        current_location::Point{2, Float64},
+        exclusions::DataFrame;
+        tol::Float64=1.0
+    )::Raster{Int64, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
 - Float64 raster is assumed to contain disturbance values, addressed buy 3d clustering
 - Int raster is assumed to contain cluster ID values, addressed by 2d spatial clustering.
+Clustering considers feasible distances from the current location as a 3rd dimenseion, and
+    excludes points in exclusion zones.
 
 # Arguments
 - `raster`: Raster containing the target geometries.
 - `k`: Number of clusters to create.
+- `current_location`: Current location of the mothership.
+- `exclusions`: DataFrame containing the exclusion zones.
 - `tol`: Tolerance for kmeans convergence.
 
 # Returns
-A new raster containing the cluster IDs.
+A raster containing new clusters, with cluster IDs assigned to each target site.
 """
 function apply_kmeans_clustering(
     raster::Raster{Int, 2},
