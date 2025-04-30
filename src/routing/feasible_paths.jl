@@ -320,6 +320,15 @@ end
 
 Build a network of points to connect to each other.
 Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
+
+# Arguments
+- `points_from`: Vector of points to connect from.
+- `points_to`: Vector of points to connect to.
+- `exclusion_idxs`: Vector of exclusion zone indices.
+- `current_point`: Current point to connect from.
+- `final_point`: Final point to connect to.
+- `exclusions`: DataFrame containing exclusion zones.
+- `final_exclusion_idx`: Index of the final exclusion zone.
 """
 function build_network!(
     points_from::Vector{Point{2, Float64}},
