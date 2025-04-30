@@ -451,7 +451,8 @@ function build_graph(
     # Only add polygon edges and extra visible connections if:
     # 1. A polygon is provided, AND
     # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
-    if is_polygon && !is_visible(initial_point, final_point, final_polygon)
+    if is_polygon
+        if !is_visible(initial_point, final_point, final_polygon)
 
         # Get vectors of polygon vertices (from, to) and their corresponding indices
         i_vertices::Vector{Point{2, Float64}} = poly_vertices[1:end-1]
@@ -487,7 +488,16 @@ function build_graph(
                 graph,
                 pt_to_idx[poly_vertices[end]],
                 pt_to_idx[poly_vertices[1]],
-                haversine(poly_vertices[end], poly_vertices[1])
+                    haversine(poly_vertices[end], poly_vertices[1])
+                )
+            end
+        else
+            # Connect initial point to final point if visible
+            add_edge!(
+                graph,
+                pt_to_idx[initial_point],
+                pt_to_idx[final_point],
+                haversine(initial_point, final_point)
             )
         end
     end
