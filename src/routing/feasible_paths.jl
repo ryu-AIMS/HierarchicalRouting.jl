@@ -455,22 +455,26 @@ function build_graph(
     if is_polygon
         if !is_visible(initial_point, final_point, final_polygon)
 
-        # Get vectors of polygon vertices (from, to) and their corresponding indices
-        i_vertices::Vector{Point{2, Float64}} = poly_vertices[1:end-1]
-        j_vertices::Vector{Point{2, Float64}} = poly_vertices[2:end]
-        i_idxs::Vector{Int} = map(i -> pt_to_idx[i], i_vertices)
-        j_idxs::Vector{Int} = map(j -> pt_to_idx[j], j_vertices)
+            # Add edges connecting any visible polygon vertices to other polyogn vertices
+            for i in poly_vertices #i_vertices
+                visibility_mask = (poly_vertices .!= i) .&
+                    is_visible.(Ref(i), poly_vertices, Ref(exclusions))
 
-        # Add edges connecting all polygon vertices
-        add_edge!.(
-            Ref(graph),
-            i_idxs,
-            j_idxs,
-            haversine.(i_vertices, j_vertices)
-        )
+                visible_points = poly_vertices[visibility_mask]
 
-        # Connect all visible points to polygon vertices
-        for i in poly_vertices
+                if !isempty(visible_points)
+                    # Compute indices for all visible points and distances in one go.
+                    add_edge!.(
+                        Ref(graph),
+                        Ref(pt_to_idx[i]),
+                        map(pt -> pt_to_idx[pt], visible_points),
+                        haversine.(Ref(i), visible_points)
+                    )
+                end
+            end
+
+            # Connect all visible points to polygon vertices
+            for i in poly_vertices
             visible_points = filter(pt -> is_visible(i, pt, exclusions), chain_points)
             if !isempty(visible_points)
                 # Compute indices for all visible points and distances in one go.
