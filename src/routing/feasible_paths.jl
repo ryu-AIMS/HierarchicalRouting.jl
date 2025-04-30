@@ -199,7 +199,6 @@ function shortest_feasible_path(
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
     exclusion_idxs = Int[]
-
     # If initial point is not within an exclusion zone
     if iszero(initial_exclusion_idx)
         build_network!(
@@ -260,7 +259,7 @@ function shortest_feasible_path(
         points_to,
         exclusions,
         iszero(final_exclusion_idx) ?
-        AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx,:geometry],
+            AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx, :geometry],
         initial_point,
         final_point
     )
