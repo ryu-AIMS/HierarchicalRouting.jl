@@ -46,7 +46,7 @@ end
         current_location::Point{2, Float64},
         exclusions::DataFrame;
         tol::Float64=1.0,
-        dist_weighting::Float64=1E-5
+        dist_weighting::Float64=2E-5
     )::Raster{Int64, 2}
     apply_kmeans_clustering(
         raster::Raster{Float64, 2},
@@ -54,7 +54,7 @@ end
         current_location::Point{2, Float64},
         exclusions::DataFrame;
         tol::Float64=1.0,
-        dist_weighting::Float64=1E-5
+        dist_weighting::Float64=2E-5
     )::Raster{Int64, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
@@ -81,7 +81,7 @@ function apply_kmeans_clustering(
     current_location::Point{2, Float64},
     exclusions::DataFrame;
     tol::Float64=1.0,
-    dist_weighting::Float64=1E-5
+    dist_weighting::Float64=2E-5
 )::Raster{Int64, 2}
     indices::Vector{CartesianIndex{2}} = findall(x -> x != raster.missingval, raster)
     rows::Vector{Int64} = getindex.(indices, 1)
@@ -118,7 +118,7 @@ function apply_kmeans_clustering(
     current_location::Point{2, Float64},
     exclusions::DataFrame;
     tol::Float64=1.0,
-    dist_weighting::Float64=1E-5
+    dist_weighting::Float64=2E-5
 )::Raster{Int64, 2}
     # TODO: Split this function into two separate functions, it does more than original fn
     #! 1st: 3D clustering to generate disturbance clusters,
