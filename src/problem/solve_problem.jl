@@ -1,6 +1,9 @@
 
 """
-    initial_solution(problem::Problem)::MSTSolution
+    initial_solution(
+        problem::Problem,
+        disturbance_clusters::Set{Int64} = Set{Int64}()
+    )::MSTSolution
 
 Generate a solution to the problem for:
 - the mothership by using the nearest neighbour heuristic to generate an initial solution,
@@ -9,11 +12,15 @@ Generate a solution to the problem for:
 
 # Arguments
 - `problem`: Problem instance to solve
+- `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 
 # Returns
 Best total MSTSolution found
 """
-function initial_solution(problem::Problem)::MSTSolution
+function initial_solution(
+    problem::Problem,
+    disturbance_clusters::Set{Int64} = Set{Int64}()
+)::MSTSolution
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(problem);
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
@@ -24,7 +31,6 @@ function initial_solution(problem::Problem)::MSTSolution
         ms_route.cluster_sequence.id
     )
 
-    disturbance_clusters::Set{Int64} = Set((2, 4)) #! disturbance events are hardcoded for now at/before 2 and 4
     tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
     cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
     ms_soln_sets = Vector{MothershipSolution}(undef, length(disturbance_clusters)+1)
