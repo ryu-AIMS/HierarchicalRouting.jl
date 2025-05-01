@@ -42,26 +42,31 @@ function validate_vessel(capacity::Int16, number::Int8, weighting::Float16)::Vec
     return errors
 end
 
+struct Targets
+    path::String
+    gdf::DataFrame
+    disturbance_gdf::DataFrame
+end
+
 struct Problem
-    scenario_name::String
-    target_scenario::DataFrame
     depot::Point{2, Float64}
+    targets::Targets
     mothership::Vessel
     tenders::Vessel
 end
 
 """
-    load_problem(target_scenario::String)::Problem
+    load_problem(target_path::String)::Problem
 
 Load the problem data from the configuration file and return a Problem object.
 
 # Arguments
-- `target_scenario`: The name of the target scenario to load.
+- `target_path`: The name of the target scenario to load.
 
 # Returns
 The problem object.
 """
-function load_problem(target_scenario::String)::Problem
+function load_problem(target_path::String)::Problem
     config = TOML.parsefile(".config.toml")
 
     draft_ms::Float64 = config["parameters"]["depth_ms"]
@@ -71,7 +76,7 @@ function load_problem(target_scenario::String)::Problem
     EPSG_code::Int16 = config["parameters"]["EPSG_code"]
 
     scenario_name = try
-        split(split(split(target_scenario, "/")[end], "\\")[end], ".")[1]
+        split(split(split(target_path, "/")[end], "\\")[end], ".")[1]
     catch
         ""
     end
@@ -80,9 +85,15 @@ function load_problem(target_scenario::String)::Problem
         config["parameters"]["depot_x"], config["parameters"]["depot_y"]
     )
 
+    wave_disturbance_dir = config["data_dir"]["wave_disturbances"]
+    wave_disturbance = GDF.read(first(glob("*.geojson", wave_disturbance_dir)))
+
     env_constraints_dir = config["data_dir"]["env_constraints"]
     env_subfolders = readdir(env_constraints_dir)
-    env_paths = Dict(subfolder => joinpath(env_constraints_dir, subfolder) for subfolder in env_subfolders)
+    env_paths = Dict(
+        subfolder => joinpath(env_constraints_dir, subfolder)
+        for subfolder in env_subfolders
+    )
     env_data = Dict(
         subfolder => (
             env_dir = path,
@@ -93,6 +104,35 @@ function load_problem(target_scenario::String)::Problem
 
     site_dir = config["data_dir"]["site"]
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
+
+    subset_bbox = get_bbox_bounds_from_df(subset)
+
+    target_gdf_subset = filter_within_bbox(
+        GDF.read(target_path), subset_bbox
+    )
+    disturbance_data_subset = filter_within_bbox(
+        wave_disturbance, subset_bbox
+    )
+    suitable_targets_subset = process_geometry_targets(
+        target_gdf_subset.geometry, disturbance_data_subset, EPSG_code
+    )
+    indices::Vector{CartesianIndex{2}} = findall(
+        x -> x != suitable_targets_subset.missingval,
+        suitable_targets_subset
+    )
+    coords::Vector{Point{2, Float64}} = [
+        Point(
+            suitable_targets_subset.dims[1][idx[1]],
+            suitable_targets_subset.dims[2][idx[2]]
+        )
+        for idx in indices
+    ]
+
+    wave_df = create_disturbance_data_dataframe(
+        coords,
+        disturbance_data_subset
+    )
+    targets = Targets(target_path, target_gdf_subset, wave_df)
 
     output_dir = config["output_dir"]["path"]
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
@@ -155,6 +195,83 @@ function load_problem(target_scenario::String)::Problem
         weighting = Float16(config["parameters"]["weight_t"]) #! user-defined
     )
 
-    target_scenario_df = GDF.read(target_scenario)
-    return Problem(scenario_name, target_scenario_df, depot, mothership, tenders)
+    return Problem(depot, targets, mothership, tenders)
+end
+
+"""
+    is_within_bbox(geom, min_x, max_x, min_y, max_y)::Bool
+
+Checks if the geometry is within the bounding box defined by the given coordinates.
+
+# Arguments
+- `geom`: The geometry to check.
+- `min_x`: The minimum x-coordinate of the bounding box.
+- `max_x`: The maximum x-coordinate of the bounding box.
+- `min_y`: The minimum y-coordinate of the bounding box.
+- `max_y`: The maximum y-coordinate of the bounding box.
+
+# Returns
+True if the geometry is within the bounding box, false otherwise.
+"""
+function is_within_bbox(geom, min_x, max_x, min_y, max_y)::Bool
+    env = AG.envelope(geom)
+    return env.MinX ≥ min_x && env.MaxX ≤ max_x && env.MinY ≥ min_y && env.MaxY ≤ max_y
+end
+
+"""
+    get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64, Float64}
+
+Retrieves the bounding box bounds from the given GeoDataFrame.
+
+# Arguments
+- `df`: The GeoDataFrame to retrieve the bounding box from.
+
+# Returns
+A tuple containing the bounding box coordinates:
+- min_x,
+- max_x,
+- min_y,
+- max_y.
+"""
+function get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64, Float64}
+    min_x = minimum(getfield.(AG.envelope.(df.geom), 1))
+    max_x = maximum(getfield.(AG.envelope.(df.geom), 2))
+    min_y = minimum(getfield.(AG.envelope.(df.geom), 3))
+    max_y = maximum(getfield.(AG.envelope.(df.geom), 4))
+
+    return (min_x, max_x, min_y, max_y)
+end
+
+"""
+    filter_within_bbox(
+        gdf::DataFrame,
+        bbox_bounds::Tuple{Float64, Float64, Float64, Float64}
+    )::DataFrame
+
+Filters the geometries in the given GeoDataFrame `gdf` that are within the bounding box
+    defined by the geometries in `subset`.
+
+# Arguments
+- `gdf`: The GeoDataFrame to filter.
+- `bbox_bounds`: A tuple containing the bounding box coordinates:
+    - min_x,
+    - max_x,
+    - min_y,
+    - max_y.
+
+# Returns
+A GeoDataFrame containing only the geometries within the bounding box defined by `subset`.
+"""
+function filter_within_bbox(
+    gdf::DataFrame,
+    bbox_bounds::Tuple{Float64, Float64, Float64, Float64}
+)::DataFrame
+    filtered_gdf = filter(
+        row -> is_within_bbox(
+            row.geometry,
+            bbox_bounds[1], bbox_bounds[2], bbox_bounds[3], bbox_bounds[4]
+        ),
+        gdf
+    )
+    return filtered_gdf
 end
