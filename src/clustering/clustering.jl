@@ -66,8 +66,6 @@ function apply_kmeans_clustering(
 
     # Create k_d (random number between k:k^2) clusters to create disturbance on subset
     k_d = rand(k:k^2)
-    lambda = 1E4        #! magic number
-
     disturbance_clusters = kmeans(
         coordinates_array_3d,
         k_d;
