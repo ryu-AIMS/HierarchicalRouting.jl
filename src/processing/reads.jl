@@ -80,7 +80,11 @@ function process_geometry_targets(
 end
 
 """
-    process_raster_targets(targets::Targets, EPSG_code::Int, suitable_threshold)
+    process_raster_targets(
+    targets::Targets,
+    EPSG_code::Int16,
+    suitable_threshold::Float64
+)::Raster
 
 Read and mask target locations from a raster file.
 
@@ -92,7 +96,11 @@ Read and mask target locations from a raster file.
 # Returns
 - A rasterized representation of the target locations.
 """
-function process_raster_targets(targets::Targets, EPSG_code::Int, suitable_threshold)
+function process_raster_targets(
+    targets::Targets,
+    EPSG_code::Int16,
+    suitable_threshold::Float64
+)::Raster
     # TODO: fill in with wave data!!
     suitable_targets_all = Raster(targets.path; mappedcrs = EPSG(EPSG_code), lazy = true)
     return target_threshold(suitable_targets_all, suitable_threshold)
