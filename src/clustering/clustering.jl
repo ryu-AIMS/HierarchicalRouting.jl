@@ -15,9 +15,7 @@ end
         raster::Raster{Int, 2}, k::Int8; tol::Float64=1.0
     )::Raster{Int64, 2}
     apply_kmeans_clustering(
-        raster::Raster{Float64, 2},
-        k::Int8;
-        tol::Float64=1.0,
+        raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
     )::Raster{Int64, 2}
 
 Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
@@ -55,9 +53,7 @@ function apply_kmeans_clustering(
     return clustered_targets
 end
 function apply_kmeans_clustering(
-    raster::Raster{Float64, 2},
-    k::Int8;
-    tol::Float64=1.0,
+    raster::Raster{Float64, 2}, k::Int8; tol::Float64=1.0
 )::Raster{Int64, 2}
     indices::Vector{CartesianIndex{2}} = findall(!=(raster.missingval), raster)
     n::Int = length(indices)
