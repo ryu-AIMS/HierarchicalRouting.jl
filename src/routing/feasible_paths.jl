@@ -251,6 +251,7 @@ function shortest_feasible_path(
         end
 
         # Get widest points to final point on polygon contianing initial point
+        #! Note that to/from points are inverted in find_widest_points() because initial point is in convex hull of polygon
         widest_verts = find_widest_points(
             final_point,
             initial_point,
