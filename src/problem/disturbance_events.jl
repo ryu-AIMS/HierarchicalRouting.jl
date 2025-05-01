@@ -21,7 +21,6 @@ function disturb_clusters(
     disturbance_df::DataFrame;
     res::Float64 = 0.0001
 )::Vector{Cluster}
-
     num_clusters = length(remaining_clusters)
     remaining_nodes = [node for cluster in remaining_clusters for node in cluster.nodes]
 

@@ -30,7 +30,6 @@ function generate_cluster_df(
     clusters::Vector{Cluster},
     depot::Point{2, Float64}
 )::DataFrame
-
     cluster_centroids_df::DataFrame = DataFrame(
         id  = [0; 1:length(clusters)],
         lon = [depot[1]; [clust.centroid[1] for clust in clusters]],
