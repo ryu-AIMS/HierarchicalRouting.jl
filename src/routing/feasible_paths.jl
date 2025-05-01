@@ -567,5 +567,5 @@ function collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
     # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
     # n_pts = length(poly_vertices)
 
-    return pts
+    return unique(pts)
 end
