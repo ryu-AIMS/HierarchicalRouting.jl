@@ -104,10 +104,8 @@ function load_problem(target_path::String)::Problem
 
     site_dir = config["data_dir"]["site"]
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
-    subset_min_x = minimum(getfield.(AG.envelope.(subset.geom), 1))
-    subset_max_x = maximum(getfield.(AG.envelope.(subset.geom), 2))
-    subset_min_y = minimum(getfield.(AG.envelope.(subset.geom), 3))
-    subset_max_y = maximum(getfield.(AG.envelope.(subset.geom), 4))
+
+    subset_bbox = get_bbox_bounds_from_df(subset)
 
     # Build the full path and read the GeoJSON
     target_gdf = GDF.read(target_path)
@@ -213,4 +211,28 @@ end
 function within_bbox(geom, min_x, max_x, min_y, max_y)
     env = AG.envelope(geom)
     env.MinX ≥ min_x && env.MaxX ≤ max_x && env.MinY ≥ min_y && env.MaxY ≤ max_y
+end
+
+"""
+    get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64, Float64}
+
+Retrieves the bounding box bounds from the given GeoDataFrame.
+
+# Arguments
+- `df`: The GeoDataFrame to retrieve the bounding box from.
+
+# Returns
+A tuple containing the bounding box coordinates:
+- min_x,
+- max_x,
+- min_y,
+- max_y.
+"""
+function get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64, Float64}
+    min_x = minimum(getfield.(AG.envelope.(df.geom), 1))
+    max_x = maximum(getfield.(AG.envelope.(df.geom), 2))
+    min_y = minimum(getfield.(AG.envelope.(df.geom), 3))
+    max_y = maximum(getfield.(AG.envelope.(df.geom), 4))
+
+    return (min_x, max_x, min_y, max_y)
 end
