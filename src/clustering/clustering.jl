@@ -128,7 +128,7 @@ function calculate_cluster_centroids(
 )::Vector{Cluster}
     unique_clusters = Vector{Int64}(undef, 0)
 
-    if cluster_ids == []
+    if isempty(cluster_ids)
         unique_clusters = clusters_raster[clusters_raster .!= clusters_raster.missingval]
         unique_clusters = sort(unique(unique_clusters))
     else
