@@ -16,12 +16,7 @@ Best total MSTSolution found
 function initial_solution(problem::Problem)::MSTSolution
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(problem);
-
-    cluster_centroids_df::DataFrame = DataFrame(
-        id  = [0; 1:length(clusters)],
-        lon = [problem.depot[1]; [clust.centroid[1] for clust in clusters]],
-        lat = [problem.depot[2]; [clust.centroid[2] for clust in clusters]]
-    )
+    cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN::MothershipSolution = nearest_neighbour(
@@ -38,20 +33,39 @@ function initial_solution(problem::Problem)::MSTSolution
         ms_soln_2opt.cluster_sequence.id
     )
     tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
+    cluster_set::Vector{Vector{Cluster}} = Vector{Vector{Cluster}}(undef, length(clust_seq))
+    disturbed_clusters::Vector{Cluster} = Vector{Cluster}(undef, length(clust_seq))
 
     for (i, cluster_id) in enumerate(clust_seq)
         start_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i]
         end_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i + 1]
         @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
 
+        disturbed_clusters = i==1 ? clusters : cluster_set[i-1]
+
+        if i ∈ (2,4) #! disturbance events are hardcoded for now at/before 2 and 4
+            disturbed_clusters = sort(
+                vcat(
+                    disturbed_clusters[clust_seq][1:i-1],
+                    disturb_clusters(
+                        disturbed_clusters[clust_seq][i:end],
+                        problem.targets.disturbance_gdf
+                    )
+                ),
+                by = x -> x.id
+            )
+        end
+        cluster_set[i] = disturbed_clusters
+
+        #? order by deployment sequence, rather than ID
         tender_soln[i] = tender_sequential_nearest_neighbour(
-            clusters[cluster_id],
+            disturbed_clusters[cluster_id],
             (start_waypoint, end_waypoint),
             problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion
         )
     end
 
-    return MSTSolution(clusters, ms_soln_2opt, tender_soln)
+    return MSTSolution(clusters, cluster_set, ms_soln_2opt, tender_soln)
 end
 
 """

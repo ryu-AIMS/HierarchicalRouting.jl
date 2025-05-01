@@ -4,7 +4,7 @@
         geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
         EPSG_code::Int16,
         resolution::Float64 = 0.0001
-    )
+    )::Raster{Int}
 
 Read and process target location geometries to generate a rasterized representation.
 
