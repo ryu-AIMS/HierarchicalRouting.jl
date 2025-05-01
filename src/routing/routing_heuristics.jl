@@ -20,6 +20,7 @@ end
 
 struct MSTSolution
     clusters::Vector{Cluster}
+    disturbed_cluster_sets::Vector{Vector{Cluster}}
     mothership::MothershipSolution
     tenders::Vector{TenderSolution}
 end

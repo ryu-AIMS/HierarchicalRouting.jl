@@ -32,6 +32,7 @@ include("optimization/metric_calcs.jl")
 include("optimization/solution_assessment.jl")
 
 include("problem/solve_problem.jl")
+include("problem/disturbance_events.jl")
 
 include("plotting/plots.jl")
 
@@ -41,6 +42,7 @@ export Plot
 
 export load_problem, initial_solution, improve_solution
 
-export cluster_problem, nearest_neighbour, two_opt, tender_sequential_nearest_neighbour
+export cluster_problem, nearest_neighbour, two_opt, tender_sequential_nearest_neighbour,
+    disturb_clusters
 
 end
