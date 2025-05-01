@@ -1,13 +1,7 @@
 
 """
     process_geometry_targets(
-        targets::Targets,
-        EPSG_code::Int16,
-        resolution::Float64 = 0.0001
-    )
-    process_geometry_targets(
         geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-        disturbance_gdf::DataFrame,
         EPSG_code::Int16,
         resolution::Float64 = 0.0001
     )
@@ -15,9 +9,7 @@
 Read and process target location geometries to generate a rasterized representation.
 
 # Arguments
-- `targets`: The object containing target locations and disturbance polygons.
 - `geometries`: A vector of geometries representing target locations.
-- `disturbance_gdf`: A DataFrame containing disturbance polygons.
 - `EPSG_code`: The EPSG code for the coordinate reference system.
 - `resolution`: The resolution for the rasterization process.
 
@@ -25,56 +17,24 @@ Read and process target location geometries to generate a rasterized representat
 - A rasterized representation of the target locations.
 """
 function process_geometry_targets(
-    targets::Targets,
-    EPSG_code::Int16,
-    resolution::Float64 = 0.0001 #! Hardcoded for now, but should be set -> in config file?
-)
-    # Compute centroids from the geometries in the GeoDataFrame
-    target_centroids = AG.centroid.(targets.gdf.geometry)
-    target_centroid_pts = (
-        p -> Point{2,Float64}(p[1:2])).(
-        AG.getpoint.(target_centroids, 0)
-    )
-
-    env_disturbance_values = get_disturbance_value.(
-        target_centroid_pts,
-        Ref(targets.disturbance_gdf)
-    )
-    targets_pts_tuple = [(t[1], t[2]) for t in target_centroid_pts]
-
-    return Rasters.rasterize(
-        last,
-        targets_pts_tuple;
-        res = resolution,
-        missingval = -9999.0,
-        fill = env_disturbance_values,
-        crs = EPSG(EPSG_code)
-    )
-end
-function process_geometry_targets(
     geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-    disturbance_gdf::DataFrame,
     EPSG_code::Int16,
-    resolution::Float64 = 0.0001 #! Hardcoded for now, but should be set -> in config file?
-)
+    resolution::Float64 = 0.0001
+)::Raster{Int}
     # Compute centroids from the geometries
     target_centroids = AG.centroid.(geometries)
     target_centroid_pts = (
         p -> Point{2,Float64}(p[1:2])).(
         AG.getpoint.(target_centroids, 0)
     )
-    env_disturbance_values = get_disturbance_value.(
-        target_centroid_pts,
-        Ref(disturbance_gdf)
-    )
     targets_pts_tuple = [(t[1], t[2]) for t in target_centroid_pts]
 
     return Rasters.rasterize(
         last,
         targets_pts_tuple;
         res = resolution,
-        missingval = -9999.0,
-        fill = env_disturbance_values, #! Revert back to 1?
+        missingval = 0,
+        fill = 1,
         crs = EPSG(EPSG_code)
     )
 end
