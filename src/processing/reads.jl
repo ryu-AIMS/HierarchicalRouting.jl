@@ -31,7 +31,8 @@ function process_geometry_targets(
 )
     # Compute centroids from the geometries in the GeoDataFrame
     target_centroids = AG.centroid.(targets.gdf.geometry)
-    target_centroid_pts = (p -> Point{2,Float64}(p[1:2])).(
+    target_centroid_pts = (
+        p -> Point{2,Float64}(p[1:2])).(
         AG.getpoint.(target_centroids, 0)
     )
 
@@ -39,8 +40,11 @@ function process_geometry_targets(
         target_centroid_pts,
         Ref(targets.disturbance_gdf)
     )
+    targets_pts_tuple = [(t[1], t[2]) for t in target_centroid_pts]
 
-    return Rasters.rasterize(last, [(t[1],t[2]) for t in target_centroid_pts];
+    return Rasters.rasterize(
+        last,
+        targets_pts_tuple;
         res = resolution,
         missingval = -9999.0,
         fill = env_disturbance_values,
@@ -55,15 +59,19 @@ function process_geometry_targets(
 )
     # Compute centroids from the geometries
     target_centroids = AG.centroid.(geometries)
-    target_centroid_pts = (p -> Point{2,Float64}(p[1:2])).(
+    target_centroid_pts = (
+        p -> Point{2,Float64}(p[1:2])).(
         AG.getpoint.(target_centroids, 0)
     )
     env_disturbance_values = get_disturbance_value.(
         target_centroid_pts,
         Ref(disturbance_gdf)
     )
+    targets_pts_tuple = [(t[1], t[2]) for t in target_centroid_pts]
 
-    return Rasters.rasterize(last, [(t[1],t[2]) for t in target_centroid_pts];
+    return Rasters.rasterize(
+        last,
+        targets_pts_tuple;
         res = resolution,
         missingval = -9999.0,
         fill = env_disturbance_values, #! Revert back to 1?
