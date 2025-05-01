@@ -35,15 +35,15 @@ function process_geometry_targets(
         AG.getpoint.(target_centroids, 0)
     )
 
-    wave_values = assign_disturbance_data(
+    env_disturbance_values = get_disturbance_value.(
         target_centroid_pts,
-        targets.disturbance_gdf
+        Ref(targets.disturbance_gdf)
     )
 
     return Rasters.rasterize(last, [(t[1],t[2]) for t in target_centroid_pts];
         res = resolution,
         missingval = -9999.0,
-        fill = wave_values,
+        fill = env_disturbance_values,
         crs = EPSG(EPSG_code)
     )
 end
@@ -58,16 +58,15 @@ function process_geometry_targets(
     target_centroid_pts = (p -> Point{2,Float64}(p[1:2])).(
         AG.getpoint.(target_centroids, 0)
     )
-
-    wave_values = assign_disturbance_data(
+    env_disturbance_values = get_disturbance_value.(
         target_centroid_pts,
-        disturbance_gdf
+        Ref(disturbance_gdf)
     )
 
     return Rasters.rasterize(last, [(t[1],t[2]) for t in target_centroid_pts];
         res = resolution,
         missingval = -9999.0,
-        fill = wave_values, #! Revert back to 1?
+        fill = env_disturbance_values, #! Revert back to 1?
         crs = EPSG(EPSG_code)
     )
 end

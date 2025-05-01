@@ -41,28 +41,6 @@ function get_disturbance_value(pt::Point{2, Float64}, disturbance_data::DataFram
 end
 
 """
-    assign_disturbance_data(
-        nodes::Vector{Point{2, Float64}},
-        disturbance_data::DataFrame
-    )::Vector{Float64}
-
-Assign disturbance data to a vector of nodes.
-
-# Arguments
-- `nodes`: A vector of nodes (points).
-- `disturbance_data`: The disturbance data containing wave values.
-
-# Returns
-- A vector of wave values corresponding to the nodes.
-"""
-function assign_disturbance_data(
-    nodes::Vector{Point{2, Float64}},
-    disturbance_data::DataFrame
-)::Vector{Float64}
-    return [get_disturbance_value(pt, disturbance_data) for pt in nodes]
-end
-
-"""
     create_disturbance_data_dataframe(
         nodes::Vector{Point{2, Float64}},
         disturbance_data::DataFrame
@@ -81,6 +59,6 @@ function create_disturbance_data_dataframe(
     nodes::Vector{Point{2, Float64}},
     disturbance_data::DataFrame
 )::DataFrame
-    wave_values = [get_disturbance_value(pt, disturbance_data) for pt in nodes]
-    return DataFrame(node = nodes, wave_value = wave_values)
+    disturbance_values = get_disturbance_value.(nodes, Ref(disturbance_data))
+    return DataFrame(node = nodes, wave_value = disturbance_values)
 end
