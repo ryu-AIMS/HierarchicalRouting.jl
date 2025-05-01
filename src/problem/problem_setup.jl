@@ -107,21 +107,11 @@ function load_problem(target_path::String)::Problem
 
     subset_bbox = get_bbox_bounds_from_df(subset)
 
-    # Build the full path and read the GeoJSON
-    target_gdf = GDF.read(target_path)
-    target_gdf_subset = filter(
-        row -> within_bbox(
-            row.geometry,
-            subset_min_x, subset_max_x, subset_min_y, subset_max_y
-        ),
-        target_gdf
+    target_gdf_subset = filter_within_bbox(
+        GDF.read(target_path), subset_bbox
     )
-    disturbance_data_subset = filter(
-        row -> within_bbox(
-            row.geometry,
-            subset_min_x, subset_max_x, subset_min_y, subset_max_y
-        ),
-        wave_disturbance
+    disturbance_data_subset = filter_within_bbox(
+        wave_disturbance, subset_bbox
     )
     suitable_targets_subset = process_geometry_targets(
         target_gdf_subset.geometry, disturbance_data_subset, EPSG_code
@@ -235,4 +225,38 @@ function get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64
     max_y = maximum(getfield.(AG.envelope.(df.geom), 4))
 
     return (min_x, max_x, min_y, max_y)
+end
+
+"""
+    filter_within_bbox(
+        gdf::DataFrame,
+        bbox_bounds::Tuple{Float64, Float64, Float64, Float64}
+    )::DataFrame
+
+Filters the geometries in the given GeoDataFrame `gdf` that are within the bounding box
+    defined by the geometries in `subset`.
+
+# Arguments
+- `gdf`: The GeoDataFrame to filter.
+- `bbox_bounds`: A tuple containing the bounding box coordinates:
+    - min_x,
+    - max_x,
+    - min_y,
+    - max_y.
+
+# Returns
+A GeoDataFrame containing only the geometries within the bounding box defined by `subset`.
+"""
+function filter_within_bbox(
+    gdf::DataFrame,
+    bbox_bounds::Tuple{Float64, Float64, Float64, Float64}
+)::DataFrame
+    filtered_gdf = filter(
+        row -> is_within_bbox(
+            row.geometry,
+            bbox_bounds[1], bbox_bounds[2], bbox_bounds[3], bbox_bounds[4]
+        ),
+        gdf
+    )
+    return filtered_gdf
 end
