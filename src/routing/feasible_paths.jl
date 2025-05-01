@@ -224,15 +224,31 @@ function shortest_feasible_path(
             )
         ]
 
-        # Connect each polygon vertex to the initial point if visible, and
-        # add all polygon vertices to graph
-        n_vis_verts = length(visible_vertices)
-        n_total_verts = length(poly_vertices)
-        next_poly_vert = circshift(poly_vertices, -1)
+        if !isempty(visible_vertices)
+            # Connect initial point to every visible polygon vertex
+            n_vis_verts = length(visible_vertices)
 
-        append!(points_from, vcat(fill(initial_point, n_vis_verts), poly_vertices))
-        append!(points_to, vcat(visible_vertices, next_poly_vert))
-        append!(exclusion_idxs, fill(initial_exclusion_idx, (n_vis_verts + n_total_verts)))
+            append!(points_from, fill(initial_point, n_vis_verts))
+            append!(points_to, visible_vertices)
+            append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_verts))
+
+            # For each polygon vertex, add edges to all visible vertices
+            for i in poly_vertices
+                # Check visibility of all polygon vertices from the current vertex `i`
+                visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+
+                # Get all visible vertices from `i`
+                vis_pts_from_i = poly_vertices[visibility_mask]
+                n_vis_pts_from_i = length(vis_pts_from_i)
+
+                if !isempty(vis_pts_from_i)
+                    append!(points_from, fill(i, n_vis_pts_from_i))
+                    append!(points_to, vis_pts_from_i)
+                    append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_pts_from_i))
+                end
+            end
+
+        end
 
         # Get widest points to final point on polygon contianing initial point
         widest_verts = find_widest_points(
