@@ -41,7 +41,7 @@ end
 
 """
     process_raster_targets(
-    targets::Targets,
+    targets_path::String,
     EPSG_code::Int16,
     suitable_threshold::Float64
 )::Raster
@@ -49,7 +49,7 @@ end
 Read and mask target locations from a raster file.
 
 # Arguments
-- `targets`: The object with attribute path to the raster file containing target locations.
+- `targets_path`: The path to the raster file containing target locations.
 - `EPSG_code`: The EPSG code for the coordinate reference system.
 - `suitable_threshold`: The threshold value for suitable targets.
 
@@ -57,12 +57,12 @@ Read and mask target locations from a raster file.
 - A rasterized representation of the target locations.
 """
 function process_raster_targets(
-    targets::Targets,
+    targets_path::String,
     EPSG_code::Int16,
     suitable_threshold::Float64
 )::Raster
     # TODO: fill in with wave data!!
-    suitable_targets_all = Raster(targets.path; mappedcrs = EPSG(EPSG_code), lazy = true)
+    suitable_targets_all = Raster(targets_path; mappedcrs = EPSG(EPSG_code), lazy = true)
     return target_threshold(suitable_targets_all, suitable_threshold)
 end
 
@@ -198,4 +198,70 @@ function cluster_problem(problem::Problem)::Vector{Cluster}
     )
 
     return clusters
+end
+
+"""
+    process_targets(
+        target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+        target_subset_path::String,
+        subset::DataFrame,
+        EPSG_code::Int16
+    )::Raster{Int64}
+    process_targets(
+        target_path::String,
+        suitable_threshold::Float64,
+        target_subset_path::String,
+        subset::DataFrame,
+        EPSG_code::Int16
+    )::Raster{Int64}
+
+Reads target locations from target path (.geojson or raster) and returns raster of target
+points, applying thresholds and cropping to a target subset.
+
+# Arguments
+- `target_geometries`: A vector of geometries representing target locations.
+- `target_path`: The path to the target locations file.
+- `suitable_threshold`: The threshold for suitable targets.
+- `target_subset_path`: The path to the target subset raster.
+- `subset`: The DataFrame containing the study area boundary.
+- `EPSG_code`: The EPSG code for the study area.
+
+# Returns
+- A rasterized representation of the target locations.
+"""
+function process_targets(
+    target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int16,
+)::Raster{Int64}
+    #TODO: Remove process_geometry_targets() function call and process directly
+    suitable_targets_all = process_geometry_targets(
+        target_geometries,
+        EPSG_code
+    )
+    suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
+    if !isfile(target_subset_path)
+        write(target_subset_path, suitable_targets_subset; force=true)
+    end
+    return suitable_targets_subset
+end
+function process_targets(
+    target_path::String,
+    suitable_threshold::Float64,
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int16
+)::Raster{Int64}
+    #TODO: Remove process_raster_targets() function call and process directly
+    suitable_targets_all = process_raster_targets(
+        target_path,
+        EPSG_code,
+        suitable_threshold
+    )
+    suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
+    if !isfile(target_subset_path)
+        write(target_subset_path, suitable_targets_subset; force=true)
+    end
+    return suitable_targets_subset
 end

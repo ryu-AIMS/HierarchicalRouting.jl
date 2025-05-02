@@ -104,12 +104,25 @@ function load_problem(target_path::String)::Problem
 
     site_dir = config["data_dir"]["site"]
     subset = GDF.read(first(glob("*.gpkg", site_dir)))
-
     subset_bbox = get_bbox_bounds_from_df(subset)
-
     target_gdf_subset = filter_within_bbox(
         GDF.read(target_path), subset_bbox
     )
+
+    output_dir = config["output_dir"]["path"]
+    suitable_targets_filename = splitext(basename(target_path))[1]
+    target_subset_path::String = joinpath(
+        output_dir,
+        "target_subset_$(suitable_targets_filename).tif"
+    )
+
+    target_points = process_targets(
+        target_gdf_subset.geometry,
+        target_subset_path,
+        subset,
+        EPSG_code
+    )
+
     disturbance_data_subset = filter_within_bbox(
         wave_disturbance, subset_bbox
     )
@@ -134,7 +147,6 @@ function load_problem(target_path::String)::Problem
     )
     targets = Targets(target_path, target_gdf_subset, wave_df)
 
-    output_dir = config["output_dir"]["path"]
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
     # Process exclusions
