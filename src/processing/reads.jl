@@ -164,35 +164,21 @@ Vector of clustered locations.
 function cluster_problem(problem::Problem)::Vector{Cluster}
     config = TOML.parsefile(".config.toml")
 
-    suitable_threshold::Float64 = config["parameters"]["suitable_threshold"]
     k::Int8 = config["parameters"]["k"]
     cluster_tolerance::Float64 = config["parameters"]["cluster_tolerance"]
-    EPSG_code::Int16 = config["parameters"]["EPSG_code"]
 
-    site_dir::String = config["data_dir"]["site"]
-    subset::DataFrame = GDF.read(first(glob("*.gpkg", site_dir)))
     suitable_targets_filename = splitext(basename(problem.targets.path))[1]
-
     output_dir::String = config["output_dir"]["path"]
-
     clustered_targets_path::String = joinpath(
         output_dir,
         "clustered_$(suitable_targets_filename)_targets_k=$(k).tif"
     )
-    target_subset_path::String = joinpath(
-        output_dir,
-        "target_subset_$(suitable_targets_filename).tif"
-    )
 
     clusters::Vector{Cluster} = generate_target_clusters(
+        problem.targets.points,
         clustered_targets_path,
         k,
         cluster_tolerance,
-        problem.targets,
-        suitable_threshold,
-        target_subset_path,
-        subset,
-        EPSG_code,
         problem.depot,
         problem.tenders.exclusion,
     )

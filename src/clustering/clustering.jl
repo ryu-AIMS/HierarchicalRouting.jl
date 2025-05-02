@@ -328,57 +328,39 @@ end
 
 """
     generate_target_clusters(
+        target_points::Raster{Int, 2},
         clustered_targets_path::String,
         k::Int8,
         cluster_tolerance::Float64,
-        suitable_targets_all_path::String,
-        suitable_threshold::Float64,
-        target_subset_path::String,
-        subset::DataFrame,
-        EPSG_code::Int16
+        current_location::Point{2, Float64},
+        exclusions::DataFrame;
     )::Vector{Cluster}
 
-Generate a clustered targets raster by reading in the suitable target data,
-applying thresholds and cropping to a target subset area, and then clustering.
+Generate a vector of clustered targets from a raster of target locations, using kmeans.
 
 # Arguments
+- `target_points`: Raster containing the target points.
 - `clustered_targets_path`: Path to the clustered targets raster.
 - `k`: Number of clusters to create.
 - `cluster_tolerance`: Tolerance for kmeans convergence.
-- `suitable_targets_all_path`: Path to the suitable targets raster.
-- `suitable_threshold`: Threshold for suitable targets.
-- `target_subset_path`: Path to the target subset raster.
-- `subset`: DataFrame containing the target geometries.
-- `EPSG_code`: EPSG code for the target geometries.
+- `current_location`: Current location of the mothership.
+- `exclusions`: DataFrame containing the exclusion zones.
 
 # Returns
 A vector of Cluster objects.
 """
 function generate_target_clusters(
+    target_points::Raster{Int, 2},
     clustered_targets_path::String,
     k::Int8,
     cluster_tolerance::Float64,
-    targets::Targets,
-    suitable_threshold::Float64,
-    target_subset_path::String,
-    subset::DataFrame,
-    EPSG_code::Int16,
     current_location::Point{2, Float64},
     exclusions::DataFrame;
 )::Vector{Cluster}
-    cluster_raster = process_targets(
-        targets,
-        k,
-        cluster_tolerance,
-        suitable_threshold,
-        target_subset_path,
-        subset,
-        EPSG_code,
-        current_location,
-        exclusions
+    clustered_targets::Raster{Int64, 2} = apply_kmeans_clustering(
+        target_points, k, current_location, exclusions; tol=cluster_tolerance
     )
+    write(clustered_targets_path, clustered_targets; force = true)
 
-    write(clustered_targets_path, cluster_raster; force = true)
-
-    return calculate_cluster_centroids(cluster_raster)
+    return calculate_cluster_centroids(clustered_targets)
 end
