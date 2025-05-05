@@ -40,33 +40,6 @@ function process_geometry_targets(
 end
 
 """
-    process_raster_targets(
-    targets_path::String,
-    EPSG_code::Int16,
-    suitable_threshold::Float64
-)::Raster
-
-Read and mask target locations from a raster file.
-
-# Arguments
-- `targets_path`: The path to the raster file containing target locations.
-- `EPSG_code`: The EPSG code for the coordinate reference system.
-- `suitable_threshold`: The threshold value for suitable targets.
-
-# Returns
-- A rasterized representation of the target locations.
-"""
-function process_raster_targets(
-    targets_path::String,
-    EPSG_code::Int16,
-    suitable_threshold::Float64
-)::Raster
-    # TODO: fill in with wave data!!
-    suitable_targets_all = Raster(targets_path; mappedcrs = EPSG(EPSG_code), lazy = true)
-    return target_threshold(suitable_targets_all, suitable_threshold)
-end
-
-"""
     read_and_polygonize_exclusions(
         bathy_fullset_path::String,
         vessel_draft::Float64,
@@ -221,7 +194,6 @@ function process_targets(
     subset::DataFrame,
     EPSG_code::Int16,
 )::Raster{Int64}
-    #TODO: Remove process_geometry_targets() function call and process directly
     suitable_targets_all = process_geometry_targets(
         target_geometries,
         EPSG_code
@@ -239,13 +211,13 @@ function process_targets(
     subset::DataFrame,
     EPSG_code::Int16
 )::Raster{Int64}
-    #TODO: Remove process_raster_targets() function call and process directly
-    suitable_targets_all = process_raster_targets(
-        target_path,
-        EPSG_code,
-        suitable_threshold
+    suitable_targets_all = Raster(target_path; mappedcrs = EPSG(EPSG_code), lazy = true)
+    suitable_targets_masked =  target_threshold(suitable_targets_all, suitable_threshold)
+
+    suitable_targets_subset::Raster{Int} = Rasters.crop(
+        suitable_targets_masked,
+        to=subset.geom
     )
-    suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
     if !isfile(target_subset_path)
         write(target_subset_path, suitable_targets_subset; force=true)
     end
