@@ -145,8 +145,9 @@ function get_feasible_distances(
 end
 
 """
-    point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
     point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
+    point_in_exclusion(point::Point{2, Float64}, exclusions::Vector{AG.IGeometry})::Bool
+    point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
 
 Check if a point is within an exclusion zone.
 
@@ -154,11 +155,20 @@ Check if a point is within an exclusion zone.
 - `point`: Point to check.
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
 - `exclusion::AG.IGeometry`: One exclusion zone polygon/geometry from a DataFrame.
+- `exclusions::Vector{AG.IGeometry}`: A vector of exclusion zone polygons/geometry.
 
 # Returns
 - `true` if point is within an exclusion zone, `false` otherwise.
 """
+function point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
+    return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
+end
+function point_in_exclusion(point::Point{2, Float64}, exclusions::Vector{AG.IGeometry})::Bool
+    return any(AG.contains.(exclusions, Ref(AG.createpoint(point[1], point[2]))))
+end
 function point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
+    return any(AG.contains.(exclusions.geometry, Ref(AG.createpoint(point[1], point[2]))))
+end
     point_ag = AG.createpoint(point[1], point[2])
     return any(AG.contains.(exclusions.geometry, [point_ag]))
 end
