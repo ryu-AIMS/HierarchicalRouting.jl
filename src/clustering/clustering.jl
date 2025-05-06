@@ -41,13 +41,13 @@ end
 
 """
     apply_kmeans_clustering(
-        raster::Raster{Int, 2},
+        points::Vector{Point{2, Float64}},
         k::Int8,
         current_location::Point{2, Float64},
         exclusions::DataFrame;
         tol::Float64=1.0,
         dist_weighting::Float64=2E-5
-    )::Raster{Int64, 2}
+    )::DataFrame
     apply_kmeans_clustering(
         raster::Raster{Float64, 2},
         k::Int8,
@@ -57,13 +57,14 @@ end
         dist_weighting::Float64=2E-5
     )::Raster{Int64, 2}
 
-Cluster targets sites by applying k-means to target (non-zero) cells in a raster.
-- Float64 raster is assumed to contain disturbance values, addressed buy 3d clustering
-- Int raster is assumed to contain cluster ID values, addressed by 2d spatial clustering.
-Clustering considers feasible distances from the current location as a 3rd dimenseion, and
+Cluster targets locations by applying k-means to target (non-zero) cells in a raster.
+- Vector of points is assumed to contain target locations
+- Float64 raster is assumed to contain disturbance values
+Clustering considers feasible distances from the current location as a 3rd dimension, and
     excludes points in exclusion zones.
 
 # Arguments
+- `points`: Vector of points representing target locations.
 - `raster`: Raster containing the target geometries.
 - `k`: Number of clusters to create.
 - `current_location`: Current location of the mothership.
@@ -73,22 +74,17 @@ Clustering considers feasible distances from the current location as a 3rd dimen
     against lat/lons.
 
 # Returns
-A raster containing new clusters, with cluster IDs assigned to each target site.
+- A DataFrame with the clustered points and their corresponding cluster IDs.
+- A raster containing new clusters, with cluster IDs assigned to each target locations.
 """
 function apply_kmeans_clustering(
-    raster::Raster{Int, 2},
+    points::Vector{Point{2, Float64}},
     k::Int8,
     current_location::Point{2, Float64},
     exclusions::DataFrame;
     tol::Float64=1.0,
     dist_weighting::Float64=2E-5
-)::Raster{Int64, 2}
-    indices::Vector{CartesianIndex{2}} = findall(x -> x != raster.missingval, raster)
-    rows::Vector{Int64} = getindex.(indices, 1)
-    cols::Vector{Int64} = getindex.(indices, 2)
-
-    points = Point{2,Float64}.(zip(raster.dims[1][rows], raster.dims[2][cols]))
-
+)::DataFrame
     dist_vector = dist_weighting .* get_feasible_distances(
         current_location,
         points,
@@ -106,9 +102,10 @@ function apply_kmeans_clustering(
 
     clustering = kmeans(coordinates_array, k; tol=tol, rng=Random.seed!(1))
 
-    clustered_targets::Raster{Int64, 2} = similar(raster, Int64)
-    clustered_targets .= clustered_targets.missingval
-    clustered_targets[indices[feasible_idxs]] .= clustering.assignments
+    clustered_targets::DataFrame = DataFrame(
+        id = clustering.assignments,
+        geometry = feasible_points
+    )
 
     return clustered_targets
 end
@@ -156,10 +153,12 @@ function apply_kmeans_clustering(
     # Calculate the mean disturbance value for each cluster with stochastic perturbation
     w = 1.0 # weight for the environmental disturbance value
     t = 1.0 # perturbation weighting factor
-    cluster_disturbance_vals = w*[
-        mean(coordinates_array_3d[3, disturbance_clusters.assignments .== i])
-        for i in 1:k_d
-    ] .+ t*rand(-1.0:0.01:1.0, k_d)
+    cluster_disturbance_vals =
+        w * [
+            mean(coordinates_array_3d[3, disturbance_clusters.assignments .== i])
+            for i in 1:k_d
+        ] .+
+        t * rand(-1.0:0.01:1.0, k_d)
     # Assign the disturbance value to every node in the cluster
     disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
 
@@ -280,14 +279,18 @@ end
 
 """
     calculate_cluster_centroids(
-    cluster_raster::Raster{Int64, 2};
-    cluster_ids=[]
-)::Vector{Cluster}
+        cluster_raster::Raster{Int64, 2};
+        cluster_ids=[]
+    )::Vector{Cluster}
+    function calculate_cluster_centroids(
+        clusters::DataFrame
+    )::Vector{Cluster}
 
 Calculate the centroids of the clusters in the raster.
 
 # Arguments
 - `clusters_raster`: Raster containing the cluster IDs.
+- `clusters`: DataFrame containing the cluster IDs and their geometries.
 - `cluster_ids`: Optional list of cluster IDs to assign to the clusters.
 
 # Returns
@@ -325,42 +328,25 @@ function calculate_cluster_centroids(
     end
     return clusters_vector
 end
-
-"""
-    generate_target_clusters(
-        target_points::Raster{Int, 2},
-        clustered_targets_path::String,
-        k::Int8,
-        cluster_tolerance::Float64,
-        current_location::Point{2, Float64},
-        exclusions::DataFrame;
-    )::Vector{Cluster}
-
-Generate a vector of clustered targets from a raster of target locations, using kmeans.
-
-# Arguments
-- `target_points`: Raster containing the target points.
-- `clustered_targets_path`: Path to the clustered targets raster.
-- `k`: Number of clusters to create.
-- `cluster_tolerance`: Tolerance for kmeans convergence.
-- `current_location`: Current location of the mothership.
-- `exclusions`: DataFrame containing the exclusion zones.
-
-# Returns
-A vector of Cluster objects.
-"""
-function generate_target_clusters(
-    target_points::Raster{Int, 2},
-    clustered_targets_path::String,
-    k::Int8,
-    cluster_tolerance::Float64,
-    current_location::Point{2, Float64},
-    exclusions::DataFrame;
+function calculate_cluster_centroids(
+    clusters::DataFrame
 )::Vector{Cluster}
-    clustered_targets::Raster{Int64, 2} = apply_kmeans_clustering(
-        target_points, k, current_location, exclusions; tol=cluster_tolerance
-    )
-    write(clustered_targets_path, clustered_targets; force = true)
+    unique_clusters = sort(unique(clusters.id))
 
-    return calculate_cluster_centroids(clustered_targets)
+    clusters_vector = Vector{Cluster}(undef, length(unique_clusters))
+
+    for id in unique_clusters
+        cluster_mask = clusters.id .== id
+        clustered_points = clusters.geometry[cluster_mask]
+
+        lon_cent = mean(getindex.(clustered_points, 1))
+        lat_cent = mean(getindex.(clustered_points, 2))
+
+        clusters_vector[id] = Cluster(
+            id = id,
+            centroid = Point{2, Float64}(lon_cent, lat_cent),
+            nodes = clustered_points
+        )
+    end
+    return clusters_vector
 end

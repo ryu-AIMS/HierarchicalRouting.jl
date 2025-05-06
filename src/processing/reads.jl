@@ -147,16 +147,14 @@ function cluster_problem(problem::Problem)::Vector{Cluster}
         "clustered_$(suitable_targets_filename)_targets_k=$(k).tif"
     )
 
-    clusters::Vector{Cluster} = generate_target_clusters(
-        problem.targets.points,
-        clustered_targets_path,
+    clustered_targets::DataFrame = apply_kmeans_clustering(
+        problem.targets.points.geometry,
         k,
-        cluster_tolerance,
         problem.depot,
-        problem.tenders.exclusion,
+        problem.tenders.exclusion;
+        tol=cluster_tolerance
     )
-
-    return clusters
+    return calculate_cluster_centroids(clustered_targets)
 end
 
 """
