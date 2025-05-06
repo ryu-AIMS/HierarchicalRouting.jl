@@ -43,9 +43,8 @@ function validate_vessel(capacity::Int16, number::Int8, weighting::Float16)::Vec
 end
 
 struct Targets
-    points::Raster{Int64,2}
+    points::DataFrame
     path::String
-    gdf::DataFrame
     disturbance_gdf::DataFrame
 end
 
@@ -146,7 +145,7 @@ function load_problem(target_path::String)::Problem
         coords,
         disturbance_data_subset
     )
-    targets = Targets(target_raster, target_path, target_gdf_subset, disturbance_df)
+    targets = Targets(targets_gdf, target_path, disturbance_df)
 
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
