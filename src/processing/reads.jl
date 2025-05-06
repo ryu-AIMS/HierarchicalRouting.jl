@@ -40,6 +40,31 @@ function process_geometry_targets(
 end
 
 """
+    raster_to_gdf(raster::Raster{Int, 2})::DataFrame
+
+Convert a raster to a GeoDataFrame by extracting the coordinates of the raster cells where
+    the value is 1.
+
+# Arguments
+- `raster`: The raster to convert.
+
+# Returns
+A GeoDataFrame containing the coordinates of the raster cells where the value is 1.
+"""
+function raster_to_gdf(raster::Raster{Int, 2})
+    indices::Vector{CartesianIndex{2}} = findall(x -> x == 1, raster)
+
+    lons = raster.dims[1][getindex.(indices, 1)]
+    lats = raster.dims[2][getindex.(indices, 2)]
+
+    coords = Point{2, Float64}.(zip(lons, lats))
+    return DataFrame(
+        ID = 1:length(coords),
+        geometry = coords
+    )
+end
+
+"""
     read_and_polygonize_exclusions(
         bathy_fullset_path::String,
         vessel_draft::Float64,

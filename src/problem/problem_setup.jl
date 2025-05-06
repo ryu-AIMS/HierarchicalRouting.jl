@@ -117,12 +117,13 @@ function load_problem(target_path::String)::Problem
         "target_subset_$(suitable_targets_filename).tif"
     )
 
-    target_points = process_targets(
+    target_raster = process_targets(
         target_gdf_subset.geometry,
         target_subset_path,
         subset,
         EPSG_code
     )
+    targets_gdf = raster_to_gdf(target_raster)
 
     disturbance_data_subset = filter_within_bbox(
         wave_disturbance, subset_bbox
@@ -145,7 +146,7 @@ function load_problem(target_path::String)::Problem
         coords,
         disturbance_data_subset
     )
-    targets = Targets(target_points, target_path, target_gdf_subset, disturbance_df)
+    targets = Targets(target_raster, target_path, target_gdf_subset, disturbance_df)
 
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
