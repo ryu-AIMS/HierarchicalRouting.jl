@@ -169,11 +169,23 @@ end
 function point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
     return any(AG.contains.(exclusions.geometry, Ref(AG.createpoint(point[1], point[2]))))
 end
+
+"""
+    containing_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Int
+
+Return the index of the exclusion zone that contains the point.
+
+# Arguments
+- `point`: Point to check.
+- `exclusions`: A DataFrame containing exclusion zone polygons.
+
+# Returns
+- Index of the first exclusion zone that contains the point, or 0 if not found.
+"""
+function containing_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Int
     point_ag = AG.createpoint(point[1], point[2])
-    return any(AG.contains.(exclusions.geometry, [point_ag]))
-end
-function point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
-return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
+    exclusion_idx = findfirst(AG.contains.(exclusions.geometry, [point_ag]))
+    return isnothing(exclusion_idx) ? 0 : exclusion_idx
 end
 
 """
