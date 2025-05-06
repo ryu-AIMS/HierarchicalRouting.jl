@@ -141,11 +141,11 @@ function load_problem(target_path::String)::Problem
         )
         for idx in indices
     ]
-    wave_df = create_disturbance_data_dataframe(
+    disturbance_df = create_disturbance_data_dataframe(
         coords,
         disturbance_data_subset
     )
-    targets = Targets(target_points, target_path, target_gdf_subset, wave_df)
+    targets = Targets(target_points, target_path, target_gdf_subset, disturbance_df)
 
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 

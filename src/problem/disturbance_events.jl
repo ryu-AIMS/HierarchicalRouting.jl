@@ -39,7 +39,7 @@ function disturb_clusters(
         [(t[1],t[2]) for t in filtered_df.node];
         res = res,
         missingval = -9999.0,
-        fill = filtered_df.wave_value,
+        fill = filtered_df.disturbance_value,
     )
     disturbed_targets = apply_kmeans_clustering(
         disturbance_raster,
