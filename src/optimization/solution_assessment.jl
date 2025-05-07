@@ -99,7 +99,7 @@ function perturb_swap_solution(
     tenders_all::Vector{TenderSolution} = soln.tenders
     tenders_all[clust_idx] = tender
 
-    return MSTSolution(soln.clusters, soln.mothership, tenders_all)
+    return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_all)
 end
 
 """
@@ -146,14 +146,14 @@ function simulated_annealing(
     obj_best = objective_function(soln_init)
 
     # TODO: Display cost values for each cluster, rather than total solution cost
-    for clust_idx in 1:length(soln_init.clusters)
+    for clust_idx in 1:length(soln_init.cluster_sets[end])
         # Initialize current solution as best, reset temp
         temp = temp_init
         soln_current = soln_best
         obj_current = obj_best
         static_ctr = 0
 
-        @info "\nCluster $(soln_init.clusters[clust_idx].id)"
+        @info "\nCluster $(soln_init.cluster_sets[end][clust_idx].id)"
         @info "Iteration \tBest Value \t\tTemp"
         @info "0\t\t$obj_best\t$temp"
 
