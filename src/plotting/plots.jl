@@ -285,7 +285,8 @@ function linestrings!(
         points = hasproperty(line_string, :points) ?
                  [Point(p[1], p[2]) for p in line_string.points] :
                  [Point(p[1], p[2]) for l in line_string for p in l.points]
-        lines!(ax, points, color = line_color, linewidth = 2)
+        line_width = line_color == :black ? 3 : 2
+        lines!(ax, points, color = line_color, linewidth = line_width)
     end
 
     if labels
@@ -323,12 +324,18 @@ end
         ax::Axis,
         tender_soln::Vector{HierarchicalRouting.TenderSolution}
     )
+    function tenders!(
+        ax::Axis,
+        tender_soln::Vector{HierarchicalRouting.TenderSolution},
+        num_clusters::Int64
+    )
 
-Plot tender routes within each cluster.
+Plot tender routes within each cluster, colored by cluster, sequentially shaded by sortie.
 
 # Arguments
-- `ax::Axis`: Axis object.
-- `tender_soln::Vector{HierarchicalRouting.TenderSolution}`: Tender solutions.
+- `ax`: Axis object.
+- `tender_soln`: Tender solutions.
+- `num_clusters`: Number of clusters to color/plot.
 
 # Returns
 - `ax`: Axis object.
@@ -341,12 +348,44 @@ function tenders!(
 
     # TODO: Plot critical path (longest) thicker than other paths
     for t_soln in tender_soln
-        color = colormap[t_soln.id]
-        linestrings!.(ax, t_soln.sorties, color = color)
+        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
+        s = length(t_soln.sorties)
+        palette = sequential_palette(base_hue, s+3)[3:end]
+
+        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
+            linestrings!(ax, sortie, color = color)
+        end
+    end
+    return ax
+end
+function tenders!(
+    ax::Axis,
+    tender_soln::Vector{HierarchicalRouting.TenderSolution},
+    num_clusters::Int64
+)
+    colormap = distinguishable_colors(num_clusters + 2)[3:end]
+
+    # TODO: Plot critical path (longest) thicker than other paths
+    for t_soln in tender_soln
+        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
+        s = length(t_soln.sorties)
+        palette = sequential_palette(base_hue, s+3)[3:end]
+
+        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
+            linestrings!(ax, sortie, color = color)
+        end
     end
     return ax
 end
 
+function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
+    base_color_float64 = ColorTypes.RGB{Float64}(
+        float(base_color.r),
+        float(base_color.g),
+        float(base_color.b)
+    )
+    return ColorTypes.HSV(base_color_float64).h
+end
 
 export clusters, clusters!, exclusions, exclusions!, linestrings, linestrings!, tenders, tenders!
 end
