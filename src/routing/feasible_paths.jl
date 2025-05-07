@@ -223,8 +223,9 @@ function shortest_feasible_path(
                 Ref(exclusions)
             )
         ]
-
-        if !isempty(visible_vertices)
+            # filter out initial point from visible vertices
+            visible_vertices = unique(filter(v -> v != initial_point, visible_vertices))
+            if !isempty(visible_vertices)
             # Connect initial point to every visible polygon vertex
             n_vis_verts = length(visible_vertices)
 
