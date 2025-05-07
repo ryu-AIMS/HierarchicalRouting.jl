@@ -61,9 +61,7 @@ function initial_solution(
             )
             if !isempty(removed_nodes)
                 @info "Removed nodes due to disturbance event (since previous cluster):"
-                for c in removed_nodes
-                    @info "\t$(c)"
-                end
+                @info join(removed_nodes, "\n\t")
             end
 
             sort!(clusters, by = x -> x.id)
