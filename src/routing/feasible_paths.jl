@@ -211,64 +211,86 @@ function shortest_feasible_path(
             final_exclusion_idx
         )
     else
-        # Collect all visible polygon vertices
-        initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
-            initial_exclusion_idx, :geometry
-        ]
-        poly_vertices::Vector{Point{2, Float64}} = collect_polygon_vertices(initial_polygon)
-        visible_vertices = poly_vertices[
-            is_visible.(
-                Ref(initial_point),
-                poly_vertices,
-                Ref(exclusions)
+        if is_visible(
+            initial_point,
+            final_point,
+            exclusions[initial_exclusion_idx, :geometry]
+        )
+            # If initial point is within an exclusion zone and visible to final point
+            push!(points_from, initial_point)
+            push!(points_to, final_point)
+            push!(exclusion_idxs, initial_exclusion_idx)
+        else
+            # Collect all visible polygon vertices
+            initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
+                initial_exclusion_idx, :geometry
+            ]
+            poly_vertices::Vector{Point{2, Float64}} = collect_polygon_vertices(
+                initial_polygon
             )
-        ]
+            visible_vertices = poly_vertices[
+                is_visible.(
+                    Ref(initial_point),
+                    poly_vertices,
+                    Ref(exclusions)
+                )
+            ]
             # filter out initial point from visible vertices
             visible_vertices = unique(filter(v -> v != initial_point, visible_vertices))
             if !isempty(visible_vertices)
-            # Connect initial point to every visible polygon vertex
-            n_vis_verts = length(visible_vertices)
+                # Connect initial point to every visible polygon vertex
+                n_vis_verts = length(visible_vertices)
 
-            append!(points_from, fill(initial_point, n_vis_verts))
-            append!(points_to, visible_vertices)
-            append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_verts))
+                append!(points_from, fill(initial_point, n_vis_verts))
+                append!(points_to, visible_vertices)
+                append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_verts))
 
-            # For each polygon vertex, add edges to all visible vertices
-            for i in poly_vertices
-                # Check visibility of all polygon vertices from the current vertex `i`
-                visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+                # For each polygon vertex, add edges to all visible vertices
+                for i in poly_vertices
+                    # Check visibility of all polygon vertices from the current vertex `i`
+                    visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
 
-                # Get all visible vertices from `i`
-                vis_pts_from_i = poly_vertices[visibility_mask]
-                n_vis_pts_from_i = length(vis_pts_from_i)
+                    # Get all visible vertices from `i`
+                    vis_pts_from_i = poly_vertices[visibility_mask]
+                    n_vis_pts_from_i = length(vis_pts_from_i)
 
-                if !isempty(vis_pts_from_i)
-                    append!(points_from, fill(i, n_vis_pts_from_i))
-                    append!(points_to, vis_pts_from_i)
-                    append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_pts_from_i))
+                    if !isempty(vis_pts_from_i)
+                        append!(points_from, fill(i, n_vis_pts_from_i))
+                        append!(points_to, vis_pts_from_i)
+                        append!(
+                            exclusion_idxs,
+                            fill(initial_exclusion_idx, n_vis_pts_from_i)
+                        )
+                    end
+                    if is_visible(i, final_point, exclusions)
+                        # Connect initial point to final point if visible
+                        push!(points_from, i)
+                        push!(points_to, final_point)
+                        push!(exclusion_idxs, initial_exclusion_idx)
+                    end
                 end
             end
 
+            # Get widest points to final point on polygon contianing initial point
+            #! Note that to/from points are inverted in find_widest_points() because
+            #! initial point is in convex hull of polygon
+            widest_verts = find_widest_points(
+                final_point,
+                initial_point,
+                DataFrame(exclusions[initial_exclusion_idx,:])
+            )[1]
+
+            # Continue building network from each of widest vertices to final point
+            build_network!.(
+                [points_from],
+                [points_to],
+                [exclusion_idxs],
+                widest_verts,
+                [final_point],
+                [exclusions],
+                [final_exclusion_idx]
+            )
         end
-
-        # Get widest points to final point on polygon contianing initial point
-        #! Note that to/from points are inverted in find_widest_points() because initial point is in convex hull of polygon
-        widest_verts = find_widest_points(
-            final_point,
-            initial_point,
-            DataFrame(exclusions[initial_exclusion_idx,:])
-        )[1]
-
-        # Continue building network from each of widest vertices to final point
-        build_network!.(
-            [points_from],
-            [points_to],
-            [exclusion_idxs],
-            widest_verts,
-            [final_point],
-            [exclusions],
-            [final_exclusion_idx]
-        )
     end
 
     # Build graph from network of points
