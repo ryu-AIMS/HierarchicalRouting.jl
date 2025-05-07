@@ -19,9 +19,8 @@ struct TenderSolution
 end
 
 struct MSTSolution
-    clusters::Vector{Cluster}
-    disturbed_cluster_sets::Vector{Vector{Cluster}}
-    mothership::MothershipSolution
+    cluster_sets::Vector{Vector{Cluster}}
+    mothership_routes::Vector{MothershipSolution}
     tenders::Vector{TenderSolution}
 end
 
@@ -59,12 +58,11 @@ function adjust_waypoint(
 )::Point{2, Float64}
 
     waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
-
-    containing_polygons::Vector{AG.IGeometry{AG.wkbPolygon}} = [
-        AG.convexhull(polygon)
-        for polygon in exclusions.geometry
-            if AG.contains(AG.convexhull(polygon), waypoint_geom)
-    ]
+    convex_hulls::Vector{AG.IGeometry{AG.wkbPolygon}} = AG.convexhull.(exclusions.geometry)
+    containing_polygons::Vector{AG.IGeometry{AG.wkbPolygon}} = filter(
+        hull -> AG.contains(hull, waypoint_geom),
+        convex_hulls
+    )
 
     if isempty(containing_polygons)
         return waypoint
@@ -110,6 +108,11 @@ end
 
 """
     get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
+    get_waypoints(
+        current_point::Point{2, Float64},
+        sequence::DataFrame,
+        exclusions::DataFrame
+    )::DataFrame
 
 Calculate mothership waypoints between sequential clusters.
 For each cluster, waypoint 1/3 dist before and after cluster centroid,
@@ -167,6 +170,56 @@ function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
 
     return DataFrame(waypoint = waypoints, connecting_clusters = connecting_clusters)
 end
+function get_waypoints(
+    current_point::Point{2, Float64},
+    sequence::DataFrame,
+    exclusions::DataFrame
+)::DataFrame
+    # TODO: Implement convex hull exclusion zones
+    # TODO: Use graph to determine feasible paths and waypoints along path
+    n_cluster_seqs = nrow(sequence)
+
+    waypoints = Vector{Point{2, Float64}}(undef, 2*(n_cluster_seqs-2)+2)
+    connecting_clusters = Vector{NTuple{2, Int64}}(undef, 2*(n_cluster_seqs-2)+2)
+
+    waypoints[1] = current_point
+    connecting_clusters[1] = (sequence.id[1], sequence.id[2])
+
+    for i in 2:(n_cluster_seqs - 1)
+        prev_lon, current_lon, next_lon = sequence.lon[i-1:i+1]
+        prev_lat, current_lat, next_lat = sequence.lat[i-1:i+1]
+        prev_clust, current_clust, next_clust = sequence.id[i-1:i+1]
+
+        # Compute waypoints before and after the current cluster centroid
+        prev_waypoint = Point{2, Float64}(
+            2/3 * current_lon + 1/3 * prev_lon,
+            2/3 * current_lat + 1/3 * prev_lat
+        )
+        next_waypoint = Point{2, Float64}(
+            2/3 * current_lon + 1/3 * next_lon,
+            2/3 * current_lat + 1/3 * next_lat
+        )
+        #! prev_waypoint in exclusion calls adjust_waypoint() to find closest point outside exclusion
+        # Adjust waypoints if they are inside exclusion polygons
+        prev_waypoint = point_in_exclusion(prev_waypoint, exclusions) ?
+            adjust_waypoint(prev_waypoint, exclusions) :
+            prev_waypoint
+        next_waypoint = point_in_exclusion(next_waypoint, exclusions) ?
+            adjust_waypoint(next_waypoint, exclusions) :
+            next_waypoint
+
+        waypoints[2*i-2] = prev_waypoint
+        connecting_clusters[2*i-2] = (prev_clust, current_clust)
+
+        waypoints[2*i-1] = next_waypoint
+        connecting_clusters[2*i-1] = (current_clust, next_clust)
+    end
+
+    waypoints[2*(n_cluster_seqs-2)+2] = (sequence.lon[end], sequence.lat[end])
+    connecting_clusters[2*(n_cluster_seqs-2)+2] = (sequence.id[end], sequence.id[end])
+
+    return DataFrame(waypoint = waypoints, connecting_clusters = connecting_clusters)
+end
 
 """
     nearest_neighbour(
@@ -174,14 +227,26 @@ end
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
     )::MothershipSolution
+    nearest_neighbour(
+        cluster_centroids::DataFrame,
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        current_point::Point{2, Float64},
+        ex_ms_route::MothershipSolution,
+        cluster_seq_idx::Int64
+    )::MothershipSolution
 
-Apply the nearest neighbor algorithm starting from the depot (1st row/col) and returning to
-the depot.
+Apply the nearest neighbor algorithm:
+- starting from the depot (1st row/col) and returning to the depot, or
+- starting from the current point and returning to the depot.
 
 # Arguments
 - `cluster_centroids`: DataFrame containing id, lat, lon. Depot has `id=0` in row 1.
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
+- `current_point`: Point{2, Float64} representing the current location of the mothership.
+- `ex_ms_route`: MothershipSolution object containing the existing route.
+- `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
 
 # Returns
 MothershipSolution object containing:
@@ -256,6 +321,104 @@ function nearest_neighbour(
         route=Route(waypoints.waypoint, dist_matrix, path)
     )
 end
+function nearest_neighbour(
+    cluster_centroids::DataFrame,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+    current_point::Point{2, Float64},
+    ex_ms_route::MothershipSolution,
+    cluster_seq_idx::Int64
+)::MothershipSolution
+    # TODO: Use vector rather than DataFrame for cluster_centroids
+    # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
+    feasible_centroids::Vector{Point{2, Float64}} = adjust_waypoint.(
+        Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
+        Ref(exclusions_mothership)
+    )
+    cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
+    cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
+
+    # Create distance matrix between start, end, and feasible cluster centroids
+    dist_matrix = get_feasible_matrix(
+        vcat([current_point], feasible_centroids),
+        exclusions_mothership
+    )[1]
+    centroid_matrix = dist_matrix[3:end, 3:end]
+    current_dist_vector = dist_matrix[1, 3:end]
+    end_dist_vector = dist_matrix[2, 3:end]
+
+    tour_length = size(centroid_matrix, 1)
+    visited = falses(tour_length)
+    tour = Vector{Int64}(undef, tour_length)
+
+    current_location = argmin(current_dist_vector)
+    total_distance = current_dist_vector[current_location]
+    tour[1] = current_location
+    visited[current_location] = true
+    idx = 1
+
+    while !all(visited)
+        idx += 1
+        distances = centroid_matrix[current_location, :]
+        distances[visited] .= Inf
+        nearest_idx = argmin(distances)
+
+        tour[idx] = nearest_idx
+        total_distance += distances[nearest_idx]
+        visited[nearest_idx] = true
+        current_location = nearest_idx
+    end
+
+    # Return to the depot and adjust cluster_sequence to zero-based indexing
+    push!(tour, 0)
+    total_distance += end_dist_vector[current_location]
+
+    sequenced_remaining_centroids = cluster_centroids[tour.+1,:]
+
+    # combine exclusions for mothership and tenders
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(
+        current_point,
+        vcat(DataFrame(ex_ms_route.cluster_sequence[cluster_seq_idx,:]), sequenced_remaining_centroids),
+        exclusions_all
+    )
+
+    cluster_sequence = vcat(
+        ex_ms_route.cluster_sequence[1:cluster_seq_idx,:],
+        sequenced_remaining_centroids
+    )
+    ordered_clusters = sort(cluster_sequence[1:end-1,:], :id)
+    ordered_nodes = Point{2, Float64}.(ordered_clusters.lon, ordered_clusters.lat)
+    updated_full_dist_matrix = get_feasible_matrix(
+        ordered_nodes,
+        exclusions_mothership
+    )[1]
+
+    # Calc feasible path between waypoints.
+    _, waypoint_path_vector = get_feasible_vector(
+        waypoints.waypoint, exclusions_mothership
+    )
+    ex_path = ex_ms_route.route.line_strings[
+        1:findfirst(
+            x -> x == ex_ms_route.route.nodes[2 * cluster_seq_idx - 1],
+            getindex.(getproperty.(ex_ms_route.route.line_strings, :points), 2)
+        )
+    ]
+    new_path = vcat(waypoint_path_vector...)
+    full_path = vcat(ex_path, new_path...)
+
+    return MothershipSolution(
+        cluster_sequence=cluster_sequence,
+        route=Route(
+            vcat(
+                ex_ms_route.route.nodes[1:2*cluster_seq_idx-2],
+                waypoints.waypoint
+            ),
+            updated_full_dist_matrix,
+            full_path
+        )
+    )
+end
 
 """
     two_opt(
@@ -263,13 +426,21 @@ end
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
     )::MothershipSolution
+    two_opt(
+        ms_soln_current::MothershipSolution,
+        exclusions_mothership::DataFrame,
+        exclusions_tender::DataFrame,
+        cluster_seq_idx::Int64
+    )::MothershipSolution
 
-Apply the 2-opt heuristic to improve the current MothershipSolution route (by uncrossing crossed links) between waypoints.
+Apply the 2-opt heuristic to improve the current MothershipSolution route by uncrossing
+crossed links between waypoints for the whole route or between current location and depot.
 
 # Arguments
 - `ms_soln_current`: Current MothershipSolution - from nearest_neighbour.
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
+- `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
 
 # Returns
 MothershipSolution object containing:
@@ -335,6 +506,74 @@ function two_opt(
         route=Route(waypoints.waypoint, dist_matrix, path)
     )
 end
+function two_opt(
+    ms_soln_current::MothershipSolution,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+    cluster_seq_idx::Int64
+)::MothershipSolution
+    # TODO: only apply to the route between the current cluster and the depot
+    # TODO: Then concatenate the new route with the existing route
+    cluster_centroids = ms_soln_current.cluster_sequence
+    dist_matrix = ms_soln_current.route.dist_matrix
+
+    # If depot is last row, remove
+    if cluster_centroids.id[1] == cluster_centroids.id[end]
+        cluster_centroids = cluster_centroids[1:end-1, :]
+    end
+
+    # Initialize route as ordered waypoints
+    best_route = cluster_centroids.id .+ 1
+    best_distance = return_route_distance(best_route, dist_matrix)
+    improved = true
+
+    while improved
+        improved = false
+        for j in cluster_seq_idx:(length(best_route) - 1)
+            for i in (j + 1):length(best_route)
+                new_route = two_opt_swap(best_route, j, i)
+                new_distance = return_route_distance(new_route, dist_matrix)
+
+                if new_distance < best_distance
+                    best_route = new_route
+                    best_distance = new_distance
+                    improved = true
+                    @info "Improved by swapping $(j) and $(i)"
+                end
+            end
+        end
+    end
+
+    # Re-orient route to start from and end at the depot, and adjust to zero-based indexing
+    best_route = orient_route(best_route)
+    push!(best_route, best_route[1])
+    best_route .-= 1
+    best_route = orient_route(
+        best_route,
+        ms_soln_current.cluster_sequence.id[1:cluster_seq_idx]
+    )
+    ordered_nodes = cluster_centroids[
+        [findfirst(==(id), cluster_centroids.id) for id in best_route], :
+    ]
+    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    waypoints = get_waypoints(ordered_nodes, exclusions_all)
+    updated_waypoints = vcat(
+        ms_soln_current.route.nodes[1:2*cluster_seq_idx-1],
+        waypoints.waypoint[2*cluster_seq_idx:end]
+    )
+
+    _, waypoint_path_vector = get_feasible_vector(
+        updated_waypoints,
+        exclusions_mothership
+    )
+
+    path = vcat(waypoint_path_vector...)
+
+    return MothershipSolution(
+        cluster_sequence=ordered_nodes,
+        route=Route(updated_waypoints, dist_matrix, path)
+    )
+end
 
 """
     two_opt_swap(route::Vector{Int64}, i::Int, j::Int)::Vector{Int64}
@@ -367,6 +606,19 @@ Route starting with the depot.
 function orient_route(route::Vector{Int64})::Vector{Int64}
     idx = findfirst(==(1), route)
     return vcat(route[idx:end], route[1:idx-1])
+end
+function orient_route(route::Vector{Int64}, start_segment::Vector{Int64})::Vector{Int64}
+    if length(start_segment) < 2
+        throw(ArgumentError("start_segment must have at least 2 elements"))
+    end
+    if start_segment[2] == route[2]
+        return route
+    elseif start_segment[2] == route[end-1]
+        return reverse(route)
+    else
+        throw(ArgumentError("start_segment does not match route"))
+    end
+    return
 end
 
 """
