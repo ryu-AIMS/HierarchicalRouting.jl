@@ -213,9 +213,9 @@ points, applying thresholds and cropping to a target subset.
 """
 function process_targets(
     target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-    target_subset_path::String,
     subset::DataFrame,
     EPSG_code::Int16,
+    target_subset_path::String
 )::Raster{Int64}
     suitable_targets_all = process_geometry_targets(
         target_geometries,
@@ -230,9 +230,9 @@ end
 function process_targets(
     target_path::String,
     suitable_threshold::Float64,
-    target_subset_path::String,
     subset::DataFrame,
-    EPSG_code::Int16
+    EPSG_code::Int16,
+    target_subset_path::String
 )::Raster{Int64}
     suitable_targets_all = Raster(target_path; mappedcrs = EPSG(EPSG_code), lazy = true)
     suitable_targets_masked =  target_threshold(suitable_targets_all, suitable_threshold)

@@ -40,76 +40,77 @@ struct Problem
 end
 
 """
-    load_problem(target_path::String)::Problem
+    load_problem(
+        target_path::String,
+        target_subset_path::String,
+        subset::DataFrame,
+        env_data::Dict,
+        env_disturbance::DataFrame,
+        depot::Point{2, Float64},
+        draft_ms::Float64,
+        draft_t::Float64,
+        weight_ms::Float16,
+        weight_t::Float16,
+        n_tenders::Int8,
+        t_cap::Int16,
+        EPSG_code::Int16,
+        output_dir::String = ""
+    )::Problem
 
-Load the problem data from the configuration file and return a Problem object.
+Load the problem data to create a `Problem` object from given parameters.
 
 # Arguments
-- `target_path`: The name of the target scenario to load.
+- `target_path`: The path of the target scenario to load, in GeoJSON format.
+- `target_subset_path`: The path to save the target subset raster.
+- `subset`: A GeoDataFrame containing the subset of the area of interest.
+- `env_data`: A dictionary containing environmental data paths and raster files.
+- `env_disturbance`: A GeoDataFrame containing environmental disturbance data.
+- `depot`: A Point representing the depot location.
+- `draft_ms`: The draft of the mothership.
+- `draft_t`: The draft of the tenders.
+- `weight_ms`: The weighting factor for the mothership.
+- `weight_t`: The weighting factor for the tenders.
+- `n_tenders`: The number of tenders.
+- `t_cap`: The capacity of the tenders.
+- `EPSG_code`: The EPSG code for the coordinate reference system.
+- `output_dir`: The directory to save output files (default is the current directory).
 
 # Returns
 The problem object.
 """
-function load_problem(target_path::String)::Problem
+function load_problem(
+    target_path::String,
+    target_subset_path::String,
+    subset::DataFrame,
+    env_data::Dict,
+    env_disturbance::DataFrame,
+    depot::Point{2, Float64},
+    draft_ms::Float64,
+    draft_t::Float64,
+    weight_ms::Float16,
+    weight_t::Float16,
+    n_tenders::Int8,
+    t_cap::Int16,
+    EPSG_code::Int16,
+    output_dir::String = ""
+)::Problem
     config = TOML.parsefile(".config.toml")
 
-    draft_ms::Float64 = config["parameters"]["depth_ms"]
-    draft_t::Float64 = config["parameters"]["depth_t"]
-    n_tenders::Int8 = config["parameters"]["n_tenders"]
-    t_cap::Int16 = config["parameters"]["t_cap"]
-    EPSG_code::Int16 = config["parameters"]["EPSG_code"]
-
-    scenario_name = try
-        split(split(split(target_path, "/")[end], "\\")[end], ".")[1]
-    catch
-        ""
-    end
-
-    depot::Point{2, Float64} = Point{2, Float64}(
-        config["parameters"]["depot_x"], config["parameters"]["depot_y"]
-    )
-
-    wave_disturbance_dir = config["data_dir"]["wave_disturbances"]
-    wave_disturbance = GDF.read(first(glob("*.geojson", wave_disturbance_dir)))
-
-    env_constraints_dir = config["data_dir"]["env_constraints"]
-    env_subfolders = readdir(env_constraints_dir)
-    env_paths = Dict(
-        subfolder => joinpath(env_constraints_dir, subfolder)
-        for subfolder in env_subfolders
-    )
-    env_data = Dict(
-        subfolder => (
-            env_dir = path,
-            rast_file = isempty(glob("*.tif", path)) ? nothing : first(glob("*.tif", path))
-        ) for (subfolder, path) in env_paths
-    )
-    # TODO: Process all environmental constraints to create single cumulative exclusion zone
-
-    site_dir = config["data_dir"]["site"]
-    subset = GDF.read(first(glob("*.gpkg", site_dir)))
     subset_bbox = get_bbox_bounds_from_df(subset)
     target_gdf_subset = filter_within_bbox(
         GDF.read(target_path), subset_bbox
     )
 
-    output_dir = config["output_dir"]["path"]
-    suitable_targets_filename = splitext(basename(target_path))[1]
-    target_subset_path::String = joinpath(
-        output_dir,
-        "target_subset_$(suitable_targets_filename).tif"
-    )
-
     target_raster = process_targets(
         target_gdf_subset.geometry,
-        target_subset_path,
         subset,
-        EPSG_code
+        EPSG_code,
+        target_subset_path,
     )
     targets_gdf = raster_to_gdf(target_raster)
 
     disturbance_data_subset = filter_within_bbox(
-        wave_disturbance, subset_bbox
+        env_disturbance, subset_bbox
     )
     suitable_targets_subset = process_geometry_targets(
         target_gdf_subset.geometry, EPSG_code
@@ -144,18 +145,6 @@ function load_problem(target_path::String)::Problem
             joinpath(output_dir, "ms_exclusion.gpkg"),
             joinpath(output_dir, "ms_exclusion.tif")
         )
-    else
-        ms_exclusion_zones_df = read_and_polygonize_exclusions(
-            env_data["bathy"].rast_file,
-            draft_ms,
-            subset,
-            EPSG_code
-        )
-    end
-    ms_exclusions::DataFrame = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |>
-        buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions!
-
-    if !(config["DEBUG"]["debug_mode"])
         t_exclusions = read_and_polygonize_exclusions(
             env_data["bathy"].rast_file,
             draft_t,
@@ -166,6 +155,12 @@ function load_problem(target_path::String)::Problem
             joinpath(output_dir, "t_exclusion.tif")
         )
     else
+        ms_exclusion_zones_df = read_and_polygonize_exclusions(
+            env_data["bathy"].rast_file,
+            draft_ms,
+            subset,
+            EPSG_code
+        )
         t_exclusions = read_and_polygonize_exclusions(
             env_data["bathy"].rast_file,
             draft_t,
@@ -173,6 +168,8 @@ function load_problem(target_path::String)::Problem
             EPSG_code
         )
     end
+    ms_exclusions::DataFrame = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |>
+        buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions!
 
     filter_and_simplify_exclusions!(t_exclusions, min_area=1E-7, simplify_tol=5E-4)
     buffer_exclusions!(t_exclusions, buffer_dist=0.0)
@@ -186,13 +183,13 @@ function load_problem(target_path::String)::Problem
 
     mothership = Vessel(
         exclusion = ms_exclusions,
-        weighting = Float16(config["parameters"]["weight_ms"]) #! user-defined
+        weighting = weight_ms
     )
     tenders = Vessel(
         exclusion = t_exclusions,
         capacity = t_cap,
         number = n_tenders,
-        weighting = Float16(config["parameters"]["weight_t"]) #! user-defined
+        weighting = weight_t
     )
 
     return Problem(depot, targets, mothership, tenders)
