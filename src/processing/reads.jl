@@ -40,30 +40,28 @@ function process_geometry_targets(
 end
 
 """
-    process_raster_targets(
-    targets::Targets,
-    EPSG_code::Int16,
-    suitable_threshold::Float64
-)::Raster
+    raster_to_gdf(raster::Raster{Int, 2})::DataFrame
 
-Read and mask target locations from a raster file.
+Convert a raster to a GeoDataFrame by extracting the coordinates of the raster cells where
+    the value is 1.
 
 # Arguments
-- `targets`: The object with attribute path to the raster file containing target locations.
-- `EPSG_code`: The EPSG code for the coordinate reference system.
-- `suitable_threshold`: The threshold value for suitable targets.
+- `raster`: The raster to convert.
 
 # Returns
-- A rasterized representation of the target locations.
+A GeoDataFrame containing the coordinates of the raster cells where the value is 1.
 """
-function process_raster_targets(
-    targets::Targets,
-    EPSG_code::Int16,
-    suitable_threshold::Float64
-)::Raster
-    # TODO: fill in with wave data!!
-    suitable_targets_all = Raster(targets.path; mappedcrs = EPSG(EPSG_code), lazy = true)
-    return target_threshold(suitable_targets_all, suitable_threshold)
+function raster_to_gdf(raster::Raster{Int, 2})
+    indices::Vector{CartesianIndex{2}} = findall(x -> x == 1, raster)
+
+    lons = raster.dims[1][getindex.(indices, 1)]
+    lats = raster.dims[2][getindex.(indices, 2)]
+
+    coords = Point{2, Float64}.(zip(lons, lats))
+    return DataFrame(
+        ID = 1:length(coords),
+        geometry = coords
+    )
 end
 
 """
@@ -164,38 +162,87 @@ Vector of clustered locations.
 function cluster_problem(problem::Problem)::Vector{Cluster}
     config = TOML.parsefile(".config.toml")
 
-    suitable_threshold::Float64 = config["parameters"]["suitable_threshold"]
     k::Int8 = config["parameters"]["k"]
     cluster_tolerance::Float64 = config["parameters"]["cluster_tolerance"]
-    EPSG_code::Int16 = config["parameters"]["EPSG_code"]
 
-    site_dir::String = config["data_dir"]["site"]
-    subset::DataFrame = GDF.read(first(glob("*.gpkg", site_dir)))
     suitable_targets_filename = splitext(basename(problem.targets.path))[1]
-
     output_dir::String = config["output_dir"]["path"]
-
     clustered_targets_path::String = joinpath(
         output_dir,
         "clustered_$(suitable_targets_filename)_targets_k=$(k).tif"
     )
-    target_subset_path::String = joinpath(
-        output_dir,
-        "target_subset_$(suitable_targets_filename).tif"
-    )
 
-    clusters::Vector{Cluster} = generate_target_clusters(
-        clustered_targets_path,
+    clustered_targets::DataFrame = apply_kmeans_clustering(
+        problem.targets.points.geometry,
         k,
-        cluster_tolerance,
-        problem.targets,
-        suitable_threshold,
-        target_subset_path,
-        subset,
-        EPSG_code,
         problem.depot,
-        problem.tenders.exclusion,
+        problem.tenders.exclusion;
+        tol=cluster_tolerance
     )
+    return calculate_cluster_centroids(clustered_targets)
+end
 
-    return clusters
+"""
+    process_targets(
+        target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+        target_subset_path::String,
+        subset::DataFrame,
+        EPSG_code::Int16
+    )::Raster{Int64}
+    process_targets(
+        target_path::String,
+        suitable_threshold::Float64,
+        target_subset_path::String,
+        subset::DataFrame,
+        EPSG_code::Int16
+    )::Raster{Int64}
+
+Reads target locations from target path (.geojson or raster) and returns raster of target
+points, applying thresholds and cropping to a target subset.
+
+# Arguments
+- `target_geometries`: A vector of geometries representing target locations.
+- `target_path`: The path to the target locations file.
+- `suitable_threshold`: The threshold for suitable targets.
+- `target_subset_path`: The path to the target subset raster.
+- `subset`: The DataFrame containing the study area boundary.
+- `EPSG_code`: The EPSG code for the study area.
+
+# Returns
+- A rasterized representation of the target locations.
+"""
+function process_targets(
+    target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int16,
+)::Raster{Int64}
+    suitable_targets_all = process_geometry_targets(
+        target_geometries,
+        EPSG_code
+    )
+    suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
+    if !isfile(target_subset_path)
+        write(target_subset_path, suitable_targets_subset; force=true)
+    end
+    return suitable_targets_subset
+end
+function process_targets(
+    target_path::String,
+    suitable_threshold::Float64,
+    target_subset_path::String,
+    subset::DataFrame,
+    EPSG_code::Int16
+)::Raster{Int64}
+    suitable_targets_all = Raster(target_path; mappedcrs = EPSG(EPSG_code), lazy = true)
+    suitable_targets_masked =  target_threshold(suitable_targets_all, suitable_threshold)
+
+    suitable_targets_subset::Raster{Int} = Rasters.crop(
+        suitable_targets_masked,
+        to=subset.geom
+    )
+    if !isfile(target_subset_path)
+        write(target_subset_path, suitable_targets_subset; force=true)
+    end
+    return suitable_targets_subset
 end
