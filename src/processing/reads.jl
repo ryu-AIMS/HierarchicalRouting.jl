@@ -215,14 +215,14 @@ function process_targets(
     target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
     subset::DataFrame,
     EPSG_code::Int16,
-    target_subset_path::String
+    target_subset_path::String="",
 )::Raster{Int64}
     suitable_targets_all = process_geometry_targets(
         target_geometries,
         EPSG_code
     )
     suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
-    if !isfile(target_subset_path)
+    if !isempty(target_subset_path) && !isfile(target_subset_path)
         write(target_subset_path, suitable_targets_subset; force=true)
     end
     return suitable_targets_subset
@@ -232,7 +232,7 @@ function process_targets(
     suitable_threshold::Float64,
     subset::DataFrame,
     EPSG_code::Int16,
-    target_subset_path::String
+    target_subset_path::String="",
 )::Raster{Int64}
     suitable_targets_all = Raster(target_path; mappedcrs = EPSG(EPSG_code), lazy = true)
     suitable_targets_masked =  target_threshold(suitable_targets_all, suitable_threshold)
@@ -241,7 +241,7 @@ function process_targets(
         suitable_targets_masked,
         to=subset.geom
     )
-    if !isfile(target_subset_path)
+    if !isempty(target_subset_path) && !isfile(target_subset_path)
         write(target_subset_path, suitable_targets_subset; force=true)
     end
     return suitable_targets_subset
