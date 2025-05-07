@@ -91,7 +91,7 @@ function apply_kmeans_clustering(
         exclusions
     )
 
-    feasible_idxs = findall(x -> x != Inf, dist_vector)
+    feasible_idxs = findall(.!isinf.(dist_vector))
     feasible_points = points[feasible_idxs]
 
     # 3D coordinate matrix of feasible points for clustering
