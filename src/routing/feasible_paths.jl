@@ -373,13 +373,11 @@ function build_network!(
     sizehint!(exclusion_idxs, length_vectors_new)
 
     for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
-
-        if isnothing(vertex) || vertex == current_point
-            continue
-        end
-
-        # If edge already exists in network, skip
-        if (current_point, vertex) ∈ zip(points_from, points_to)
+        # If vertex is nothing, or already visited/explored,
+        # or edge already exists in network, skip
+        if isnothing(vertex) ||
+            vertex == current_point ||
+            (current_point, vertex) ∈ zip(points_from, points_to)
             continue
         end
 
