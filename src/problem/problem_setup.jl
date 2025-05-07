@@ -2,22 +2,6 @@
 using Glob
 using TOML
 
-# struct Threshold
-#     # value::Float64
-#     # type::Symbol
-
-#     min::Float64
-#     max::Float64
-
-#     Threshold(; min::Float64=-Inf, max::Float64=Inf) = new(min, max)
-# end
-
-# struct Constraint
-#     name::String
-#     threshold::Threshold
-#     file_path::String
-# end
-
 @kwdef struct Vessel
     exclusion::DataFrame
     capacity::Int16 = typemax(Int16)
