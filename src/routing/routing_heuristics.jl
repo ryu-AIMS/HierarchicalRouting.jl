@@ -202,9 +202,11 @@ function get_waypoints(
         #! prev_waypoint in exclusion calls adjust_waypoint() to find closest point outside exclusion
         # Adjust waypoints if they are inside exclusion polygons
         prev_waypoint = point_in_exclusion(prev_waypoint, exclusions) ?
-            adjust_waypoint(prev_waypoint, exclusions) : prev_waypoint
+            adjust_waypoint(prev_waypoint, exclusions) :
+            prev_waypoint
         next_waypoint = point_in_exclusion(next_waypoint, exclusions) ?
-            adjust_waypoint(next_waypoint, exclusions) : next_waypoint
+            adjust_waypoint(next_waypoint, exclusions) :
+            next_waypoint
 
         waypoints[2*i-2] = prev_waypoint
         connecting_clusters[2*i-2] = (prev_clust, current_clust)
