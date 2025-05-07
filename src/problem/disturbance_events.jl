@@ -18,7 +18,9 @@ A vector of `Cluster` objects with nodes removed from them.
 """
 function disturb_clusters(
     remaining_clusters::Vector{Cluster},
-    disturbance_df::DataFrame;
+    disturbance_df::DataFrame,
+    current_location::Point{2, Float64},
+    exclusions::DataFrame;
     res::Float64 = 0.0001
 )::Vector{Cluster}
     num_clusters = length(remaining_clusters)
@@ -37,12 +39,15 @@ function disturb_clusters(
         [(t[1],t[2]) for t in filtered_df.node];
         res = res,
         missingval = -9999.0,
-        fill = filtered_df.wave_value,
+        fill = filtered_df.disturbance_value,
     )
     disturbed_targets = apply_kmeans_clustering(
         disturbance_raster,
-        Int8(num_clusters);
+        Int8(num_clusters),
+        current_location,
+        exclusions
     )
+
     if all(x -> x == disturbed_targets.missingval, disturbed_targets)
         return remaining_clusters
     end

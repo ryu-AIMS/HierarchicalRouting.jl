@@ -50,15 +50,15 @@ Return a DataFrame containing nodes and their corresponding disturbance values.
 
 # Arguments
 - `nodes`: A vector of nodes (points).
-- `disturbance_data`: The disturbance data containing wave values.
+- `disturbance_data`: The disturbance data containing disturbance values.
 
 # Returns
-- A DataFrame with two columns: `node` and `wave_value`.
+- A DataFrame with two columns: `node` and `disturbance_value`.
 """
 function create_disturbance_data_dataframe(
     nodes::Vector{Point{2, Float64}},
     disturbance_data::DataFrame
 )::DataFrame
     disturbance_values = get_disturbance_value.(nodes, Ref(disturbance_data))
-    return DataFrame(node = nodes, wave_value = disturbance_values)
+    return DataFrame(node = nodes, disturbance_value = disturbance_values)
 end
