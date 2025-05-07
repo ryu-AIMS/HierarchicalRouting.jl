@@ -538,7 +538,7 @@ function two_opt(
                     best_route = new_route
                     best_distance = new_distance
                     improved = true
-                    @info "Improved by swapping $(j) and $(i)"
+                    @debug "Improved by swapping $(j) and $(i)"
                 end
             end
         end

@@ -49,9 +49,21 @@ function initial_solution(
                 clusters[clust_seq][1:i-1],
                 disturb_clusters(
                     clusters[clust_seq][i:end],
-                    problem.targets.disturbance_gdf
+                    problem.targets.disturbance_gdf,
+                    ms_route.route.nodes[2i-1],
+                    problem.tenders.exclusion
                 )
             )
+
+            removed_nodes = setdiff(
+                vcat([c.nodes for c in cluster_set[disturbance_index-1]]...),
+                vcat([c.nodes for c in clusters]...)
+            )
+            if !isempty(removed_nodes)
+                @info "Removed nodes due to disturbance event (since previous cluster):"
+                @info join(removed_nodes, "\n\t")
+            end
+
             sort!(clusters, by = x -> x.id)
             cluster_set[disturbance_index] = clusters
 
