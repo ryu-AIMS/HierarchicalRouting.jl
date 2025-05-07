@@ -121,9 +121,9 @@ function apply_kmeans_clustering(
     #! 1st: 3D clustering to generate disturbance clusters,
     #! 2nd: 3D clustering to generate target clusters (as above)
     indices::Vector{CartesianIndex{2}} = findall(!=(raster.missingval), raster)
-    n::Int = length(indices) # number of target sites remaining
+    n_sites::Int = length(indices) # number of target sites remaining
 
-    if n <= k
+    if n_sites <= k
         @warn "No disturbance, as (deployment targets <= clusters required)"
         empty_raster = similar(raster, Int64, missingval=0)
         empty_raster .= empty_raster.missingval
@@ -131,14 +131,14 @@ function apply_kmeans_clustering(
     end
 
     # 3D coordinate matrix for clustering
-    coordinates_array_3d = Matrix{Float64}(undef, 3, n)
+    coordinates_array_3d = Matrix{Float64}(undef, 3, n_sites)
     coordinates_array_3d[1, :] .= raster.dims[1][getindex.(indices, 1)]
     coordinates_array_3d[2, :] .= raster.dims[2][getindex.(indices, 2)]
     coordinates_array_3d[3, :] .= raster[indices]
 
     # Create k_d clusters to create disturbance on subset
-    k_d_lower = min(n, k+1)
-    k_d_upper = min(max(k+1, n, k^2), n)
+    k_d_lower = min(n_sites, k+1)
+    k_d_upper = min(max(k+1, n_sites, k^2), n_sites)
     k_d = rand(k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
@@ -149,7 +149,7 @@ function apply_kmeans_clustering(
     )
 
     # Create a score based on the disturbance values for each cluster
-    disturbance_scores = Vector{Float64}(undef, n)
+    disturbance_scores = Vector{Float64}(undef, n_sites)
     # Calculate the mean disturbance value for each cluster with stochastic perturbation
     w = 1.0 # weight for the environmental disturbance value
     t = 1.0 # perturbation weighting factor
@@ -168,13 +168,13 @@ function apply_kmeans_clustering(
 
     coordinates_array_2d_disturbed = coordinates_array_3d[1:2, surviving_mask]
     indices = indices[surviving_mask]
-    n = length(indices) # update number of target sites remaining
+    n_sites = length(indices) # update number of target sites remaining
 
-    if k > n
+    if k > n_sites
         #! Too many nodes/clusters removed! Change threshold,
         #! or use a different method e.g. remove cluster with highest scores
         error(
-            "$k clusters required from $(n) remaining node/s.\nToo many nodes removed!"
+            "Too many nodes removed!\n$(n_sites) remaining node/s, $k clusters required."
         )
     end
 
