@@ -140,16 +140,14 @@ function simulated_annealing(
     cooling_rate::Float64 = 0.95,
     static_limit::Int = 150
 )
-
     # Initialize best solution as initial
-    soln_best = soln_init
+    soln_best = deepcopy(soln_init)
     obj_best = objective_function(soln_init)
-
     # TODO: Display cost values for each cluster, rather than total solution cost
     for clust_idx in 1:length(soln_init.cluster_sets[end])
         # Initialize current solution as best, reset temp
         temp = temp_init
-        soln_current = soln_best
+        soln_current = deepcopy(soln_best)
         obj_current = obj_best
         static_ctr = 0
 
@@ -171,7 +169,7 @@ function simulated_annealing(
 
                 if obj_current < obj_best
                     static_ctr = 0
-                    soln_best = soln_current
+                    soln_best = deepcopy(soln_current)
                     obj_best = obj_current
                     @info "$iteration\t\t$obj_best\t$temp"
                 end
