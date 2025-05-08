@@ -70,9 +70,15 @@ end
         vessel_draft::Float64,
         subset::DataFrame,
         EPSG_code::Int16,
-        bathy_subset_path::String,
-        exclusion_gpkg_path::String,
-        exclusion_tif_path::String
+        bathy_subset_path::String="",
+        exclusion_gpkg_path::String="",
+        exclusion_tif_path::String=""
+    )::DataFrame
+    read_and_polygonize_exclusions(
+        bathy_fullset_path::String,
+        vessel_draft::Float64,
+        subset::DataFrame,
+        EPSG_code::Int16
     )::DataFrame
 
 Create exclusion zones from environmental constraints.
