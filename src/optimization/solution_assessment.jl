@@ -151,16 +151,14 @@ function simulated_annealing(
         obj_current = obj_best
         static_ctr = 0
 
-        @info "\nCluster $(soln_init.cluster_sets[end][clust_idx].id)"
-        @info "Iteration \tBest Value \t\tTemp"
-        @info "0\t\t$obj_best\t$temp"
+        @info "\n\tCluster\t\t$(soln_init.cluster_sets[end][clust_idx].id)\n\t" *
+            "Iteration \tBest Value \t\tTemp\n\t0\t\t$obj_best\t$temp"
 
         for iteration in 1:max_iterations
             soln_proposed = perturb_function(soln_current, clust_idx, exclusions)
             obj_proposed = objective_function(soln_proposed)
-
-            static_ctr += 1
             improvement = obj_current - obj_proposed
+            static_ctr += 1
 
             # If the new solution is improved OR meets acceptance prob criteria
             if improvement > 0 || exp(improvement / temp) > rand()
@@ -182,14 +180,13 @@ function simulated_annealing(
             end
 
             if static_ctr >= static_limit
-                @info "$iteration\t\t$obj_best\t$temp"
-                @info "Early exit at iteration $iteration due to stagnation."
+                @info "$iteration\t\t$obj_best\t$temp\n\t" *
+                    "Early exit at iteration $iteration due to stagnation."
                 break
             end
         end
     end
 
-    @info "\nFinal Value: $obj_best"
-    @info "Δ: $(objective_function(soln_init) - obj_best)"
+    @info "\nFinal Value: $obj_best\nΔ: $(objective_function(soln_init) - obj_best)"
     return soln_best, obj_best
 end
