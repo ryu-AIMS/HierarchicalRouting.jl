@@ -43,9 +43,9 @@ end
     load_problem(
         target_path::String,
         target_subset_path::String,
-        subset::DataFrame,
+        subset_path::String,
         env_data_path::String,
-        env_disturbance::DataFrame,
+        env_disturbance_path::String,
         depot::Point{2, Float64},
         draft_ms::Float64,
         draft_t::Float64,
@@ -62,9 +62,9 @@ Load the problem data to create a `Problem` object from given parameters.
 # Arguments
 - `target_path`: The path of the target scenario to load, in GeoJSON format.
 - `target_subset_path`: The path to save the target subset raster.
-- `subset`: A GeoDataFrame containing the subset of the area of interest.
+- `subset_path` : The path to the subset GeoPackage file.
 - `env_data_path`: The path to the environmental data directory.
-- `env_disturbance`: A GeoDataFrame containing environmental disturbance data.
+- `env_disturbance_path`: The path to the environmental disturbance GeoDataFrame data.
 - `depot`: A Point representing the depot location.
 - `draft_ms`: The draft of the mothership.
 - `draft_t`: The draft of the tenders.
@@ -81,9 +81,9 @@ The problem object.
 function load_problem(
     target_path::String,
     target_subset_path::String,
-    subset::DataFrame,
+    subset_path::String,
     env_data_path::String,
-    env_disturbance::DataFrame,
+    env_disturbance_path::String,
     depot::Point{2, Float64},
     draft_ms::Float64,
     draft_t::Float64,
@@ -94,6 +94,7 @@ function load_problem(
     EPSG_code::Int16,
     output_dir::String = ""
 )::Problem
+    subset = GDF.read(subset_path)
     subset_bbox = get_bbox_bounds_from_df(subset)
     target_gdf_subset = filter_within_bbox(
         GDF.read(target_path), subset_bbox
@@ -107,6 +108,7 @@ function load_problem(
     )
     targets_gdf = raster_to_gdf(target_raster)
 
+    env_disturbance = GDF.read(env_disturbance_path)
     disturbance_data_subset = filter_within_bbox(
         env_disturbance, subset_bbox
     )
