@@ -149,40 +149,6 @@ function read_and_polygonize_exclusions(
 end
 
 """
-    cluster_problem(problem::Problem)::Vector{Cluster}
-
-Read and process problem data to generate an initial solution.
-
-# Arguments
-- `problem`: The problem data.
-
-# Returns
-Vector of clustered locations.
-"""
-function cluster_problem(problem::Problem)::Vector{Cluster}
-    config = TOML.parsefile(".config.toml")
-
-    k::Int8 = config["parameters"]["k"]
-    cluster_tolerance::Float64 = config["parameters"]["cluster_tolerance"]
-
-    suitable_targets_filename = splitext(basename(problem.targets.path))[1]
-    output_dir::String = config["output_dir"]["path"]
-    clustered_targets_path::String = joinpath(
-        output_dir,
-        "clustered_$(suitable_targets_filename)_targets_k=$(k).tif"
-    )
-
-    clustered_targets::DataFrame = apply_kmeans_clustering(
-        problem.targets.points.geometry,
-        k,
-        problem.depot,
-        problem.tenders.exclusion;
-        tol=cluster_tolerance
-    )
-    return calculate_cluster_centroids(clustered_targets)
-end
-
-"""
     process_targets(
         target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
         target_subset_path::String,

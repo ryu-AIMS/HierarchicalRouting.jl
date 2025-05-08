@@ -19,10 +19,16 @@ Best total MSTSolution found
 """
 function initial_solution(
     problem::Problem,
+    num_clusters::Int8,
+    cluster_tolerance::Float64,
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
     # Load problem data
-    clusters::Vector{Cluster} = cluster_problem(problem);
+    clusters::Vector{Cluster} = cluster_problem(
+        problem,
+        num_clusters,
+        cluster_tolerance,
+    );
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
