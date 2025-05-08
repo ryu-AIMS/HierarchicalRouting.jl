@@ -94,8 +94,6 @@ function load_problem(
     EPSG_code::Int16,
     output_dir::String = ""
 )::Problem
-    config = TOML.parsefile(".config.toml")
-
     subset_bbox = get_bbox_bounds_from_df(subset)
     target_gdf_subset = filter_within_bbox(
         GDF.read(target_path), subset_bbox
@@ -135,6 +133,7 @@ function load_problem(
     bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
 
     # Process exclusions
+    config = TOML.parsefile(".config.toml")
     if !(config["DEBUG"]["debug_mode"])
         ms_exclusion_zones_df = read_and_polygonize_exclusions(
             env_data["bathy"].rast_file,
