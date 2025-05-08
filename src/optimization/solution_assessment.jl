@@ -84,15 +84,21 @@ function perturb_swap_solution(
         2
     )
 
+    # Get the new feasible distance matrices for the modified sorties
+    updated_tender_matrices::Vector{Matrix{Float64}} = getindex.(get_feasible_matrix.(
+        updated_tender_tours,
+        Ref(exclusions)
+    ), 1)
+
     # Update the modified sorties
     sorties[sortie_a_idx] = Route(
         sortie_a.nodes,
-        sortie_a.dist_matrix,
+        updated_tender_matrices[1],
         vcat(linestrings[1]...)
     )
     sorties[sortie_b_idx] = Route(
         sortie_b.nodes,
-        sortie_b.dist_matrix,
+        updated_tender_matrices[2],
         vcat(linestrings[2]...)
     )
 
