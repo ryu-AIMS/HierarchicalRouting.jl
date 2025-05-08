@@ -55,11 +55,8 @@ function perturb_swap_solution(
         sortie_length = length(sortie_a.nodes)
         if sortie_length < 2
             return soln
-        elseif sortie_length == 2
-            node_a_idx, node_b_idx = 1, 2
-        else
-            node_a_idx, node_b_idx = shuffle(1:sortie_length)[1:2]
         end
+        node_a_idx, node_b_idx = sortie_length == 2 ? (1, 2) : shuffle(1:sortie_length)[1:2]
     else
         # Chose two random node indices from different sorties
         node_a_idx = rand(1:length(sortie_a.nodes))
@@ -74,8 +71,8 @@ function perturb_swap_solution(
     # TODO:Re-run two-opt on the modified sorties
     # Recompute the feasible paths for the modified sorties
     updated_tender_tours::Vector{Vector{Point{2, Float64}}} = [
-        [[tender.start]; sortie.nodes; [tender.finish]]
-        for sortie in [sortie_a, sortie_b]
+        [[tender.start]; sortie_a.nodes; [tender.finish]],
+        [[tender.start]; sortie_b.nodes; [tender.finish]]
     ]
 
     # Get new linestrings
