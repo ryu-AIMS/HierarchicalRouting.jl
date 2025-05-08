@@ -151,16 +151,16 @@ end
 """
     process_targets(
         target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-        target_subset_path::String,
         subset::DataFrame,
-        EPSG_code::Int16
+        EPSG_code::Int16,
+        target_subset_path::String=""
     )::Raster{Int64}
     process_targets(
         target_path::String,
         suitable_threshold::Float64,
-        target_subset_path::String,
         subset::DataFrame,
-        EPSG_code::Int16
+        EPSG_code::Int16,
+        target_subset_path::String="",
     )::Raster{Int64}
 
 Reads target locations from target path (.geojson or raster) and returns raster of target
@@ -170,12 +170,12 @@ points, applying thresholds and cropping to a target subset.
 - `target_geometries`: A vector of geometries representing target locations.
 - `target_path`: The path to the target locations file.
 - `suitable_threshold`: The threshold for suitable targets.
-- `target_subset_path`: The path to the target subset raster.
 - `subset`: The DataFrame containing the study area boundary.
 - `EPSG_code`: The EPSG code for the study area.
+- `target_subset_path`: The path to the target subset raster.
 
 # Returns
-- A rasterized representation of the target locations.
+A rasterized representation of the target locations, cropped to the study area.
 """
 function process_targets(
     target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
