@@ -94,45 +94,50 @@ function read_and_polygonize_exclusions(
     vessel_draft::Float64,
     subset::DataFrame,
     EPSG_code::Int16,
-    bathy_subset_path::String,
-    exclusion_gpkg_path::String,
-    exclusion_tif_path::String
+    bathy_subset_path::String="",
+    exclusion_gpkg_path::String="",
+    exclusion_tif_path::String=""
 )::DataFrame
     # TODO: Generalize for all available environmental constraints
     # TODO: Generalize for ms and tender vessels
     # Create exclusion zones from environmental constraints
     exclusion_zones_df::DataFrame
-    if isfile(exclusion_gpkg_path)
+    if !isempty(exclusion_gpkg_path) && isfile(exclusion_gpkg_path)
         exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     else
         exclusion_zones_bool::Raster{Bool}
-        if isfile(exclusion_tif_path)
+        if !isempty(exclusion_tif_path) && isfile(exclusion_tif_path)
             exclusion_zones_int::Raster = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
             exclusion_zones_bool = exclusion_zones_int .!= 0
         else
             # Load environmental constraints
             # Bathymetry
             bathy_subset::Raster
-            if isfile(bathy_subset_path)
+            if !isempty(bathy_subset_path) && isfile(bathy_subset_path)
                 bathy_subset = Raster(bathy_subset_path; mappedcrs=EPSG(EPSG_code))
             else
                 bathy_dataset::Raster = Raster(bathy_fullset_path; mappedcrs=EPSG(EPSG_code), lazy=true)
                 bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
-                write(bathy_subset_path, bathy_subset; force=true)
+                if !isempty(bathy_subset_path)
+                    write(bathy_subset_path, bathy_subset; force=true)
+                end
             end
 
             exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
-            write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
+            if !isempty(exclusion_tif_path)
+                write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
+            end
         end
 
         exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
-        GDF.write(
-            exclusion_gpkg_path,
-            exclusion_zones_df;
-            crs=EPSG(EPSG_code)
-        )
+        if !isempty(exclusion_gpkg_path)
+            GDF.write(
+                exclusion_gpkg_path,
+                exclusion_zones_df;
+                crs=EPSG(EPSG_code)
+            )
+        end
     end
-
     return exclusion_zones_df
 end
 function read_and_polygonize_exclusions(
