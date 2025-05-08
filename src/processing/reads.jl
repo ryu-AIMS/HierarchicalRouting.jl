@@ -2,7 +2,6 @@
 """
     process_geometry_targets(
         geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-        EPSG_code::Int16,
         resolution::Float64 = 0.0001
     )::Raster{Int}
 
@@ -10,7 +9,6 @@ Read and process target location geometries to generate a rasterized representat
 
 # Arguments
 - `geometries`: A vector of geometries representing target locations.
-- `EPSG_code`: The EPSG code for the coordinate reference system.
 - `resolution`: The resolution for the rasterization process.
 
 # Returns
@@ -18,7 +16,6 @@ Read and process target location geometries to generate a rasterized representat
 """
 function process_geometry_targets(
     geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-    EPSG_code::Int16,
     resolution::Float64 = 0.0001
 )::Raster{Int}
     # Compute centroids from the geometries
@@ -35,7 +32,6 @@ function process_geometry_targets(
         res = resolution,
         missingval = 0,
         fill = 1,
-        crs = EPSG(EPSG_code)
     )
 end
 
@@ -69,7 +65,6 @@ end
         bathy_fullset_path::String,
         vessel_draft::Float64,
         subset::DataFrame,
-        EPSG_code::Int16,
         bathy_subset_path::String="",
         exclusion_gpkg_path::String="",
         exclusion_tif_path::String=""
@@ -78,7 +73,6 @@ end
         bathy_fullset_path::String,
         vessel_draft::Float64,
         subset::DataFrame,
-        EPSG_code::Int16
     )::DataFrame
 
 Create exclusion zones from environmental constraints.
@@ -87,7 +81,6 @@ Create exclusion zones from environmental constraints.
 - `bathy_fullset_path`: The path to the full bathymetry dataset.
 - `vessel_draft`: The vessel draft/depth.
 - `subset`: The DataFrame containing the study area boundary.
-- `EPSG_code`: The EPSG code for the study area.
 - `bathy_subset_path`: The path to the subset bathymetry dataset.
 - `exclusion_gpkg_path`: The path to the exclusion zones GeoPackage.
 - `exclusion_tif_path`: The path to the exclusion zones raster.
@@ -99,7 +92,6 @@ function read_and_polygonize_exclusions(
     bathy_fullset_path::String,
     vessel_draft::Float64,
     subset::DataFrame,
-    EPSG_code::Int16,
     bathy_subset_path::String="",
     exclusion_gpkg_path::String="",
     exclusion_tif_path::String=""
@@ -113,16 +105,16 @@ function read_and_polygonize_exclusions(
     else
         exclusion_zones_bool::Raster{Bool}
         if !isempty(exclusion_tif_path) && isfile(exclusion_tif_path)
-            exclusion_zones_int::Raster = Raster(exclusion_tif_path, mappedcrs=EPSG(EPSG_code))
+            exclusion_zones_int::Raster = Raster(exclusion_tif_path)
             exclusion_zones_bool = exclusion_zones_int .!= 0
         else
             # Load environmental constraints
             # Bathymetry
             bathy_subset::Raster
             if !isempty(bathy_subset_path) && isfile(bathy_subset_path)
-                bathy_subset = Raster(bathy_subset_path; mappedcrs=EPSG(EPSG_code))
+                bathy_subset = Raster(bathy_subset_path)
             else
-                bathy_dataset::Raster = Raster(bathy_fullset_path; mappedcrs=EPSG(EPSG_code), lazy=true)
+                bathy_dataset = Raster(bathy_fullset_path; lazy=true)
                 bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
                 if !isempty(bathy_subset_path)
                     write(bathy_subset_path, bathy_subset; force=true)
@@ -140,7 +132,6 @@ function read_and_polygonize_exclusions(
             GDF.write(
                 exclusion_gpkg_path,
                 exclusion_zones_df;
-                crs=EPSG(EPSG_code)
             )
         end
     end
@@ -150,9 +141,8 @@ function read_and_polygonize_exclusions(
     bathy_fullset_path::String,
     vessel_draft::Float64,
     subset::DataFrame,
-    EPSG_code::Int16
 )::DataFrame
-    bathy_dataset::Raster = Raster(bathy_fullset_path; mappedcrs=EPSG(EPSG_code), lazy=true)
+    bathy_dataset::Raster = Raster(bathy_fullset_path; lazy=true)
     bathy_subset::Raster = read(Rasters.crop(bathy_dataset; to=subset.geom))
     exclusion_zones::Raster{Bool} = create_exclusion_zones(bathy_subset, vessel_draft)
 
@@ -163,14 +153,12 @@ end
     process_targets(
         target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
         subset::DataFrame,
-        EPSG_code::Int16,
         target_subset_path::String=""
     )::Raster{Int64}
     process_targets(
         target_path::String,
         suitable_threshold::Float64,
         subset::DataFrame,
-        EPSG_code::Int16,
         target_subset_path::String="",
     )::Raster{Int64}
 
@@ -182,7 +170,6 @@ points, applying thresholds and cropping to a target subset.
 - `target_path`: The path to the target locations file.
 - `suitable_threshold`: The threshold for suitable targets.
 - `subset`: The DataFrame containing the study area boundary.
-- `EPSG_code`: The EPSG code for the study area.
 - `target_subset_path`: The path to the target subset raster.
 
 # Returns
@@ -191,12 +178,10 @@ A rasterized representation of the target locations, cropped to the study area.
 function process_targets(
     target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
     subset::DataFrame,
-    EPSG_code::Int16,
     target_subset_path::String="",
 )::Raster{Int64}
     suitable_targets_all = process_geometry_targets(
         target_geometries,
-        EPSG_code
     )
     suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
     if !isempty(target_subset_path) && !isfile(target_subset_path)
@@ -208,10 +193,9 @@ function process_targets(
     target_path::String,
     suitable_threshold::Float64,
     subset::DataFrame,
-    EPSG_code::Int16,
     target_subset_path::String="",
 )::Raster{Int64}
-    suitable_targets_all = Raster(target_path; mappedcrs = EPSG(EPSG_code), lazy = true)
+    suitable_targets_all = Raster(target_path; lazy = true)
     suitable_targets_masked =  target_threshold(suitable_targets_all, suitable_threshold)
 
     suitable_targets_subset::Raster{Int} = Rasters.crop(

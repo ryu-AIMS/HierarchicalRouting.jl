@@ -55,7 +55,6 @@ problem = load_problem(
     Float16(2.0),                                                   # weight_t
     Int8(3),                                                        # n_tenders
     Int16(2),                                                       # t_cap
-    Int16(7844),                                                    # EPSG_code
     "outputs",                                                      # output_dir
 );
 

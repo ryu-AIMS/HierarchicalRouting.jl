@@ -53,7 +53,6 @@ end
         weight_t::Float16,
         n_tenders::Int8,
         t_cap::Int16,
-        EPSG_code::Int16,
         output_dir::String = ""
     )::Problem
 
@@ -72,7 +71,6 @@ Load the problem data to create a `Problem` object from given parameters.
 - `weight_t`: The weighting factor for the tenders.
 - `n_tenders`: The number of tenders.
 - `t_cap`: The capacity of the tenders.
-- `EPSG_code`: The EPSG code for the coordinate reference system.
 - `output_dir`: The directory to save output files (default is the current directory).
 
 # Returns
@@ -91,7 +89,6 @@ function load_problem(
     weight_t::Float16,
     n_tenders::Int8,
     t_cap::Int16,
-    EPSG_code::Int16,
     output_dir::String = ""
 )::Problem
     subset = GDF.read(subset_path)
@@ -103,7 +100,6 @@ function load_problem(
     target_raster = process_targets(
         target_gdf_subset.geometry,
         subset,
-        EPSG_code,
         target_subset_path,
     )
     targets_gdf = raster_to_gdf(target_raster)
@@ -113,7 +109,7 @@ function load_problem(
         env_disturbance, subset_bbox
     )
     suitable_targets_subset = process_geometry_targets(
-        target_gdf_subset.geometry, EPSG_code
+        target_gdf_subset.geometry
     )
     indices::Vector{CartesianIndex{2}} = findall(
         x -> x != suitable_targets_subset.missingval,
@@ -141,7 +137,6 @@ function load_problem(
             env_data_path,
             draft_ms,
             subset,
-            EPSG_code,
             bathy_subset_path,
             joinpath(output_dir, "ms_exclusion.gpkg"),
             joinpath(output_dir, "ms_exclusion.tif")
@@ -150,7 +145,6 @@ function load_problem(
             env_data_path,
             draft_t,
             subset,
-            EPSG_code,
             bathy_subset_path,
             joinpath(output_dir, "t_exclusion.gpkg"),
             joinpath(output_dir, "t_exclusion.tif")
@@ -160,13 +154,11 @@ function load_problem(
             env_data_path,
             draft_ms,
             subset,
-            EPSG_code
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_t,
             subset,
-            EPSG_code
         )
     end
     ms_exclusions::DataFrame = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |>
