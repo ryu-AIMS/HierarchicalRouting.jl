@@ -66,8 +66,8 @@ function initial_solution(
                 vcat([c.nodes for c in clusters]...)
             )
             if !isempty(removed_nodes)
-                @info "Removed nodes due to disturbance event (since previous cluster):"
-                @info join(removed_nodes, "\n\t")
+                @info "Removed nodes due to disturbance event (since previous cluster):\n" *
+                "\t$(join(removed_nodes, "\n\t"))"
             end
 
             sort!(clusters, by = x -> x.id)
