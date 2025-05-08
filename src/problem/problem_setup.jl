@@ -44,7 +44,7 @@ end
         target_path::String,
         target_subset_path::String,
         subset::DataFrame,
-        env_data::Dict,
+        env_data_path::String,
         env_disturbance::DataFrame,
         depot::Point{2, Float64},
         draft_ms::Float64,
@@ -63,7 +63,7 @@ Load the problem data to create a `Problem` object from given parameters.
 - `target_path`: The path of the target scenario to load, in GeoJSON format.
 - `target_subset_path`: The path to save the target subset raster.
 - `subset`: A GeoDataFrame containing the subset of the area of interest.
-- `env_data`: A dictionary containing environmental data paths and raster files.
+- `env_data_path`: The path to the environmental data directory.
 - `env_disturbance`: A GeoDataFrame containing environmental disturbance data.
 - `depot`: A Point representing the depot location.
 - `draft_ms`: The draft of the mothership.
@@ -82,7 +82,7 @@ function load_problem(
     target_path::String,
     target_subset_path::String,
     subset::DataFrame,
-    env_data::Dict,
+    env_data_path::String,
     env_disturbance::DataFrame,
     depot::Point{2, Float64},
     draft_ms::Float64,
@@ -136,7 +136,7 @@ function load_problem(
     config = TOML.parsefile(".config.toml")
     if !(config["DEBUG"]["debug_mode"])
         ms_exclusion_zones_df = read_and_polygonize_exclusions(
-            env_data["bathy"].rast_file,
+            env_data_path,
             draft_ms,
             subset,
             EPSG_code,
@@ -145,7 +145,7 @@ function load_problem(
             joinpath(output_dir, "ms_exclusion.tif")
         )
         t_exclusions = read_and_polygonize_exclusions(
-            env_data["bathy"].rast_file,
+            env_data_path,
             draft_t,
             subset,
             EPSG_code,
@@ -155,13 +155,13 @@ function load_problem(
         )
     else
         ms_exclusion_zones_df = read_and_polygonize_exclusions(
-            env_data["bathy"].rast_file,
+            env_data_path,
             draft_ms,
             subset,
             EPSG_code
         )
         t_exclusions = read_and_polygonize_exclusions(
-            env_data["bathy"].rast_file,
+            env_data_path,
             draft_t,
             subset,
             EPSG_code
