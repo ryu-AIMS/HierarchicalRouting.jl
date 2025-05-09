@@ -43,7 +43,8 @@ end
     cluster_problem(
         problem::Problem,
         k::Int8,
-        cluster_tolerance::Float64,
+        tol::Float64,
+        dist_weighting::Float64=5E-6
     )::Vector{Cluster}
 
 Cluster the problem data into `k` clusters based on the target locations and a specified
@@ -52,7 +53,10 @@ Cluster the problem data into `k` clusters based on the target locations and a s
 # Arguments
 - `problem`: The problem data.
 - `k`: The number of clusters to create.
-- `cluster_tolerance`: The tolerance for clustering.
+- `tol`: The tolerance for clustering.
+- `dist_weighting`: Weighting factor for the distances in 3D clustering, used in combination
+    with lat/lons at first 2 dimensions. Higher values will give more weight to distance
+    from current location (depot). Default = 5E-6.
 
 # Returns
 Vector of clustered locations.
@@ -60,13 +64,12 @@ Vector of clustered locations.
 function cluster_problem(
     problem::Problem,
     k::Int8,
-    cluster_tolerance::Float64,
+    tol::Float64,
+    dist_weighting::Float64=5E-6
 )::Vector{Cluster}
     points::Vector{Point{2, Float64}} = problem.targets.points.geometry
     current_location::Point{2, Float64} = problem.depot
     exclusions::DataFrame = problem.tenders.exclusion
-    tol::Float64 = cluster_tolerance
-    dist_weighting::Float64=2E-5
 
     dist_vector = dist_weighting .* get_feasible_distances(
         current_location,
