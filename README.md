@@ -44,7 +44,6 @@ using HierarchicalRouting
 # Defaults to the first file in the target scenario directory if no argument is passed.
 problem = load_problem(
     "data/targets/scenarios/output_slopes_3-10m.geojson",           # target_path
-    "outputs/target_subset_output_slopes_3-10m.tif",                # target_subset_path
     "data/site/Moore_2024-02-14b_v060_rc1.gpkg",                    # subset_path
     "data/env_constraints/bathy/Cairns-Cooktown_bathy.tif",         # bathy_path
     "data/env_disturbances/waves/output_slope_zs_Hs_Tp.geojson",    # wave_disturbance_path
@@ -54,8 +53,7 @@ problem = load_problem(
     Float16(5.0),                                                   # weight_ms
     Float16(2.0),                                                   # weight_t
     Int8(3),                                                        # n_tenders
-    Int16(2),                                                       # t_cap
-    "outputs",                                                      # output_dir
+    Int16(2);                                                       # t_cap
 );
 
 # Generate an initial solution

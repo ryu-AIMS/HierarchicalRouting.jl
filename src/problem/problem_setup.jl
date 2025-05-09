@@ -42,7 +42,6 @@ end
 """
     load_problem(
         target_path::String,
-        target_subset_path::String,
         subset_path::String,
         env_data_path::String,
         env_disturbance_path::String,
@@ -52,7 +51,8 @@ end
         weight_ms::Float16,
         weight_t::Float16,
         n_tenders::Int8,
-        t_cap::Int16,
+        t_cap::Int16;
+        target_subset_path::String = "",
         output_dir::String = ""
     )::Problem
 
@@ -60,7 +60,6 @@ Load the problem data to create a `Problem` object from given parameters.
 
 # Arguments
 - `target_path`: The path of the target scenario to load, in GeoJSON format.
-- `target_subset_path`: The path to save the target subset raster.
 - `subset_path` : The path to the subset GeoPackage file.
 - `env_data_path`: The path to the environmental data directory.
 - `env_disturbance_path`: The path to the environmental disturbance GeoDataFrame data.
@@ -71,14 +70,14 @@ Load the problem data to create a `Problem` object from given parameters.
 - `weight_t`: The weighting factor for the tenders.
 - `n_tenders`: The number of tenders.
 - `t_cap`: The capacity of the tenders.
-- `output_dir`: The directory to save output files (default is the current directory).
+- `target_subset_path`: The path to save the target subset raster. Default is "".
+- `output_dir`: The directory to save output files. Default is "".
 
 # Returns
 The problem object.
 """
 function load_problem(
     target_path::String,
-    target_subset_path::String,
     subset_path::String,
     env_data_path::String,
     env_disturbance_path::String,
@@ -88,7 +87,8 @@ function load_problem(
     weight_ms::Float16,
     weight_t::Float16,
     n_tenders::Int8,
-    t_cap::Int16,
+    t_cap::Int16;
+    target_subset_path::String = "",
     output_dir::String = ""
 )::Problem
     subset = GDF.read(subset_path)
