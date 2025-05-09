@@ -128,8 +128,6 @@ function load_problem(
     )
     targets = Targets(targets_gdf, target_path, disturbance_df)
 
-    bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
-
     # Process exclusions
     config = TOML.parsefile(".config.toml")
     if !(config["DEBUG"]["debug_mode"])
@@ -137,17 +135,15 @@ function load_problem(
             env_data_path,
             draft_ms,
             subset,
-            bathy_subset_path,
-            joinpath(output_dir, "ms_exclusion.gpkg"),
-            joinpath(output_dir, "ms_exclusion.tif")
+            "ms_exclusion",
+            output_dir,
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_t,
             subset,
-            bathy_subset_path,
-            joinpath(output_dir, "t_exclusion.gpkg"),
-            joinpath(output_dir, "t_exclusion.tif")
+            "t_exclusion",
+            output_dir,
         )
     else
         ms_exclusion_zones_df = read_and_polygonize_exclusions(
