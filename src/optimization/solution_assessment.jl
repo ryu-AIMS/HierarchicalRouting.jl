@@ -2,7 +2,7 @@
 """
     perturb_swap_solution(
         soln::MSTSolution,
-        clust_idx::Int64=-1,
+        clust_seq_idx::Int64=-1,
         exclusions::DataFrame = DataFrame();
         enforce_diff_sortie::Bool = false
     )::MSTSolution
@@ -11,7 +11,8 @@ Perturb the solution by swapping two nodes in a cluster.
 
 # Arguments
 - `soln`: Solution to perturb.
-- `clust_idx`: Index of the cluster to perturb. Default = -1 randomly selects a cluster.
+- `clust_seq_idx`: Sequence index of cluster to perturb. Default = -1: randomly selects
+    cluster.
 - `exclusions`: DataFrame of exclusions. Default = DataFrame().
 - `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
@@ -20,15 +21,13 @@ Perturbed full solution.
 """
 function perturb_swap_solution(
     soln::MSTSolution,
-    clust_idx::Int64=-1,
+    clust_seq_idx::Int64=-1,
     exclusions::DataFrame = DataFrame();
     enforce_diff_sortie::Bool = false
 )::MSTSolution
-    # Choose a random cluster (assume fixed clustering) if none provided
-    clust_idx = clust_idx == -1 ? rand(1:length(soln.tenders)) : clust_idx
+    clust_seq_idx = clust_seq_idx == -1 ? rand(1:length(soln.tenders)) : clust_seq_idx
 
-    # Copy the tender solution to perturb
-    tender = deepcopy(soln.tenders[clust_idx])
+    tender = deepcopy(soln.tenders[clust_seq_idx])
     sorties = tender.sorties
 
     # If < 2 sorties in cluster, no perturbation possible
@@ -100,7 +99,7 @@ function perturb_swap_solution(
     )
 
     tenders_all::Vector{TenderSolution} = soln.tenders
-    tenders_all[clust_idx] = tender
+    tenders_all[clust_seq_idx] = tender
 
     return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_all)
 end
