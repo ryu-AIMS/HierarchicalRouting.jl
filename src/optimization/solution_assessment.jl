@@ -98,8 +98,14 @@ function perturb_swap_solution(
         vcat(linestrings[2]...)
     )
 
-    tenders_all::Vector{TenderSolution} = soln.tenders
-    tenders_all[clust_seq_idx] = tender
+    tenders_all::Vector{TenderSolution} = copy(soln.tenders)
+    tenders_all[clust_seq_idx] = TenderSolution(
+        tender.id,
+        tender.start,
+        tender.finish,
+        sorties,
+        tender.dist_matrix  #? recompute
+    )
 
     return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_all)
 end
