@@ -6,8 +6,15 @@
         exclusions::DataFrame = DataFrame();
         enforce_diff_sortie::Bool = false
     )::MSTSolution
+    perturb_swap_solution(
+        soln::MSTSolution,
+        cluster_pair::Tuple{Int, Int},
+        exclusions::DataFrame = DataFrame()
+    )::MSTSolution
 
-Perturb the solution by swapping two nodes in a cluster.
+Perturb the solution by swapping two nodes:
+- within a cluster, or
+- between two clusters.
 
 # Arguments
 - `soln`: Solution to perturb.
@@ -217,7 +224,7 @@ function simulated_annealing(
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
     static_limit::Int = 150
-)
+)::Tuple{MSTSolution, Float64}
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
     obj_best = objective_function(soln_init)
