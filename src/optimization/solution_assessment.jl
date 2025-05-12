@@ -151,15 +151,16 @@ function simulated_annealing(
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
     obj_best = objective_function(soln_init)
+    cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
     # TODO: Display cost values for each cluster, rather than total solution cost
-    for clust_idx in 1:length(soln_init.cluster_sets[end])
+    for clust_idx in 1:length(cluster_set)
         # Initialize current solution as best, reset temp
         temp = temp_init
         soln_current = deepcopy(soln_best)
         obj_current = obj_best
         static_ctr = 0
 
-        @info "\n\tCluster\t\t$(soln_init.cluster_sets[end][clust_idx].id)\n\t" *
+        @info "\n\tCluster\t\t$(cluster_set[clust_idx].id)\n\t" *
             "Iteration \tBest Value \t\tTemp\n\t0\t\t$obj_best\t$temp"
 
         for iteration in 1:max_iterations
