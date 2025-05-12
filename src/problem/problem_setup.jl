@@ -53,7 +53,8 @@ end
         n_tenders::Int8,
         t_cap::Int16;
         target_subset_path::String = "",
-        output_dir::String = ""
+        output_dir::String = "",
+        debug_mode::Bool = TOML.parsefile(".config.toml")["DEBUG"]["debug_mode"],
     )::Problem
 
 Load the problem data to create a `Problem` object from given parameters.
@@ -72,6 +73,8 @@ Load the problem data to create a `Problem` object from given parameters.
 - `t_cap`: The capacity of the tenders.
 - `target_subset_path`: The path to save the target subset raster. Default is "".
 - `output_dir`: The directory to save output files. Default is "".
+- `debug_mode`: A boolean flag to enable debug mode. Default is taken from the config file.
+     - If `debug_mode=true`, the function will not write to the output directory.
 
 # Returns
 The problem object.
@@ -89,7 +92,8 @@ function load_problem(
     n_tenders::Int8,
     t_cap::Int16;
     target_subset_path::String = "",
-    output_dir::String = ""
+    output_dir::String = "",
+    debug_mode::Bool = TOML.parsefile(".config.toml")["DEBUG"]["debug_mode"],
 )::Problem
     subset = GDF.read(subset_path)
     subset_bbox = get_bbox_bounds_from_df(subset)
@@ -129,8 +133,7 @@ function load_problem(
     targets = Targets(targets_gdf, target_path, disturbance_df)
 
     # Process exclusions
-    config = TOML.parsefile(".config.toml")
-    if !(config["DEBUG"]["debug_mode"])
+    if !(debug_mode)
         ms_exclusion_zones_df = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
