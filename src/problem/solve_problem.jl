@@ -19,10 +19,16 @@ Best total MSTSolution found
 """
 function initial_solution(
     problem::Problem,
+    num_clusters::Int8,
+    cluster_tolerance::Float64,
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
     # Load problem data
-    clusters::Vector{Cluster} = cluster_problem(problem);
+    clusters::Vector{Cluster} = cluster_problem(
+        problem,
+        num_clusters,
+        cluster_tolerance,
+    );
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
@@ -60,8 +66,8 @@ function initial_solution(
                 vcat([c.nodes for c in clusters]...)
             )
             if !isempty(removed_nodes)
-                @info "Removed nodes due to disturbance event (since previous cluster):"
-                @info join(removed_nodes, "\n\t")
+                @info "Removed nodes due to disturbance event (since previous cluster):\n" *
+                "\t$(join(removed_nodes, "\n\t"))"
             end
 
             sort!(clusters, by = x -> x.id)
