@@ -235,7 +235,18 @@ function simulated_annealing(
             "Iteration \tBest Value \t\tTemp\n\t0\t\t$obj_best\t$temp"
 
         for iteration in 1:max_iterations
-            soln_proposed = perturb_function(soln_current, clust_idx, exclusions)
+            if rand() < 0.5
+                # swap two nodes within the same cluster
+                soln_proposed = perturb_function(soln_current, clust_idx, exclusions)
+            else
+                # swap two nodes between two different random clusters
+                clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
+                soln_proposed = perturb_function(
+                    soln_current,
+                    (clust_idx, clust_swap_idx),
+                    exclusions
+                )
+            end
             obj_proposed = objective_function(soln_proposed)
             improvement = obj_current - obj_proposed
             static_ctr += 1
