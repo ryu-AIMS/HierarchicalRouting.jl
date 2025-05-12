@@ -69,11 +69,6 @@ end
         exclusion_gpkg_path::String="",
         exclusion_tif_path::String=""
     )::DataFrame
-    read_and_polygonize_exclusions(
-        bathy_fullset_path::String,
-        vessel_draft::Float64,
-        subset::DataFrame,
-    )::DataFrame
 
 Create exclusion zones from environmental constraints.
 
@@ -112,8 +107,8 @@ function read_and_polygonize_exclusions(
             if !isempty(bathy_subset_path) && isfile(bathy_subset_path)
                 bathy_subset = Raster(bathy_subset_path)
             else
-                bathy_dataset = Raster(bathy_fullset_path; lazy=true)
-                bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
+                bathy_dataset::Raster = Raster(bathy_fullset_path; lazy=true)
+                bathy_subset::Raster = read(Rasters.crop(bathy_dataset; to=subset.geom))
                 if !isempty(bathy_subset_path)
                     write(bathy_subset_path, bathy_subset; force=true)
                 end
@@ -134,17 +129,6 @@ function read_and_polygonize_exclusions(
         end
     end
     return exclusion_zones_df
-end
-function read_and_polygonize_exclusions(
-    bathy_fullset_path::String,
-    vessel_draft::Float64,
-    subset::DataFrame,
-)::DataFrame
-    bathy_dataset::Raster = Raster(bathy_fullset_path; lazy=true)
-    bathy_subset::Raster = read(Rasters.crop(bathy_dataset; to=subset.geom))
-    exclusion_zones::Raster{Bool} = create_exclusion_zones(bathy_subset, vessel_draft)
-
-    return polygonize_binary(exclusion_zones)
 end
 
 """
