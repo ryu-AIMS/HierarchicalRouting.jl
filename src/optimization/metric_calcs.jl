@@ -37,7 +37,7 @@ function sortie_dist(
 )::Vector{Float64}
     sorties = filter(!isempty, sorties)
     n = length(sorties)
-    sortie_dist = Vector{Float64}(undef, n)
+    total_dist = Vector{Float64}(undef, n)
 
     for i in 1:n
         tour = sorties[i]
@@ -47,9 +47,9 @@ function sortie_dist(
         dist += m > 1 ? sum(getindex.(Ref(dist_matrix), tour[1:m-1], tour[2:m])) : 0.0
         dist += dist_matrix[tour[end], 1] # dist from last node back to depot
 
-        sortie_dist[i] = dist
+        total_dist[i] = dist
     end
-    return sortie_dist
+    return total_dist
 end
 
 """
