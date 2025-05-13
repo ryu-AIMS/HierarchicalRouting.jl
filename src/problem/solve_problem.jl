@@ -1,6 +1,9 @@
 
 """
-    initial_solution(problem::Problem)::MSTSolution
+    initial_solution(
+        problem::Problem,
+        disturbance_clusters::Set{Int64} = Set{Int64}()
+    )::MSTSolution
 
 Generate a solution to the problem for:
 - the mothership by using the nearest neighbour heuristic to generate an initial solution,
@@ -9,49 +12,173 @@ Generate a solution to the problem for:
 
 # Arguments
 - `problem`: Problem instance to solve
+- `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 
 # Returns
 Best total MSTSolution found
 """
-function initial_solution(problem::Problem)::MSTSolution
+function initial_solution(
+    problem::Problem,
+    num_clusters::Int8,
+    cluster_tolerance::Float64,
+    disturbance_clusters::Set{Int64} = Set{Int64}()
+)::MSTSolution
     # Load problem data
-    clusters::Vector{Cluster} = cluster_problem(problem);
+    clusters::Vector{Cluster} = cluster_problem(
+        problem,
+        num_clusters,
+        cluster_tolerance,
+    );
+    cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
-    cluster_centroids_df::DataFrame = DataFrame(
-        id  = [0; 1:length(clusters)],
-        lon = [problem.depot[1]; [clust.centroid[1] for clust in clusters]],
-        lat = [problem.depot[2]; [clust.centroid[2] for clust in clusters]]
+    ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
+    clust_seq::Vector{Int64} = filter(
+        i -> i != 0 && i <= length(clusters),
+        ms_route.cluster_sequence.id
+    )
+
+    tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
+    cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
+    ms_soln_sets = Vector{MothershipSolution}(undef, length(disturbance_clusters)+1)
+
+    cluster_set[1] = clusters
+    ms_soln_sets[1] = ms_route
+
+    i = 1
+    disturbance_index = 1
+    while i <= length(clust_seq)
+        cluster_id::Int64 = clust_seq[i];
+        if i ∈ disturbance_clusters
+            @info "Disturbance event at $(ms_route.route.nodes[2i-1]): before $(i)th cluster_id=$(cluster_id)"
+            disturbance_index += 1
+            clusters = vcat(
+                clusters[clust_seq][1:i-1],
+                disturb_clusters(
+                    clusters[clust_seq][i:end],
+                    problem.targets.disturbance_gdf,
+                    ms_route.route.nodes[2i-1],
+                    problem.tenders.exclusion
+                )
+            )
+
+            removed_nodes = setdiff(
+                vcat([c.nodes for c in cluster_set[disturbance_index-1]]...),
+                vcat([c.nodes for c in clusters]...)
+            )
+            if !isempty(removed_nodes)
+                @info "Removed nodes due to disturbance event (since previous cluster):\n" *
+                "\t$(join(removed_nodes, "\n\t"))"
+            end
+
+            sort!(clusters, by = x -> x.id)
+            cluster_set[disturbance_index] = clusters
+
+            cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
+
+            ms_soln_sets[disturbance_index] = ms_route = optimize_mothership_route(
+                problem,
+                cluster_centroids_df,
+                i,
+                ms_route,
+                getfield.(clusters[clust_seq][1:i-1], :id)
+            )
+            clust_seq = filter(
+                i -> i != 0 && i <= length(clusters),
+                ms_route.cluster_sequence.id
+            );
+        end
+
+        start_waypoint::Point{2, Float64} = ms_route.route.nodes[2i]
+        end_waypoint::Point{2, Float64} = ms_route.route.nodes[2i + 1]
+        cluster::Cluster = clusters[clust_seq][i]
+        @info "$(i): Clust $(cluster.id) from $(start_waypoint) to $(end_waypoint)"
+
+        tender_soln[i] = tender_sequential_nearest_neighbour(
+            cluster,
+            (start_waypoint, end_waypoint),
+            problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion
+        )
+        i+=1
+    end
+
+    return MSTSolution(cluster_set, ms_soln_sets, tender_soln)
+end
+
+"""
+    optimize_mothership_route(
+        problem::Problem,
+        cluster_centroids_df::DataFrame
+    )::MothershipSolution
+    optimize_mothership_route(
+        problem::Problem,
+        cluster_centroids_df::DataFrame,
+        cluster_seq_idx::Int64,
+        ms_route::MothershipSolution,
+        cluster_ids_visited::Vector{Int64}
+    )::MothershipSolution
+
+Generate an optimized mothership route using the nearest neighbour heuristic and 2-opt for:
+- the whole mothership route to/from the depot, or
+- the remaining/partial mothership route to clusters based on current position.
+
+# Arguments
+- `problem`: Problem instance to solve
+- `cluster_centroids_df`: DataFrame containing cluster centroids
+- `cluster_seq_idx`: Index of the cluster sequence
+- `ms_route`: Current mothership route
+- `cluster_ids_visited`: Vector of cluster IDs that have been visited
+
+# Returns
+- The optimized mothership route as a `MothershipSolution` object.
+"""
+function optimize_mothership_route(
+    problem::Problem,
+    cluster_centroids_df::DataFrame
+)::MothershipSolution
+        # Nearest Neighbour to generate initial mothership route & matrix
+        ms_soln_NN::MothershipSolution = nearest_neighbour(
+            cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
+        );
+
+        # 2-opt to improve the NN soln
+        ms_soln_2opt::MothershipSolution = two_opt(
+            ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
+        );
+    return ms_soln_2opt
+end
+function optimize_mothership_route(
+    problem::Problem,
+    cluster_centroids_df::DataFrame,
+    cluster_seq_idx::Int64,
+    ms_route::MothershipSolution,
+    cluster_ids_visited::Vector{Int64}
+)::MothershipSolution
+    start_point::Point{2, Float64} =  ms_route.route.nodes[2 * cluster_seq_idx - 1]
+
+    remaining_clusters_df::DataFrame = filter(
+        row -> row.id ∉ cluster_ids_visited,
+        cluster_centroids_df
     )
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN::MothershipSolution = nearest_neighbour(
-        cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
+        remaining_clusters_df,
+        problem.mothership.exclusion,
+        problem.tenders.exclusion,
+        start_point,
+        ms_route,
+        cluster_seq_idx
     );
 
     # 2-opt to improve the NN soln
     ms_soln_2opt::MothershipSolution = two_opt(
-        ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
+        ms_soln_NN,
+        problem.mothership.exclusion,
+        problem.tenders.exclusion,
+        cluster_seq_idx
     );
 
-    clust_seq::Vector{Int64} = filter(
-        i -> i != 0 && i <= length(clusters),
-        ms_soln_2opt.cluster_sequence.id
-    )
-    tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
-
-    for (i, cluster_id) in enumerate(clust_seq)
-        start_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i]
-        end_waypoint::Point{2, Float64} =  ms_soln_2opt.route.nodes[2 * i + 1]
-        @info "$(i): Clust $(cluster_id) from $(start_waypoint) to $(end_waypoint)"
-
-        tender_soln[i] = tender_sequential_nearest_neighbour(
-            clusters[cluster_id],
-            (start_waypoint, end_waypoint),
-            problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion
-        )
-    end
-
-    return MSTSolution(clusters, ms_soln_2opt, tender_soln)
+    return ms_soln_2opt
 end
 
 """
