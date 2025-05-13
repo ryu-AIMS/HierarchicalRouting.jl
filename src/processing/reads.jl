@@ -65,9 +65,8 @@ end
         bathy_fullset_path::String,
         vessel_draft::Float64,
         subset::DataFrame,
-        bathy_subset_path::String="",
-        exclusion_gpkg_path::String="",
-        exclusion_tif_path::String=""
+        file_name::String,
+        output_dir::String="",
     )::DataFrame
 
 Create exclusion zones from environmental constraints.
@@ -76,9 +75,8 @@ Create exclusion zones from environmental constraints.
 - `bathy_fullset_path`: The path to the full bathymetry dataset.
 - `vessel_draft`: The vessel draft/depth.
 - `subset`: The DataFrame containing the study area boundary.
-- `bathy_subset_path`: The path to the subset bathymetry dataset.
-- `exclusion_gpkg_path`: The path to the exclusion zones GeoPackage.
-- `exclusion_tif_path`: The path to the exclusion zones raster.
+- `file_name`: The name of the output file.
+- `output_dir`: The directory to save the output files.
 
 # Returns
 The DataFrame containing the exclusion zones.
@@ -87,46 +85,42 @@ function read_and_polygonize_exclusions(
     bathy_fullset_path::String,
     vessel_draft::Float64,
     subset::DataFrame,
-    bathy_subset_path::String="",
-    exclusion_gpkg_path::String="",
-    exclusion_tif_path::String=""
+    file_name::String,
+    output_dir::String="",
 )::DataFrame
+    exclusion_gpkg_path::String = joinpath(output_dir, "$(file_name).gpkg")
     # TODO: Generalize for all available environmental constraints
     # TODO: Generalize for ms and tender vessels
     # Create exclusion zones from environmental constraints
-    exclusion_zones_df::DataFrame = DataFrame()
-    if !isempty(exclusion_gpkg_path) && isfile(exclusion_gpkg_path)
+    # Main.@infiltrate
+    if isfile(exclusion_gpkg_path)
         exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     else
-        if !isempty(exclusion_tif_path) && isfile(exclusion_tif_path)
+        exclusion_tif_path::String = joinpath(output_dir, "$(file_name).tif")
+        if isfile(exclusion_tif_path)
             exclusion_zones_int::Raster = Raster(exclusion_tif_path)
             exclusion_zones_bool = exclusion_zones_int .!= 0
         else
             # Load environmental constraints
             # Bathymetry
-            if !isempty(bathy_subset_path) && isfile(bathy_subset_path)
+            bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
+            if isfile(bathy_subset_path)
                 bathy_subset = Raster(bathy_subset_path)
             else
-                bathy_dataset::Raster = Raster(bathy_fullset_path; lazy=true)
-                bathy_subset::Raster = read(Rasters.crop(bathy_dataset; to=subset.geom))
-                if !isempty(bathy_subset_path)
-                    write(bathy_subset_path, bathy_subset; force=true)
-                end
+                bathy_dataset = Raster(bathy_fullset_path; lazy=true)
+                bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
+                write(bathy_subset_path, bathy_subset; force=true)
             end
 
             exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
-            if !isempty(exclusion_tif_path)
-                write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
-            end
+            write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
         end
 
         exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
-        if !isempty(exclusion_gpkg_path)
-            GDF.write(
-                exclusion_gpkg_path,
-                exclusion_zones_df;
-            )
-        end
+        GDF.write(
+            exclusion_gpkg_path,
+            exclusion_zones_df;
+        )
     end
     return exclusion_zones_df
 end

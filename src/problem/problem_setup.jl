@@ -71,7 +71,7 @@ Load the problem data to create a `Problem` object from given parameters.
 - `n_tenders`: The number of tenders.
 - `t_cap`: The capacity of the tenders.
 - `target_subset_path`: The path to save the target subset raster. Default is "".
-- `output_dir`: The directory to save output files. Default is "".
+- `output_dir`: The directory to save output files. Default is "outputs/".
 - `debug_mode`: A boolean flag to enable debug mode. Default = false.
      - If `debug_mode=true`, the function will not write to the output directory.
 
@@ -91,7 +91,7 @@ function load_problem(
     n_tenders::Int8,
     t_cap::Int16;
     target_subset_path::String = "",
-    output_dir::String = "",
+    output_dir::String = "outputs/",
     debug_mode::Bool = false,
 )::Problem
     subset = GDF.read(subset_path)
