@@ -68,6 +68,11 @@ end
         file_name::String,
         output_dir::String="",
     )::DataFrame
+    read_and_polygonize_exclusions(
+        bathy_fullset_path::String,
+        vessel_draft::Float64,
+        subset::DataFrame,
+    )::DataFrame
 
 Create exclusion zones from environmental constraints.
 
@@ -92,7 +97,6 @@ function read_and_polygonize_exclusions(
     # TODO: Generalize for all available environmental constraints
     # TODO: Generalize for ms and tender vessels
     # Create exclusion zones from environmental constraints
-    # Main.@infiltrate
     if isfile(exclusion_gpkg_path)
         exclusion_zones_df = GDF.read(exclusion_gpkg_path)
     else
@@ -123,6 +127,16 @@ function read_and_polygonize_exclusions(
         )
     end
     return exclusion_zones_df
+end
+function read_and_polygonize_exclusions(
+    bathy_fullset_path::String,
+    vessel_draft::Float64,
+    subset::DataFrame,
+)::DataFrame
+    bathy_dataset::Raster = Raster(bathy_fullset_path; lazy=true)
+    bathy_subset::Raster = read(Rasters.crop(bathy_dataset; to=subset.geom))
+    exclusion_zones::Raster{Bool} = create_exclusion_zones(bathy_subset, vessel_draft)
+    return polygonize_binary(exclusion_zones)
 end
 
 """
