@@ -1,9 +1,9 @@
 @testset "Initialize problem" begin
     @testset "Initialize with geojson file" begin
-        _target_scenario_path="test_target_locations.geojson"
-        _subset_path="test_target_area.gpkg"
-        _bathy_path="test_bathy.tif"
-        _wave_disturbance_path="test_env_disturbances.geojson"
+        _target_scenario_path="data/test_target_locations.geojson"
+        _subset_path="data/test_target_area.gpkg"
+        _bathy_path="data/test_bathy.tif"
+        _wave_disturbance_path="data/test_env_disturbances.geojson"
 
         depot = Point{2, Float64}(146.175, -16.84)
         draft_ms = -10.0,
