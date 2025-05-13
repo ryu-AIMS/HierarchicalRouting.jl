@@ -1,6 +1,5 @@
 
 using Glob
-using TOML
 
 @kwdef struct Vessel
     exclusion::DataFrame
@@ -54,7 +53,7 @@ end
         t_cap::Int16;
         target_subset_path::String = "",
         output_dir::String = "",
-        debug_mode::Bool = TOML.parsefile(".config.toml")["DEBUG"]["debug_mode"],
+        debug_mode::Bool = false,
     )::Problem
 
 Load the problem data to create a `Problem` object from given parameters.
@@ -73,7 +72,7 @@ Load the problem data to create a `Problem` object from given parameters.
 - `t_cap`: The capacity of the tenders.
 - `target_subset_path`: The path to save the target subset raster. Default is "".
 - `output_dir`: The directory to save output files. Default is "".
-- `debug_mode`: A boolean flag to enable debug mode. Default is taken from the config file.
+- `debug_mode`: A boolean flag to enable debug mode. Default = false.
      - If `debug_mode=true`, the function will not write to the output directory.
 
 # Returns
@@ -93,7 +92,7 @@ function load_problem(
     t_cap::Int16;
     target_subset_path::String = "",
     output_dir::String = "",
-    debug_mode::Bool = TOML.parsefile(".config.toml")["DEBUG"]["debug_mode"],
+    debug_mode::Bool = false,
 )::Problem
     subset = GDF.read(subset_path)
     subset_bbox = get_bbox_bounds_from_df(subset)

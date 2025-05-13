@@ -17,17 +17,6 @@ In the Julia REPL:
 
 ### Configure problem
 
-Define a configuration file named `.config.toml` in the project root.
-This file should now only contain the debug configuration.
-Below is an example:
-
-```toml
-[DEBUG]
-debug_mode = false          # Set to false to disable result caching for debugging purposes
-```
-
-By convention, this file is named `.config.toml` (note the leading `.`).
-
 All other problem parameters (data paths, vessel capacities, clustering tolerance, etc.)
 must be provided by the user directly as arguments to the `load_problem()` and
 `solve_problem()` functions.
@@ -184,7 +173,6 @@ julia project=.
 ### Run a development script
 
 - Copy the quickstart to a file (e.g., `dev_routing.jl`) and save to the sandbox directory.
-- Create the `.config.toml` file and save to the sandbox directory.
 - Start the Julia REPL at project root:
 (Assuming VS Code is configured to default to the sandbox environment)
 
