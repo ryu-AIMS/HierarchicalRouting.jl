@@ -5,9 +5,11 @@
         _bathy_path="data/test_bathy.tif"
         _wave_disturbance_path="data/test_env_disturbances.geojson"
 
-        depot = Point{2, Float64}(146.175, -16.84)
-        draft_ms = -10.0,
-        draft_t = -5.0,
+        using GeometryBasics
+
+        depot = GeometryBasics.Point{2, Float64}(146.175, -16.84)
+        draft_ms = Float64(-10.0)
+        draft_t = Float64(-5.0)
         weight_ms = Float16(5.0)
         weight_t = Float16(2.0)
         n_tenders = Int8(3)
@@ -24,10 +26,11 @@
         weight_ms,
         weight_t,
         n_tenders,
-        t_cap,
+        t_cap;
+        debug_mode=true
     );
 
         @test problem isa HierarchicalRouting.Problem
-        @test problem.scenario_name == _target_scenario_name
+        @test problem.targets.path == _target_scenario_path
     end
 end
