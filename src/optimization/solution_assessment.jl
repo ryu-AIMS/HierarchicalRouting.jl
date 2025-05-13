@@ -136,25 +136,19 @@ function perturb_swap_solution(
         return soln
     end
 
+    # Swap two random nodes across the two sorties
     node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))
-
-    # Swap the nodes
     node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
     sortie_a.nodes[node_a_idx] = node_b
     sortie_b.nodes[node_b_idx] = node_a
 
-    # Recompute updated geometry and distances
-    tours_a = [[tender_a.start]; sortie_a.nodes; [tender_a.finish]]
-    tours_b = [[tender_b.start]; sortie_b.nodes; [tender_b.finish]]
-
-    updated_linestrings::Vector{Vector{Vector{LineString{2, Float64}}}} = getindex.(
-        get_feasible_vector.([tours_a, tours_b], Ref(exclusions)), 2
-    )
-
-    updated_tender_matrices::Vector{Matrix{Float64}} = getindex.(get_feasible_matrix.(
-        [tours_a, tours_b],
-        Ref(exclusions)
-    ), 1)
+    # Update routes for modified sorties
+    tours = [
+        [[tender_a.start]; sortie_a.nodes; [tender_a.finish]],
+        [[tender_b.start]; sortie_b.nodes; [tender_b.finish]]
+    ]
+    updated_linestrings = getindex.(get_feasible_vector.(tours, Ref(exclusions)), 2)
+    updated_tender_matrices = getindex.(get_feasible_matrix.(tours, Ref(exclusions)), 1)
 
     sorties_a[sortie_a_idx] = Route(
         sortie_a.nodes,
