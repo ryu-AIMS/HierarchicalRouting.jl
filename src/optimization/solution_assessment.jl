@@ -225,6 +225,37 @@ function perturb_swap_solution(
 end
 
 """
+    find_unallocated_nodes(
+        soln::MSTSolution
+    )::Set{Point{2, Float64}}
+
+Find nodes that are not allocated to any sortie in the solution.
+
+# Arguments
+- `soln`: Solution to find unallocated nodes in.
+
+# Returns
+ A set of unallocated nodes.
+"""
+function find_unallocated_nodes(
+    soln::MSTSolution
+)::Set{Point{2, Float64}}
+    clusters = soln.cluster_sets[end]
+    tenders = soln.tenders
+    cluster_sorties = getfield.(tenders, :sorties)
+
+    all_nodes::Set{Point{2, Float64}} = Set(vcat(getfield.(clusters, :nodes)...))
+    allocated_nodes::Set{Point{2, Float64}} = Set(
+        collect(Base.Iterators.flatten(
+            getfield.(Base.Iterators.flatten(cluster_sorties), :nodes))
+        )
+    )
+    unallocated_nodes = setdiff(all_nodes, allocated_nodes)
+
+    return unallocated_nodes
+end
+
+"""
     simulated_annealing(
         soln_init::MSTSolution,
         objective_function::Function,
