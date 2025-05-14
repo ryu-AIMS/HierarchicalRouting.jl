@@ -163,6 +163,16 @@ function perturb_swap_solution(
         vcat(updated_linestrings[2]...)
     )
 
+    # Re-compute sorties for the modified clusters
+    sorties_a = [
+        i == sortie_a_idx ? sortie_a : tender_a.sorties[i]
+        for i in 1:length(tender_a.sorties)
+    ]
+    sorties_b = [
+        i == sortie_b_idx ? sortie_b : tender_b.sorties[i]
+        for i in 1:length(tender_b.sorties)
+    ]
+
     tenders_all::Vector{TenderSolution} = copy(soln.tenders)
     tenders_all[clust_a_seq_idx] = TenderSolution(
         tender_a.id,
