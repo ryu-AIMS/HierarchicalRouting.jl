@@ -214,7 +214,14 @@ function perturb_swap_solution(
         tender_b.dist_matrix
     )
 
-    return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_all)
+    # Create new perturbed solution
+    soln_perturbed = MSTSolution(
+        [new_clusters],
+        [soln.mothership_routes[end]],
+        tenders_all
+    )
+
+    return soln_perturbed
 end
 
 """
