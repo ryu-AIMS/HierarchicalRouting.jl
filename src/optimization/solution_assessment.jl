@@ -123,10 +123,10 @@ function perturb_swap_solution(
     cluster_pair::Tuple{Int, Int},
     exclusions::DataFrame = DataFrame()
 )::MSTSolution
-    clust_a_idx, clust_b_idx = cluster_pair
-    tender_a = deepcopy(soln.tenders[clust_a_idx])
-    tender_b = deepcopy(soln.tenders[clust_b_idx])
-    sorties_a, sorties_b = tender_a.sorties, tender_b.sorties
+    clust_a_seq_idx, clust_b_seq_idx = cluster_pair
+
+    tender_a = soln.tenders[clust_a_seq_idx]
+    tender_b = soln.tenders[clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
     sortie_a_idx = rand(1:length(tender_a.sorties))
@@ -152,27 +152,26 @@ function perturb_swap_solution(
     updated_linestrings = getindex.(get_feasible_vector.(tours, Ref(exclusions)), 2)
     updated_tender_matrices = getindex.(get_feasible_matrix.(tours, Ref(exclusions)), 1)
 
-    sorties_a[sortie_a_idx] = Route(
+    sortie_a = Route(
         sortie_a.nodes,
         updated_tender_matrices[1],
         vcat(updated_linestrings[1]...)
     )
-
-    sorties_b[sortie_b_idx] = Route(
+    sortie_b = Route(
         sortie_b.nodes,
         updated_tender_matrices[2],
         vcat(updated_linestrings[2]...)
     )
 
     tenders_all::Vector{TenderSolution} = copy(soln.tenders)
-    tenders_all[clust_a_idx] = TenderSolution(
+    tenders_all[clust_a_seq_idx] = TenderSolution(
         tender_a.id,
         tender_a.start,
         tender_a.finish,
         sorties_a,
         tender_a.dist_matrix
     )
-    tenders_all[clust_b_idx] = TenderSolution(
+    tenders_all[clust_b_seq_idx] = TenderSolution(
         tender_b.id,
         tender_b.start,
         tender_b.finish,
