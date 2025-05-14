@@ -129,8 +129,10 @@ function perturb_swap_solution(
     sorties_a, sorties_b = tender_a.sorties, tender_b.sorties
 
     # Pick random sorties and ensure both have nodes
-    sortie_a_idx, sortie_b_idx = rand(1:length(sorties_a)), rand(1:length(sorties_b))
-    sortie_a, sortie_b = sorties_a[sortie_a_idx], sorties_b[sortie_b_idx]
+    sortie_a_idx = rand(1:length(tender_a.sorties))
+    sortie_b_idx = rand(1:length(tender_b.sorties))
+    sortie_a = deepcopy(tender_a.sorties[sortie_a_idx])
+    sortie_b = deepcopy(tender_b.sorties[sortie_b_idx])
 
     if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
         return soln
