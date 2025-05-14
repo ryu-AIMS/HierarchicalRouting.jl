@@ -150,16 +150,16 @@ function perturb_swap_solution(
         [[tender_b.start]; sortie_b.nodes; [tender_b.finish]]
     ]
     updated_linestrings = getindex.(get_feasible_vector.(tours, Ref(exclusions)), 2)
-    updated_tender_matrices = getindex.(get_feasible_matrix.(tours, Ref(exclusions)), 1)
+    updated_sortie_matrices = getindex.(get_feasible_matrix.(tours, Ref(exclusions)), 1)
 
     sortie_a = Route(
         sortie_a.nodes,
-        updated_tender_matrices[1],
+        updated_sortie_matrices[1],
         vcat(updated_linestrings[1]...)
     )
     sortie_b = Route(
         sortie_b.nodes,
-        updated_tender_matrices[2],
+        updated_sortie_matrices[2],
         vcat(updated_linestrings[2]...)
     )
 
