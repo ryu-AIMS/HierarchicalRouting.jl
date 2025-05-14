@@ -173,6 +173,31 @@ function perturb_swap_solution(
         for i in 1:length(tender_b.sorties)
     ]
 
+    # Update new clusters
+    new_clusters::Vector{Cluster} = deepcopy(soln.cluster_sets[end])
+
+    cluster_a_idx = tender_a.id
+    cluster_b_idx = tender_b.id
+    nodes_a = new_clusters[cluster_a_idx].nodes
+    nodes_b = new_clusters[cluster_b_idx].nodes
+
+    # Swap nodes between clusters
+    node_a_idx_clust = findfirst(isequal(node_a), nodes_a)
+    node_b_idx_clust = findfirst(isequal(node_b), nodes_b)
+    nodes_a[node_a_idx_clust] = node_b
+    nodes_b[node_b_idx_clust] = node_a
+
+    centroid_a, centroid_b = Point{2, Float64}.([
+        (mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2))),
+        (mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
+    ])
+
+    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] = Cluster.(
+        [cluster_a_idx, cluster_b_idx],
+        [centroid_a, centroid_b],
+        [nodes_a, nodes_b],
+    )
+
     tenders_all::Vector{TenderSolution} = copy(soln.tenders)
     tenders_all[clust_a_seq_idx] = TenderSolution(
         tender_a.id,
