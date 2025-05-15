@@ -222,7 +222,12 @@ function shortest_feasible_path(
     points_to = Point{2,Float64}[]
     exclusion_idxs = Int[]
     # If initial point is not within an exclusion zone
-    if iszero(initial_exclusion_idx)
+    if is_visible(initial_point, final_point, exclusions)
+        # If initial point is within an exclusion zone and visible to final point
+        push!(points_from, initial_point)
+        push!(points_to, final_point)
+        push!(exclusion_idxs, initial_exclusion_idx)
+    elseif iszero(initial_exclusion_idx)
         build_network!(
             points_from,
             points_to,
@@ -233,16 +238,6 @@ function shortest_feasible_path(
             final_exclusion_idx
         )
     else
-        if is_visible(
-            initial_point,
-            final_point,
-            exclusions[initial_exclusion_idx, :geometry]
-        )
-            # If initial point is within an exclusion zone and visible to final point
-            push!(points_from, initial_point)
-            push!(points_to, final_point)
-            push!(exclusion_idxs, initial_exclusion_idx)
-        else
             # Collect all visible polygon vertices
             initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
                 initial_exclusion_idx, :geometry
@@ -266,6 +261,7 @@ function shortest_feasible_path(
                 append!(points_from, fill(initial_point, n_vis_verts))
                 append!(points_to, visible_vertices)
                 append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_verts))
+        end
 
                 # For each polygon vertex, add edges to all visible vertices
                 for i in poly_vertices
@@ -290,8 +286,6 @@ function shortest_feasible_path(
                         push!(points_to, final_point)
                         push!(exclusion_idxs, initial_exclusion_idx)
                     end
-                end
-            end
 
             # Get widest points to final point on polygon contianing initial point
             #! Note that to/from points are inverted in find_widest_points() because
