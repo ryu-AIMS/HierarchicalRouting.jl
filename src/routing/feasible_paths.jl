@@ -482,7 +482,7 @@ function build_graph(
 )::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
     is_polygon = !AG.isempty(final_polygon)
 
-    poly_vertices::Vector{Point{2, Float64}} = is_polygon ?
+    final_poly_verts::Vector{Point{2, Float64}} = is_polygon ?
         collect_polygon_vertices(final_polygon) :
         Point{2, Float64}[]
 
@@ -492,7 +492,7 @@ function build_graph(
         vcat(points_from, points_to, [final_point])
     )
 
-    unique_points::Vector{Point{2, Float64}} = unique(vcat(chain_points, poly_vertices))
+    unique_points::Vector{Point{2, Float64}} = unique(vcat(chain_points, final_poly_verts))
     n_points::Int = length(unique_points)
 
     # Create the graph with one vertex per unique point.
@@ -515,11 +515,11 @@ function build_graph(
         if !is_visible(initial_point, final_point, final_polygon)
 
             # Add edges connecting any visible polygon vertices to other polyogn vertices
-            for i in poly_vertices #i_vertices
-                visibility_mask = (poly_vertices .!= i) .&
-                    is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+            for i in final_poly_verts
+                visibility_mask = (final_poly_verts .!= i) .&
+                    is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
 
-                visible_points = poly_vertices[visibility_mask]
+                visible_points = final_poly_verts[visibility_mask]
 
                 if !isempty(visible_points)
                     # Compute indices for all visible points and distances in one go.
@@ -532,27 +532,27 @@ function build_graph(
                 end
             end
 
-            # Connect all visible points to polygon vertices
-            for i in poly_vertices
-            visible_points = filter(pt -> is_visible(i, pt, exclusions), chain_points)
-            if !isempty(visible_points)
-                # Compute indices for all visible points and distances in one go.
-                add_edge!.(
-                    Ref(graph),
-                    Ref(pt_to_idx[i]),
-                    map(pt -> pt_to_idx[pt], visible_points),
-                    haversine.(Ref(i), visible_points)
-                )
+            # Connect all chain points to visible polygon vertices
+            for i in final_poly_verts
+                visible_points = filter(pt -> is_visible(i, pt, exclusions), chain_points)
+                if !isempty(visible_points)
+                    # Compute indices for all visible points and distances in one go.
+                    add_edge!.(
+                        Ref(graph),
+                        Ref(pt_to_idx[i]),
+                        map(pt -> pt_to_idx[pt], visible_points),
+                        haversine.(Ref(i), visible_points)
+                    )
+                end
             end
-        end
 
-        # Connect polygon vertices if not complete loop
-        if poly_vertices[1] != poly_vertices[end]
-            add_edge!(
-                graph,
-                pt_to_idx[poly_vertices[end]],
-                pt_to_idx[poly_vertices[1]],
-                    haversine(poly_vertices[end], poly_vertices[1])
+            # Connect polygon vertices if not complete loop
+            if final_poly_verts[1] != final_poly_verts[end]
+                add_edge!(
+                    graph,
+                    pt_to_idx[final_poly_verts[end]],
+                    pt_to_idx[final_poly_verts[1]],
+                    haversine(final_poly_verts[end], final_poly_verts[1])
                 )
             end
         else
