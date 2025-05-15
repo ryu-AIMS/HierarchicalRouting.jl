@@ -257,23 +257,23 @@ function shortest_feasible_path(
                 # Connect initial point to every visible polygon vertex
                 n_vis_verts = length(visible_vertices)
 
-                append!(points_from, fill(initial_point, n_vis_verts))
-                append!(points_to, visible_vertices)
-                append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_verts))
+            append!(points_from, fill(initial_point, n_vis_verts))
+            append!(points_to, visible_vertices)
+            append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_verts))
+
+            #? Connect initial point to all visible vertices on final polygon?
         end
 
-                # For each polygon vertex, add edges to all visible vertices
-                for i in poly_vertices
-                    # Check visibility of all polygon vertices from the current vertex `i`
-                    visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+        # For each polygon vertex, add edges to all visible vertices
+        for i in poly_vertices
+            # Check visibility of all polygon vertices from the current vertex `i`
+            visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+            vis_pts_from_i = poly_vertices[visibility_mask]
+            n_vis_pts_from_i = length(vis_pts_from_i)
 
-                    # Get all visible vertices from `i`
-                    vis_pts_from_i = poly_vertices[visibility_mask]
-                    n_vis_pts_from_i = length(vis_pts_from_i)
-
-                    if !isempty(vis_pts_from_i)
-                        append!(points_from, fill(i, n_vis_pts_from_i))
-                        append!(points_to, vis_pts_from_i)
+            if !isempty(vis_pts_from_i)
+                append!(points_from, fill(i, n_vis_pts_from_i))
+                append!(points_to, vis_pts_from_i)
                         append!(
                             exclusion_idxs,
                             fill(initial_exclusion_idx, n_vis_pts_from_i)
