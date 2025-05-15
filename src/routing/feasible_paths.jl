@@ -284,28 +284,27 @@ function shortest_feasible_path(
                         push!(points_from, i)
                         push!(points_to, final_point)
                         push!(exclusion_idxs, initial_exclusion_idx)
-                    end
-
-            # Get widest points to final point on polygon contianing initial point
-            #! Note that to/from points are inverted in find_widest_points() because
-            #! initial point is in convex hull of polygon
-            widest_verts = find_widest_points(
-                final_point,
-                initial_point,
-                DataFrame(exclusions[initial_exclusion_idx,:])
-            )[1]
-
-            # Continue building network from each of widest vertices to final point
-            build_network!.(
-                [points_from],
-                [points_to],
-                [exclusion_idxs],
-                widest_verts,
-                [final_point],
-                [exclusions],
-                [final_exclusion_idx]
-            )
+            end
         end
+
+        # Connect widest_verts (from final point) to existing network
+        #! Note that final/initial points are inverted
+        widest_verts = find_widest_points(
+            final_point,
+            initial_point,
+            DataFrame(exclusions[initial_exclusion_idx,:])
+        )[1]
+
+        build_network!.(
+            Ref(points_from),
+            Ref(points_to),
+            Ref(exclusion_idxs),
+            widest_verts,
+            Ref(final_point),
+            Ref(exclusions),
+            Ref(final_exclusion_idx)
+        )
+
     end
 
     # Build graph from network of points
