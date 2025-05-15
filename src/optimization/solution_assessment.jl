@@ -148,6 +148,66 @@ function perturb_swap_solution(
     sortie_a.nodes[node_a_idx] = node_b
     sortie_b.nodes[node_b_idx] = node_a
 
+    # Update new clusters
+    new_clusters::Vector{Cluster} = deepcopy(soln.cluster_sets[end])
+
+    cluster_a_idx = tender_a.id
+    cluster_b_idx = tender_b.id
+    nodes_a = new_clusters[cluster_a_idx].nodes
+    nodes_b = new_clusters[cluster_b_idx].nodes
+
+    # Swap nodes between clusters
+    node_a_idx_clust = findfirst(isequal(node_a), nodes_a)
+    node_b_idx_clust = findfirst(isequal(node_b), nodes_b)
+    nodes_a[node_a_idx_clust] = node_b
+    nodes_b[node_b_idx_clust] = node_a
+
+    centroid_a, centroid_b = Point{2, Float64}.([
+        (mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2))),
+        (mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
+    ])
+
+    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] = Cluster.(
+        [cluster_a_idx, cluster_b_idx],
+        [centroid_a, centroid_b],
+        [nodes_a, nodes_b],
+    )
+
+    # Update mothership route and waypoints based on updated clusters
+    cluster_seq_ids = getfield.(soln.tenders, :id)
+    cluster_centroids = getfield.(new_clusters, :centroid)
+    ordered_cluster_centroids = cluster_centroids[cluster_seq_ids]
+    depot = soln.mothership_routes[end].route.nodes[1]
+    full_ms_route_pts = [[depot]; ordered_cluster_centroids; [depot]]
+
+    cluster_sequence = DataFrame(
+        id = [0; cluster_seq_ids; 0],
+        lon = getindex.(full_ms_route_pts, 1),
+        lat = getindex.(full_ms_route_pts, 2)
+    )
+
+    updated_waypoints = get_waypoints(cluster_sequence, exclusions_mothership)
+    waypoint_path_vector = get_feasible_vector(
+        updated_waypoints.waypoint,
+        exclusions_mothership
+    )[2]
+
+    ordered_clusters = sort(cluster_sequence[1:end-1, :], :id)
+    ordered_centroid_pts = Point{2, Float64}.(ordered_clusters.lon, ordered_clusters.lat)
+    full_ms_route_matrix = get_feasible_matrix(
+        ordered_centroid_pts,
+        exclusions_mothership
+    )[1]
+
+    updated_ms_solution = MothershipSolution(
+        cluster_sequence,
+        Route(
+            updated_waypoints.waypoint,
+            full_ms_route_matrix,
+            vcat(waypoint_path_vector...)
+        )
+    )
+
     # Update routes for modified sorties
     tours = [
         [[tender_a.start]; sortie_a.nodes; [tender_a.finish]],
@@ -183,72 +243,7 @@ function perturb_swap_solution(
         for i in 1:length(tender_b.sorties)
     ]
 
-    # Update new clusters
-    new_clusters::Vector{Cluster} = deepcopy(soln.cluster_sets[end])
-
-    cluster_a_idx = tender_a.id
-    cluster_b_idx = tender_b.id
-    nodes_a = new_clusters[cluster_a_idx].nodes
-    nodes_b = new_clusters[cluster_b_idx].nodes
-
-    # Swap nodes between clusters
-    node_a_idx_clust = findfirst(isequal(node_a), nodes_a)
-    node_b_idx_clust = findfirst(isequal(node_b), nodes_b)
-    nodes_a[node_a_idx_clust] = node_b
-    nodes_b[node_b_idx_clust] = node_a
-
-    centroid_a, centroid_b = Point{2, Float64}.([
-        (mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2))),
-        (mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
-    ])
-
-    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] = Cluster.(
-        [cluster_a_idx, cluster_b_idx],
-        [centroid_a, centroid_b],
-        [nodes_a, nodes_b],
-    )
-
-    cluster_seq_ids = getfield.(soln.tenders, :id)
-    cluster_centroids = getfield.(new_clusters, :centroid)
-    ordered_cluster_centroids = cluster_centroids[cluster_seq_ids]
-    depot = soln.mothership_routes[end].route.nodes[1]
-    full_ms_route_pts = [
-        [depot];
-        ordered_cluster_centroids;
-        [depot]
-    ]
-
-    cluster_sequence = DataFrame(
-        id = [0; cluster_seq_ids; 0],
-        lon = getindex.(full_ms_route_pts, 1),
-        lat = getindex.(full_ms_route_pts, 2)
-    )
-
-    updated_waypoints = get_waypoints(
-        cluster_sequence,
-        exclusions_mothership
-    )
-
-    ordered_clusters = sort(cluster_sequence[1:end-1,:], :id)
-    ordered_centroid_pts = Point{2, Float64}.(ordered_clusters.lon, ordered_clusters.lat)
-    full_ms_route_matrix = get_feasible_matrix(
-        ordered_centroid_pts,
-        exclusions_mothership
-    )[1]
-    waypoint_path_vector = get_feasible_vector(
-        updated_waypoints.waypoint,
-        exclusions_mothership
-    )[2]
-
-    updated_ms_solution = MothershipSolution(
-        cluster_sequence,
-        Route(
-            updated_waypoints.waypoint,
-            full_ms_route_matrix,
-            vcat(waypoint_path_vector...)
-        )
-    )
-
+    # Update tenders with existing start/finish (not yet adjusted)
     tenders_all::Vector{TenderSolution} = copy(soln.tenders)
     tenders_all[clust_a_seq_idx] = TenderSolution(
         tender_a.id,
