@@ -244,16 +244,15 @@ function shortest_feasible_path(
             ]
             poly_vertices::Vector{Point{2, Float64}} = collect_polygon_vertices(
                 initial_polygon
+        )
+        visible_vertices = unique(
+            filter(
+                v ->
+                    v != initial_point &&
+                    is_visible(initial_point, v, exclusions),
+                poly_vertices
             )
-            visible_vertices = poly_vertices[
-                is_visible.(
-                    Ref(initial_point),
-                    poly_vertices,
-                    Ref(exclusions)
-                )
-            ]
-            # filter out initial point from visible vertices
-            visible_vertices = unique(filter(v -> v != initial_point, visible_vertices))
+        )
             if !isempty(visible_vertices)
                 # Connect initial point to every visible polygon vertex
                 n_vis_verts = length(visible_vertices)
@@ -324,9 +323,9 @@ function shortest_feasible_path(
     path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
-    linestring_path::Vector{LineString} = (
-        s -> LineString([idx_to_point[s.src], idx_to_point[s.dst]])
-    ).(path)
+    linestring_path::Vector{LineString} = [
+        LineString([idx_to_point[s.src], idx_to_point[s.dst]]) for s in path
+    ]
 
     return dist, linestring_path
 end
