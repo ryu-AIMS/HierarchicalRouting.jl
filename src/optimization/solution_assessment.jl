@@ -2,7 +2,7 @@
 """
     perturb_swap_solution(
         soln::MSTSolution,
-        clust_idx::Int64=-1,
+        clust_seq_idx_target::Int64=-1,
         exclusions::DataFrame = DataFrame();
         enforce_diff_sortie::Bool = false
     )::MSTSolution
@@ -11,7 +11,8 @@ Perturb the solution by swapping two nodes in a cluster.
 
 # Arguments
 - `soln`: Solution to perturb.
-- `clust_idx`: Index of the cluster to perturb. Default = -1 randomly selects a cluster.
+- `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
+    selects cluster.
 - `exclusions`: DataFrame of exclusions. Default = DataFrame().
 - `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
@@ -20,15 +21,15 @@ Perturbed full solution.
 """
 function perturb_swap_solution(
     soln::MSTSolution,
-    clust_idx::Int64=-1,
+    clust_seq_idx_target::Int64=-1,
     exclusions::DataFrame = DataFrame();
     enforce_diff_sortie::Bool = false
 )::MSTSolution
-    # Choose a random cluster (assume fixed clustering) if none provided
-    clust_idx = clust_idx == -1 ? rand(1:length(soln.tenders)) : clust_idx
+    clust_seq_idx = clust_seq_idx_target == -1 ?
+        rand(1:length(soln.tenders)) :
+        clust_seq_idx_target
 
-    # Copy the tender solution to perturb
-    tender = deepcopy(soln.tenders[clust_idx])
+    tender = deepcopy(soln.tenders[clust_seq_idx])
     sorties = tender.sorties
 
     # If < 2 sorties in cluster, no perturbation possible
@@ -55,11 +56,8 @@ function perturb_swap_solution(
         sortie_length = length(sortie_a.nodes)
         if sortie_length < 2
             return soln
-        elseif sortie_length == 2
-            node_a_idx, node_b_idx = 1, 2
-        else
-            node_a_idx, node_b_idx = shuffle(1:sortie_length)[1:2]
         end
+        node_a_idx, node_b_idx = sortie_length == 2 ? (1, 2) : shuffle(1:sortie_length)[1:2]
     else
         # Chose two random node indices from different sorties
         node_a_idx = rand(1:length(sortie_a.nodes))
@@ -74,8 +72,8 @@ function perturb_swap_solution(
     # TODO:Re-run two-opt on the modified sorties
     # Recompute the feasible paths for the modified sorties
     updated_tender_tours::Vector{Vector{Point{2, Float64}}} = [
-        [[tender.start]; sortie.nodes; [tender.finish]]
-        for sortie in [sortie_a, sortie_b]
+        [[tender.start]; sortie_a.nodes; [tender.finish]],
+        [[tender.start]; sortie_b.nodes; [tender.finish]]
     ]
 
     # Get new linestrings
@@ -84,20 +82,32 @@ function perturb_swap_solution(
         2
     )
 
+    # Get the new feasible distance matrices for the modified sorties
+    updated_tender_matrices::Vector{Matrix{Float64}} = getindex.(get_feasible_matrix.(
+        updated_tender_tours,
+        Ref(exclusions)
+    ), 1)
+
     # Update the modified sorties
     sorties[sortie_a_idx] = Route(
         sortie_a.nodes,
-        sortie_a.dist_matrix,
+        updated_tender_matrices[1],
         vcat(linestrings[1]...)
     )
     sorties[sortie_b_idx] = Route(
         sortie_b.nodes,
-        sortie_b.dist_matrix,
+        updated_tender_matrices[2],
         vcat(linestrings[2]...)
     )
 
-    tenders_all::Vector{TenderSolution} = soln.tenders
-    tenders_all[clust_idx] = tender
+    tenders_all::Vector{TenderSolution} = copy(soln.tenders)
+    tenders_all[clust_seq_idx] = TenderSolution(
+        tender.id,
+        tender.start,
+        tender.finish,
+        sorties,
+        tender.dist_matrix  #? recompute
+    )
 
     return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_all)
 end
@@ -140,29 +150,26 @@ function simulated_annealing(
     cooling_rate::Float64 = 0.95,
     static_limit::Int = 150
 )
-
     # Initialize best solution as initial
-    soln_best = soln_init
+    soln_best = deepcopy(soln_init)
     obj_best = objective_function(soln_init)
-
+    cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
     # TODO: Display cost values for each cluster, rather than total solution cost
-    for clust_idx in 1:length(soln_init.cluster_sets[end])
+    for clust_idx in 1:length(cluster_set)
         # Initialize current solution as best, reset temp
         temp = temp_init
-        soln_current = soln_best
+        soln_current = deepcopy(soln_best)
         obj_current = obj_best
         static_ctr = 0
 
-        @info "\nCluster $(soln_init.cluster_sets[end][clust_idx].id)"
-        @info "Iteration \tBest Value \t\tTemp"
-        @info "0\t\t$obj_best\t$temp"
+        @info "\n\tCluster\t\t$(cluster_set[clust_idx].id)\n\t" *
+            "Iteration \tBest Value \t\tTemp\n\t0\t\t$obj_best\t$temp"
 
         for iteration in 1:max_iterations
             soln_proposed = perturb_function(soln_current, clust_idx, exclusions)
             obj_proposed = objective_function(soln_proposed)
-
-            static_ctr += 1
             improvement = obj_current - obj_proposed
+            static_ctr += 1
 
             # If the new solution is improved OR meets acceptance prob criteria
             if improvement > 0 || exp(improvement / temp) > rand()
@@ -171,7 +178,7 @@ function simulated_annealing(
 
                 if obj_current < obj_best
                     static_ctr = 0
-                    soln_best = soln_current
+                    soln_best = deepcopy(soln_current)
                     obj_best = obj_current
                     @info "$iteration\t\t$obj_best\t$temp"
                 end
@@ -184,14 +191,13 @@ function simulated_annealing(
             end
 
             if static_ctr >= static_limit
-                @info "$iteration\t\t$obj_best\t$temp"
-                @info "Early exit at iteration $iteration due to stagnation."
+                @info "$iteration\t\t$obj_best\t$temp\n\t" *
+                    "Early exit at iteration $iteration due to stagnation."
                 break
             end
         end
     end
 
-    @info "\nFinal Value: $obj_best"
-    @info "Δ: $(objective_function(soln_init) - obj_best)"
+    @info "\nFinal Value: $obj_best\nΔ: $(objective_function(soln_init) - obj_best)"
     return soln_best, obj_best
 end
