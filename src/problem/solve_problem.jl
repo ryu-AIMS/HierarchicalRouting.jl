@@ -187,7 +187,8 @@ end
         opt_function::Function,
         objective_function::Function,
         perturb_function::Function,
-        exclusions::DataFrame = DataFrame();
+        exclusions_mothership::DataFrame = DataFrame(),
+        exclusions_tender::DataFrame = DataFrame();
         max_iterations::Int = 5_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
@@ -202,7 +203,8 @@ function `objective_function` and the perturbation function `perturb_function`.
 - `opt_function`: Optimization function to use
 - `objective_function`: Objective function to use
 - `perturb_function`: Perturbation function to use
-- `exclusions`: Exclusions DataFrame
+- `exclusions_mothership`: DataFrame of exclusion polygons for the mothership
+- `exclusions_tender`: DataFrame of exclusion polygons for the tenders
 - `max_iterations`: Maximum number of iterations
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
@@ -217,7 +219,8 @@ function improve_solution(
     opt_function::Function,
     objective_function::Function,
     perturb_function::Function,
-    exclusions::DataFrame = DataFrame();
+    exclusions_mothership::DataFrame = DataFrame(),
+    exclusions_tender::DataFrame = DataFrame();
     max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
@@ -227,7 +230,8 @@ function improve_solution(
         soln,
         objective_function,
         perturb_function,
-        exclusions,
+        exclusions_mothership,
+        exclusions_tender,
         max_iterations,
         temp_init,
         cooling_rate,

@@ -59,6 +59,7 @@ solution_best, z_best = improve_solution(
     HierarchicalRouting.simulated_annealing,                        # opt_function
     HierarchicalRouting.critical_path,                              # objective_function
     HierarchicalRouting.perturb_swap_solution,                      # perturb_function
+    problem.mothership.exclusion,                                   # exclusion
     problem.tenders.exclusion;                                      # exclusion
 );
 ```

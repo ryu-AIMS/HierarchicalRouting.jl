@@ -3,13 +3,14 @@
     perturb_swap_solution(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
-        exclusions::DataFrame = DataFrame();
+        exclusions_tender::DataFrame = DataFrame();
         enforce_diff_sortie::Bool = false
     )::MSTSolution
     perturb_swap_solution(
         soln::MSTSolution,
         cluster_pair::Tuple{Int, Int},
-        exclusions::DataFrame = DataFrame()
+        exclusions_mothership::DataFrame = DataFrame(),
+        exclusions_tender::DataFrame = DataFrame()
     )::MSTSolution
 
 Perturb the solution by swapping two nodes:
@@ -20,7 +21,9 @@ Perturb the solution by swapping two nodes:
 - `soln`: Solution to perturb.
 - `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
     selects cluster.
-- `exclusions`: DataFrame of exclusions. Default = DataFrame().
+- `cluster_pair`: Tuple of two cluster sequence indices to swap nodes between.
+- `exclusions_tender`: DataFrame of exclusions for tender. Default = DataFrame().
+- `exclusions_mothership`: DataFrame of exclusions for mothership. Default = DataFrame().
 - `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
 # Returns
@@ -29,7 +32,7 @@ Perturbed full solution.
 function perturb_swap_solution(
     soln::MSTSolution,
     clust_seq_idx_target::Int64=-1,
-    exclusions::DataFrame = DataFrame();
+    exclusions_tender::DataFrame = DataFrame();
     enforce_diff_sortie::Bool = false
 )::MSTSolution
     clust_seq_idx = clust_seq_idx_target == -1 ?
@@ -85,14 +88,14 @@ function perturb_swap_solution(
 
     # Get new linestrings
     linestrings::Vector{Vector{Vector{LineString{2, Float64}}}} = getindex.(
-        get_feasible_vector.(updated_tender_tours, Ref(exclusions)),
+        get_feasible_vector.(updated_tender_tours, Ref(exclusions_tender)),
         2
     )
 
     # Get the new feasible distance matrices for the modified sorties
     updated_tender_matrices::Vector{Matrix{Float64}} = getindex.(get_feasible_matrix.(
         updated_tender_tours,
-        Ref(exclusions)
+        Ref(exclusions_tender)
     ), 1)
 
     # Update the modified sorties
@@ -121,7 +124,8 @@ end
 function perturb_swap_solution(
     soln::MSTSolution,
     cluster_pair::Tuple{Int, Int},
-    exclusions::DataFrame = DataFrame()
+    exclusions_mothership::DataFrame = DataFrame(),
+    exclusions_tender::DataFrame = DataFrame()
 )::MSTSolution
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
@@ -149,8 +153,14 @@ function perturb_swap_solution(
         [[tender_a.start]; sortie_a.nodes; [tender_a.finish]],
         [[tender_b.start]; sortie_b.nodes; [tender_b.finish]]
     ]
-    updated_linestrings = getindex.(get_feasible_vector.(tours, Ref(exclusions)), 2)
-    updated_sortie_matrices = getindex.(get_feasible_matrix.(tours, Ref(exclusions)), 1)
+    updated_linestrings = getindex.(
+        get_feasible_vector.(tours, Ref(exclusions_tender)),
+        2
+    )
+    updated_sortie_matrices = getindex.(
+        get_feasible_matrix.(tours, Ref(exclusions_tender)),
+        1
+    )
 
     sortie_a = Route(
         sortie_a.nodes,
@@ -397,7 +407,8 @@ end
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
-        exclusions::DataFrame = DataFrame(),
+        exclusions_mothership::DataFrame = DataFrame(),
+        exclusions_tender::DataFrame = DataFrame(),
         max_iterations::Int = 5_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
@@ -410,7 +421,8 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `soln_init`: Initial solution.
 - `objective_function`: Function to evaluate the solution.
 - `perturb_function`: Function to perturb the solution.
-- `exclusions`: DataFrame of exclusions. Default = DataFrame().
+- `exclusions_mothership`: DataFrame of exclusions for mothership. Default = DataFrame().
+- `exclusions_tender`: DataFrame of exclusions for tender. Default = DataFrame().
 - `max_iterations`: Maximum number of iterations. Default = 5_000.
 - `temp_init`: Initial temperature. Default = 500.0.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.95 = 95%.
@@ -424,7 +436,8 @@ function simulated_annealing(
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    exclusions::DataFrame = DataFrame(),
+    exclusions_mothership::DataFrame = DataFrame(),
+    exclusions_tender::DataFrame = DataFrame(),
     max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
@@ -448,14 +461,15 @@ function simulated_annealing(
         for iteration in 1:max_iterations
             if rand() < 0.5
                 # swap two nodes within the same cluster
-                soln_proposed = perturb_function(soln_current, clust_idx, exclusions)
+                soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
             else
                 # swap two nodes between two different random clusters
                 clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
                 soln_proposed = perturb_function(
                     soln_current,
                     (clust_idx, clust_swap_idx),
-                    exclusions
+                    exclusions_mothership,
+                    exclusions_tender
                 )
             end
             obj_proposed = objective_function(soln_proposed)
