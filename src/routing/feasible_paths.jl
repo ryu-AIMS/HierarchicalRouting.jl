@@ -495,11 +495,9 @@ function build_graph(
 
     # Collect connected points from network
     #? Use `Set`?
-    chain_points::Vector{Point{2, Float64}} = [Point{2,Float64}(p[1], p[2])
-        for p in unique(vcat(
-            points_from, points_to, [final_point]
-        ))
-    ]
+    chain_points::Vector{Point{2, Float64}} = unique(
+        vcat(points_from, points_to, [final_point])
+    )
 
     unique_points::Vector{Point{2, Float64}} = unique(vcat(chain_points, poly_vertices))
     n_points::Int = length(unique_points)
