@@ -555,13 +555,19 @@ function build_graph(
                     haversine(final_poly_verts[end], final_poly_verts[1])
                 )
             end
-        else
-            # Connect initial point to final point if visible
-            add_edge!(
-                graph,
-                pt_to_idx[initial_point],
-                pt_to_idx[final_point],
-                haversine(initial_point, final_point)
+        end
+    else
+        # final_point is not in a convex hull, try to connect it to any visible point
+        visible_pts_to_final = filter(
+            pt -> is_visible(pt, final_point, exclusions),
+            unique_points
+        )
+        if !isempty(visible_pts_to_final)
+            add_edge!.(
+                Ref(graph),
+                map(pt -> pt_to_idx[pt], visible_pts_to_final),
+                Ref(pt_to_idx[final_point]),
+                haversine.(visible_pts_to_final, Ref(final_point))
             )
         end
     end
