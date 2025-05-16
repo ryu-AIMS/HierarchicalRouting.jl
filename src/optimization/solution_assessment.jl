@@ -304,7 +304,8 @@ end
 """
     insert_unallocated_node(
         soln::MSTSolution,
-        exclusions::DataFrame = DataFrame();
+        exclusions::DataFrame = DataFrame()
+        max_dist::Float64=Inf;
         t_cap::Int16,
         current_cluster_seq_idx::Int=-1,
     )::MSTSolution
@@ -314,13 +315,16 @@ Insert unallocated nodes into the solution.
 # Arguments
 - `soln`: Solution to insert unallocated nodes into.
 - `exclusions`: DataFrame of exclusion zones to avoid. Default = DataFrame().
+- `max_dist`: Maximum distance to consider for cluster assignment - straight line haversine
+    distance (m) from the unallocated node to the cluster centroid. Default = Inf.
 - `t_cap`: Tender capacity.
 - `current_cluster_seq_idx`: Sequence index of the current cluster.
     Default = -1: randomly selects cluster.
 """
 function insert_unallocated_node(
     soln::MSTSolution,
-    exclusions::DataFrame = DataFrame();
+    exclusions::DataFrame = DataFrame(),
+    max_dist::Float64=Inf;
     t_cap::Int16,
     current_cluster_seq_idx::Int=-1,
 )::MSTSolution
@@ -333,7 +337,9 @@ function insert_unallocated_node(
     updated_tenders = copy(tenders)
 
     for node in unallocated_nodes
-        cluster_mask = min_tender_sorties .< t_cap
+        centroids = getfield.(clusters, :centroid)
+        within_range = haversine.(Ref(node), centroids) .< max_dist
+        cluster_mask = (min_tender_sorties .< t_cap) .& (within_range)
         if !any(cluster_mask)
             break
         end
