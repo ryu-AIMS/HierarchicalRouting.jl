@@ -698,6 +698,7 @@ version = "0.11.6"
 [[deps.GeoDataFrames]]
 deps = ["ArchGDAL", "DataAPI", "DataFrames", "Extents", "GeoFormatTypes", "GeoInterface", "Pkg", "Reexport", "Tables"]
 git-tree-sha1 = "cfa7302228fc5dfd4508a93126b3ccd570395d42"
+pinned = true
 uuid = "62cb38b5-d8d2-4862-a48e-6a340996859f"
 version = "0.3.12"
 
