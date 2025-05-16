@@ -274,11 +274,17 @@ end
     find_unallocated_nodes(
         soln::MSTSolution
     )::Set{Point{2, Float64}}
+    find_unallocated_nodes(
+        clusters::Vector{Cluster},
+        tenders::Vector{TenderSolution}
+    )::Set{Point{2, Float64}}
 
 Find nodes that are not allocated to any sortie in the solution.
 
 # Arguments
 - `soln`: Solution to find unallocated nodes in.
+- `clusters`: Vector of clusters.
+- `tenders`: Vector of tender solutions.
 
 # Returns
  A set of unallocated nodes.
@@ -288,6 +294,12 @@ function find_unallocated_nodes(
 )::Set{Point{2, Float64}}
     clusters = soln.cluster_sets[end]
     tenders = soln.tenders
+    return find_unallocated_nodes(clusters, tenders)
+end
+function find_unallocated_nodes(
+    clusters::Vector{Cluster},
+    tenders::Vector{TenderSolution}
+)::Set{Point{2, Float64}}
     cluster_sorties = getfield.(tenders, :sorties)
 
     all_nodes::Set{Point{2, Float64}} = Set(vcat(getfield.(clusters, :nodes)...))
@@ -296,9 +308,7 @@ function find_unallocated_nodes(
             getfield.(Base.Iterators.flatten(cluster_sorties), :nodes))
         )
     )
-    unallocated_nodes = setdiff(all_nodes, allocated_nodes)
-
-    return unallocated_nodes
+    return setdiff(all_nodes, allocated_nodes)
 end
 
 """
