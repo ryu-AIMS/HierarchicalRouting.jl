@@ -89,6 +89,7 @@ HierarchicalRouting.Plot.linestrings!(ax, solution_best.mothership_routes[end].r
 # Add tender routes
 HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders);
 ```
+<img src="assets\initial_solution.png" alt="Initial solution plot" width="400" /></i>
 
 ```julia
 using GeoMakie
@@ -118,6 +119,7 @@ HierarchicalRouting.Plot.tenders!.(
     [solution_init.tenders, solution_best.tenders]
 );
 ```
+<img src="assets\optimized_solution.png" alt="Initial solution plot" width="800" /></i>
 
 ```julia
 using GeoMakie
@@ -183,6 +185,7 @@ HierarchicalRouting.Plot.tenders!(
     solution_best.tenders
 );
 ```
+<img src="assets\disturbance_solution.png" alt="Initial solution plot" height="300" width="800" /></i>
 
 ## Development setup
 
