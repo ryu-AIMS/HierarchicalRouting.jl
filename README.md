@@ -68,14 +68,15 @@ solution_best, z_best = improve_solution(
 
 To visualize the routing solution, use GeoMakie and the `Plot` module.
 Below are examples to create:
-- one complete plot of final clusters, exclusions, and routes; and
+- one complete plot of final clusters, exclusions, and routes;
+- a comparison of the full initial and full final (after optimization) solutions;
 - a series of plots for each sequential routing plan pre-deployment, and at each(assuming 2)
 disturbance event.
 
 ```julia
 using GeoMakie
 
-fig = Figure(size=(750, 880))
+fig = Figure(size=(750, 880));
 ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude");
 # Add exclusions for the mothership
 HierarchicalRouting.Plot.exclusions!(ax, problem.mothership.exclusion, labels=true);
@@ -87,6 +88,35 @@ HierarchicalRouting.Plot.clusters!(ax, clusters=solution_best.cluster_sets[end])
 HierarchicalRouting.Plot.linestrings!(ax, solution_best.mothership_routes[end].route);
 # Add tender routes
 HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders);
+```
+
+```julia
+using GeoMakie
+
+fig = Figure(size=(1650, 600));
+ax1, ax2 = Axis(fig[1, 1]), Axis(fig[1, 2]);
+# Add exclusions for the tenders
+HierarchicalRouting.Plot.exclusions!.(
+    [ax1, ax2],
+    [problem.tenders.exclusion],
+    labels=false
+);
+# Add clustered points
+HierarchicalRouting.Plot.clusters!(ax1, clusters=solution_init.cluster_sets[end]);
+HierarchicalRouting.Plot.clusters!(ax2, clusters=solution_best.cluster_sets[end]);
+# Add mothership routes
+HierarchicalRouting.Plot.linestrings!.(
+    [ax1, ax2],
+    [
+        solution_init.mothership_routes[end].route,
+        solution_best.mothership_routes[end].route
+    ]
+);
+# Add tender routes
+HierarchicalRouting.Plot.tenders!.(
+    [ax1, ax2],
+    [solution_init.tenders, solution_best.tenders]
+);
 ```
 
 ```julia
