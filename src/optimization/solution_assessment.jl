@@ -348,11 +348,6 @@ function insert_unallocated_node(
 
     for node in unallocated_nodes
         centroids = getfield.(clusters, :centroid)
-        within_range = haversine.(Ref(node), centroids) .< max_dist
-        cluster_mask = (min_tender_sorties .< t_cap) .& (within_range)
-        if !any(cluster_mask)
-            break
-        end
 
         # Find the closest cluster by shortest distance to ms path
         waypoint_distances = getindex.(shortest_feasible_path.(
@@ -363,6 +358,13 @@ function insert_unallocated_node(
         @views cluster_waypoint_distances =
             waypoint_distances[1:2:end] .+
             waypoint_distances[2:2:end]
+
+        cluster_mask = (min_tender_sorties .< t_cap) .&
+            (cluster_waypoint_distances .< max_dist)
+
+        if isempty(cluster_mask)
+            break
+        end
 
         # Find the closest cluster with available tender capacity to the unallocated node
         valid_idxs = findall(cluster_mask)
