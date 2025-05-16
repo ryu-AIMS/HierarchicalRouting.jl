@@ -320,8 +320,9 @@ end
         current_cluster_seq_idx::Int=-1,
     )::MSTSolution
     insert_unallocated_node(
-        clusters::Vector{Cluster},
-        tenders::Vector{TenderSolution},
+        clusters_ex::Vector{Cluster},
+        tenders_ex::Vector{TenderSolution},
+        exclusions::DataFrame = DataFrame(),
         max_dist::Float64 = 15000;
         t_cap::Int16,
         current_cluster_seq_idx::Int=-1,
@@ -331,6 +332,8 @@ Insert unallocated nodes into the solution.
 
 # Arguments
 - `soln`: Solution to insert unallocated nodes into.
+- `clusters_ex`: Vector of existing clusters.
+- `tenders_ex`: Vector of existing tender solutions.
 - `exclusions`: DataFrame of exclusion zones to avoid. Default = DataFrame().
 - `max_dist`: Maximum distance to consider for cluster assignment - feasible distance (m)
     from start and finish waypoints to the unallocated node. Default = 15000.
@@ -346,7 +349,7 @@ function insert_unallocated_node(
     current_cluster_seq_idx::Int=-1,
 )::MSTSolution
     clusters = deepcopy(soln.cluster_sets[end])
-    tenders = soln.tenders
+    tenders = deepcopy(soln.tenders)
     unallocated_nodes = find_unallocated_nodes(soln)
 
     waypoints = soln.mothership_routes[end].route.nodes[2:end-1]
@@ -463,16 +466,16 @@ function insert_unallocated_node(
     return soln_new
 end
 function insert_unallocated_node(
-    clusters::Vector{Cluster},
-    tenders::Vector{TenderSolution},
+    clusters_ex::Vector{Cluster},
+    tenders_ex::Vector{TenderSolution},
     exclusions::DataFrame = DataFrame(),
     max_dist::Int64 = 15000;
     t_cap::Int16,
     current_cluster_seq_idx::Int=-1,
 )::Vector{Cluster}
-    new_clusters = deepcopy(clusters)
-    tenders = deepcopy(tenders)
-    unallocated_nodes = find_unallocated_nodes(clusters, tenders)
+    clusters = deepcopy(clusters_ex)
+    tenders = deepcopy(tenders_ex)
+    unallocated_nodes = find_unallocated_nodes(clusters_ex, tenders)
 
     min_tender_sorties = [
         minimum(length.(getfield.(t.sorties, :nodes)))
@@ -498,14 +501,14 @@ function insert_unallocated_node(
         # Select cluster closest by centroid distance (not waypoint this time)
         valid_idxs = getfield.(tenders[findall(cluster_mask)], :id)
         cluster_idx = valid_idxs[argmin(waypoint_distances[cluster_mask])]
-        cluster_nodes = vcat(new_clusters[cluster_idx].nodes, [node])
+        cluster_nodes = vcat(clusters[cluster_idx].nodes, [node])
         cluster_centroid = Point{2, Float64}(
             mean(getindex.(cluster_nodes, 1)),
             mean(getindex.(cluster_nodes, 2))
         )
 
-        new_clusters[cluster_idx] = Cluster(
-            id = new_clusters[cluster_idx].id,
+        clusters[cluster_idx] = Cluster(
+            id = clusters[cluster_idx].id,
             centroid = cluster_centroid,
             nodes = cluster_nodes
         )
@@ -555,7 +558,7 @@ function insert_unallocated_node(
         )
     end
 
-    return new_clusters
+    return clusters
 end
 
 """
