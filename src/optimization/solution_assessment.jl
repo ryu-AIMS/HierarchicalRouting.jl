@@ -40,7 +40,7 @@ function perturb_swap_solution(
         clust_seq_idx_target
 
     tender = deepcopy(soln.tenders[clust_seq_idx])
-    sorties = tender.sorties
+    sorties = deepcopy(tender.sorties)
 
     # If < 2 sorties in cluster, no perturbation possible
     if length(sorties) < 2
