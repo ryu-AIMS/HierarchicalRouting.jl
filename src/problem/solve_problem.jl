@@ -2,6 +2,8 @@
 """
     initial_solution(
         problem::Problem,
+        num_clusters::Int8,
+        cluster_tolerance::Float64 = Float64(5E-5),
         disturbance_clusters::Set{Int64} = Set{Int64}()
     )::MSTSolution
 
@@ -12,6 +14,8 @@ Generate a solution to the problem for:
 
 # Arguments
 - `problem`: Problem instance to solve
+- `num_clusters`: Number of clusters to create
+- `cluster_tolerance`: Tolerance for clustering. Default is 5E-5.
 - `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 
 # Returns
@@ -20,7 +24,7 @@ Best total MSTSolution found
 function initial_solution(
     problem::Problem,
     num_clusters::Int8,
-    cluster_tolerance::Float64,
+    cluster_tolerance::Float64 = Float64(5E-5),
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
     # Load problem data
