@@ -315,18 +315,25 @@ end
     insert_unallocated_node(
         soln::MSTSolution,
         exclusions::DataFrame = DataFrame()
-        max_dist::Float64=Inf;
+        max_dist::Int64 = 15000;
         t_cap::Int16,
         current_cluster_seq_idx::Int=-1,
     )::MSTSolution
+    insert_unallocated_node(
+        clusters::Vector{Cluster},
+        tenders::Vector{TenderSolution},
+        max_dist::Float64 = 15000;
+        t_cap::Int16,
+        current_cluster_seq_idx::Int=-1,
+    )::Vector{Cluster}
 
 Insert unallocated nodes into the solution.
 
 # Arguments
 - `soln`: Solution to insert unallocated nodes into.
 - `exclusions`: DataFrame of exclusion zones to avoid. Default = DataFrame().
-- `max_dist`: Maximum distance to consider for cluster assignment - straight line haversine
-    distance (m) from the unallocated node to the cluster centroid. Default = Inf.
+- `max_dist`: Maximum distance to consider for cluster assignment - feasible distance (m)
+    from start and finish waypoints to the unallocated node. Default = 15000.
 - `t_cap`: Tender capacity.
 - `current_cluster_seq_idx`: Sequence index of the current cluster.
     Default = -1: randomly selects cluster.
@@ -334,7 +341,7 @@ Insert unallocated nodes into the solution.
 function insert_unallocated_node(
     soln::MSTSolution,
     exclusions::DataFrame = DataFrame(),
-    max_dist::Float64=Inf;
+    max_dist::Int64 = 15000;
     t_cap::Int16,
     current_cluster_seq_idx::Int=-1,
 )::MSTSolution
@@ -454,6 +461,101 @@ function insert_unallocated_node(
         updated_tenders
     )
     return soln_new
+end
+function insert_unallocated_node(
+    clusters::Vector{Cluster},
+    tenders::Vector{TenderSolution},
+    exclusions::DataFrame = DataFrame(),
+    max_dist::Int64 = 15000;
+    t_cap::Int16,
+    current_cluster_seq_idx::Int=-1,
+)::Vector{Cluster}
+    new_clusters = deepcopy(clusters)
+    tenders = deepcopy(tenders)
+    unallocated_nodes = find_unallocated_nodes(clusters, tenders)
+
+    min_tender_sorties = [
+        minimum(length.(getfield.(t.sorties, :nodes)))
+        for t in tenders
+    ]
+
+    for node in unallocated_nodes
+        waypoint_distances = [
+            sum(getindex.(shortest_feasible_path.(
+                Ref(node),
+                [t.start, t.finish],
+                Ref(exclusions)
+            ),
+            1))
+            for t in tenders
+        ]
+
+        cluster_mask = (min_tender_sorties .< t_cap) .& (waypoint_distances .< max_dist)
+
+        if isempty(cluster_mask)
+            continue
+        end
+        # Select cluster closest by centroid distance (not waypoint this time)
+        valid_idxs = getfield.(tenders[findall(cluster_mask)], :id)
+        cluster_idx = valid_idxs[argmin(waypoint_distances[cluster_mask])]
+        cluster_nodes = vcat(new_clusters[cluster_idx].nodes, [node])
+        cluster_centroid = Point{2, Float64}(
+            mean(getindex.(cluster_nodes, 1)),
+            mean(getindex.(cluster_nodes, 2))
+        )
+
+        new_clusters[cluster_idx] = Cluster(
+            id = new_clusters[cluster_idx].id,
+            centroid = cluster_centroid,
+            nodes = cluster_nodes
+        )
+
+        # Update tender sortie: Add unallocated node to an available tender sortie
+        cluster_seq_idx = findfirst(==(cluster_idx), getfield.(tenders, :id))
+        sorties = tenders[cluster_seq_idx].sorties
+        sortie_mask = length.(getfield.(sorties, :nodes)) .< t_cap
+
+        # Find the closest available sortie to the unallocated node
+        allocated_sortie_nodes = collect(Base.Iterators.flatten(
+            getfield.(sorties[sortie_mask], :nodes)
+        ))
+        sortie_distances = getindex.(shortest_feasible_path.(
+            Ref(node),
+            allocated_sortie_nodes,
+            Ref(exclusions)
+        ), 1)
+        closest_available_sortie_node = allocated_sortie_nodes[argmin(sortie_distances)]
+
+        closest_available_sortie_idx = findfirst(
+            x -> closest_available_sortie_node in x,
+            getfield.(sorties, :nodes)
+        )
+
+        updated_full_tour = [
+            [tenders[cluster_seq_idx].start];
+            vcat(sorties[closest_available_sortie_idx].nodes, [node]);
+            [tenders[cluster_seq_idx].finish]
+        ]
+
+        updated_sortie_matrix = get_feasible_matrix(updated_full_tour, exclusions)[1]
+        updated_sortie_linestrings = get_feasible_vector(updated_full_tour, exclusions)[2]
+        updated_sortie_linestrings_flat = vcat(updated_sortie_linestrings...)
+        updated_sortie = Route(
+            updated_full_tour[2:end-1],
+            updated_sortie_matrix,
+            updated_sortie_linestrings_flat
+        )
+
+        # Update the sortie in the tender solution
+        tenders[cluster_seq_idx].sorties[closest_available_sortie_idx] = updated_sortie
+
+        # Update capacity tracker
+        min_tender_sorties[cluster_seq_idx] = minimum(
+            length.(getfield.(tenders[cluster_seq_idx].sorties, :nodes))
+        )
+    end
+
+    return new_clusters
 end
 
 """
