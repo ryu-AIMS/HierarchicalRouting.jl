@@ -37,7 +37,7 @@ function sortie_dist(
 )::Vector{Float64}
     sorties = filter(!isempty, sorties)
     n = length(sorties)
-    sortie_dist = Vector{Float64}(undef, n)
+    total_dist = Vector{Float64}(undef, n)
 
     for i in 1:n
         tour = sorties[i]
@@ -47,9 +47,9 @@ function sortie_dist(
         dist += m > 1 ? sum(getindex.(Ref(dist_matrix), tour[1:m-1], tour[2:m])) : 0.0
         dist += dist_matrix[tour[end], 1] # dist from last node back to depot
 
-        sortie_dist[i] = dist
+        total_dist[i] = dist
     end
-    return sortie_dist
+    return total_dist
 end
 
 """
@@ -89,6 +89,35 @@ function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
         Ref(tenders.finish)
     )
     return sortie_dist
+end
+
+"""
+    tender_sortie_dist(sortie::Route)::Float64
+    tender_sortie_dist(
+        node_order::Vector{Int64},
+        dist_matrix::Matrix{Float64}
+    )::Float64
+
+# Arguments
+- `sortie`: Route object containing nodes and distance matrix.
+- `node_order`: Vector of node indices (not including the start and finish).
+- `dist_matrix`: Distance matrix between nodes, ordered by node index.
+
+# Returns
+The total distance of the sortie.
+"""
+function tender_sortie_dist(sortie::Route)::Float64
+    dist = sum(@view sortie.dist_matrix[1:end-1, 2:end])
+    return dist
+end
+function tender_sortie_dist(
+    node_order::Vector{Int64},
+    dist_matrix::Matrix{Float64}
+)::Float64
+    dist = dist_matrix[1, node_order[1]+1] # dist from start (node 1) to first node
+    dist += sum(@view dist_matrix[node_order[1:end-1] .+ 1, node_order[2:end] .+ 1])
+    dist += dist_matrix[node_order[end]+1, end] # dist from last deployment loc to end node
+    return dist
 end
 
 """
