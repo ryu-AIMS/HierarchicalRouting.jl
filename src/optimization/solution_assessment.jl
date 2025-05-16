@@ -448,7 +448,8 @@ end
         max_iterations::Int = 5_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
-        static_limit::Int = 150
+        static_limit::Int = 150;
+        cross_cluster_flag::Bool = false,
     )
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -461,8 +462,11 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `exclusions_tender`: DataFrame of exclusions for tender. Default = DataFrame().
 - `max_iterations`: Maximum number of iterations. Default = 5_000.
 - `temp_init`: Initial temperature. Default = 500.0.
-- `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm. Default = 0.95 = 95%.
+- `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
+    Default = 0.95 = 95%.
 - `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
+- `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
+    considered. Default = false.
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.
@@ -477,7 +481,8 @@ function simulated_annealing(
     max_iterations::Int = 5_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
-    static_limit::Int = 150
+    static_limit::Int = 150;
+    cross_cluster_flag::Bool = false,
 )::Tuple{MSTSolution, Float64}
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
@@ -495,18 +500,22 @@ function simulated_annealing(
             "Iteration \tBest Value \t\tTemp\n\t0\t\t$obj_best\t$temp"
 
         for iteration in 1:max_iterations
-            if rand() < 0.5
-                # swap two nodes within the same cluster
+            if !cross_cluster_flag
                 soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
             else
-                # swap two nodes between two different random clusters
-                clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
-                soln_proposed = perturb_function(
-                    soln_current,
-                    (clust_idx, clust_swap_idx),
-                    exclusions_mothership,
-                    exclusions_tender
-                )
+                if rand() < 0.5
+                # swap two nodes within the same cluster
+                soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
+                else
+                    # swap two nodes between two different random clusters
+                    clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
+                    soln_proposed = perturb_function(
+                        soln_current,
+                        (clust_idx, clust_swap_idx),
+                        exclusions_mothership,
+                        exclusions_tender
+                    )
+                end
             end
             obj_proposed = objective_function(soln_proposed)
             improvement = obj_current - obj_proposed
