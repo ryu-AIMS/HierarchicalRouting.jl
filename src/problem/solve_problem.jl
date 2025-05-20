@@ -2,7 +2,7 @@
 """
     initial_solution(
         problem::Problem,
-        num_clusters::Int,
+        num_clusters::Int;
         cluster_tolerance::Real = Float64(5E-5),
         disturbance_clusters::Set{Int64} = Set{Int64}()
     )::MSTSolution
@@ -23,7 +23,7 @@ Best total MSTSolution found
 """
 function initial_solution(
     problem::Problem,
-    num_clusters::Int,
+    num_clusters::Int;
     cluster_tolerance::Real = Float64(5E-5),
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution

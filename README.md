@@ -48,9 +48,8 @@ problem = load_problem(
 # Generate an initial solution
 solution_init = initial_solution(
     problem,                                                        # problem
-    5,                                                              # num_clusters
-    5E-5,                                                           # cluster_tolerance
-    Set((2, 4))                                                     # disturbance_clusters
+    5;                                                              # num_clusters
+    disturbance_clusters = Set((2, 4))
 );
 
 # Improve solution using simulated annealing
