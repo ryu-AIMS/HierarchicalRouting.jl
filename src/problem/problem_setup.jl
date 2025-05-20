@@ -108,24 +108,14 @@ function load_problem(
     t_cap = Int16(t_cap)
     subset = GDF.read(subset_path)
     subset_bbox = get_bbox_bounds_from_df(subset)
-    target_gdf_subset = filter_within_bbox(
-        GDF.read(target_path), subset_bbox
-    )
+    target_gdf_subset = filter_within_bbox(GDF.read(target_path), subset_bbox)
 
-    target_raster = process_targets(
-        target_gdf_subset.geometry,
-        subset,
-        target_subset_path,
-    )
+    target_raster = process_targets(target_gdf_subset.geometry, subset, target_subset_path)
     targets_gdf = raster_to_gdf(target_raster)
 
     env_disturbance = GDF.read(env_disturbance_path)
-    disturbance_data_subset = filter_within_bbox(
-        env_disturbance, subset_bbox
-    )
-    suitable_targets_subset = process_geometry_targets(
-        target_gdf_subset.geometry
-    )
+    disturbance_data_subset = filter_within_bbox(env_disturbance, subset_bbox)
+    suitable_targets_subset = process_geometry_targets(target_gdf_subset.geometry)
     indices::Vector{CartesianIndex{2}} = findall(
         x -> x != suitable_targets_subset.missingval,
         suitable_targets_subset
@@ -137,10 +127,7 @@ function load_problem(
         )
         for idx in indices
     ]
-    disturbance_df = create_disturbance_data_dataframe(
-        coords,
-        disturbance_data_subset
-    )
+    disturbance_df = create_disturbance_data_dataframe(coords, disturbance_data_subset)
     targets = Targets(targets_gdf, target_path, disturbance_df)
 
     # Process exclusions
