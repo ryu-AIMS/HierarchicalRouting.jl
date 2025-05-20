@@ -29,13 +29,17 @@ solution.
 ```julia
 using HierarchicalRouting
 
+target_path = "<PATH/TO/TARGET_SCENARIO_GEOJSON>"
+subset_path = "<PATH/TO/TARGET_SUBSET_GPKG>"
+bathy_path = "<PATH/TO/BATHYMETRY_TIF>"
+wave_disturbance_path = "<PATH/TO/WAVE_DISTURBANCE_GEOJSON>"
 # Load the problem configuration
 # Defaults to the first file in the target scenario directory if no argument is passed.
 problem = load_problem(
-    "data/targets/scenarios/output_slopes_3-10m.geojson",           # target_path
-    "data/site/Moore_2024-02-14b_v060_rc1.gpkg",                    # subset_path
-    "data/env_constraints/bathy/Cairns-Cooktown_bathy.tif",         # bathy_path
-    "data/env_disturbances/waves/output_slope_zs_Hs_Tp.geojson",    # wave_disturbance_path
+    target_path,
+    subset_path,
+    bathy_path,
+    wave_disturbance_path,
     (146.175, -16.84),                                              # depot
     -10.0,                                                          # draft_ms
     -5.0,                                                           # draft_t
