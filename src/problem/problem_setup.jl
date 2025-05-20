@@ -44,7 +44,7 @@ end
         subset_path::AbstractString,
         env_data_path::AbstractString,
         env_disturbance_path::AbstractString,
-        depot::Point{2, <:Real},
+        depot::Tuple{Float64, Float64},
         draft_ms::Real,
         draft_t::Real,
         weight_ms::Real,
@@ -63,8 +63,8 @@ Load the problem data to create a `Problem` object from given parameters.
 - `subset_path` : The path to the subset GeoPackage file.
 - `env_data_path`: The path to the environmental data directory.
 - `env_disturbance_path`: The path to the environmental disturbance GeoDataFrame data.
-- `depot`: A Point representing the depot location, which is the coincident start and finish
-    point for the deployment plan mothership and tenders.
+- `depot`: A Point representing the depot location, in the form (lon, lat) which is the used
+    as the coincident start and finish point for the deployment plan.
 - `draft_ms`: The draft of the mothership (in metres), given as a negative value, indicating
     depth of the vessel below the surface.
 - `draft_t`: The draft of the tenders (in metres), given as a negative value, indicating
@@ -89,7 +89,7 @@ function load_problem(
     subset_path::AbstractString,
     env_data_path::AbstractString,
     env_disturbance_path::AbstractString,
-    depot::Point{2, <:Real},
+    depot::Tuple{Float64, Float64},
     draft_ms::Real,
     draft_t::Real,
     weight_ms::Real,
@@ -100,6 +100,7 @@ function load_problem(
     output_dir::AbstractString = "outputs/",
     debug_mode::Bool = false,
 )::Problem
+    depot = Point{2, Float64}(depot)
     draft_ms = Float64(draft_ms)
     draft_t = Float64(draft_t)
     weight_ms = Float16(weight_ms)

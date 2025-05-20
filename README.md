@@ -36,7 +36,7 @@ problem = load_problem(
     "data/site/Moore_2024-02-14b_v060_rc1.gpkg",                    # subset_path
     "data/env_constraints/bathy/Cairns-Cooktown_bathy.tif",         # bathy_path
     "data/env_disturbances/waves/output_slope_zs_Hs_Tp.geojson",    # wave_disturbance_path
-    Point{2, Float64}(146.175, -16.84),                             # depot
+    (146.175, -16.84),                                              # depot
     -10.0,                                                          # draft_ms
     -5.0,                                                           # draft_t
     5.0,                                                            # weight_ms
