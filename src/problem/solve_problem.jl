@@ -2,8 +2,8 @@
 """
     initial_solution(
         problem::Problem,
-        num_clusters::Int8,
-        cluster_tolerance::Float64 = Float64(5E-5),
+        num_clusters::Int,
+        cluster_tolerance::Real = Float64(5E-5),
         disturbance_clusters::Set{Int64} = Set{Int64}()
     )::MSTSolution
 
@@ -23,10 +23,13 @@ Best total MSTSolution found
 """
 function initial_solution(
     problem::Problem,
-    num_clusters::Int8,
-    cluster_tolerance::Float64 = Float64(5E-5),
+    num_clusters::Int,
+    cluster_tolerance::Real = Float64(5E-5),
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
+    num_clusters = Int8(num_clusters)
+    cluster_tolerance = Float64(cluster_tolerance)
+
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(
         problem,
