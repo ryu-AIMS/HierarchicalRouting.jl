@@ -39,17 +39,17 @@ problem = load_problem(
     Point{2, Float64}(146.175, -16.84),                             # depot
     -10.0,                                                          # draft_ms
     -5.0,                                                           # draft_t
-    Float16(5.0),                                                   # weight_ms
-    Float16(2.0),                                                   # weight_t
-    Int8(3),                                                        # n_tenders
-    Int16(2);                                                       # t_cap
+    5.0,                                                            # weight_ms
+    2.0,                                                            # weight_t
+    3,                                                              # n_tenders
+    2;                                                              # t_cap
 );
 
 # Generate an initial solution
 solution_init = initial_solution(
     problem,                                                        # problem
-    Int8(5),                                                        # num_clusters
-    Float64(5E-5),                                                  # cluster_tolerance
+    5,                                                              # num_clusters
+    5E-5,                                                           # cluster_tolerance
     Set((2, 4))                                                     # disturbance_clusters
 );
 
