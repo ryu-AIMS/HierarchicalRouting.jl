@@ -40,19 +40,19 @@ end
 
 """
     load_problem(
-        target_path::String,
-        subset_path::String,
-        env_data_path::String,
-        env_disturbance_path::String,
-        depot::Point{2, Float64},
-        draft_ms::Float64,
-        draft_t::Float64,
-        weight_ms::Float16,
-        weight_t::Float16,
-        n_tenders::Int8,
-        t_cap::Int16;
-        target_subset_path::String = "",
-        output_dir::String = "",
+        target_path::AbstractString,
+        subset_path::AbstractString,
+        env_data_path::AbstractString,
+        env_disturbance_path::AbstractString,
+        depot::Point{2, <:Real},
+        draft_ms::Real,
+        draft_t::Real,
+        weight_ms::Real,
+        weight_t::Real,
+        n_tenders::Integer,
+        t_cap::Integer;
+        target_subset_path::AbstractString = "",
+        output_dir::AbstractString = "outputs/",
         debug_mode::Bool = false,
     )::Problem
 
@@ -63,13 +63,19 @@ Load the problem data to create a `Problem` object from given parameters.
 - `subset_path` : The path to the subset GeoPackage file.
 - `env_data_path`: The path to the environmental data directory.
 - `env_disturbance_path`: The path to the environmental disturbance GeoDataFrame data.
-- `depot`: A Point representing the depot location.
-- `draft_ms`: The draft of the mothership.
-- `draft_t`: The draft of the tenders.
-- `weight_ms`: The weighting factor for the mothership.
-- `weight_t`: The weighting factor for the tenders.
-- `n_tenders`: The number of tenders.
-- `t_cap`: The capacity of the tenders.
+- `depot`: A Point representing the depot location, which is the coincident start and finish
+    point for the deployment plan mothership and tenders.
+- `draft_ms`: The draft of the mothership (in metres), given as a negative value, indicating
+    depth of the vessel below the surface.
+- `draft_t`: The draft of the tenders (in metres), given as a negative value, indicating
+    depth of the vessel below the surface.
+- `weight_ms`: The weighting factor for the mothership, as a multiplier of distance travelled to
+    quantify cost.
+- `weight_t`: The weighting factor for the tenders, as a multiplier of distance travelled to
+    quantify cost.
+- `n_tenders`: The number of tenders available to use for deployment.
+- `t_cap`: The capacity of the tenders, determining the maximum number of targets that can
+    be visited/deployed by a tender in a single trip.
 - `target_subset_path`: The path to save the target subset raster. Default is "".
 - `output_dir`: The directory to save output files. Default is "outputs/".
 - `debug_mode`: A boolean flag to enable debug mode. Default = false.
@@ -79,21 +85,27 @@ Load the problem data to create a `Problem` object from given parameters.
 The problem object.
 """
 function load_problem(
-    target_path::String,
-    subset_path::String,
-    env_data_path::String,
-    env_disturbance_path::String,
-    depot::Point{2, Float64},
-    draft_ms::Float64,
-    draft_t::Float64,
-    weight_ms::Float16,
-    weight_t::Float16,
-    n_tenders::Int8,
-    t_cap::Int16;
-    target_subset_path::String = "",
-    output_dir::String = "outputs/",
+    target_path::AbstractString,
+    subset_path::AbstractString,
+    env_data_path::AbstractString,
+    env_disturbance_path::AbstractString,
+    depot::Point{2, <:Real},
+    draft_ms::Real,
+    draft_t::Real,
+    weight_ms::Real,
+    weight_t::Real,
+    n_tenders::Integer,
+    t_cap::Integer;
+    target_subset_path::AbstractString = "",
+    output_dir::AbstractString = "outputs/",
     debug_mode::Bool = false,
 )::Problem
+    draft_ms = Float64(draft_ms)
+    draft_t = Float64(draft_t)
+    weight_ms = Float16(weight_ms)
+    weight_t = Float16(weight_t)
+    n_tenders = Int8(n_tenders)
+    t_cap = Int16(t_cap)
     subset = GDF.read(subset_path)
     subset_bbox = get_bbox_bounds_from_df(subset)
     target_gdf_subset = filter_within_bbox(
