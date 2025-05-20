@@ -8,21 +8,48 @@ and environmental constraints (exclusion zones).
 
 ## Setup
 
-### Initialize project
+### Installation
+To install the package, use the Julia package manager in the REPL:
 
-In the Julia REPL:
 ```julia
-] instantiate
+] add HierarchicalRouting
 ```
 
-### Configure problem
+You may check the installed version with:
 
-All other problem parameters (data paths, vessel capacities, clustering tolerance, etc.)
-must be provided by the user directly as arguments to the `load_problem()` and
-`solve_problem()` functions.
+```julia
+] st HierarchicalRouting
+```
+
+### Problem parameters
+All problem parameters (data paths, vessel capacities, clustering tolerance, etc.) must be
+provided by the user directly as arguments to
+`load_problem()` and `solve_problem()`.
+
+The package requires the following data files:
+- **Target scenario**: A GeoJSON file containing the target sites to be visited.
+- **Subset**: A geopackage file containing polygons to define the subset of target scenarios
+    to be considered in the problem instance.
+- **Environmental data**: A TIF file containing the data (e.g., bathymetry) which informs
+    the exclusion zones, limiting access, for the mothership and tenders.
+- **Wave disturbance**: A GeoJSON file containing the wave disturbance data, used to
+    generate weather disturbance events.
+- **Depot**: A tuple representing the depot location, in the form (lon, lat) which is the
+    used as the coincident start and finish point for the deployment plan.
+- **Draft**: The draft of vessels (in metres), given as a negative value, indicating the
+    clearance depth of the vessel below the surface.
+    - **Mothership draft**: The draft of the mothership.
+    - **Tender draft**: The draft of the tenders.
+- **Weighting**: The weighting factor for the mothership and tenders, as a multiplier of
+    distance travelled to quantify cost.
+    - **Mothership weighting**: The weighting factor for the mothership.
+    - **Tender weighting**: The weighting factor for the tenders.
+- **Number of tenders**: The number of tenders available to use for deployment.
+- **Tender capacity**: The capacity of the tenders, determining the maximum number of targets
+    that can be visited/deployed by a tender in a single trip.
+- **Target subset path**: The path to save the target subset raster. Default is "".
 
 ## Quickstart
-
 Below is an example of how to load a problem, generate an initial solution, and improve the
 solution.
 
@@ -31,15 +58,15 @@ using HierarchicalRouting
 
 target_path = "<PATH/TO/TARGET_SCENARIO_GEOJSON>"
 subset_path = "<PATH/TO/TARGET_SUBSET_GPKG>"
-bathy_path = "<PATH/TO/BATHYMETRY_TIF>"
-wave_disturbance_path = "<PATH/TO/WAVE_DISTURBANCE_GEOJSON>"
+env_data_path = "<PATH/TO/BATHYMETRY_TIF>"
+env_disturbance_path = "<PATH/TO/WAVE_DISTURBANCE_GEOJSON>"
+
 # Load the problem configuration
-# Defaults to the first file in the target scenario directory if no argument is passed.
 problem = load_problem(
     target_path,
     subset_path,
-    bathy_path,
-    wave_disturbance_path,
+    env_data_path,
+    env_disturbance_path,
     (146.175, -16.84),                                              # depot
     -10.0,                                                          # draft_ms
     -5.0,                                                           # draft_t
