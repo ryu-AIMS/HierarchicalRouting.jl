@@ -196,10 +196,10 @@ end
         perturb_function::Function,
         exclusions_mothership::DataFrame = DataFrame(),
         exclusions_tender::DataFrame = DataFrame();
-        max_iterations::Int = 5_000,
+        max_iterations::Int = 1_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
-        static_limit::Int = 150
+        static_limit::Int = 20
     )::Tuple{MSTSolution, Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective \n
@@ -228,10 +228,10 @@ function improve_solution(
     perturb_function::Function,
     exclusions_mothership::DataFrame = DataFrame(),
     exclusions_tender::DataFrame = DataFrame();
-    max_iterations::Int = 5_000,
+    max_iterations::Int = 1_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
-    static_limit::Int = 150
+    static_limit::Int = 20
 )::Tuple{MSTSolution, Float64}
     soln_best, z_best = opt_function(
         soln,
