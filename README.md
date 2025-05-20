@@ -53,7 +53,6 @@ problem = load_problem(
 solution_init = initial_solution(
     problem,                                                        # problem
     5;                                                              # num_clusters
-    disturbance_clusters = Set((2, 4))
 );
 
 # Improve solution using simulated annealing
