@@ -34,7 +34,7 @@ include("optimization/solution_assessment.jl")
 include("problem/solve_problem.jl")
 include("problem/disturbance_events.jl")
 
-include("plotting/plots.jl")
+include("plot/plot.jl")
 
 include("processing/write_files.jl")
 
