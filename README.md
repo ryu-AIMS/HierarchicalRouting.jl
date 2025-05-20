@@ -125,10 +125,11 @@ Below are examples to create:
 - a series of plots for each sequential routing plan pre-deployment, and at each(assuming 2)
 disturbance event.
 
+### Initial solution plot
 ```julia
-using GeoMakie
+using HierarchicalRouting.Plot.GeoMakie
 
-fig = Figure(size=(750, 880));
+fig = Figure(size=(750, 880))
 ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude");
 # Add exclusions for the mothership
 HierarchicalRouting.Plot.exclusions!(ax, problem.mothership.exclusion, labels=true);
@@ -137,12 +138,17 @@ HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels=true)
 # Add clustered points
 HierarchicalRouting.Plot.clusters!(ax, clusters=solution_best.cluster_sets[end]);
 # Add mothership routes
-HierarchicalRouting.Plot.linestrings!(ax, solution_best.mothership_routes[end].route);
+HierarchicalRouting.Plot.linestrings!(
+    ax,
+    solution_best.mothership_routes[end].route,
+    color=:black
+);
 # Add tender routes
 HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders);
 ```
 <img src="assets\initial_solution.png" alt="Initial solution plot" width="400" /></i>
 
+### Optimized solution plot
 ```julia
 using GeoMakie
 
@@ -163,7 +169,8 @@ HierarchicalRouting.Plot.linestrings!.(
     [
         solution_init.mothership_routes[end].route,
         solution_best.mothership_routes[end].route
-    ]
+    ],
+    color=:black
 );
 # Add tender routes
 HierarchicalRouting.Plot.tenders!.(
@@ -173,6 +180,7 @@ HierarchicalRouting.Plot.tenders!.(
 ```
 <img src="assets\optimized_solution.png" alt="Initial solution plot" width="800" /></i>
 
+### Disturbance solution plot
 ```julia
 using GeoMakie
 
