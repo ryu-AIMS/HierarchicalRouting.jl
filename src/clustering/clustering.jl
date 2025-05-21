@@ -237,6 +237,7 @@ end
     capacitated_kmeans(
         reef_data;
         max_reef_number::Int = 6,
+        max_split_distance::Float64 = 12.0,
         max_iter::Int = 1000,
         n_restarts::Int = 5
     )
@@ -247,6 +248,7 @@ are assigned to a cluster.
 # Arguments
 - `reef_data`: DataFrame with `.LAT` and `.LON` columns.
 - `max_reef_number`: The maximum number of reefs per cluster.
+- `max_split_distance`: The maximum distance between clusters to allow for splitting.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 
@@ -256,6 +258,7 @@ A vector of cluster assignments for each reef.
 function capacitated_kmeans(
     reef_data;
     max_reef_number::Int = 6,
+    max_split_distance::Float64 = 12.0,
     max_iter::Int = 1000,
     n_restarts::Int = 5,
 )
@@ -316,22 +319,31 @@ function capacitated_kmeans(
                     dists = quick_distance.(point_idxs, Ref((centroids[c])))
                     idx = point_idxs[argmax(dists)]
 
-                    # find all clusters with available capacity
+                    # find under-capacity clusters within max_split_distance
                     available_clusters = findall(length.(clusters) .< max_reef_number)
-                    if isempty(available_clusters)
-                        break
+                    # Main.@infiltrate
+                    dists = quick_distance.(Ref(idx), centroids[available_clusters])
+                    close_clusters = available_clusters[dists .≤ max_split_distance]
+
+                    if isempty(close_clusters)
+                        # no available AND close clusters --> create new cluster
+                        k[] += 1
+                        return single_run()
                     end
 
-                    # find closest available cluster
-                    eligible_centroids = centroids[available_clusters]
+                    # pick the closest among them
+                    eligible_centroids = centroids[close_clusters]
                     eligible_distances = quick_distance.(Ref(idx), eligible_centroids)
-                    closest_cluster = available_clusters[argmin(eligible_distances)]
+                    target_cluster = close_clusters[argmin(eligible_distances)]
 
                     # reassign point
-                    clustering_assignment[idx] = closest_cluster
+                    clustering_assignment[idx] = target_cluster
                     deleteat!(point_idxs, findfirst(==(idx), point_idxs))
-                    push!(clusters[closest_cluster], idx)
+                    push!(clusters[target_cluster], idx)
                     updated = true
+                end
+                if updated
+                    break
                 end
             end
 
@@ -344,7 +356,9 @@ function capacitated_kmeans(
     best_clustering_assignment = zeros(Int, n_reefs)
     best_score = Inf
     for _ in 1:n_restarts
+        # Reset k every time
         clustering_assignment = single_run()
+        k[] = maximum(clustering_assignment)
         clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
         centroids = calc_centroid.(clusters)
         cluster_score = sum(
