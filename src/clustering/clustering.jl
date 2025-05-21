@@ -229,6 +229,113 @@ function apply_kmeans_clustering(
 end
 
 """
+    capacitated_kmeans(
+        reef_data;
+        max_reef_number::Int = 6,
+        max_iter::Int = 10,
+        n_restarts::Int = 5
+    )
+
+Cluster locations, ensuring that no cluster has more than `max_reef_number`, and all points
+are assigned to a cluster.
+
+# Arguments
+- `reef_data`: DataFrame with `.LAT` and `.LON` columns.
+- `max_reef_number`: The maximum number of reefs per cluster.
+- `max_iter`: The maximum number of iterations to run the k-means algorithm.
+- `n_restarts`: The number of times to run k-means with different initial centroids.
+
+# Returns
+A vector of cluster assignments for each reef.
+"""
+function capacitated_kmeans(
+    reef_data;
+    max_reef_number::Int = 6,
+    max_iter::Int = 10,
+    n_restarts::Int = 5,
+)
+    n_reefs = length(reef_data.LAT)
+    k = ceil(Int, n_reefs/max_reef_number)
+    coordinates_array = hcat(reef_data.LON, reef_data.LAT)' # 2×n for kmeans
+
+    function quick_distance(i::Int, j::Int)
+        if i == j
+            return 0.0
+        elseif i > j
+            i, j = j, i
+        end
+        R = 6371.0
+        lat1, lon1 = deg2rad(reef_data.LAT[i]), deg2rad(reef_data.LON[i])
+        lat2, lon2 = deg2rad(reef_data.LAT[j]), deg2rad(reef_data.LON[j])
+        dlat, dlon = (lat2 - lat1), (lon2 - lon1)
+        a = sin(dlat / 2)^2 + cos(lat1) * cos(lat2) * sin(dlon / 2)^2
+        c = 2 * atan(sqrt(a), sqrt(1 - a))
+        return R * c
+    end
+    function quick_distance(i::Int, (lon2, lat2)::Tuple{Float64, Float64})
+        R = 6371.0
+        lat1, lon1 = deg2rad(reef_data.LAT[i]), deg2rad(reef_data.LON[i])
+        lat2, lon2 = deg2rad(lat2), deg2rad(lon2)
+        dlat, dlon = (lat2 - lat1), (lon2 - lon1)
+        a = sin(dlat / 2)^2 + cos(lat1) * cos(lat2) * sin(dlon / 2)^2
+        c = 2 * atan(sqrt(a), sqrt(1 - a))
+        return R * c
+    end
+
+    clustering = kmeans(coordinates_array, k)
+    clustering_assignment = copy(clustering.assignments)
+
+    for _ in 1:max_iter
+        # build clusters & centroids
+        clusters = findall.(.==(1:k), Ref(clustering_assignment))
+
+        empty_mask = isempty.(clusters)
+        means_lon = clustering.centers[1,:]
+        means_lat = clustering.centers[2,:]
+
+        cent_lon = ifelse.(empty_mask, means_lon, means_lon)
+        cent_lat = ifelse.(empty_mask, means_lat, means_lat)
+
+        updated = false
+        # enforce max cluster size
+        # for each over-capacity cluster, reassign its furthest points
+        for c in 1:k
+            point_idxs = clusters[c]
+            while length(point_idxs) > max_reef_number
+                # find furthest point from centroid
+                dists = quick_distance.(point_idxs, Ref((cent_lon[c], cent_lat[c])))
+                idx = point_idxs[argmax(dists)]
+
+                # find all clusters with available capacity
+                available_clusters = findall(length.(clusters) .< max_reef_number)
+                if isempty(available_clusters)
+                    break
+                end
+
+                # find closest available cluster
+                eligible_centroids = zip(
+                    cent_lon[available_clusters],
+                    cent_lat[available_clusters]
+                )
+                eligible_distances = quick_distance.(Ref(idx), eligible_centroids)
+                closest_cluster = available_clusters[argmin(eligible_distances)]
+
+                # reassign point
+                clustering_assignment[idx] = closest_cluster
+                deleteat!(point_idxs, findfirst(==(idx), point_idxs))
+                push!(clusters[closest_cluster], idx)
+                updated = true
+            end
+        end
+
+        if !updated
+            break
+        end
+    end
+    return clustering_assignment
+end
+
+"""
     update_cluster_assignments(
         cluster_raster::Raster{Int64, 2},
         prev_centroids::Dict{Int64, Point{2,Float64}}
