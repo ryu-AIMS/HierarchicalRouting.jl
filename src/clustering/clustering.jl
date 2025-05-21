@@ -238,6 +238,7 @@ end
         reef_data;
         max_reef_number::Int = 6,
         max_split_distance::Float64 = 12.0,
+        max_k::Int = 6,
         max_iter::Int = 1000,
         n_restarts::Int = 5
     )
@@ -259,6 +260,7 @@ function capacitated_kmeans(
     reef_data;
     max_reef_number::Int = 6,
     max_split_distance::Float64 = 12.0,
+    max_k::Int = 6,
     max_iter::Int = 1000,
     n_restarts::Int = 5,
 )
@@ -358,7 +360,7 @@ function capacitated_kmeans(
     for _ in 1:n_restarts
         # Reset k every time
         clustering_assignment = single_run()
-        k[] = maximum(clustering_assignment)
+        k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
         clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
         centroids = calc_centroid.(clusters)
         cluster_score = sum(
