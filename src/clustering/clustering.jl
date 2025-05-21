@@ -287,57 +287,86 @@ function capacitated_kmeans(
         return R * c
     end
 
-    clustering = kmeans(coordinates_array, k)
-    clustering_assignment = copy(clustering.assignments)
+    function calc_centroid(cluster_indices)
+        lon_sum = 0.0
+        lat_sum = 0.0
+        for i in cluster_indices
+            lon_sum += reef_data.LON[i]
+            lat_sum += reef_data.LAT[i]
+        end
+        return (lon_sum / length(cluster_indices), lat_sum / length(cluster_indices))
+    end
 
-    for _ in 1:max_iter
-        # build clusters & centroids
-        clusters = findall.(.==(1:k), Ref(clustering_assignment))
+    function single_run()
+        clustering = kmeans(coordinates_array, k)
+        clustering_assignment = copy(clustering.assignments)
 
-        empty_mask = isempty.(clusters)
-        means_lon = clustering.centers[1,:]
-        means_lat = clustering.centers[2,:]
+        for _ in 1:max_iter
+            # build clusters & centroids
+            clusters = findall.(.==(1:k), Ref(clustering_assignment))
 
-        cent_lon = ifelse.(empty_mask, means_lon, means_lon)
-        cent_lat = ifelse.(empty_mask, means_lat, means_lat)
+            empty_mask = isempty.(clusters)
+            means_lon = clustering.centers[1,:]
+            means_lat = clustering.centers[2,:]
 
-        updated = false
-        # enforce max cluster size
-        # for each over-capacity cluster, reassign its furthest points
-        for c in 1:k
-            point_idxs = clusters[c]
-            while length(point_idxs) > max_reef_number
-                # find furthest point from centroid
-                dists = quick_distance.(point_idxs, Ref((cent_lon[c], cent_lat[c])))
-                idx = point_idxs[argmax(dists)]
+            cent_lon = ifelse.(empty_mask, means_lon, means_lon)
+            cent_lat = ifelse.(empty_mask, means_lat, means_lat)
 
-                # find all clusters with available capacity
-                available_clusters = findall(length.(clusters) .< max_reef_number)
-                if isempty(available_clusters)
-                    break
+            updated = false
+            # enforce max cluster size
+            # for each over-capacity cluster, reassign its furthest points
+            for c in 1:k
+                point_idxs = clusters[c]
+                while length(point_idxs) > max_reef_number
+                    # find furthest point from centroid
+                    dists = quick_distance.(point_idxs, Ref((cent_lon[c], cent_lat[c])))
+                    idx = point_idxs[argmax(dists)]
+
+                    # find all clusters with available capacity
+                    available_clusters = findall(length.(clusters) .< max_reef_number)
+                    if isempty(available_clusters)
+                        break
+                    end
+
+                    # find closest available cluster
+                    eligible_centroids = zip(
+                        cent_lon[available_clusters],
+                        cent_lat[available_clusters]
+                    )
+                    eligible_distances = quick_distance.(Ref(idx), eligible_centroids)
+                    closest_cluster = available_clusters[argmin(eligible_distances)]
+
+                    # reassign point
+                    clustering_assignment[idx] = closest_cluster
+                    deleteat!(point_idxs, findfirst(==(idx), point_idxs))
+                    push!(clusters[closest_cluster], idx)
+                    updated = true
                 end
+            end
 
-                # find closest available cluster
-                eligible_centroids = zip(
-                    cent_lon[available_clusters],
-                    cent_lat[available_clusters]
-                )
-                eligible_distances = quick_distance.(Ref(idx), eligible_centroids)
-                closest_cluster = available_clusters[argmin(eligible_distances)]
-
-                # reassign point
-                clustering_assignment[idx] = closest_cluster
-                deleteat!(point_idxs, findfirst(==(idx), point_idxs))
-                push!(clusters[closest_cluster], idx)
-                updated = true
+            if !updated
+                break
             end
         end
+        return clustering_assignment
+    end
 
-        if !updated
-            break
+    # Run k-means multiple times to find best result
+    best_clustering_assignment = zeros(Int, n_reefs)
+    best_score = Inf
+    for _ in 1:n_restarts
+        clustering_assignment = single_run()
+        clusters = findall.(.==(1:k), Ref(clustering_assignment))
+        centroids = calc_centroid.(clusters)
+        cluster_score = sum(
+            [sum(quick_distance.(clusters[i], Ref(centroids[i]))) for i in 1:k]
+        )
+        if cluster_score < best_score
+            best_score, best_clustering_assignment = cluster_score, clustering_assignment
         end
     end
-    return clustering_assignment
+
+    return best_clustering_assignment
 end
 
 """
