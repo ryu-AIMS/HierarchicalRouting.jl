@@ -237,7 +237,7 @@ end
     capacitated_kmeans(
         reef_data;
         max_reef_number::Int = 6,
-        max_iter::Int = 10,
+        max_iter::Int = 1000,
         n_restarts::Int = 5
     )
 
@@ -256,7 +256,7 @@ A vector of cluster assignments for each reef.
 function capacitated_kmeans(
     reef_data;
     max_reef_number::Int = 6,
-    max_iter::Int = 10,
+    max_iter::Int = 1000,
     n_restarts::Int = 5,
 )
     n_reefs = length(reef_data.LAT)
@@ -298,7 +298,7 @@ function capacitated_kmeans(
     end
 
     function single_run()
-        clustering = kmeans(coordinates_array, k)
+        clustering = kmeans(coordinates_array, k; maxiter=max_iter)
         clustering_assignment = copy(clustering.assignments)
 
         for _ in 1:max_iter
