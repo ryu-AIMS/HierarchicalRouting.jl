@@ -260,7 +260,7 @@ function capacitated_kmeans(
     n_restarts::Int = 5,
 )
     n_reefs = length(reef_data.LAT)
-    k = ceil(Int, n_reefs/max_reef_number)
+    k = Ref(ceil(Int, n_reefs/max_reef_number))
     coordinates_array = hcat(reef_data.LON, reef_data.LAT)' # 2×n for kmeans
 
     function quick_distance(i::Int, j::Int)
@@ -298,18 +298,18 @@ function capacitated_kmeans(
     end
 
     function single_run()
-        clustering = kmeans(coordinates_array, k; maxiter=max_iter)
+        clustering = kmeans(coordinates_array, k[]; maxiter=max_iter)
         clustering_assignment = copy(clustering.assignments)
 
         for _ in 1:max_iter
             # build clusters & centroids
-            clusters = findall.(.==(1:k), Ref(clustering_assignment))
+            clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
             centroids = calc_centroid.(clusters)
 
-            updated = false
             # enforce max cluster size
             # for each over-capacity cluster, reassign its furthest points
-            for c in 1:k
+            updated = false
+            for c in 1:k[]
                 point_idxs = clusters[c]
                 while length(point_idxs) > max_reef_number
                     # find furthest point from centroid
@@ -335,9 +335,7 @@ function capacitated_kmeans(
                 end
             end
 
-            if !updated
-                break
-            end
+            updated || break
         end
         return clustering_assignment
     end
@@ -347,10 +345,10 @@ function capacitated_kmeans(
     best_score = Inf
     for _ in 1:n_restarts
         clustering_assignment = single_run()
-        clusters = findall.(.==(1:k), Ref(clustering_assignment))
+        clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
         centroids = calc_centroid.(clusters)
         cluster_score = sum(
-            [sum(quick_distance.(clusters[i], Ref(centroids[i]))) for i in 1:k]
+            [sum(quick_distance.(clusters[i], Ref(centroids[i]))) for i in 1:k[]]
         )
         if cluster_score < best_score
             best_score, best_clustering_assignment = cluster_score, clustering_assignment
