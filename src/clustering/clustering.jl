@@ -42,18 +42,15 @@ end
 """
     cluster_problem(
         problem::Problem,
-        k::Int8,
-        tol::Float64,
         dist_weighting::Float64=5E-6
     )::Vector{Cluster}
 
-Cluster the problem data into `k` clusters based on the target locations and a specified
-    clustering tolerance.
+Cluster the problem data into groups based on the target locations and the depot location.
+The clustering is done using k-means clustering, and the centroids of the clusters are
+    calculated.
 
 # Arguments
 - `problem`: The problem data.
-- `k`: The number of clusters to create.
-- `tol`: The tolerance for clustering.
 - `dist_weighting`: Weighting factor for the distances in 3D clustering, used in combination
     with lat/lons at first 2 dimensions. Higher values will give more weight to distance
     from current location (depot). Default = 5E-6.
@@ -63,8 +60,6 @@ Vector of clustered locations.
 """
 function cluster_problem(
     problem::Problem,
-    k::Int8,
-    tol::Float64,
     dist_weighting::Float64=5E-6
 )::Vector{Cluster}
     points::Vector{Point{2, Float64}} = problem.targets.points.geometry
@@ -81,15 +76,25 @@ function cluster_problem(
     feasible_points = points[feasible_idxs]
 
     # 3D coordinate matrix of feasible points for clustering
-    coordinates_array = Matrix{Float64}(undef, 3, length(feasible_points))
+    coordinates_array = Matrix{Float64}(undef, 2, length(feasible_points))
     coordinates_array[1, :] .= getindex.(feasible_points, 1)
     coordinates_array[2, :] .= getindex.(feasible_points, 2)
-    coordinates_array[3, :] = dist_vector[feasible_idxs]'
+    # coordinates_array[3, :] = dist_vector[feasible_idxs]'
 
-    clustering = kmeans(coordinates_array, k; tol=tol, rng=Random.seed!(1))
+    points_df = DataFrame(
+        LON=getindex.(feasible_points, 1),
+        LAT=getindex.(feasible_points, 2),
+        geometry = feasible_points
+    )
+    clustering_assignments = capacitated_kmeans(
+        points_df;
+        max_reef_number = 6,
+        max_iter = 1000,
+        n_restarts = 50,
+    )
 
     clustered_targets_df::DataFrame = DataFrame(
-        id = clustering.assignments,
+        id = clustering_assignments,
         geometry = feasible_points
     )
 
