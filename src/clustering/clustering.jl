@@ -153,7 +153,7 @@ function disturb_remaining_clusters(
         return empty_raster
     end
 
-    # 3D coordinate matrix for clustering
+    # 3D coordinate matrix for disturbance clustering
     coordinates_array_3d = Matrix{Float64}(undef, 3, n_sites)
     coordinates_array_3d[1, :] .= raster.dims[1][getindex.(indices, 1)]
     coordinates_array_3d[2, :] .= raster.dims[2][getindex.(indices, 2)]
@@ -242,14 +242,14 @@ function disturb_remaining_clusters(
     tol::Float64=1.0,
     dist_weighting::Float64=2E-5
 )::DataFrame
-    n_sites::Int =size(disturbance_df,1) # number of target sites
+    n_sites::Int = size(disturbance_df,1) # number of target sites
 
     if n_sites <= k
         @warn "No disturbance, as (deployment targets <= clusters required)"
         return DataFrame()
     end
 
-    # 3D coordinate matrix for clustering
+    # 3D coordinate matrix for disturbance clustering
     coordinates_array_3d = Matrix{Float64}(undef, 3, n_sites)
     coordinates_array_3d[1, :] .= getindex.(disturbance_df.node, 1)
     coordinates_array_3d[2, :] .= getindex.(disturbance_df.node, 2)
@@ -304,7 +304,7 @@ function disturb_remaining_clusters(
     # Fill vector with feasible distance from depot to each target site
     dist_vector = get_feasible_distances(current_location, remaining_pts, exclusions)
 
-    # Filter out infeasible points using infeasible_point_indxs
+    # Mask out infeasible points
     feasible_idxs = findall(x -> x != Inf, dist_vector)
     coordinates_array_2d_feasible = coordinates_array_2d_disturbed[:, feasible_idxs]
     feasible_pts = Point{2,Float64}.(
