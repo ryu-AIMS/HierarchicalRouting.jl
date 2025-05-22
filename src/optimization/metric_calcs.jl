@@ -98,9 +98,12 @@ end
         dist_matrix::Matrix{Float64}
     )::Float64
 
+Compute the cost of a sortie, which starts and ends at given points, but does not return to
+    start.
+
 # Arguments
 - `sortie`: Route object containing nodes and distance matrix.
-- `node_order`: Vector of node indices (not including the start and finish).
+- `node_order`: Vector of node indices representing the order of the sortie.
 - `dist_matrix`: Distance matrix between nodes, ordered by node index.
 
 # Returns
@@ -114,9 +117,11 @@ function tender_sortie_dist(
     node_order::Vector{Int64},
     dist_matrix::Matrix{Float64}
 )::Float64
-    dist = dist_matrix[1, node_order[1]+1] # dist from start (node 1) to first node
-    dist += sum(@view dist_matrix[node_order[1:end-1] .+ 1, node_order[2:end] .+ 1])
-    dist += dist_matrix[node_order[end]+1, end] # dist from last deployment loc to end node
+    dist = 0.0
+    dist = sum(
+        dist_matrix[node_order[i], node_order[i+1]]
+        for i in 1:(length(node_order)-1)
+    )
     return dist
 end
 
