@@ -21,7 +21,7 @@ end
 struct MSTSolution
     cluster_sets::Vector{Vector{Cluster}}
     mothership_routes::Vector{MothershipSolution}
-    tenders::Vector{TenderSolution}
+    tenders::Vector{Vector{TenderSolution}}
 end
 
 """
