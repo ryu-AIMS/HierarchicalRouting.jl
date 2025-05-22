@@ -190,12 +190,12 @@ end
 
 """
     improve_solution(
-        soln::MSTSolution,
-        opt_function::Function,
-        objective_function::Function,
-        perturb_function::Function,
+        initial_solution::MSTSolution,
         exclusions_mothership::DataFrame = DataFrame(),
         exclusions_tender::DataFrame = DataFrame();
+        opt_function::Function = HierarchicalRouting.simulated_annealing,
+        objective_function::Function = HierarchicalRouting.critical_path,
+        perturb_function::Function = HierarchicalRouting.perturb_swap_solution,
         max_iterations::Int = 1_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
@@ -206,12 +206,12 @@ Improve the solution using the optimization function `opt_function` with the obj
 function `objective_function` and the perturbation function `perturb_function`.
 
 # Arguments
-- `soln`: Initial solution to improve
-- `opt_function`: Optimization function to use
-- `objective_function`: Objective function to use
-- `perturb_function`: Perturbation function to use
+- `initial_solution`: Initial solution to improve
 - `exclusions_mothership`: DataFrame of exclusion polygons for the mothership
 - `exclusions_tender`: DataFrame of exclusion polygons for the tenders
+- `opt_function`: Optimization function to improve the solution
+- `objective_function`: Objective function to quantify and evaluate the solution
+- `perturb_function`: Perturbation function to generate changes in the solution
 - `max_iterations`: Maximum number of iterations
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
@@ -222,19 +222,19 @@ function `objective_function` and the perturbation function `perturb_function`.
 - `z_best`: Objective value associated with the best solution
 """
 function improve_solution(
-    soln::MSTSolution,
-    opt_function::Function,
-    objective_function::Function,
-    perturb_function::Function,
+    initial_solution::MSTSolution,
     exclusions_mothership::DataFrame = DataFrame(),
     exclusions_tender::DataFrame = DataFrame();
+    opt_function::Function = HierarchicalRouting.simulated_annealing,
+    objective_function::Function = HierarchicalRouting.critical_path,
+    perturb_function::Function = HierarchicalRouting.perturb_swap_solution,
     max_iterations::Int = 1_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
     static_limit::Int = 20
 )::Tuple{MSTSolution, Float64}
     soln_best, z_best = opt_function(
-        soln,
+        initial_solution,
         objective_function,
         perturb_function,
         exclusions_mothership,

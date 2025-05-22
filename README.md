@@ -109,9 +109,6 @@ Optional parameters are:
 # Improve solution using simulated annealing
 solution_best, z_best = improve_solution(
     solution_init,                                                  # solution_init
-    HierarchicalRouting.simulated_annealing,                        # opt_function
-    HierarchicalRouting.critical_path,                              # objective_function
-    HierarchicalRouting.perturb_swap_solution,                      # perturb_function
     problem.mothership.exclusion,                                   # exclusion
     problem.tenders.exclusion;                                      # exclusion
 );
@@ -126,18 +123,6 @@ The following arguments are required for `improve_solution()`:
     - `exclusions_tender`
 
 The following arguments are optional for `improve_solution()`:
-- **opt_function**: The optimization function to be used to improve the solution.
-    Currently, this has to be:
-    - `HierarchicalRouting.simulated_annealing`
-    but, other optimization functions may be added in the future.
-- **objective_function**: The objective function to be used to evaluate the solution.
-    Currently, this has to be:
-    - `HierarchicalRouting.critical_path`
-    but, other objective functions may be added in the future.
-- **perturb_function**: The perturbation function to be used to generate a new solution
-    from the current solution. Currently, this has to be:
-    - `HierarchicalRouting.perturb_swap_solution`
-    but, other perturbation functions may be added in the future.
 - **max_iterations**: The maximum number of iterations to be used in the optimization
     process. Default is 1000.
 - **temp_init**: The initial temperature for the optimization process. Default is 500.
