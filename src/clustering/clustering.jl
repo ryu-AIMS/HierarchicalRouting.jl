@@ -106,14 +106,21 @@ end
         tol::Float64=1.0,
         dist_weighting::Float64=2E-5
     )::Raster{Int64, 2}
+    disturb_remaining_clusters(
+        disturbance_df::DataFrame,
+        k::Int8,
+        current_location::Point{2, Float64},
+        exclusions::DataFrame;
+        tol::Float64=1.0,
+        dist_weighting::Float64=2E-5
+    )::DataFrame
 
-Cluster targets locations by applying k-means to target (non-zero) cells in a Float64 raster
-    containing disturbance values.
-Clustering considers feasible distances from the current location as a 3rd dimension, and
-    excludes points in exclusion zones.
+- Disturb remaining clusters by simulating a disturbance event to remove nodes.
+- Re-cluster the remaining nodes into `k` clusters.
 
 # Arguments
 - `raster`: Raster containing the target geometries.
+- `disturbance_df`: DataFrame containing the disturbance values for each node.
 - `k`: Number of clusters to create.
 - `current_location`: Current location of the mothership.
 - `exclusions`: DataFrame containing the exclusion zones.
@@ -122,7 +129,8 @@ Clustering considers feasible distances from the current location as a 3rd dimen
     compared against lat/lons.
 
 # Returns
-A raster containing new clusters, with cluster IDs assigned to each target locations.
+A raster/DataFrame containing new, disturbed clusters. Cluster ID is assigned to each target
+    location.
 """
 function apply_kmeans_clustering(
     raster::Raster{Float64, 2},
@@ -225,6 +233,101 @@ function apply_kmeans_clustering(
     clustered_targets[indices[feasible_idxs]] .= clustering.assignments
 
     return clustered_targets
+end
+function disturb_remaining_clusters(
+    disturbance_df::DataFrame,
+    k::Int8,
+    current_location::Point{2, Float64},
+    exclusions::DataFrame;
+    tol::Float64=1.0,
+    dist_weighting::Float64=2E-5
+)::DataFrame
+    n_sites::Int =size(disturbance_df,1) # number of target sites
+
+    if n_sites <= k
+        @warn "No disturbance, as (deployment targets <= clusters required)"
+        return DataFrame()
+    end
+
+    # 3D coordinate matrix for clustering
+    coordinates_array_3d = Matrix{Float64}(undef, 3, n_sites)
+    coordinates_array_3d[1, :] .= getindex.(disturbance_df.node, 1)
+    coordinates_array_3d[2, :] .= getindex.(disturbance_df.node, 2)
+    coordinates_array_3d[3, :] .= disturbance_df.disturbance_value
+
+    # Create k_d clusters to create disturbance on subset
+    k_d_lower = min(n_sites, k+1)
+    k_d_upper = min(max(k+1, n_sites, k^2), n_sites)
+    k_d = rand(k_d_lower:k_d_upper)
+
+    disturbance_clusters = kmeans(
+        coordinates_array_3d,
+        k_d;
+        tol=tol,
+        rng=Random.seed!(1)
+    )
+
+    # Create a score based on the disturbance values for each cluster
+    disturbance_scores = Vector{Float64}(undef, n_sites)
+    # Calculate the mean disturbance value for each cluster with stochastic perturbation
+    w = 1.0 # weight for the environmental disturbance value
+    t = 1.0 # perturbation weighting factor
+    cluster_disturbance_vals =
+        w * [
+            mean(coordinates_array_3d[3, disturbance_clusters.assignments .== i])
+            for i in 1:k_d
+        ] .+
+        t * rand(-1.0:0.01:1.0, k_d)
+    # Assign the disturbance value to every node in the cluster
+    disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
+
+    # remove nodes in the cluster with the highest disturbance score
+    max_disturbance_score = maximum(disturbance_scores)
+    surviving_mask = disturbance_scores .!= max_disturbance_score
+
+    coordinates_array_2d_disturbed = coordinates_array_3d[1:2, surviving_mask]
+    n_sites = sum(surviving_mask)
+
+    if k > n_sites
+        #! Too many nodes/clusters removed! Change threshold,
+        #! or use a different method e.g. remove cluster with highest scores
+        error(
+            "Too many nodes removed!\n$(n_sites) remaining node/s, $k clusters required."
+        )
+    end
+
+    remaining_pts = Point{2,Float64}.(
+        coordinates_array_2d_disturbed[1, :],
+        coordinates_array_2d_disturbed[2, :]
+    )
+
+    # Fill vector with feasible distance from depot to each target site
+    dist_vector = get_feasible_distances(current_location, remaining_pts, exclusions)
+
+    # Filter out infeasible points using infeasible_point_indxs
+    feasible_idxs = findall(x -> x != Inf, dist_vector)
+    coordinates_array_2d_feasible = coordinates_array_2d_disturbed[:, feasible_idxs]
+    feasible_pts = Point{2,Float64}.(
+        coordinates_array_2d_feasible[1, :],
+        coordinates_array_2d_feasible[2, :]
+    )
+
+    disturbed_points_df = DataFrame(
+        geometry = feasible_pts,
+        LON = getindex.(feasible_pts, 1),
+        LAT = getindex.(feasible_pts, 2)
+    )
+
+    #re-cluster the remaining nodes into k clusters
+    clustering_assignments = capacitated_kmeans(
+        disturbed_points_df;
+        max_cluster_size = 6,
+    )
+
+    return DataFrame(
+        id = clustering_assignments,
+        geometry = feasible_pts
+    )
 end
 
 """
