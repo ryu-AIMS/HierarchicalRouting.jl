@@ -30,6 +30,11 @@ function initial_solution(
     num_clusters = Int8(num_clusters)
     cluster_tolerance = Float64(cluster_tolerance)
 
+    n_events = length(disturbance_clusters) + 1
+    tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
+    cluster_set = Vector{Vector{Cluster}}(undef, n_events)
+    ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
+
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(
         problem,
@@ -41,10 +46,6 @@ function initial_solution(
         i -> i != 0 && i <= length(clusters),
         ms_route.cluster_sequence.id
     )
-
-    tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
-    cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
-    ms_soln_sets = Vector{MothershipSolution}(undef, length(disturbance_clusters)+1)
 
     cluster_set[1] = clusters
     ms_soln_sets[1] = ms_route
