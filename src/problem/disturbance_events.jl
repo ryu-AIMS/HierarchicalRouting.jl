@@ -41,7 +41,7 @@ function disturb_clusters(
         missingval = -9999.0,
         fill = filtered_df.disturbance_value,
     )
-    disturbed_targets = apply_kmeans_clustering(
+    disturbed_targets = disturb_remaining_clusters(
         disturbance_raster,
         Int8(num_clusters),
         current_location,

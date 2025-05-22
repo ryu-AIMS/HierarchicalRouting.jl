@@ -104,7 +104,7 @@ function cluster_problem(
 end
 
 """
-    apply_kmeans_clustering(
+    disturb_remaining_clusters(
         raster::Raster{Float64, 2},
         k::Int8,
         current_location::Point{2, Float64},
@@ -138,7 +138,7 @@ end
 A raster/DataFrame containing new, disturbed clusters. Cluster ID is assigned to each target
     location.
 """
-function apply_kmeans_clustering(
+function disturb_remaining_clusters(
     raster::Raster{Float64, 2},
     k::Int8,
     current_location::Point{2, Float64},
