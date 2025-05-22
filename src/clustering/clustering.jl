@@ -398,16 +398,21 @@ end
         cluster_raster::Raster{Int64, 2},
         prev_centroids::Dict{Int64, Point{2,Float64}}
     )::Raster{Int64, 2}
+    update_cluster_assignments(
+        cluster_df::DataFrame,
+        prev_centroids::Dict{Int64, Point{2,Float64}}
+    )::DataFrame
 
 Update cluster assignments in the raster to match previous cluster numbering, based on
 matching closest clster centroids.
 
 # Arguments
 - `cluster_raster`: Raster containing the new cluster IDs.
+- `cluster_df`: DataFrame containing the new cluster IDs and their geometries.
 - `prev_centroids`: Dictionary mapping previous cluster IDs to their centroids.
 
 # Returns
-- A new raster with updated cluster assignments to match the previous numbering.
+A new raster or DaraFreame with updated cluster assignments to match the previous numbering.
 """
 function update_cluster_assignments(
     cluster_raster::Raster{Int64, 2},
@@ -436,6 +441,34 @@ function update_cluster_assignments(
     end
 
     return updated_raster
+end
+function update_cluster_assignments(
+    cluster_df::DataFrame,
+    prev_centroids::Dict{Int64, Point{2,Float64}}
+)::DataFrame
+    unique_new = Set(cluster_df.id)
+
+    # Compute new centroids from the cluster_raster
+    new_centroids = Dict{Int64, Point{2,Float64}}()
+    for new_id in unique_new
+        indices = findall(==(new_id), cluster_df.id)
+        mean_lon = mean(getindex.(cluster_df.geometry[indices], 1))
+        mean_lat = mean(getindex.(cluster_df.geometry[indices], 2))
+        new_centroids[new_id] = (mean_lon, mean_lat)
+    end
+
+    # Map cluster IDs from new to previous clusters
+    cluster_mapping = one_to_one_mapping_hungarian(new_centroids, prev_centroids)
+    new_ids = Vector{Int64}(undef, length(cluster_df.id))
+
+    for (i, new_id) in enumerate(cluster_df.id)
+        new_ids[i] = cluster_mapping[new_id]
+    end
+    updated_df = DataFrame(
+        id = new_ids,
+        geometry = cluster_df.geometry
+    )
+    return updated_df
 end
 
 function one_to_one_mapping_hungarian(
