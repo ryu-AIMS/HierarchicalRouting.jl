@@ -774,11 +774,17 @@ function tender_sequential_nearest_neighbour(
         )
     end
 
-    return TenderSolution(
+    initial_sortie = TenderSolution(
         cluster.id,
         waypoints[1],
         waypoints[2],
         routes,
         dist_matrix
     )
+    improved_sortie = two_opt(
+        initial_sortie,
+        exclusions
+    )
+
+    return improved_sortie
 end
