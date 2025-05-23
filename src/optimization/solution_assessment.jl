@@ -118,8 +118,11 @@ function perturb_swap_solution(
         sorties,
         tender.dist_matrix  #? recompute
     )
-
-    return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_all)
+    tenders_full_updated::Vector{Vector{TenderSolution}} = [
+        copy(soln.tenders[end]),
+        tenders_all
+    ]
+    return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_full_updated)
 end
 function perturb_swap_solution(
     soln::MSTSolution,
@@ -259,14 +262,16 @@ function perturb_swap_solution(
         sorties_b,
         tender_b.dist_matrix
     )
-
+    tenders_full_updated::Vector{Vector{TenderSolution}} = [
+        copy(soln.tenders[end]),
+        tenders_all
+    ]
     # Create new perturbed solution
     soln_perturbed = MSTSolution(
         [new_clusters],
         [updated_ms_solution],
-        tenders_all
+        tenders_full_updated
     )
-
     return soln_perturbed
 end
 
@@ -454,14 +459,17 @@ function insert_unallocated_node(
             length.(getfield.(sorties, :nodes))
         )
     end
-
+    tenders_full_updated::Vector{Vector{TenderSolution}} = [
+        copy(soln.tenders[end]),
+        updated_tenders
+    ]
     soln_new = MSTSolution(
         [copy(soln.cluster_sets[end]), clusters],
         [
             deepcopy(soln.mothership_routes[end]),
             deepcopy(soln.mothership_routes[end])  # TODO: recompute if needed
         ],
-        updated_tenders
+        tenders_full_updated
     )
     return soln_new
 end
