@@ -63,7 +63,7 @@ function initial_solution(
 
     disturbance_index = 1
     for i ∈ sort(collect(disturbance_clusters))
-        @info "Disturbance event at $(ms_route.route.nodes[2i-1])" *
+        @info "Disturbance event at $(ms_route.route.nodes[2i-1]) " *
             "before $(i)th cluster_id=$(clust_seq[i])"
         disturbance_index += 1
         clusters = vcat(

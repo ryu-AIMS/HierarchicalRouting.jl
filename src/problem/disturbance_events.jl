@@ -31,26 +31,14 @@ function disturb_clusters(
 
     if nrow(filtered_df) != length(remaining_nodes)
         @warn "Warning: Expected $(length(remaining_nodes)) nodes, but filtered df contains $(nrow(filtered_df))"
-        #? Why mismatch? Nodes in exclusions? Why not previously identified?
     end
 
-    disturbance_raster = Rasters.rasterize(
-        last,
-        [(t[1],t[2]) for t in filtered_df.node];
-        res = res,
-        missingval = -9999.0,
-        fill = filtered_df.disturbance_value,
-    )
     disturbed_targets = disturb_remaining_clusters(
-        disturbance_raster,
-        Int8(num_clusters),
+        filtered_df,
+        num_clusters,
         current_location,
         exclusions
     )
-
-    if all(x -> x == disturbed_targets.missingval, disturbed_targets)
-        return remaining_clusters
-    end
 
     # Update the cluster assignments based on previous numbering
     updated_disturbed_targets = update_cluster_assignments(
@@ -60,7 +48,6 @@ function disturb_clusters(
 
     disturbed_clusters = calculate_cluster_centroids(
         updated_disturbed_targets;
-        cluster_ids=getfield.(remaining_clusters, :id)
     )
 
     return disturbed_clusters
