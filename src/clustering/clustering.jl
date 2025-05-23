@@ -319,6 +319,7 @@ function disturb_remaining_clusters(
     clustering_assignments = capacitated_kmeans(
         disturbed_points_df;
         max_cluster_size = 6,
+        k_spec = k,
     )
 
     return DataFrame(
@@ -332,7 +333,7 @@ end
         coordinates_array::Matrix{Float64};
         max_cluster_size::Int,
         max_split_distance::Float64 = 12.0,
-        max_k::Int = 6,
+        k_spec::Int = 0,
         max_iter::Int = 1000,
         n_restarts::Int = 20
     )::Vector{Int64}
@@ -345,6 +346,8 @@ are assigned to a cluster.
     longitude and latitude (and optionally a third dimension for distance).
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance between clusters to allow for splitting.
+- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
+    the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 
@@ -355,12 +358,12 @@ function capacitated_kmeans(
     coordinates_array::Matrix{Float64};
     max_cluster_size::Int,
     max_split_distance::Float64 = 12.0,
-    max_k::Int = 6,
+    k_spec::Int = 0,
     max_iter::Int = 1000,
     n_restarts::Int = 20,
 )::Vector{Int64}
     n_reefs = size(coordinates_array, 2)
-    k = Ref(ceil(Int, n_reefs/max_cluster_size))
+    k = k_spec == 0 ? Ref(ceil(Int, n_reefs/max_cluster_size)) : Ref(k_spec)
 
     function quick_distance(i::Int, (lon2_deg, lat2_deg)::Tuple{Float64, Float64})::Float64
         lon1_deg, lat1_deg = coordinates_array[1,i], coordinates_array[2,i]
@@ -413,9 +416,13 @@ function capacitated_kmeans(
                 close_clusters = available_clusters[dists .≤ max_split_distance]
 
                 if isempty(close_clusters)
-                    # no available AND close clusters --> create new cluster
-                    k[] += 1
-                    return single_run()
+                    if iszero(k_spec)
+                        # no available AND close clusters --> create new cluster
+                        k[] += 1
+                        return single_run()
+                    else
+                        close_clusters = available_clusters
+                    end
                 end
 
                 # pick the closest among them
@@ -438,7 +445,6 @@ function capacitated_kmeans(
     for _ in 1:n_restarts
         # Reset k every time
         clustering_assignment = single_run()
-        k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
         clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
         centroids = calc_centroid.(clusters)
         cluster_score = sum(
