@@ -431,12 +431,17 @@ end
         exclusions_tender::DataFrame,
         cluster_seq_idx::Int64
     )::MothershipSolution
+    two_opt(
+        tender_soln_current::TenderSolution,
+        exclusions_tender::DataFrame,
+    )::TenderSolution
 
-Apply the 2-opt heuristic to improve the current MothershipSolution route by uncrossing
-crossed links between waypoints for the whole route or between current location and depot.
+Apply the 2-opt heuristic to improve current routes by uncrossing crossed links between
+    waypoints for the whole route or between current location and depot.
 
 # Arguments
-- `ms_soln_current`: Current MothershipSolution - from nearest_neighbour.
+- `ms_soln_current`: Current MothershipSolution to improve.
+- `tender_soln_current`: Current TenderSolution to improve.
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
 - `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
