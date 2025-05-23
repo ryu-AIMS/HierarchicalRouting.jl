@@ -36,10 +36,10 @@ function perturb_swap_solution(
     enforce_diff_sortie::Bool = false
 )::MSTSolution
     clust_seq_idx = clust_seq_idx_target == -1 ?
-        rand(1:length(soln.tenders)) :
+        rand(1:length(soln.tenders[end])) :
         clust_seq_idx_target
 
-    tender = deepcopy(soln.tenders[clust_seq_idx])
+    tender = deepcopy(soln.tenders[end][clust_seq_idx])
     sorties = deepcopy(tender.sorties)
 
     # If < 2 sorties in cluster, no perturbation possible
@@ -110,7 +110,7 @@ function perturb_swap_solution(
         vcat(linestrings[2]...)
     )
 
-    tenders_all::Vector{TenderSolution} = copy(soln.tenders)
+    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
     tenders_all[clust_seq_idx] = TenderSolution(
         tender.id,
         tender.start,
@@ -129,8 +129,8 @@ function perturb_swap_solution(
 )::MSTSolution
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
-    tender_a = soln.tenders[clust_a_seq_idx]
-    tender_b = soln.tenders[clust_b_seq_idx]
+    tender_a = soln.tenders[end][clust_a_seq_idx]
+    tender_b = soln.tenders[end][clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
     sortie_a_idx = rand(1:length(tender_a.sorties))
@@ -174,7 +174,7 @@ function perturb_swap_solution(
     )
 
     # Update mothership route and waypoints based on updated clusters
-    cluster_seq_ids = getfield.(soln.tenders, :id)
+    cluster_seq_ids = getfield.(soln.tenders[end], :id)
     cluster_centroids = getfield.(new_clusters, :centroid)
     ordered_cluster_centroids = cluster_centroids[cluster_seq_ids]
     depot = soln.mothership_routes[end].route.nodes[1]
@@ -244,7 +244,7 @@ function perturb_swap_solution(
     ]
 
     # Update tenders with existing start/finish (not yet adjusted)
-    tenders_all::Vector{TenderSolution} = copy(soln.tenders)
+    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
     tenders_all[clust_a_seq_idx] = TenderSolution(
         tender_a.id,
         tender_a.start,
@@ -293,7 +293,7 @@ function find_unallocated_nodes(
     soln::MSTSolution
 )::Set{Point{2, Float64}}
     clusters = soln.cluster_sets[end]
-    tenders = soln.tenders
+    tenders = soln.tenders[end]
     return find_unallocated_nodes(clusters, tenders)
 end
 function find_unallocated_nodes(
@@ -349,7 +349,7 @@ function insert_unallocated_node(
     current_cluster_seq_idx::Int=-1,
 )::MSTSolution
     clusters = deepcopy(soln.cluster_sets[end])
-    tenders = deepcopy(soln.tenders)
+    tenders = deepcopy(soln.tenders[end])
     unallocated_nodes = find_unallocated_nodes(soln)
 
     waypoints = soln.mothership_routes[end].route.nodes[2:end-1]
