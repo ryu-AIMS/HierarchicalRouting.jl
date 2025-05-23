@@ -21,7 +21,7 @@ end
 struct MSTSolution
     cluster_sets::Vector{Vector{Cluster}}
     mothership_routes::Vector{MothershipSolution}
-    tenders::Vector{TenderSolution}
+    tenders::Vector{Vector{TenderSolution}}
 end
 
 """
@@ -58,7 +58,7 @@ function adjust_waypoint(
 )::Point{2, Float64}
 
     waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
-    convex_hulls::Vector{AG.IGeometry{AG.wkbPolygon}} = AG.convexhull.(exclusions.geometry)
+    convex_hulls::Vector{AG.IGeometry} = AG.convexhull.(exclusions.geometry)
     containing_polygons::Vector{AG.IGeometry{AG.wkbPolygon}} = filter(
         hull -> AG.contains(hull, waypoint_geom),
         convex_hulls
@@ -87,7 +87,7 @@ function adjust_waypoint(
     sizehint!(valid_boundary_points, length(boundary_points))
     @inbounds for p in boundary_points
         # If a point is not in the union (exclusion), it’s valid.
-        if !point_in_exclusion(p, union_poly)
+        if !point_in_exclusion(p, convex_hulls)
             push!(valid_boundary_points, p)
         end
     end
@@ -97,9 +97,8 @@ function adjust_waypoint(
         p -> ((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2),
         valid_boundary_points
     )
-
     # Recursively call adjust_waypoint() until waypoint is outside exclusion zone
-    if point_in_exclusion(closest_point, exclusions)
+    if point_in_exclusion(closest_point, convex_hulls)
         return adjust_waypoint(closest_point, exclusions)
     end
 
@@ -432,12 +431,17 @@ end
         exclusions_tender::DataFrame,
         cluster_seq_idx::Int64
     )::MothershipSolution
+    two_opt(
+        tender_soln_current::TenderSolution,
+        exclusions_tender::DataFrame,
+    )::TenderSolution
 
-Apply the 2-opt heuristic to improve the current MothershipSolution route by uncrossing
-crossed links between waypoints for the whole route or between current location and depot.
+Apply the 2-opt heuristic to improve current routes by uncrossing crossed links between
+    waypoints for the whole route or between current location and depot.
 
 # Arguments
-- `ms_soln_current`: Current MothershipSolution - from nearest_neighbour.
+- `ms_soln_current`: Current MothershipSolution to improve.
+- `tender_soln_current`: Current TenderSolution to improve.
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
 - `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
@@ -572,6 +576,61 @@ function two_opt(
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
         route=Route(updated_waypoints, dist_matrix, path)
+    )
+end
+function two_opt(
+    tender_soln_current::TenderSolution,
+    exclusions_tender::DataFrame,
+)::TenderSolution
+    sorties_current = tender_soln_current.sorties
+    sorties_new = Vector{Route}(undef, length(sorties_current))
+
+    for (idx, sortie) in enumerate(sorties_current)
+        nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
+        n = length(nodes)
+
+        if n ≤ 3
+            # If there is only 1 node between start and finish, no change is possible
+            sorties_new[idx] = sortie
+            continue
+        end
+
+        seq_best = collect(1:n)
+        dist_best = tender_sortie_dist(seq_best, sortie.dist_matrix)
+        improved = true
+
+        while improved
+            improved = false
+            for j in 2:(n-2)
+                for i in (j+1):(n-1)
+                    seq_proposed = two_opt_swap(seq_best, j, i)
+                    dist_proposed = tender_sortie_dist(seq_proposed, sortie.dist_matrix)
+                    if dist_proposed < dist_best
+                        seq_best, dist_best = seq_proposed, dist_proposed
+                        improved = true
+                    end
+                end
+            end
+        end
+
+        # build new sortie ordering, ignoring start and finish
+        nodes_new = nodes[seq_best[2:end-1]]
+        dist_matrix_new = sortie.dist_matrix[seq_best, seq_best]
+
+        # recompute feasible path through exclusions
+        new_path = vcat(get_feasible_vector(nodes[seq_best], exclusions_tender)[2]...)
+
+        sorties_new[idx] = Route(nodes_new, dist_matrix_new, new_path)
+    end
+
+    #? recompute or delete distance matrix for all TenderSolution with new routes
+
+    return TenderSolution(
+        tender_soln_current.id,
+        tender_soln_current.start,
+        tender_soln_current.finish,
+        sorties_new,
+        tender_soln_current.dist_matrix,
     )
 end
 
@@ -720,11 +779,17 @@ function tender_sequential_nearest_neighbour(
         )
     end
 
-    return TenderSolution(
+    initial_sortie = TenderSolution(
         cluster.id,
         waypoints[1],
         waypoints[2],
         routes,
         dist_matrix
     )
+    improved_sortie = two_opt(
+        initial_sortie,
+        exclusions
+    )
+
+    return improved_sortie
 end
