@@ -319,6 +319,7 @@ function disturb_remaining_clusters(
     clustering_assignments = capacitated_kmeans(
         disturbed_points_df;
         max_cluster_size = 6,
+        k_spec = k,
     )
 
     return DataFrame(
@@ -332,7 +333,7 @@ end
         coordinates::Matrix{Float64};
         max_cluster_size::Int64,
         max_split_distance::Int64 = 12000,
-        max_k::Int64 = 6,
+        k_spec::Int = 0,
         max_iter::Int64 = 1000,
         n_restarts::Int64 = 20
     )::Vector{Int64}
@@ -345,7 +346,8 @@ are assigned to a cluster.
     each row is a coordinate, i.e. longitude, latitude, (optionally distance).
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
-- `max_k`: The maximum number of clusters to create.
+- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
+    the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 
@@ -356,12 +358,12 @@ function capacitated_kmeans(
     coordinates::Matrix{Float64};
     max_cluster_size::Int64,
     max_split_distance::Int64 = 12000,
-    max_k::Int64 = 6,
+    k_spec::Int = 0,
     max_iter::Int64 = 1000,
     n_restarts::Int64 = 20,
 )::Vector{Int64}
     n_reefs::Int64 = size(coordinates, 2)
-    k = Ref(ceil(Int, n_reefs/max_cluster_size))
+    k = k_spec == 0 ? Ref(ceil(Int, n_reefs/max_cluster_size)) : Ref(k_spec)
 
     # Run k-means multiple times to find best result
     best_clustering_assignment::Vector{Int} = zeros(Int, n_reefs)
@@ -371,11 +373,12 @@ function capacitated_kmeans(
         clustering_assignment::Vector{Int64} = _constrained_kmeans_single_iteration(
             coordinates,
             k,
+            k_spec,
             max_cluster_size,
             max_split_distance,
             max_iter
         )
-        k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
+        k[] = k_spec == 0 ? maximum(clustering_assignment) : k_spec
         clusters_list::Vector{Vector{Int64}} = findall.(
             .==(1:k[]), Ref(clustering_assignment)
         )
@@ -399,6 +402,7 @@ end
     _constrained_kmeans_single_iteration(
         coordinates::Matrix{Float64},
         k::Ref{Int},
+        k_spec::Int = 0,
         max_cluster_size::Int64 = 6,
         max_split_distance::Int64 = 12000,
         max_iter::Int64 = 1000,
@@ -411,6 +415,8 @@ Run a single iteration of k-means clustering with constraints on cluster size an
 - `coordinates`: A matrix of coordinates where each column represents a reef's
     longitude and latitude (and optionally a third dimension for distance).
 - `k`: A reference to the number of clusters to create.
+- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
+    the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
@@ -423,6 +429,7 @@ A vector of cluster assignments for each reef, ensuring that no cluster exceeds 
 function _constrained_kmeans_single_iteration(
     coordinates::Matrix{Float64},
     k::Ref{Int},
+    k_spec::Int = 0,
     max_cluster_size::Int64 = 6,
     max_split_distance::Int64 = 12000,
     max_iter::Int64 = 1000,
@@ -464,16 +471,21 @@ function _constrained_kmeans_single_iteration(
                 dists_pt_to_centroids .≤ [max_split_distance]
             ]
 
+
             if isempty(close_clusters)
-                # No available AND close clusters --> create new cluster
-                k[] += 1
-                return _constrained_kmeans_single_iteration(
-                    coordinates,
-                    k,
-                    max_cluster_size,
-                    max_split_distance,
-                    max_iter
-                )
+                if iszero(k_spec)
+                    # no available AND close clusters --> create new cluster
+                    k[] += 1
+                    return _constrained_kmeans_single_iteration(
+                        coordinates,
+                        k,
+                        max_cluster_size,
+                        max_split_distance,
+                        max_iter
+                    )
+                else
+                    close_clusters = available_clusters
+                end
             end
 
             # Pick the closest among them
