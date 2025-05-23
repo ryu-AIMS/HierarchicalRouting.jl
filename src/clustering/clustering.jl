@@ -82,7 +82,7 @@ function cluster_problem(
     coordinates_array[2, :] .= getindex.(feasible_points, 2)
     coordinates_array[3, :] .= dist_vector[feasible_idxs]
 
-    clustering_assignments = capacitated_kmeans(
+    clustering_assignments = capacity_constrained_kmeans(
         coordinates_array;
         max_cluster_size=total_tender_capacity,
     )
@@ -316,7 +316,7 @@ function disturb_remaining_clusters(
     )
 
     #re-cluster the remaining nodes into k clusters
-    clustering_assignments = capacitated_kmeans(
+    clustering_assignments = capacity_constrained_kmeans(
         disturbed_points_df;
         max_cluster_size = 6,
         k_spec = k,
@@ -329,7 +329,7 @@ function disturb_remaining_clusters(
 end
 
 """
-    capacitated_kmeans(
+    capacity_constrained_kmeans(
         coordinates::Matrix{Float64};
         max_cluster_size::Int64,
         max_split_distance::Int64 = 12000,
@@ -354,7 +354,7 @@ are assigned to a cluster.
 # Returns
 A vector of cluster assignments for each reef.
 """
-function capacitated_kmeans(
+function capacity_constrained_kmeans(
     coordinates::Matrix{Float64};
     max_cluster_size::Int64,
     max_split_distance::Int64 = 12000,
