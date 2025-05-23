@@ -174,7 +174,7 @@ function critical_path(
     vessel_weightings::NTuple{2, Float64}=(1.0, 1.0)
 )::Float64
     # Within clusters
-    cluster_sorties = tender_clust_dist.(soln.tenders)
+    cluster_sorties = tender_clust_dist.(soln.tenders[end])
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
     mothership_sub_clust_cost = mothership_dist_within_clusts(soln.mothership_routes[end].route) *
