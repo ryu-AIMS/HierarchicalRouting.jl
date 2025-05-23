@@ -241,7 +241,7 @@ end
         max_k::Int = 6,
         max_iter::Int = 1000,
         n_restarts::Int = 5
-    )
+    )::Vector{Int64}
 
 Cluster locations, ensuring that no cluster has more than `max_reef_number`, and all points
 are assigned to a cluster.
@@ -263,7 +263,7 @@ function capacitated_kmeans(
     max_k::Int = 6,
     max_iter::Int = 1000,
     n_restarts::Int = 5,
-)
+)::Vector{Int64}
     n_reefs = length(reef_data.LAT)
     k = Ref(ceil(Int, n_reefs/max_reef_number))
     coordinates_array = hcat(reef_data.LON, reef_data.LAT)' # 2×n for kmeans
