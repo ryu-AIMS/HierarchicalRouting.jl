@@ -58,7 +58,7 @@ function adjust_waypoint(
 )::Point{2, Float64}
 
     waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
-    convex_hulls::Vector{AG.IGeometry{AG.wkbPolygon}} = AG.convexhull.(exclusions.geometry)
+    convex_hulls::Vector{AG.IGeometry} = AG.convexhull.(exclusions.geometry)
     containing_polygons::Vector{AG.IGeometry{AG.wkbPolygon}} = filter(
         hull -> AG.contains(hull, waypoint_geom),
         convex_hulls
@@ -87,7 +87,7 @@ function adjust_waypoint(
     sizehint!(valid_boundary_points, length(boundary_points))
     @inbounds for p in boundary_points
         # If a point is not in the union (exclusion), it’s valid.
-        if !point_in_exclusion(p, union_poly)
+        if !point_in_exclusion(p, convex_hulls)
             push!(valid_boundary_points, p)
         end
     end
@@ -97,9 +97,8 @@ function adjust_waypoint(
         p -> ((p[1] - waypoint[1])^2 + (p[2] - waypoint[2])^2),
         valid_boundary_points
     )
-
     # Recursively call adjust_waypoint() until waypoint is outside exclusion zone
-    if point_in_exclusion(closest_point, exclusions)
+    if point_in_exclusion(closest_point, convex_hulls)
         return adjust_waypoint(closest_point, exclusions)
     end
 
