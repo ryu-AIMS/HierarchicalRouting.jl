@@ -319,6 +319,7 @@ function disturb_remaining_clusters(
     clustering_assignments = capacitated_kmeans(
         disturbed_points_df;
         max_cluster_size = 6,
+        k_spec = k,
     )
 
     return DataFrame(
@@ -332,7 +333,7 @@ end
         coordinates::Matrix{Float64};
         max_cluster_size::Int64,
         max_split_distance::Int64 = 12000,
-        max_k::Int64 = 6,
+        k_spec::Int = 0,
         max_iter::Int64 = 1000,
         n_restarts::Int64 = 20
     )::Vector{Int64}
@@ -345,6 +346,8 @@ are assigned to a cluster.
     longitude and latitude (and optionally a third dimension for distance).
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
+- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
+    the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 
@@ -355,12 +358,12 @@ function capacitated_kmeans(
     coordinates::Matrix{Float64};
     max_cluster_size::Int64,
     max_split_distance::Int64 = 12000,
-    max_k::Int64 = 6,
+    k_spec::Int = 0,
     max_iter::Int64 = 1000,
     n_restarts::Int64 = 20,
 )::Vector{Int64}
     n_reefs::Int64 = size(coordinates, 2)
-    k = Ref(ceil(Int, n_reefs/max_cluster_size))
+    k = k_spec == 0 ? Ref(ceil(Int, n_reefs/max_cluster_size)) : Ref(k_spec)
 
     # Run k-means multiple times to find best result
     best_clustering_assignment::Vector{Int} = zeros(Int, n_reefs)
@@ -370,11 +373,12 @@ function capacitated_kmeans(
         clustering_assignment::Vector{Int64} = _constrained_kmeans_single_iteration(
             coordinates,
             k,
+            k_spec,
             max_cluster_size,
             max_split_distance,
             max_iter
         )
-        k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
+        k[] = k_spec == 0 ? maximum(clustering_assignment) : k_spec
         clusters_list::Vector{Vector{Int64}} = findall.(
             .==(1:k[]), Ref(clustering_assignment)
         )
@@ -398,6 +402,7 @@ end
     _constrained_kmeans_single_iteration(
         coordinates::Matrix{Float64},
         k::Ref{Int},
+        k_spec::Int = 0,
         max_cluster_size::Int64 = 6,
         max_split_distance::Int64 = 12000,
         max_iter::Int64 = 1000,
@@ -410,6 +415,8 @@ Run a single iteration of k-means clustering with constraints on cluster size an
 - `coordinates`: A matrix of coordinates where each column represents a reef's
     longitude and latitude (and optionally a third dimension for distance).
 - `k`: A reference to the number of clusters to create.
+- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
+    the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
@@ -422,48 +429,50 @@ A vector of cluster assignments for each reef, ensuring that no cluster exceeds 
 function _constrained_kmeans_single_iteration(
     coordinates::Matrix{Float64},
     k::Ref{Int},
+    k_spec::Int = 0,
     max_cluster_size::Int64 = 6,
     max_split_distance::Int64 = 12000,
     max_iter::Int64 = 1000,
 )::Vector{Int64}
-        clustering = kmeans(coordinates, k[]; maxiter=max_iter)
-        clustering_assignment::Vector{Int64} = copy(clustering.assignments)
+    clustering = kmeans(coordinates, k[]; maxiter=max_iter)
+    clustering_assignment::Vector{Int64} = copy(clustering.assignments)
 
-        # Build clusters & centroids
-        clusters_list::Vector{Vector{Int64}} = findall.(
-            .==(1:k[]),
-            Ref(clustering_assignment)
-        )
-        centroids = Tuple(
-            Tuple(mean(coordinates[1:2,c]; dims=2))
-            for c in clusters_list
-        )
+    # Build clusters & centroids
+    clusters_list::Vector{Vector{Int64}} = findall.(
+        .==(1:k[]),
+        Ref(clustering_assignment)
+    )
+    centroids = Tuple(
+        Tuple(mean(coordinates[1:2,c]; dims=2))
+        for c in clusters_list
+    )
 
-        # Enforce max cluster size by reassigning furthest points for over-capacity clusters
-        for c in 1:k[]
-            point_idxs::Vector{Int64} = clusters_list[c]
-            while length(point_idxs) > max_cluster_size
-                # Find furthest point from centroid
-                dists_centroid_to_pts::Vector{Float64} = [
-                    haversine(coordinates[1:2,p], centroids[c])
-                    for p in point_idxs
-                ]
-                idx::Int64 = point_idxs[argmax(dists_centroid_to_pts)]
+    # Enforce max cluster size by reassigning furthest points for over-capacity clusters
+    for c in 1:k[]
+        point_idxs::Vector{Int64} = clusters_list[c]
+        while length(point_idxs) > max_cluster_size
+            # Find furthest point from centroid
+            dists_centroid_to_pts::Vector{Float64} = [
+                haversine(coordinates[1:2,p], centroids[c])
+                for p in point_idxs
+            ]
+            idx::Int64 = point_idxs[argmax(dists_centroid_to_pts)]
 
-                # Find under-capacity clusters within max_split_distance
-                available_clusters::Vector{Int64} = findall(
-                    length.(clusters_list) .< max_cluster_size
-                )
-                dists_pt_to_centroids::Vector{Float64} = [
-                    haversine(coordinates[1:2,idx], centroids[c])
-                    for c in available_clusters
-                ]
-                close_clusters::Vector{Int64} = available_clusters[
-                    dists_pt_to_centroids .≤ [max_split_distance]
-                ]
+            # Find under-capacity clusters within max_split_distance
+            available_clusters::Vector{Int64} = findall(
+                length.(clusters_list) .< max_cluster_size
+            )
+            dists_pt_to_centroids::Vector{Float64} = [
+                haversine(coordinates[1:2,idx], centroids[c])
+                for c in available_clusters
+            ]
+            close_clusters::Vector{Int64} = available_clusters[
+                dists_pt_to_centroids .≤ [max_split_distance]
+            ]
 
-                if isempty(close_clusters)
-                    # No available AND close clusters --> create new cluster
+            if isempty(close_clusters)
+                if iszero(k_spec)
+                    # no available AND close clusters --> create new cluster
                     k[] += 1
                     return _constrained_kmeans_single_iteration(
                         coordinates,
@@ -472,24 +481,27 @@ function _constrained_kmeans_single_iteration(
                         max_split_distance,
                         max_iter
                     )
+                else
+                    close_clusters = available_clusters
                 end
-
-                # Pick the closest among them
-                eligible_centroids = centroids[close_clusters]
-                eligible_distances::Vector{Float64} = [
-                    haversine(coordinates[1:2,idx], c)
-                    for c in eligible_centroids
-                ]
-                target_cluster::Int64 = close_clusters[argmin(eligible_distances)]
-
-                # Reassign point
-                clustering_assignment[idx] = target_cluster
-                deleteat!(point_idxs, findfirst(==(idx), point_idxs))
-                push!(clusters_list[target_cluster], idx)
             end
+
+            # Pick the closest among them
+            eligible_centroids = centroids[close_clusters]
+            eligible_distances::Vector{Float64} = [
+                haversine(coordinates[1:2,idx], c)
+                for c in eligible_centroids
+            ]
+            target_cluster::Int64 = close_clusters[argmin(eligible_distances)]
+
+            # Reassign point
+            clustering_assignment[idx] = target_cluster
+            deleteat!(point_idxs, findfirst(==(idx), point_idxs))
+            push!(clusters_list[target_cluster], idx)
         end
-        return clustering_assignment
     end
+    return clustering_assignment
+end
 
 """
     update_cluster_assignments(
