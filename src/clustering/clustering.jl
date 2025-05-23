@@ -326,7 +326,7 @@ function disturb_remaining_clusters(
         disturbed_points_df;
         max_reef_number = 6,
         max_split_distance = 12.0,
-        max_k = k,
+        k_spec = k,
         max_iter = 1000,
         n_restarts = 5
     )
@@ -342,7 +342,7 @@ end
         reef_data;
         max_reef_number::Int = 6,
         max_split_distance::Float64 = 12.0,
-        max_k::Int = 6,
+        k_spec::Int = 0,
         max_iter::Int = 1000,
         n_restarts::Int = 5
     )
@@ -354,6 +354,8 @@ are assigned to a cluster.
 - `reef_data`: DataFrame with `.LAT` and `.LON` columns.
 - `max_reef_number`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance between clusters to allow for splitting.
+- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
+    the number of reefs and `max_reef_number`, allowing more clusters to be spawned.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 
@@ -364,12 +366,12 @@ function capacitated_kmeans(
     reef_data;
     max_reef_number::Int = 6,
     max_split_distance::Float64 = 12.0,
-    max_k::Int = 6,
+    k_spec::Int = 0,
     max_iter::Int = 1000,
     n_restarts::Int = 5,
 )
     n_reefs = length(reef_data.LAT)
-    k = Ref(ceil(Int, n_reefs/max_reef_number))
+    k = k_spec == 0 ? Ref(ceil(Int, n_reefs/max_reef_number)) : Ref(k_spec)
     coordinates_array = hcat(reef_data.LON, reef_data.LAT)' # 2×n for kmeans
 
     function quick_distance(i::Int, j::Int)
@@ -431,9 +433,13 @@ function capacitated_kmeans(
                     close_clusters = available_clusters[dists .≤ max_split_distance]
 
                     if isempty(close_clusters)
-                        # no available AND close clusters --> create new cluster
-                        k[] += 1
-                        return single_run()
+                        if iszero(k_spec)
+                            # no available AND close clusters --> create new cluster
+                            k[] += 1
+                            return single_run()
+                        else
+                            close_clusters = available_clusters
+                        end
                     end
 
                     # pick the closest among them
@@ -463,7 +469,6 @@ function capacitated_kmeans(
     for _ in 1:n_restarts
         # Reset k every time
         clustering_assignment = single_run()
-        k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
         clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
         centroids = calc_centroid.(clusters)
         cluster_score = sum(
