@@ -235,14 +235,15 @@ function disturb_remaining_clusters(
     return clustered_targets
 end
 function disturb_remaining_clusters(
-    disturbance_df::DataFrame,
-    k::Int8,
+    unvisited_pts_df::DataFrame,
+    k::Int,
     current_location::Point{2, Float64},
     exclusions::DataFrame;
+    # max_clusters::Int = 6,
     tol::Float64=1.0,
     dist_weighting::Float64=2E-5
 )::DataFrame
-    n_sites::Int = size(disturbance_df,1) # number of target sites
+    n_sites::Int = size(unvisited_pts_df,1) # number of target sites remaining
 
     if n_sites <= k
         @warn "No disturbance, as (deployment targets <= clusters required)"
@@ -251,9 +252,9 @@ function disturb_remaining_clusters(
 
     # 3D coordinate matrix for disturbance clustering
     coordinates_array_3d = Matrix{Float64}(undef, 3, n_sites)
-    coordinates_array_3d[1, :] .= getindex.(disturbance_df.node, 1)
-    coordinates_array_3d[2, :] .= getindex.(disturbance_df.node, 2)
-    coordinates_array_3d[3, :] .= disturbance_df.disturbance_value
+    coordinates_array_3d[1, :] .= getindex.(unvisited_pts_df.node, 1)
+    coordinates_array_3d[2, :] .= getindex.(unvisited_pts_df.node, 2)
+    coordinates_array_3d[3, :] .= unvisited_pts_df.disturbance_value
 
     # Create k_d clusters to create disturbance on subset
     k_d_lower = min(n_sites, k+1)
@@ -306,11 +307,7 @@ function disturb_remaining_clusters(
 
     # Mask out infeasible points
     feasible_idxs = findall(x -> x != Inf, dist_vector)
-    coordinates_array_2d_feasible = coordinates_array_2d_disturbed[:, feasible_idxs]
-    feasible_pts = Point{2,Float64}.(
-        coordinates_array_2d_feasible[1, :],
-        coordinates_array_2d_feasible[2, :]
-    )
+    feasible_pts = remaining_pts[feasible_idxs]
 
     disturbed_points_df = DataFrame(
         geometry = feasible_pts,
