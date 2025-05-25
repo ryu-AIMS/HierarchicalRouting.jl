@@ -8,72 +8,140 @@ and environmental constraints (exclusion zones).
 
 ## Setup
 
-### Initialize project
+### Installation
+To install the package, use the Julia package manager in the REPL:
 
-In the Julia REPL:
 ```julia
-] instantiate
+] add HierarchicalRouting
 ```
 
-### Configure problem
+You may check the installed version with:
 
-All other problem parameters (data paths, vessel capacities, clustering tolerance, etc.)
-must be provided by the user directly as arguments to the `load_problem()` and
-`solve_problem()` functions.
+```julia
+] st HierarchicalRouting
+```
 
 ## Quickstart
-
 Below is an example of how to load a problem, generate an initial solution, and improve the
 solution.
 
+### Load the problem
 ```julia
 using HierarchicalRouting
 
+target_path = "<PATH/TO/TARGET_SCENARIO_GEOJSON>"
+subset_path = "<PATH/TO/TARGET_SUBSET_GPKG>"
+env_data_path = "<PATH/TO/BATHYMETRY_TIF>"
+env_disturbance_path = "<PATH/TO/WAVE_DISTURBANCE_GEOJSON>"
+
 # Load the problem configuration
-# Defaults to the first file in the target scenario directory if no argument is passed.
 problem = load_problem(
-    "data/targets/scenarios/output_slopes_3-10m.geojson",           # target_path
-    "data/site/Moore_2024-02-14b_v060_rc1.gpkg",                    # subset_path
-    "data/env_constraints/bathy/Cairns-Cooktown_bathy.tif",         # bathy_path
-    "data/env_disturbances/waves/output_slope_zs_Hs_Tp.geojson",    # wave_disturbance_path
-    Point{2, Float64}(146.175, -16.84),                             # depot
+    target_path,
+    subset_path,
+    env_data_path,
+    env_disturbance_path,
+    (146.175, -16.84),                                              # depot
     -10.0,                                                          # draft_ms
     -5.0,                                                           # draft_t
-    Float16(5.0),                                                   # weight_ms
-    Float16(2.0),                                                   # weight_t
-    Int8(3),                                                        # n_tenders
-    Int16(2);                                                       # t_cap
+    5.0,                                                            # weight_ms
+    2.0,                                                            # weight_t
+    3,                                                              # n_tenders
+    2;                                                              # t_cap
 );
+```
+#### Problem parameters
+All problem parameters (data paths, vessel capacities, clustering tolerance, etc.) must be
+provided by the user directly as arguments to `load_problem()`.
 
+The following arguments are required:
+- **target_path**: The file path to a GeoJSON file containing the target sites to be visited.
+- **subset_path**: The file path to a geopackage file containing polygons to define the
+    subset of target scenarios to be considered in the problem instance.
+- **env_data_path**: The file path to a TIF file containing the data (e.g., bathymetry)
+    which informs the exclusion zones, limiting access, for the mothership and tenders.
+- **env_disturbance_path**: The file path to a GeoJSON file containing the environmental
+    disturbance data used to generate weather disturbance events.
+- **depot**: A tuple representing the depot location, in the form (lon, lat) which is the
+    used as the coincident start and finish point for the deployment plan.
+- **Draft**: The draft of vessels (in metres), given as a negative value, indicating the
+    clearance depth of the vessel below the surface.
+    - **draft_ms**: The draft of the mothership.
+    - **draft_t**: The draft of the tenders.
+- **Weighting**: The weighting factor for the mothership and tenders, as a multiplier of
+    distance travelled to quantify cost.
+    - **weight_ms**: The weighting factor for the mothership.
+    - **weight_t**: The weighting factor for the tenders.
+- **n_tenders**: The number of tenders available to use for deployment.
+- **t_cap**: The capacity of the tenders, determining the maximum number of targets
+    that can be visited/deployed by a tender in a single trip.
+
+Optional parameters are:
+- **target_subset_path**: The path to save the target subset raster. Default is "".
+- **output_dir**: The path to the directory to save the output files. Default is "outputs/".
+- **debug_mode**: A boolean indicating whether to run in debug mode. Default is false.
+
+### Generate an initial solution
+```julia
 # Generate an initial solution
 solution_init = initial_solution(
     problem,                                                        # problem
-    Int8(5),                                                        # num_clusters
-    Float64(5E-5),                                                  # cluster_tolerance
-    Set((2, 4))                                                     # disturbance_clusters
+    5;                                                              # num_clusters
 );
+```
+#### Solution parameters
+The solution parameters are defined in the `initial_solution()` and `improve_solution()`
+functions.
 
+The following arguments are required for `initial_solution()`:
+- **problem**: The problem instance to be solved. This is generated by the
+    `load_problem()` function.
+- **num_clusters**: The number of clusters to be generated in the initial solution.
+
+Optional parameters are:
+- **cluster_tolerance**: The clustering tolerance for change at convergence, in units of
+    kmeans calculations (euclidean). Default is 5E-5.
+- **disturbance_clusters**: The set of disturbance clusters, denoted by start of cluster,
+    indexed by sequence, where disturbance/s are simulated for the initial solution.
+    Default is an empty set.
+
+### Improve the solution
+```julia
 # Improve solution using simulated annealing
 solution_best, z_best = improve_solution(
     solution_init,                                                  # solution_init
-    HierarchicalRouting.simulated_annealing,                        # opt_function
-    HierarchicalRouting.critical_path,                              # objective_function
-    HierarchicalRouting.perturb_swap_solution,                      # perturb_function
     problem.mothership.exclusion,                                   # exclusion
     problem.tenders.exclusion;                                      # exclusion
 );
 ```
+#### Solution improvement parameters
+The following arguments are required for `improve_solution()`:
+- **initial_solution**: The initial solution to be improved. This is generated by the
+    `initial_solution()` function.
+- **Exclusions**: DataFrames representing the exclusion zones as polygons in geometry column.
+    These are generated by the `load_problem()` function.
+    - `exclusions_mothership`
+    - `exclusions_tender`
+
+The following arguments are optional for `improve_solution()`:
+- **max_iterations**: The maximum number of iterations to be used in the optimization
+    process. Default is 1000.
+- **temp_init**: The initial temperature for the optimization process. Default is 500.
+- **cooling_rate**: The cooling rate for the optimization process. Default is 0.95.
+- **static_limit**: A limit to exit optimization, represented as the number of iterations
+    without improvement. Default is 20.
 
 ## Visualization
 
 To visualize the routing solution, use GeoMakie and the `Plot` module.
 Below are examples to create:
-- one complete plot of final clusters, exclusions, and routes; and
+- one complete plot of final clusters, exclusions, and routes;
+- a comparison of the full initial and full final (after optimization) solutions;
 - a series of plots for each sequential routing plan pre-deployment, and at each(assuming 2)
 disturbance event.
 
+### Initial solution plot
 ```julia
-using GeoMakie
+using HierarchicalRouting.Plot.GeoMakie
 
 fig = Figure(size=(750, 880))
 ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude");
@@ -84,11 +152,49 @@ HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels=true)
 # Add clustered points
 HierarchicalRouting.Plot.clusters!(ax, clusters=solution_best.cluster_sets[end]);
 # Add mothership routes
-HierarchicalRouting.Plot.linestrings!(ax, solution_best.mothership_routes[end].route);
+HierarchicalRouting.Plot.linestrings!(
+    ax,
+    solution_best.mothership_routes[end].route,
+    color=:black
+);
 # Add tender routes
 HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders);
 ```
+<img src="assets\initial_solution.png" alt="Initial solution plot" width="400" /></i>
 
+### Optimized solution plot
+```julia
+using GeoMakie
+
+fig = Figure(size=(1650, 600));
+ax1, ax2 = Axis(fig[1, 1]), Axis(fig[1, 2]);
+# Add exclusions for the tenders
+HierarchicalRouting.Plot.exclusions!.(
+    [ax1, ax2],
+    [problem.tenders.exclusion],
+    labels=false
+);
+# Add clustered points
+HierarchicalRouting.Plot.clusters!(ax1, clusters=solution_init.cluster_sets[end]);
+HierarchicalRouting.Plot.clusters!(ax2, clusters=solution_best.cluster_sets[end]);
+# Add mothership routes
+HierarchicalRouting.Plot.linestrings!.(
+    [ax1, ax2],
+    [
+        solution_init.mothership_routes[end].route,
+        solution_best.mothership_routes[end].route
+    ],
+    color=:black
+);
+# Add tender routes
+HierarchicalRouting.Plot.tenders!.(
+    [ax1, ax2],
+    [solution_init.tenders, solution_best.tenders]
+);
+```
+<img src="assets\optimized_solution.png" alt="Initial solution plot" width="800" /></i>
+
+### Disturbance solution plot
 ```julia
 using GeoMakie
 
@@ -153,6 +259,7 @@ HierarchicalRouting.Plot.tenders!(
     solution_best.tenders
 );
 ```
+<img src="assets\disturbance_solution.png" alt="Initial solution plot" height="300" width="800" /></i>
 
 ## Development setup
 
