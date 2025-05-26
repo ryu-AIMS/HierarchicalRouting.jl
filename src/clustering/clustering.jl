@@ -67,7 +67,7 @@ function cluster_problem(
     exclusions::DataFrame = problem.tenders.exclusion
     total_tender_capacity::Int = problem.tenders.capacity * problem.tenders.number
 
-    dist_vector = dist_weighting .* get_feasible_distances(
+    dist_vector = get_feasible_distances(
         current_location,
         points,
         exclusions
@@ -80,7 +80,7 @@ function cluster_problem(
     coordinates_array = Matrix{Float64}(undef, 3, length(feasible_points))
     coordinates_array[1, :] .= getindex.(feasible_points, 1)
     coordinates_array[2, :] .= getindex.(feasible_points, 2)
-    coordinates_array[3, :] .= dist_vector[feasible_idxs]
+    coordinates_array[3, :] .= dist_weighting .* dist_vector[feasible_idxs]
 
     clustering_assignments = capacity_constrained_kmeans(
         coordinates_array;
@@ -309,15 +309,14 @@ function disturb_remaining_clusters(
     feasible_idxs = findall(x -> x != Inf, dist_vector)
     feasible_pts = remaining_pts[feasible_idxs]
 
-    disturbed_points_df = DataFrame(
-        geometry = feasible_pts,
-        LON = getindex.(feasible_pts, 1),
-        LAT = getindex.(feasible_pts, 2)
-    )
+    coordinates_array_disturbed = Matrix{Float64}(undef, 3, length(feasible_pts))
+    coordinates_array_disturbed[1, :] .= getindex.(feasible_pts, 1)
+    coordinates_array_disturbed[2, :] .= getindex.(feasible_pts, 2)
+    coordinates_array_disturbed[3, :] .= dist_weighting .* dist_vector[feasible_idxs]
 
     #re-cluster the remaining nodes into k clusters
     clustering_assignments = capacity_constrained_kmeans(
-        disturbed_points_df;
+        coordinates_array_disturbed;
         max_cluster_size = 6,
         k_spec = k,
     )
