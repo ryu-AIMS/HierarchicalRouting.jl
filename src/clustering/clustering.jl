@@ -288,13 +288,10 @@ function capacitated_kmeans(
     end
 
     function calc_centroid(cluster_indices)
-        lon_sum = 0.0
-        lat_sum = 0.0
-        for i in cluster_indices
-            lon_sum += coordinates_array[1,i]
-            lat_sum += coordinates_array[2,i]
-        end
-        return (lon_sum / length(cluster_indices), lat_sum / length(cluster_indices))
+        return (
+            mean(coordinates_array[1, cluster_indices]),
+            mean(coordinates_array[2, cluster_indices])
+        )
     end
 
     function single_run()
