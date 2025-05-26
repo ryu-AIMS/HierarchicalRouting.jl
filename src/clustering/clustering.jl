@@ -611,7 +611,8 @@ end
         clusters::DataFrame
     )::Vector{Cluster}
 
-Calculate the centroids of the clusters in the raster.
+Calculate the centroids of the clusters in the raster/DataFrame, and return a vector of
+    `Cluster` objects.
 
 # Arguments
 - `clusters_raster`: Raster containing the cluster IDs.
@@ -639,13 +640,13 @@ function calculate_cluster_centroids(
     x_coords = clusters_raster.dims[1]
     y_coords = clusters_raster.dims[2]
 
-    for (id, ex_id) in enumerate(unique_clusters)
+    for (idx, ex_id) in enumerate(unique_clusters)
         node_indices = findall(==(ex_id), clusters_raster)
         nodes = [(x_coords[i[1]], y_coords[i[2]]) for i in node_indices]
         col_cent = mean([node[1] for node in nodes])
         row_cent = mean([node[2] for node in nodes])
 
-        clusters_vector[id] = Cluster(
+        clusters_vector[idx] = Cluster(
             id = ex_id,
             centroid = Point{2, Float64}(col_cent, row_cent),
             nodes = Point{2, Float64}.(nodes)
@@ -660,15 +661,15 @@ function calculate_cluster_centroids(
 
     clusters_vector = Vector{Cluster}(undef, length(unique_clusters))
 
-    for id in unique_clusters
-        cluster_mask = clusters.id .== id
+    for (idx, ex_id) in enumerate(unique_clusters)
+        cluster_mask = clusters.id .== ex_id
         clustered_points = clusters.geometry[cluster_mask]
 
         lon_cent = mean(getindex.(clustered_points, 1))
         lat_cent = mean(getindex.(clustered_points, 2))
 
-        clusters_vector[id] = Cluster(
-            id = id,
+        clusters_vector[idx] = Cluster(
+            id = ex_id,
             centroid = Point{2, Float64}(lon_cent, lat_cent),
             nodes = clustered_points
         )
