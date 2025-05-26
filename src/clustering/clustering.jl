@@ -295,49 +295,40 @@ function capacitated_kmeans(
         clustering = kmeans(coordinates_array, k[]; maxiter=max_iter)
         clustering_assignment = copy(clustering.assignments)
 
-        for _ in 1:max_iter
-            # build clusters & centroids
-            clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
-            centroids = calc_centroid.(clusters)
+        # build clusters & centroids
+        clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
+        centroids = calc_centroid.(clusters)
 
-            # enforce max cluster size
-            # for each over-capacity cluster, reassign its furthest points
-            updated = false
-            for c in 1:k[]
-                point_idxs = clusters[c]
-                while length(point_idxs) > max_reef_number
-                    # find furthest point from centroid
-                    dists = quick_distance.(point_idxs, Ref(centroids[c]))
-                    idx = point_idxs[argmax(dists)]
+        # enforce max cluster size
+        # for each over-capacity cluster, reassign its furthest points
+        for c in 1:k[]
+            point_idxs = clusters[c]
+            while length(point_idxs) > max_reef_number
+                # find furthest point from centroid
+                dists = quick_distance.(point_idxs, Ref(centroids[c]))
+                idx = point_idxs[argmax(dists)]
 
-                    # find under-capacity clusters within max_split_distance
-                    available_clusters = findall(length.(clusters) .< max_reef_number)
-                    dists = quick_distance.(Ref(idx), centroids[available_clusters])
-                    close_clusters = available_clusters[dists .≤ max_split_distance]
+                # find under-capacity clusters within max_split_distance
+                available_clusters = findall(length.(clusters) .< max_reef_number)
+                dists = quick_distance.(Ref(idx), centroids[available_clusters])
+                close_clusters = available_clusters[dists .≤ max_split_distance]
 
-                    if isempty(close_clusters)
-                        # no available AND close clusters --> create new cluster
-                        k[] += 1
-                        return single_run()
-                    end
-
-                    # pick the closest among them
-                    eligible_centroids = centroids[close_clusters]
-                    eligible_distances = quick_distance.(Ref(idx), eligible_centroids)
-                    target_cluster = close_clusters[argmin(eligible_distances)]
-
-                    # reassign point
-                    clustering_assignment[idx] = target_cluster
-                    deleteat!(point_idxs, findfirst(==(idx), point_idxs))
-                    push!(clusters[target_cluster], idx)
-                    updated = true
+                if isempty(close_clusters)
+                    # no available AND close clusters --> create new cluster
+                    k[] += 1
+                    return single_run()
                 end
-                if updated
-                    break
-                end
+
+                # pick the closest among them
+                eligible_centroids = centroids[close_clusters]
+                eligible_distances = quick_distance.(Ref(idx), eligible_centroids)
+                target_cluster = close_clusters[argmin(eligible_distances)]
+
+                # reassign point
+                clustering_assignment[idx] = target_cluster
+                deleteat!(point_idxs, findfirst(==(idx), point_idxs))
+                push!(clusters[target_cluster], idx)
             end
-
-            updated || break
         end
         return clustering_assignment
     end
