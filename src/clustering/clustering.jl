@@ -76,18 +76,13 @@ function cluster_problem(
     feasible_points = points[feasible_idxs]
 
     # 3D coordinate matrix of feasible points for clustering
-    coordinates_array = Matrix{Float64}(undef, 2, length(feasible_points))
+    coordinates_array = Matrix{Float64}(undef, 3, length(feasible_points))
     coordinates_array[1, :] .= getindex.(feasible_points, 1)
     coordinates_array[2, :] .= getindex.(feasible_points, 2)
-    # coordinates_array[3, :] = dist_vector[feasible_idxs]'
+    coordinates_array[3, :] .= dist_vector[feasible_idxs]
 
-    points_df = DataFrame(
-        LON=getindex.(feasible_points, 1),
-        LAT=getindex.(feasible_points, 2),
-        geometry = feasible_points
-    )
     clustering_assignments = capacitated_kmeans(
-        points_df;
+        coordinates_array;
         max_reef_number = 6,
         max_iter = 1000,
         n_restarts = 50,
@@ -235,7 +230,7 @@ end
 
 """
     capacitated_kmeans(
-        reef_data;
+        coordinates_array::Matrix{Float64};
         max_reef_number::Int = 6,
         max_split_distance::Float64 = 12.0,
         max_k::Int = 6,
@@ -247,7 +242,8 @@ Cluster locations, ensuring that no cluster has more than `max_reef_number`, and
 are assigned to a cluster.
 
 # Arguments
-- `reef_data`: DataFrame with `.LAT` and `.LON` columns.
+- `coordinates_array`: A matrix of coordinates where each column represents a reef's
+    longitude and latitude (and optionally a third dimension for distance).
 - `max_reef_number`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance between clusters to allow for splitting.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
@@ -257,16 +253,15 @@ are assigned to a cluster.
 A vector of cluster assignments for each reef.
 """
 function capacitated_kmeans(
-    reef_data;
+    coordinates_array::Matrix{Float64};
     max_reef_number::Int = 6,
     max_split_distance::Float64 = 12.0,
     max_k::Int = 6,
     max_iter::Int = 1000,
     n_restarts::Int = 5,
 )::Vector{Int64}
-    n_reefs = length(reef_data.LAT)
+    n_reefs = size(coordinates_array, 2)
     k = Ref(ceil(Int, n_reefs/max_reef_number))
-    coordinates_array = hcat(reef_data.LON, reef_data.LAT)' # 2×n for kmeans
 
     function quick_distance(i::Int, j::Int)
         if i == j
@@ -275,17 +270,17 @@ function capacitated_kmeans(
             i, j = j, i
         end
         R = 6371.0
-        lat1, lon1 = deg2rad(reef_data.LAT[i]), deg2rad(reef_data.LON[i])
-        lat2, lon2 = deg2rad(reef_data.LAT[j]), deg2rad(reef_data.LON[j])
+        lat1, lon1 = deg2rad(coordinates_array[2,i]), deg2rad(coordinates_array[1,i])
+        lat2, lon2 = deg2rad(coordinates_array[2,j]), deg2rad(coordinates_array[1,j])
         dlat, dlon = (lat2 - lat1), (lon2 - lon1)
         a = sin(dlat / 2)^2 + cos(lat1) * cos(lat2) * sin(dlon / 2)^2
         c = 2 * atan(sqrt(a), sqrt(1 - a))
         return R * c
     end
-    function quick_distance(i::Int, (lon2, lat2)::Tuple{Float64, Float64})
+    function quick_distance(i::Int, (lon2_deg, lat2_deg)::Tuple{Float64, Float64})
         R = 6371.0
-        lat1, lon1 = deg2rad(reef_data.LAT[i]), deg2rad(reef_data.LON[i])
-        lat2, lon2 = deg2rad(lat2), deg2rad(lon2)
+        lat1, lon1 = deg2rad(coordinates_array[2,i]), deg2rad(coordinates_array[1,i])
+        lat2, lon2 = deg2rad(lat2_deg), deg2rad(lon2_deg)
         dlat, dlon = (lat2 - lat1), (lon2 - lon1)
         a = sin(dlat / 2)^2 + cos(lat1) * cos(lat2) * sin(dlon / 2)^2
         c = 2 * atan(sqrt(a), sqrt(1 - a))
@@ -296,8 +291,8 @@ function capacitated_kmeans(
         lon_sum = 0.0
         lat_sum = 0.0
         for i in cluster_indices
-            lon_sum += reef_data.LON[i]
-            lat_sum += reef_data.LAT[i]
+            lon_sum += coordinates_array[1,i]
+            lat_sum += coordinates_array[2,i]
         end
         return (lon_sum / length(cluster_indices), lat_sum / length(cluster_indices))
     end
@@ -323,7 +318,6 @@ function capacitated_kmeans(
 
                     # find under-capacity clusters within max_split_distance
                     available_clusters = findall(length.(clusters) .< max_reef_number)
-                    # Main.@infiltrate
                     dists = quick_distance.(Ref(idx), centroids[available_clusters])
                     close_clusters = available_clusters[dists .≤ max_split_distance]
 
