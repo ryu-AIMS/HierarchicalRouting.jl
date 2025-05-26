@@ -263,25 +263,22 @@ function capacitated_kmeans(
     n_reefs = size(coordinates_array, 2)
     k = Ref(ceil(Int, n_reefs/max_reef_number))
 
-    function quick_distance(i::Int, j::Int)
-        if i == j
-            return 0.0
-        elseif i > j
-            i, j = j, i
-        end
-        R = 6371.0
-        lat1, lon1 = deg2rad(coordinates_array[2,i]), deg2rad(coordinates_array[1,i])
-        lat2, lon2 = deg2rad(coordinates_array[2,j]), deg2rad(coordinates_array[1,j])
-        dlat, dlon = (lat2 - lat1), (lon2 - lon1)
-        a = sin(dlat / 2)^2 + cos(lat1) * cos(lat2) * sin(dlon / 2)^2
-        c = 2 * atan(sqrt(a), sqrt(1 - a))
-        return R * c
+    function quick_distance(i::Int, (lon2_deg, lat2_deg)::Tuple{Float64, Float64})::Float64
+        lon1_deg, lat1_deg = coordinates_array[1,i], coordinates_array[2,i]
+        return quick_distance((lon1_deg, lat1_deg), (lon2_deg, lat2_deg))
     end
-    function quick_distance(i::Int, (lon2_deg, lat2_deg)::Tuple{Float64, Float64})
+    function quick_distance(
+        (lon1_deg, lat1_deg)::NTuple{2,Float64},
+        (lon2_deg, lat2_deg)::NTuple{2,Float64}
+    )::Float64
+        if lon1_deg == lon2_deg && lat1_deg == lat2_deg
+            return 0.0
+        end
+
         R = 6371.0
-        lat1, lon1 = deg2rad(coordinates_array[2,i]), deg2rad(coordinates_array[1,i])
-        lat2, lon2 = deg2rad(lat2_deg), deg2rad(lon2_deg)
-        dlat, dlon = (lat2 - lat1), (lon2 - lon1)
+        lon1, lat1 = deg2rad(lon1_deg), deg2rad(lat1_deg)
+        lon2, lat2 = deg2rad(lon2_deg), deg2rad(lat2_deg)
+        dlon, dlat = (lon2 - lon1), (lat2 - lat1)
         a = sin(dlat / 2)^2 + cos(lat1) * cos(lat2) * sin(dlon / 2)^2
         c = 2 * atan(sqrt(a), sqrt(1 - a))
         return R * c
@@ -310,7 +307,7 @@ function capacitated_kmeans(
                 point_idxs = clusters[c]
                 while length(point_idxs) > max_reef_number
                     # find furthest point from centroid
-                    dists = quick_distance.(point_idxs, Ref((centroids[c])))
+                    dists = quick_distance.(point_idxs, Ref(centroids[c]))
                     idx = point_idxs[argmax(dists)]
 
                     # find under-capacity clusters within max_split_distance
