@@ -65,6 +65,7 @@ function cluster_problem(
     points::Vector{Point{2, Float64}} = problem.targets.points.geometry
     current_location::Point{2, Float64} = problem.depot
     exclusions::DataFrame = problem.tenders.exclusion
+    total_tender_capacity::Int = problem.tenders.capacity * problem.tenders.number
 
     dist_vector = dist_weighting .* get_feasible_distances(
         current_location,
@@ -83,9 +84,7 @@ function cluster_problem(
 
     clustering_assignments = capacitated_kmeans(
         coordinates_array;
-        max_reef_number = 6,
-        max_iter = 1000,
-        n_restarts = 50,
+        max_cluster_size=total_tender_capacity,
     )
 
     clustered_targets_df::DataFrame = DataFrame(
