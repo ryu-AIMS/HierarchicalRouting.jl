@@ -25,6 +25,7 @@ function initial_solution(
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
     ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
     tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
+    total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(
@@ -63,7 +64,8 @@ function initial_solution(
                 clusters[clust_seq][i:end],
                 problem.targets.disturbance_gdf,
                 ms_route.route.nodes[2i-1],
-                problem.tenders.exclusion
+                problem.tenders.exclusion,
+                total_tender_capacity
             )
         )
 
