@@ -235,7 +235,7 @@ end
         max_split_distance::Float64 = 12.0,
         max_k::Int = 6,
         max_iter::Int = 1000,
-        n_restarts::Int = 5
+        n_restarts::Int = 20
     )::Vector{Int64}
 
 Cluster locations, ensuring that no cluster has more than `max_cluster_size`, and all points
@@ -258,7 +258,7 @@ function capacitated_kmeans(
     max_split_distance::Float64 = 12.0,
     max_k::Int = 6,
     max_iter::Int = 1000,
-    n_restarts::Int = 5,
+    n_restarts::Int = 20,
 )::Vector{Int64}
     n_reefs = size(coordinates_array, 2)
     k = Ref(ceil(Int, n_reefs/max_cluster_size))
