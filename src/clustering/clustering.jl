@@ -110,7 +110,8 @@ end
         disturbance_df::DataFrame,
         k::Int8,
         current_location::Point{2, Float64},
-        exclusions::DataFrame;
+        exclusions::DataFrame,
+        total_tender_capacity::Int;
         tol::Float64=1.0,
         dist_weighting::Float64=2E-5
     )::DataFrame
@@ -124,6 +125,7 @@ end
 - `k`: Number of clusters to create.
 - `current_location`: Current location of the mothership.
 - `exclusions`: DataFrame containing the exclusion zones.
+- `total_tender_capacity`: Total capacity of the tender fleet.
 - `tol`: Tolerance for kmeans convergence.
 - `dist_weighting`: Weighting factor for the distances (in kms) to be stored in 3d array,
     compared against lat/lons.
@@ -238,8 +240,8 @@ function disturb_remaining_clusters(
     unvisited_pts_df::DataFrame,
     k::Int,
     current_location::Point{2, Float64},
-    exclusions::DataFrame;
-    # max_clusters::Int = 6,
+    exclusions::DataFrame,
+    total_tender_capacity::Int;
     tol::Float64=1.0,
     dist_weighting::Float64=2E-5
 )::DataFrame
@@ -317,7 +319,7 @@ function disturb_remaining_clusters(
     #re-cluster the remaining nodes into k clusters
     clustering_assignments = capacity_constrained_kmeans(
         coordinates_array_disturbed;
-        max_cluster_size = 6,
+        max_cluster_size = total_tender_capacity,
         k_spec = k,
     )
 
