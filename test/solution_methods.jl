@@ -32,7 +32,7 @@
         typeof(solution_init) == MSTSolution
 
         @test all(
-            [length(s.sorties) for s in solution_init.tenders] .<= problem.tenders.number
+            [length(s.sorties) for s in solution_init.tenders[end]] .<= problem.tenders.number
         )
         @test typeof(tender_soln) == Vector{HierarchicalRouting.TenderSolution}
     end
