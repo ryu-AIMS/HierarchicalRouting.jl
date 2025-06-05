@@ -283,20 +283,13 @@ function capacitated_kmeans(
         return R * c
     end
 
-    function calc_centroid(cluster_indices)
-        return (
-            mean(coordinates_array[1, cluster_indices]),
-            mean(coordinates_array[2, cluster_indices])
-        )
-    end
-
     function single_run()
         clustering = kmeans(coordinates_array, k[]; maxiter=max_iter)
         clustering_assignment = copy(clustering.assignments)
 
         # build clusters & centroids
         clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
-        centroids = calc_centroid.(clusters)
+        centroids = Tuple(Tuple(mean(coordinates_array[1:2,c]; dims=2)) for c in clusters)
 
         # enforce max cluster size
         # for each over-capacity cluster, reassign its furthest points
@@ -340,7 +333,10 @@ function capacitated_kmeans(
         clustering_assignment = single_run()
         k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
         clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
-        centroids = calc_centroid.(clusters)
+        centroids = Tuple(
+            Tuple(mean(coordinates_array[1:2,c]; dims=2))
+            for c in clusters
+        )
         cluster_score = sum(
             [sum(quick_distance.(clusters[i], Ref(centroids[i]))) for i in 1:k[]]
         )
