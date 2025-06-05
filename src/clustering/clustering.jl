@@ -230,11 +230,11 @@ end
 """
     capacitated_kmeans(
         coordinates_array::Matrix{Float64};
-        max_cluster_size::Int,
+        max_cluster_size::Int64,
         max_split_distance::Int64 = 12000,
-        max_k::Int = 6,
-        max_iter::Int = 1000,
-        n_restarts::Int = 20
+        max_k::Int64 = 6,
+        max_iter::Int64 = 1000,
+        n_restarts::Int64 = 20
     )::Vector{Int64}
 
 Cluster locations, ensuring that no cluster has more than `max_cluster_size`, and all points
@@ -253,18 +253,18 @@ A vector of cluster assignments for each reef.
 """
 function capacitated_kmeans(
     coordinates_array::Matrix{Float64};
-    max_cluster_size::Int,
+    max_cluster_size::Int64,
     max_split_distance::Int64 = 12000,
-    max_k::Int = 6,
-    max_iter::Int = 1000,
-    n_restarts::Int = 20,
+    max_k::Int64 = 6,
+    max_iter::Int64 = 1000,
+    n_restarts::Int64 = 20,
 )::Vector{Int64}
-    n_reefs = size(coordinates_array, 2)
+    n_reefs::Int64 = size(coordinates_array, 2)
     k = Ref(ceil(Int, n_reefs/max_cluster_size))
 
     # Run k-means multiple times to find best result
-    best_clustering_assignment = zeros(Int, n_reefs)
-    best_score = Inf
+    best_clustering_assignment::Vector{Int} = zeros(Int, n_reefs)
+    best_score::Float64 = Inf
     for _ in 1:n_restarts
         # Reset k every time
         clustering_assignment::Vector{Int64} = _constrained_kmeans_single_iteration(
@@ -275,12 +275,14 @@ function capacitated_kmeans(
             max_iter
         )
         k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
-        clusters_list = findall.(.==(1:k[]), Ref(clustering_assignment))
+        clusters_list::Vector{Vector{Int64}} = findall.(
+            .==(1:k[]), Ref(clustering_assignment)
+        )
         centroids = Tuple(
             Tuple(mean(coordinates_array[1:2,c]; dims=2))
             for c in clusters_list
         )
-        cluster_score = sum(
+        cluster_score::Float64 = sum(
             haversine(coordinates_array[1:2, p], centroids[i])
             for i in 1:k[] for p in clusters_list[i]
         )
