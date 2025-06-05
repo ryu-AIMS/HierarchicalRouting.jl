@@ -320,10 +320,10 @@ function capacitated_kmeans(
         # Reset k every time
         clustering_assignment = single_run()
         k[] = maximum(clustering_assignment) <= max_k ? maximum(clustering_assignment) : max_k
-        clusters = findall.(.==(1:k[]), Ref(clustering_assignment))
+        clusters_list = findall.(.==(1:k[]), Ref(clustering_assignment))
         centroids = Tuple(
             Tuple(mean(coordinates_array[1:2,c]; dims=2))
-            for c in clusters
+            for c in clusters_list
         )
         cluster_score = sum(
             haversine(coordinates_array[1:2, p], centroids[i])
