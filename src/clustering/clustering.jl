@@ -231,7 +231,7 @@ end
     capacitated_kmeans(
         coordinates_array::Matrix{Float64};
         max_cluster_size::Int,
-        max_split_distance::Float64 = 12.0,
+        max_split_distance::Int64 = 12000,
         max_k::Int = 6,
         max_iter::Int = 1000,
         n_restarts::Int = 20
@@ -244,7 +244,7 @@ are assigned to a cluster.
 - `coordinates_array`: A matrix of coordinates where each column represents a reef's
     longitude and latitude (and optionally a third dimension for distance).
 - `max_cluster_size`: The maximum number of reefs per cluster.
-- `max_split_distance`: The maximum distance between clusters to allow for splitting.
+- `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 
@@ -254,34 +254,13 @@ A vector of cluster assignments for each reef.
 function capacitated_kmeans(
     coordinates_array::Matrix{Float64};
     max_cluster_size::Int,
-    max_split_distance::Float64 = 12.0,
+    max_split_distance::Int64 = 12000,
     max_k::Int = 6,
     max_iter::Int = 1000,
     n_restarts::Int = 20,
 )::Vector{Int64}
     n_reefs = size(coordinates_array, 2)
     k = Ref(ceil(Int, n_reefs/max_cluster_size))
-
-    function quick_distance(i::Int, (lon2_deg, lat2_deg)::Tuple{Float64, Float64})::Float64
-        lon1_deg, lat1_deg = coordinates_array[1,i], coordinates_array[2,i]
-        return quick_distance((lon1_deg, lat1_deg), (lon2_deg, lat2_deg))
-    end
-    function quick_distance(
-        (lon1_deg, lat1_deg)::NTuple{2,Float64},
-        (lon2_deg, lat2_deg)::NTuple{2,Float64}
-    )::Float64
-        if lon1_deg == lon2_deg && lat1_deg == lat2_deg
-            return 0.0
-        end
-
-        R = 6371.0
-        lon1, lat1 = deg2rad(lon1_deg), deg2rad(lat1_deg)
-        lon2, lat2 = deg2rad(lon2_deg), deg2rad(lat2_deg)
-        dlon, dlat = (lon2 - lon1), (lat2 - lat1)
-        a = sin(dlat / 2)^2 + cos(lat1) * cos(lat2) * sin(dlon / 2)^2
-        c = 2 * atan(sqrt(a), sqrt(1 - a))
-        return R * c
-    end
 
     function single_run()
         clustering = kmeans(coordinates_array, k[]; maxiter=max_iter)
@@ -297,13 +276,19 @@ function capacitated_kmeans(
             point_idxs = clusters[c]
             while length(point_idxs) > max_cluster_size
                 # find furthest point from centroid
-                dists = quick_distance.(point_idxs, Ref(centroids[c]))
+                dists = [
+                    haversine(coordinates_array[1:2,p], centroids[c])
+                    for p in point_idxs
+                ]
                 idx = point_idxs[argmax(dists)]
 
                 # find under-capacity clusters within max_split_distance
                 available_clusters = findall(length.(clusters) .< max_cluster_size)
-                dists = quick_distance.(Ref(idx), centroids[available_clusters])
-                close_clusters = available_clusters[dists .≤ max_split_distance]
+                dists = [
+                    haversine(coordinates_array[1:2,idx], centroids[c])
+                    for c in available_clusters
+                ]
+                close_clusters = available_clusters[dists .≤ [max_split_distance]]
 
                 if isempty(close_clusters)
                     # no available AND close clusters --> create new cluster
@@ -313,7 +298,10 @@ function capacitated_kmeans(
 
                 # pick the closest among them
                 eligible_centroids = centroids[close_clusters]
-                eligible_distances = quick_distance.(Ref(idx), eligible_centroids)
+                eligible_distances = [
+                    haversine(coordinates_array[1:2,idx], c)
+                    for c in eligible_centroids
+                ]
                 target_cluster = close_clusters[argmin(eligible_distances)]
 
                 # reassign point
@@ -338,7 +326,8 @@ function capacitated_kmeans(
             for c in clusters
         )
         cluster_score = sum(
-            [sum(quick_distance.(clusters[i], Ref(centroids[i]))) for i in 1:k[]]
+            haversine(coordinates_array[1:2, p], centroids[i])
+            for i in 1:k[] for p in clusters_list[i]
         )
         if cluster_score < best_score
             best_score, best_clustering_assignment = cluster_score, clustering_assignment
