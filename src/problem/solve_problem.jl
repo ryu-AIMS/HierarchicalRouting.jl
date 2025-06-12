@@ -232,7 +232,9 @@ function `objective_function` and the perturbation function `perturb_function`.
 function improve_solution(
     initial_solution::MSTSolution,
     exclusions_mothership::DataFrame = DataFrame(),
-    exclusions_tender::DataFrame = DataFrame();
+    exclusions_tender::DataFrame = DataFrame(),
+    current_cluster_idx::Int = 1,
+    next_cluster_idx::Int = length(initial_solution.cluster_sets[end]);
     opt_function::Function = HierarchicalRouting.simulated_annealing,
     objective_function::Function = HierarchicalRouting.critical_path,
     perturb_function::Function = HierarchicalRouting.perturb_swap_solution,
@@ -242,8 +244,18 @@ function improve_solution(
     static_limit::Int = 20,
     vessel_weightings::NTuple{2, Float16} = (Float16(1.0), Float16(1.0))
 )::Tuple{MSTSolution, Float64}
+    current_mothership_route = initial_solution.mothership_routes[end]
+    clust_seq_current = current_mothership_route.cluster_sequence.id[current_cluster_idx+1:next_cluster_idx]
+    current_clusters = initial_solution.cluster_sets[end][clust_seq_current]
+    current_tender_routes = initial_solution.tenders[end][current_cluster_idx:next_cluster_idx-1]
+    current_solution = MSTSolution(
+        [current_clusters],
+        [current_mothership_route],
+        [current_tender_routes]
+    )
+
     soln_best, z_best = opt_function(
-        initial_solution,
+        current_solution,
         objective_function,
         perturb_function,
         exclusions_mothership,
