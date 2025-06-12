@@ -205,7 +205,8 @@ end
         max_iterations::Int = 1_000,
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
-        static_limit::Int = 20
+        static_limit::Int = 20,
+        vessel_weightings::NTuple{2, Float16} = (1.0, 1.0)
     )::Tuple{MSTSolution, Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective \n
@@ -222,6 +223,7 @@ function `objective_function` and the perturbation function `perturb_function`.
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
 - `static_limit`: Number of iterations to allow stagnation before early exit
+- `vessel_weightings`: Weightings for the mothership and tenders in the objective function
 
 # Returns
 - `soln_best`: Solution with lowest objective value found
@@ -237,7 +239,8 @@ function improve_solution(
     max_iterations::Int = 1_000,
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
-    static_limit::Int = 20
+    static_limit::Int = 20,
+    vessel_weightings::NTuple{2, Float16} = (Float16(1.0), Float16(1.0))
 )::Tuple{MSTSolution, Float64}
     soln_best, z_best = opt_function(
         initial_solution,
@@ -248,7 +251,9 @@ function improve_solution(
         max_iterations,
         temp_init,
         cooling_rate,
-        static_limit
+        static_limit;
+        vessel_weightings
     )
+
     return soln_best, z_best
 end

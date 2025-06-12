@@ -580,6 +580,7 @@ end
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
         static_limit::Int = 150;
+        vessel_weightings::NTuple{2, Float16} = (1.0, 1.0),
         cross_cluster_flag::Bool = false,
     )
 
@@ -596,6 +597,8 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
     Default = 0.95 = 95%.
 - `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
+- `vessel_weightings`: Tuple of weightings (mothership, tenders) to apply to vessel
+    distances to generate costs for the objective function. Default = (1.0, 1.0).
 - `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
     considered. Default = false.
 
@@ -613,11 +616,13 @@ function simulated_annealing(
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
     static_limit::Int = 150;
+    vessel_weightings::NTuple{2, Float16} = (1.0, 1.0),
     cross_cluster_flag::Bool = false,
 )::Tuple{MSTSolution, Float64}
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
-    obj_best = objective_function(soln_init)
+    obj_init = objective_function(soln_init, vessel_weightings)
+    obj_best = obj_init
     cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
     # TODO: Display cost values for each cluster, rather than total solution cost
     for clust_idx in 1:length(cluster_set)
@@ -648,7 +653,7 @@ function simulated_annealing(
                     )
                 end
             end
-            obj_proposed = objective_function(soln_proposed)
+            obj_proposed = objective_function(soln_proposed, vessel_weightings)
             improvement = obj_current - obj_proposed
             static_ctr += 1
 
@@ -679,6 +684,6 @@ function simulated_annealing(
         end
     end
 
-    @info "\nFinal Value: $obj_best\nΔ: $(objective_function(soln_init) - obj_best)"
+    @info "\nFinal Value: $obj_best\nΔ: $(obj_init - obj_best)"
     return soln_best, obj_best
 end
