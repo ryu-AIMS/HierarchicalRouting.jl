@@ -241,10 +241,11 @@ Cluster locations, ensuring that no cluster has more than `max_cluster_size`, an
 are assigned to a cluster.
 
 # Arguments
-- `coordinates`: A matrix of coordinates where each column represents a reef's
-    longitude and latitude (and optionally a third dimension for distance).
+- `coordinates`: A matrix of coordinates where each column represents a reef location, and
+    each row is a coordinate, i.e. longitude, latitude, (optionally distance).
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
+- `max_k`: The maximum number of clusters to create.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 
