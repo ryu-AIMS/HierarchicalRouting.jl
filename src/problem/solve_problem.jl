@@ -118,6 +118,167 @@ function initial_solution(
 end
 
 """
+    solve_problem(
+        problem::Problem;
+        disturbance_clusters::Set{Int64} = Set{Int64}()
+    )::MSTSolution
+
+Generate a solution to the problem for:
+- the mothership by using the nearest neighbour heuristic to generate an initial solution,
+    and then improving using the 2-opt heuristic, and
+-  for tenders using the sequential nearest neighbour heuristic.
+
+# Arguments
+- `problem`: Problem instance to solve
+- `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
+
+# Returns
+Best total MSTSolution found
+"""
+function solve_problem(
+    problem::Problem;
+    disturbance_clusters::Set{Int64} = Set{Int64}()
+)::MSTSolution
+    ordered_disturbances = sort(unique(disturbance_clusters))
+    n_events = length(ordered_disturbances) + 1
+    cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
+    ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
+    tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
+    total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
+
+    clusters::Vector{Cluster} = cluster_problem(
+        problem,
+    );
+    cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
+
+    ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
+    clust_seq::Vector{Int64} = filter(
+        i -> i != 0 && i <= length(clusters),
+        ms_route.cluster_sequence.id
+    )
+
+    initial_tenders = [
+        tender_sequential_nearest_neighbour(
+            clusters[clust_seq][j],
+            (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
+            problem.tenders.number,
+            problem.tenders.capacity,
+            problem.tenders.exclusion
+        )
+        for j in 1:length(clust_seq)
+    ]
+
+    #! Optimize the initial tenders solution up to the first disturbance
+    next_cluster_idx = !isempty(ordered_disturbances) ?
+        ordered_disturbances[1] :
+        length(clusters)
+
+    optimized_initial, _ = improve_solution(
+        MSTSolution([clusters], [ms_route], [initial_tenders]),
+        problem.mothership.exclusion,
+        problem.tenders.exclusion,
+        1, next_cluster_idx
+    )
+
+    updated_clusters = optimized_initial.cluster_sets[1]
+    ids = getfield.(updated_clusters, :id)
+    clusters[ids] .= updated_clusters
+    #? redundant repetition
+    updated_tenders = optimized_initial.tenders[1]
+    tender_ids = getfield.(updated_tenders, :id)
+    tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(initial_tenders, :id)))
+    initial_tenders[tender_idxs] .= updated_tenders
+
+    cluster_sets[1] = deepcopy(clusters)
+    ms_soln_sets[1] = optimized_initial.mothership_routes[1]
+    tender_soln_sets[1] = initial_tenders
+
+    disturbance_index = 1
+    for i ∈ ordered_disturbances
+        @info "Disturbance event #$disturbance_index at $(ms_route.route.nodes[2i-1]) " *
+            "before $(i)th cluster_id=$(clust_seq[i])"
+        disturbance_index += 1
+        clusters = sort!(
+            vcat(
+                clusters[clust_seq][1:i-1],
+                disturb_clusters(
+                    clusters[clust_seq][i:end],
+                    problem.targets.disturbance_gdf,
+                    ms_route.route.nodes[2i-1],
+                    problem.tenders.exclusion,
+                    total_tender_capacity
+                )
+            ), by = x -> x.id
+        )
+
+        removed_nodes = setdiff(
+            vcat([c.nodes for c in cluster_sets[disturbance_index-1]]...),
+            vcat([c.nodes for c in clusters]...)
+        )
+        if !isempty(removed_nodes)
+            @info "Removed nodes due to disturbance event (since previous cluster):\n" *
+            "\t$(join(removed_nodes, "\n\t"))"
+        end
+
+        cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
+
+        ms_route = optimize_mothership_route(
+            problem,
+            cluster_centroids_df,
+            i,
+            ms_route,
+            getfield.(clusters[clust_seq][1:i-1], :id)
+        )
+        clust_seq = filter(
+            i -> i != 0 && i <= length(clusters),
+            ms_route.cluster_sequence.id
+        );
+
+        cluster_sets[disturbance_index] = clusters
+        ms_soln_sets[disturbance_index] = ms_route
+        current_tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
+
+        for j in 1:length(clust_seq)
+            if j < i
+                current_tender_soln[j] = tender_soln_sets[disturbance_index-1][j]
+            else
+                current_tender_soln[j] = tender_sequential_nearest_neighbour(
+                    clusters[clust_seq][j],
+                    (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
+                    problem.tenders.number,
+                    problem.tenders.capacity,
+                    problem.tenders.exclusion
+                )
+            end
+        end
+
+        j = disturbance_index <= length(ordered_disturbances) ?
+            ordered_disturbances[disturbance_index] :
+            length(clusters) + 1
+
+        optimized_current_solution, _ = improve_solution(
+            MSTSolution([clusters], [ms_route], [current_tender_soln]),
+            problem.mothership.exclusion,
+            problem.tenders.exclusion,
+            i, j
+        )
+
+        updated_clusters = optimized_current_solution.cluster_sets[1]
+        ids = getfield.(updated_clusters, :id)
+        clusters[ids] .= updated_clusters
+        #? redundant repetition
+        updated_tenders = optimized_current_solution.tenders[1]
+        tender_ids = getfield.(updated_tenders, :id)
+        tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(current_tender_soln, :id)))
+        current_tender_soln[tender_idxs] .= updated_tenders
+
+        tender_soln_sets[disturbance_index] = current_tender_soln
+    end
+
+    return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+end
+
+"""
     optimize_mothership_route(
         problem::Problem,
         cluster_centroids_df::DataFrame
