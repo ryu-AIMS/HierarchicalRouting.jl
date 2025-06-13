@@ -33,8 +33,6 @@ function initial_solution(
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(
         problem,
-        num_clusters,
-        cluster_tolerance,
     );
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
