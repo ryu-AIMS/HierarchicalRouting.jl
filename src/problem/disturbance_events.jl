@@ -1,16 +1,22 @@
 
 """
     disturb_clusters(
-    remaining_clusters::Vector{Cluster},
-    disturbance_df::DataFrame;
-    res::Float64 = 0.0001
-    )
+        remaining_clusters::Vector{Cluster},
+        disturbance_df::DataFrame,
+        current_location::Point{2, Float64},
+        exclusions::DataFrame,
+        total_tender_capacity::Int;
+        res::Float64 = 0.0001
+    )::Vector{Cluster}
 
 Disturb the clusters by randomly removing nodes from them.
 
 # Arguments
 - `remaining_clusters`: A vector of `Cluster` objects representing clusters to be disturbed.
 - `disturbance_df`: A DataFrame containing disturbance data for each node.
+- `current_location`: The current location of the mothership at the time of disturbance.
+- `exclusions`: A DataFrame containing exclusion zones that should not be disturbed.
+- `total_tender_capacity`: The total capacity available for the tender fleet.
 - `res`: The resolution of the raster to be created from the disturbance data.
 
 # Returns
@@ -20,7 +26,8 @@ function disturb_clusters(
     remaining_clusters::Vector{Cluster},
     disturbance_df::DataFrame,
     current_location::Point{2, Float64},
-    exclusions::DataFrame;
+    exclusions::DataFrame,
+    total_tender_capacity::Int;
     res::Float64 = 0.0001
 )::Vector{Cluster}
     num_clusters = length(remaining_clusters)
@@ -31,26 +38,15 @@ function disturb_clusters(
 
     if nrow(filtered_df) != length(remaining_nodes)
         @warn "Warning: Expected $(length(remaining_nodes)) nodes, but filtered df contains $(nrow(filtered_df))"
-        #? Why mismatch? Nodes in exclusions? Why not previously identified?
     end
 
-    disturbance_raster = Rasters.rasterize(
-        last,
-        [(t[1],t[2]) for t in filtered_df.node];
-        res = res,
-        missingval = -9999.0,
-        fill = filtered_df.disturbance_value,
-    )
-    disturbed_targets = apply_kmeans_clustering(
-        disturbance_raster,
-        Int8(num_clusters),
+    disturbed_targets = disturb_remaining_clusters(
+        filtered_df,
+        num_clusters,
         current_location,
-        exclusions
+        exclusions,
+        total_tender_capacity
     )
-
-    if all(x -> x == disturbed_targets.missingval, disturbed_targets)
-        return remaining_clusters
-    end
 
     # Update the cluster assignments based on previous numbering
     updated_disturbed_targets = update_cluster_assignments(
@@ -60,7 +56,6 @@ function disturb_clusters(
 
     disturbed_clusters = calculate_cluster_centroids(
         updated_disturbed_targets;
-        cluster_ids=getfield.(remaining_clusters, :id)
     )
 
     return disturbed_clusters

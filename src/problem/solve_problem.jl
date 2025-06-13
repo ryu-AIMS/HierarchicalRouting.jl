@@ -1,9 +1,7 @@
 
 """
     initial_solution(
-        problem::Problem,
-        num_clusters::Int;
-        cluster_tolerance::Real = Float64(5E-5),
+        problem::Problem;
         disturbance_clusters::Set{Int64} = Set{Int64}()
     )::MSTSolution
 
@@ -14,21 +12,20 @@ Generate a solution to the problem for:
 
 # Arguments
 - `problem`: Problem instance to solve
-- `num_clusters`: Number of clusters to create
-- `cluster_tolerance`: Tolerance for clustering. Default is 5E-5.
 - `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 
 # Returns
 Best total MSTSolution found
 """
 function initial_solution(
-    problem::Problem,
-    num_clusters::Int;
-    cluster_tolerance::Real = Float64(5E-5),
+    problem::Problem;
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
-    num_clusters = Int8(num_clusters)
-    cluster_tolerance = Float64(cluster_tolerance)
+    n_events = length(disturbance_clusters) + 1
+    cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
+    ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
+    tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
+    total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(
@@ -41,72 +38,82 @@ function initial_solution(
         i -> i != 0 && i <= length(clusters),
         ms_route.cluster_sequence.id
     )
+    initial_tenders = [
+        tender_sequential_nearest_neighbour(
+            clusters[clust_seq][j],
+            (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
+            problem.tenders.number,
+            problem.tenders.capacity,
+            problem.tenders.exclusion
+        )
+        for j in 1:length(clust_seq)
+    ]
 
-    tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
-    cluster_set = Vector{Vector{Cluster}}(undef, length(disturbance_clusters)+1)
-    ms_soln_sets = Vector{MothershipSolution}(undef, length(disturbance_clusters)+1)
-
-    cluster_set[1] = clusters
+    cluster_sets[1] = deepcopy(clusters)
     ms_soln_sets[1] = ms_route
+    tender_soln_sets[1] = initial_tenders
 
-    i = 1
     disturbance_index = 1
-    while i <= length(clust_seq)
-        cluster_id::Int64 = clust_seq[i];
-        if i ∈ disturbance_clusters
-            @info "Disturbance event at $(ms_route.route.nodes[2i-1]): before $(i)th cluster_id=$(cluster_id)"
-            disturbance_index += 1
-            clusters = vcat(
-                clusters[clust_seq][1:i-1],
-                disturb_clusters(
-                    clusters[clust_seq][i:end],
-                    problem.targets.disturbance_gdf,
-                    ms_route.route.nodes[2i-1],
-                    problem.tenders.exclusion
-                )
+    for i ∈ sort(collect(disturbance_clusters))
+        @info "Disturbance event at $(ms_route.route.nodes[2i-1]) " *
+            "before $(i)th cluster_id=$(clust_seq[i])"
+        disturbance_index += 1
+        clusters = vcat(
+            clusters[clust_seq][1:i-1],
+            disturb_clusters(
+                clusters[clust_seq][i:end],
+                problem.targets.disturbance_gdf,
+                ms_route.route.nodes[2i-1],
+                problem.tenders.exclusion,
+                total_tender_capacity
             )
+        )
 
-            removed_nodes = setdiff(
-                vcat([c.nodes for c in cluster_set[disturbance_index-1]]...),
-                vcat([c.nodes for c in clusters]...)
-            )
-            if !isempty(removed_nodes)
-                @info "Removed nodes due to disturbance event (since previous cluster):\n" *
-                "\t$(join(removed_nodes, "\n\t"))"
-            end
+        removed_nodes = setdiff(
+            vcat([c.nodes for c in cluster_sets[disturbance_index-1]]...),
+            vcat([c.nodes for c in clusters]...)
+        )
+        if !isempty(removed_nodes)
+            @info "Removed nodes due to disturbance event (since previous cluster):\n" *
+            "\t$(join(removed_nodes, "\n\t"))"
+        end
 
-            sort!(clusters, by = x -> x.id)
-            cluster_set[disturbance_index] = clusters
+        sort!(clusters, by = x -> x.id)
 
-            cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
+        cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
-            ms_soln_sets[disturbance_index] = ms_route = optimize_mothership_route(
-                problem,
-                cluster_centroids_df,
-                i,
-                ms_route,
+        ms_route = optimize_mothership_route(
+            problem,
+            cluster_centroids_df,
+            i,
+            ms_route,
                 getfield.(clusters[clust_seq][1:i-1], :id)
             )
             clust_seq = filter(
                 i -> i != 0 && i <= length(clusters),
                 ms_route.cluster_sequence.id
-            );
+        );
+
+        cluster_sets[disturbance_index] = clusters
+        ms_soln_sets[disturbance_index] = ms_route
+        current_tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
+        for j in 1:length(clust_seq)
+            if j < i
+                current_tender_soln[j] = tender_soln_sets[disturbance_index-1][j]
+            else
+                current_tender_soln[j] = tender_sequential_nearest_neighbour(
+                    clusters[clust_seq][j],
+                    (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
+                    problem.tenders.number,
+                    problem.tenders.capacity,
+                    problem.tenders.exclusion
+                )
+            end
+            tender_soln_sets[disturbance_index] = current_tender_soln
         end
-
-        start_waypoint::Point{2, Float64} = ms_route.route.nodes[2i]
-        end_waypoint::Point{2, Float64} = ms_route.route.nodes[2i + 1]
-        cluster::Cluster = clusters[clust_seq][i]
-        @info "$(i): Clust $(cluster.id) from $(start_waypoint) to $(end_waypoint)"
-
-        tender_soln[i] = tender_sequential_nearest_neighbour(
-            cluster,
-            (start_waypoint, end_waypoint),
-            problem.tenders.number, problem.tenders.capacity, problem.tenders.exclusion
-        )
-        i+=1
     end
 
-    return MSTSolution(cluster_set, ms_soln_sets, tender_soln)
+    return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
 end
 
 """
