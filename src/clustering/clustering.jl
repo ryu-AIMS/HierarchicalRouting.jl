@@ -107,7 +107,7 @@ end
         dist_weighting::Float64=2E-5
     )::Raster{Int64, 2}
     disturb_remaining_clusters(
-        disturbance_df::DataFrame,
+        unvisited_pts::DataFrame,
         k::Int8,
         current_location::Point{2, Float64},
         exclusions::DataFrame,
@@ -121,7 +121,7 @@ end
 
 # Arguments
 - `raster`: Raster containing the target geometries.
-- `disturbance_df`: DataFrame containing the disturbance values for each node.
+- `unvisited_pts`: DataFrame containing the disturbance values for each node.
 - `k`: Number of clusters to create.
 - `current_location`: Current location of the mothership.
 - `exclusions`: DataFrame containing the exclusion zones.
@@ -237,7 +237,7 @@ function disturb_remaining_clusters(
     return clustered_targets
 end
 function disturb_remaining_clusters(
-    unvisited_pts_df::DataFrame,
+    unvisited_pts::DataFrame,
     k::Int,
     current_location::Point{2, Float64},
     exclusions::DataFrame,
@@ -245,7 +245,7 @@ function disturb_remaining_clusters(
     tol::Float64=1.0,
     dist_weighting::Float64=2E-5
 )::DataFrame
-    n_sites::Int = size(unvisited_pts_df,1) # number of target sites remaining
+    n_sites::Int = size(unvisited_pts, 1) # number of target sites remaining
 
     if n_sites <= k
         @warn "No disturbance, as (deployment targets <= clusters required)"
@@ -253,10 +253,10 @@ function disturb_remaining_clusters(
     end
 
     # 3D coordinate matrix for disturbance clustering
-    coordinates_array_3d = Matrix{Float64}(undef, 3, n_sites)
-    coordinates_array_3d[1, :] .= getindex.(unvisited_pts_df.node, 1)
-    coordinates_array_3d[2, :] .= getindex.(unvisited_pts_df.node, 2)
-    coordinates_array_3d[3, :] .= unvisited_pts_df.disturbance_value
+    coordinates_3d = Matrix{Float64}(undef, 3, n_sites)
+    coordinates_3d[1, :] .= getindex.(unvisited_pts.node, 1)
+    coordinates_3d[2, :] .= getindex.(unvisited_pts.node, 2)
+    coordinates_3d[3, :] .= unvisited_pts.disturbance_value
 
     # Create k_d clusters to create disturbance on subset
     k_d_lower = min(n_sites, k+1)
@@ -264,7 +264,7 @@ function disturb_remaining_clusters(
     k_d = rand(k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
-        coordinates_array_3d,
+        coordinates_3d,
         k_d;
         tol=tol,
         rng=Random.seed!(1)
@@ -277,7 +277,7 @@ function disturb_remaining_clusters(
     t = 1.0 # perturbation weighting factor
     cluster_disturbance_vals =
         w * [
-            mean(coordinates_array_3d[3, disturbance_clusters.assignments .== i])
+            mean(coordinates_3d[3, disturbance_clusters.assignments .== i])
             for i in 1:k_d
         ] .+
         t * rand(-1.0:0.01:1.0, k_d)
@@ -288,7 +288,7 @@ function disturb_remaining_clusters(
     max_disturbance_score = maximum(disturbance_scores)
     surviving_mask = disturbance_scores .!= max_disturbance_score
 
-    coordinates_array_2d_disturbed = coordinates_array_3d[1:2, surviving_mask]
+    disturbed_coordinates_2d = coordinates_3d[1:2, surviving_mask]
     n_sites = sum(surviving_mask)
 
     if k > n_sites
@@ -300,8 +300,8 @@ function disturb_remaining_clusters(
     end
 
     remaining_pts = Point{2,Float64}.(
-        coordinates_array_2d_disturbed[1, :],
-        coordinates_array_2d_disturbed[2, :]
+        disturbed_coordinates_2d[1, :],
+        disturbed_coordinates_2d[2, :]
     )
 
     # Fill vector with feasible distance from depot to each target site
@@ -311,14 +311,14 @@ function disturb_remaining_clusters(
     feasible_idxs = findall(x -> x != Inf, dist_vector)
     feasible_pts = remaining_pts[feasible_idxs]
 
-    coordinates_array_disturbed = Matrix{Float64}(undef, 3, length(feasible_pts))
-    coordinates_array_disturbed[1, :] .= getindex.(feasible_pts, 1)
-    coordinates_array_disturbed[2, :] .= getindex.(feasible_pts, 2)
-    coordinates_array_disturbed[3, :] .= dist_weighting .* dist_vector[feasible_idxs]
+    disturbed_coordinates_3d = Matrix{Float64}(undef, 3, length(feasible_pts))
+    disturbed_coordinates_3d[1, :] .= getindex.(feasible_pts, 1)
+    disturbed_coordinates_3d[2, :] .= getindex.(feasible_pts, 2)
+    disturbed_coordinates_3d[3, :] .= dist_weighting .* dist_vector[feasible_idxs]
 
     #re-cluster the remaining nodes into k clusters
     clustering_assignments = capacity_constrained_kmeans(
-        coordinates_array_disturbed;
+        disturbed_coordinates_3d;
         max_cluster_size = total_tender_capacity,
         k_spec = k,
     )
