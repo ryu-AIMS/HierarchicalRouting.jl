@@ -272,6 +272,7 @@ function disturb_remaining_clusters(
 
     # Create a score based on the disturbance values for each cluster
     disturbance_scores = Vector{Float64}(undef, n_sites)
+
     # Calculate the mean disturbance value for each cluster with stochastic perturbation
     w = 1.0 # weight for the environmental disturbance value
     t = 1.0 # perturbation weighting factor
@@ -281,6 +282,7 @@ function disturb_remaining_clusters(
             for i in 1:k_d
         ] .+
         t * rand(-1.0:0.01:1.0, k_d)
+
     # Assign the disturbance value to every node in the cluster
     disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
 
