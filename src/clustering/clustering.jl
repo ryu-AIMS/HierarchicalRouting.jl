@@ -533,26 +533,21 @@ function update_cluster_assignments(
     cluster_raster::Raster{Int64, 2},
     prev_centroids::Dict{Int64, Point{2,Float64}}
 )::Raster{Int64, 2}
-    unique_new = Set(cluster_raster[cluster_raster .!= cluster_raster.missingval])
-
-    # Compute new centroids from the cluster_raster
-    new_centroids = Dict{Int64, Point{2,Float64}}()
-    for new_id in unique_new
-        indices = findall(x -> x == new_id, cluster_raster)
-        mean_lon = mean(cluster_raster.dims[1][getindex.(indices, 1)])
-        mean_lat = mean(cluster_raster.dims[2][getindex.(indices, 2)])
-        new_centroids[new_id] = (mean_lon, mean_lat)
-    end
-
+    inds = findall(!=(cluster_raster.missingval), cluster_raster)
+    ids = cluster_raster[inds]
+    coords = Point{2,Float64}.(
+        cluster_raster.dims[1][getindex.(inds,1)],
+        cluster_raster.dims[2][getindex.(inds,2)]
+    )
     # Map cluster IDs from new to previous clusters
-    cluster_mapping = one_to_one_mapping_hungarian(new_centroids, prev_centroids)
+    cluster_mapping = compute_cluster_mapping(ids, coords, prev_centroids)
 
-    #? default args for similar?
     updated_raster = similar(cluster_raster, Int64, missingval=cluster_raster.missingval)
     updated_raster .= updated_raster.missingval
 
-    for new_id in unique_new
-        updated_raster[cluster_raster .== new_id] .= cluster_mapping[new_id]
+    # Update the raster with new cluster IDs, mapping new IDs to previous IDs
+    for (idx, id) in zip(inds, ids)
+        updated_raster[idx] .= cluster_mapping[id]
     end
 
     return updated_raster
@@ -561,28 +556,16 @@ function update_cluster_assignments(
     cluster_df::DataFrame,
     prev_centroids::Dict{Int64, Point{2,Float64}}
 )::DataFrame
-    unique_new = Set(cluster_df.id)
-
-    # Compute new centroids from the cluster_raster
-    new_centroids = Dict{Int64, Point{2,Float64}}()
-    for new_id in unique_new
-        indices = findall(==(new_id), cluster_df.id)
-        mean_lon = mean(getindex.(cluster_df.geometry[indices], 1))
-        mean_lat = mean(getindex.(cluster_df.geometry[indices], 2))
-        new_centroids[new_id] = (mean_lon, mean_lat)
-    end
+    ids = cluster_df.id
+    coords = cluster_df.geometry
 
     # Map cluster IDs from new to previous clusters
-    cluster_mapping = one_to_one_mapping_hungarian(new_centroids, prev_centroids)
-    new_ids = Vector{Int64}(undef, length(cluster_df.id))
+    cluster_mapping = compute_cluster_mapping(ids, coords, prev_centroids)
 
-    for (i, new_id) in enumerate(cluster_df.id)
-        new_ids[i] = cluster_mapping[new_id]
-    end
-    updated_df = DataFrame(
-        id = new_ids,
-        geometry = cluster_df.geometry
-    )
+    # Create a new vector of IDs based on mapping
+    new_ids = getindex.(Ref(cluster_mapping), cluster_df.id)
+
+    updated_df = DataFrame(id = new_ids, geometry = cluster_df.geometry)
     return updated_df
 end
 
@@ -621,7 +604,7 @@ function one_to_one_mapping_hungarian(
     new_centroids::Dict{Int64,Point{2,Float64}},
     prev_centroids::Dict{Int64,Point{2,Float64}}
 )::Dict{Int64,Int64}
-    new_ids  = collect(keys(new_centroids))
+    new_ids = collect(keys(new_centroids))
     prev_ids = collect(keys(prev_centroids))
     n, m = length(new_ids), length(prev_ids)
 
