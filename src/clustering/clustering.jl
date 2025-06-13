@@ -586,6 +586,37 @@ function update_cluster_assignments(
     return updated_df
 end
 
+"""
+    compute_cluster_mapping(
+        ids::AbstractVector{Int},
+        coords::AbstractVector{Point{2,Float64}},
+        prev_centroids::Dict{Int,Point{2,Float64}}
+    )::Dict{Int,Int}
+
+Given a vector of cluster IDs `ids` and a parallel vector of their coordinates `coords`,
+compute the centroids of each new ID, then use the Hungarian assignment against
+`prev_centroids` to return a Dict mapping each new ID to its matched old ID.
+"""
+function compute_cluster_mapping(
+    ids::AbstractVector{Int},
+    coords::AbstractVector{Point{2, Float64}},
+    prev_centroids::Dict{Int, Point{2,Float64}}
+)::Dict{Int, Int}
+    unique_new = Set(ids)
+    new_centroids = Dict{Int, Point{2,Float64}}()
+
+    for id_new in unique_new
+        idxs = findall(==(id_new), ids)
+        xs = getindex.(coords[idxs], 1)
+        ys = getindex.(coords[idxs], 2)
+        new_centroids[id_new] = Point(mean(xs), mean(ys))
+    end
+
+    # Match new centroids to previous centroids using Hungarian one-to-one assignment
+    new_to_prev_mapping = one_to_one_mapping_hungarian(new_centroids, prev_centroids)
+    return new_to_prev_mapping
+end
+
 function one_to_one_mapping_hungarian(
     new_centroids::Dict{Int64,Point{2,Float64}},
     prev_centroids::Dict{Int64,Point{2,Float64}}
