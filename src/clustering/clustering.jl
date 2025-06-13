@@ -527,7 +527,7 @@ matching closest clster centroids.
 - `prev_centroids`: Dictionary mapping previous cluster IDs to their centroids.
 
 # Returns
-A new raster or DaraFreame with updated cluster assignments to match the previous numbering.
+A new raster or DataFrame with updated cluster assignments to match the previous numbering.
 """
 function update_cluster_assignments(
     cluster_raster::Raster{Int64, 2},
