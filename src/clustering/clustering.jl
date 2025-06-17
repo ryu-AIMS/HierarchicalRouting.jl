@@ -376,10 +376,10 @@ function capacity_constrained_kmeans(
         clustering_assignment::Vector{Int64} = _constrained_kmeans_single_iteration(
             coordinates,
             k,
-            k_spec,
             max_cluster_size,
             max_split_distance,
-            max_iter
+            max_iter;
+            k_spec
         )
         k[] = k_spec == 0 ? maximum(clustering_assignment) : k_spec
         clusters_list::Vector{Vector{Int64}} = findall.(
@@ -404,11 +404,11 @@ end
 """
     _constrained_kmeans_single_iteration(
         coordinates::Matrix{Float64},
-        k::Ref{Int},
-        k_spec::Int = 0,
+        k::Ref{Int};
         max_cluster_size::Int64 = 6,
         max_split_distance::Int64 = 12000,
-        max_iter::Int64 = 1000,
+        max_iter::Int64 = 1000;
+        k_spec::Int = 0
     )::Vector{Int64}
 
 Run a single iteration of k-means clustering with constraints on cluster size and distance
@@ -418,11 +418,11 @@ Run a single iteration of k-means clustering with constraints on cluster size an
 - `coordinates`: A matrix of coordinates where each column represents a reef's
     longitude and latitude (and optionally a third dimension for distance).
 - `k`: A reference to the number of clusters to create.
-- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
-    the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
+- `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
+    the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 
 # Returns
 A vector of cluster assignments for each reef, ensuring that no cluster exceeds the
@@ -432,10 +432,10 @@ A vector of cluster assignments for each reef, ensuring that no cluster exceeds 
 function _constrained_kmeans_single_iteration(
     coordinates::Matrix{Float64},
     k::Ref{Int},
-    k_spec::Int = 0,
     max_cluster_size::Int64 = 6,
     max_split_distance::Int64 = 12000,
-    max_iter::Int64 = 1000,
+    max_iter::Int64 = 1000;
+    k_spec::Int = 0
 )::Vector{Int64}
     clustering = kmeans(coordinates, k[]; maxiter=max_iter)
     clustering_assignment::Vector{Int64} = copy(clustering.assignments)
