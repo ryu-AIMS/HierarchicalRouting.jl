@@ -110,19 +110,16 @@ Compute the cost of a sortie, which starts and ends at given points, but does no
 The total distance of the sortie.
 """
 function tender_sortie_dist(sortie::Route)::Float64
-    dist = sum(@view sortie.dist_matrix[1:end-1, 2:end])
-    return dist
+    return sum(@view sortie.dist_matrix[1:end-1, 2:end])
 end
 function tender_sortie_dist(
     node_order::Vector{Int64},
     dist_matrix::Matrix{Float64}
 )::Float64
-    dist = 0.0
-    dist = sum(
+    return sum(
         dist_matrix[node_order[i], node_order[i+1]]
         for i in 1:(length(node_order)-1)
     )
-    return dist
 end
 
 """
