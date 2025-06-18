@@ -137,6 +137,7 @@ Best total MSTSolution found
 """
 function solve_problem(
     problem::Problem;
+    k::Int = 1,
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
     ordered_disturbances = sort(unique(disturbance_clusters))
@@ -147,7 +148,7 @@ function solve_problem(
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
     clusters::Vector{Cluster} = cluster_problem(
-        problem,
+        problem; k
     );
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
