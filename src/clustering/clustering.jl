@@ -366,16 +366,16 @@ function capacity_constrained_kmeans(
     n_restarts::Int64 = 20,
 )::Vector{Int64}
     n_reefs::Int64 = size(coordinates, 2)
-    k = k_spec == 0 ? Ref(ceil(Int, n_reefs/max_cluster_size)) : Ref(k_spec)
+    initial_k::Int64 = k_spec == 0 ? ceil(Int, n_reefs/max_cluster_size) : k_spec
 
     # Run k-means multiple times to find best result
     best_clustering_assignment::Vector{Int} = zeros(Int, n_reefs)
     best_score::Float64 = Inf
     for _ in 1:n_restarts
-        # Reset k every time
+        # Reset k <- initial_k every restart
         clustering_assignment::Vector{Int64} = _constrained_kmeans_single_iteration(
             coordinates,
-            k,
+            initial_k,
             max_cluster_size,
             max_split_distance,
             max_iter;
@@ -405,7 +405,7 @@ end
 """
     _constrained_kmeans_single_iteration(
         coordinates::Matrix{Float64},
-        k::Ref{Int};
+        k::Int64;
         max_cluster_size::Int64 = 6,
         max_split_distance::Int64 = 12000,
         max_iter::Int64 = 1000;
@@ -418,7 +418,7 @@ Run a single iteration of k-means clustering with constraints on cluster size an
 # Arguments
 - `coordinates`: A matrix of coordinates where each column represents a reef's
     longitude and latitude (and optionally a third dimension for distance).
-- `k`: A reference to the number of clusters to create.
+- `k`: The number of clusters to create.
 - `max_cluster_size`: The maximum number of reefs per cluster.
 - `max_split_distance`: The maximum distance (m) between clusters to allow for splitting.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
@@ -432,18 +432,18 @@ A vector of cluster assignments for each reef, ensuring that no cluster exceeds 
 """
 function _constrained_kmeans_single_iteration(
     coordinates::Matrix{Float64},
-    k::Ref{Int},
+    k::Int64,
     max_cluster_size::Int64 = 6,
     max_split_distance::Int64 = 12000,
     max_iter::Int64 = 1000;
     k_spec::Int = 0
 )::Vector{Int64}
-    clustering = kmeans(coordinates, k[]; maxiter=max_iter)
+    clustering = kmeans(coordinates, k; maxiter=max_iter)
     clustering_assignment::Vector{Int64} = copy(clustering.assignments)
 
     # Build clusters & centroids
     clusters_list::Vector{Vector{Int64}} = findall.(
-        .==(1:k[]),
+        .==(1:k),
         Ref(clustering_assignment)
     )
     centroids = Tuple(
@@ -451,11 +451,11 @@ function _constrained_kmeans_single_iteration(
         for c in clusters_list
     )
 
-    available_clusters = Vector{Int64}(undef, k[])
-    dists_pt_to_centroids = Vector{Float64}(undef, k[])
+    available_clusters = Vector{Int64}(undef, k)
+    dists_pt_to_centroids = Vector{Float64}(undef, k)
 
     # Enforce max cluster size by reassigning furthest points for over-capacity clusters
-    for c in 1:k[]
+    for c in 1:k
         point_idxs::Vector{Int64} = clusters_list[c]
         while length(point_idxs) > max_cluster_size
             # Find furthest point from centroid
@@ -479,7 +479,7 @@ function _constrained_kmeans_single_iteration(
             if isempty(close_clusters)
                 if iszero(k_spec)
                     # no available AND close clusters --> create new cluster
-                    k[] += 1
+                    k += 1
                     return _constrained_kmeans_single_iteration(
                         coordinates,
                         k,
