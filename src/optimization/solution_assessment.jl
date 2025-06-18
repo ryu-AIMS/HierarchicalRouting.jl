@@ -600,7 +600,7 @@ end
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
         static_limit::Int = 150;
-        vessel_weightings::NTuple{2, Float16} = (1.0, 1.0),
+        vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0),
         cross_cluster_flag::Bool = false,
     )
 
@@ -636,7 +636,7 @@ function simulated_annealing(
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
     static_limit::Int = 150;
-    vessel_weightings::NTuple{2, Float16} = (1.0, 1.0),
+    vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0),
     cross_cluster_flag::Bool = false,
 )::Tuple{MSTSolution, Float64}
     # Initialize best solution as initial

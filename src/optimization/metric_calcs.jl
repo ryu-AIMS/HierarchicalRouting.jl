@@ -165,7 +165,7 @@ end
 """
     critical_path(
         soln::MSTSolution,
-        vessel_weightings::NTuple{2, Float16}=(1.0, 1.0)
+        vessel_weightings::NTuple{2, AbstractFloat}=(1.0, 1.0)
     )::Float64
 
 Compute the critical path cost of the solution.
@@ -183,7 +183,7 @@ The total (critical path) cost of the solution.
 """
 function critical_path(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2, Float16}=(Float16(1.0), Float16(1.0))
+    vessel_weightings::NTuple{2, AbstractFloat}=(1.0, 1.0)
 )::Float64
     num_clusters = length(soln.tenders[end])
     # Within clusters
