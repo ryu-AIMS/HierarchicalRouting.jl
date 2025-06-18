@@ -370,7 +370,7 @@ end
         temp_init::Float64 = 500.0,
         cooling_rate::Float64 = 0.95,
         static_limit::Int = 20,
-        vessel_weightings::NTuple{2, Float16} = (1.0, 1.0)
+        vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0)
     )::Tuple{MSTSolution, Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective \n
@@ -408,7 +408,7 @@ function improve_solution(
     temp_init::Float64 = 500.0,
     cooling_rate::Float64 = 0.95,
     static_limit::Int = 20,
-    vessel_weightings::NTuple{2, Float16} = (Float16(1.0), Float16(1.0))
+    vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0)
 )::Tuple{MSTSolution, Float64}
     current_mothership_route = initial_solution.mothership_routes[end]
     clust_seq_current = current_mothership_route.cluster_sequence.id[current_cluster_idx+1:next_cluster_idx]
