@@ -41,7 +41,8 @@ end
 
 """
     cluster_problem(
-        problem::Problem,
+        problem::Problem;
+        k::Int=1,
         dist_weighting::Float64=5E-6
     )::Vector{Cluster}
 
@@ -51,6 +52,7 @@ The clustering is done using k-means clustering, and the centroids of the cluste
 
 # Arguments
 - `problem`: The problem data.
+- `k`: The number of clusters to create. Default = 0.
 - `dist_weighting`: Weighting factor for the distances in 3D clustering, used in combination
     with lat/lons at first 2 dimensions. Higher values will give more weight to distance
     from current location (depot). Default = 5E-6.
@@ -59,7 +61,8 @@ The clustering is done using k-means clustering, and the centroids of the cluste
 Vector of clustered locations.
 """
 function cluster_problem(
-    problem::Problem,
+    problem::Problem;
+    k::Int=0,
     dist_weighting::Float64=5E-6
 )::Vector{Cluster}
     points::Vector{Point{2, Float64}} = problem.targets.points.geometry
@@ -85,6 +88,7 @@ function cluster_problem(
     clustering_assignments = capacity_constrained_kmeans(
         coordinates_array;
         max_cluster_size=total_tender_capacity,
+        min_k_spec=k,
     )
 
     clustered_targets_df::DataFrame = DataFrame(
