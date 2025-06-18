@@ -381,9 +381,10 @@ function capacity_constrained_kmeans(
             max_iter;
             k_spec
         )
-        k[] = k_spec == 0 ? maximum(clustering_assignment) : k_spec
+        num_clusters::Int64 = maximum(clustering_assignment)
+        final_k::Int64 = k_spec == 0 ? num_clusters : k_spec
         clusters_list::Vector{Vector{Int64}} = findall.(
-            .==(1:k[]), Ref(clustering_assignment)
+            .==(1:num_clusters), Ref(clustering_assignment)
         )
         centroids = Tuple(
             Tuple(mean(coordinates[1:2,c]; dims=2))
@@ -391,7 +392,7 @@ function capacity_constrained_kmeans(
         )
         cluster_score::Float64 = sum(
             haversine(coordinates[1:2, p], centroids[i])
-            for i in 1:k[] for p in clusters_list[i]
+            for i in 1:final_k for p in clusters_list[i]
         )
         if cluster_score < best_score
             best_score, best_clustering_assignment = cluster_score, clustering_assignment
