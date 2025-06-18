@@ -338,7 +338,8 @@ end
         max_split_distance::Int64 = 12000,
         k_spec::Int = 0,
         max_iter::Int64 = 1000,
-        n_restarts::Int64 = 20
+        n_restarts::Int64 = 20,
+        min_k_spec::Int64 = 0
     )::Vector{Int64}
 
 Cluster locations, ensuring that no cluster has more than `max_cluster_size`, and all points
@@ -353,6 +354,8 @@ are assigned to a cluster.
     the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
+- `min_k_spec`: The minimum number of clusters to create. If `k_spec` is 0, this will be used to
+    calculate the initial number of clusters.
 
 # Returns
 A vector of cluster assignments for each reef.
@@ -364,10 +367,14 @@ function capacity_constrained_kmeans(
     k_spec::Int = 0,
     max_iter::Int64 = 1000,
     n_restarts::Int64 = 20,
+    min_k_spec::Int64 = 0
 )::Vector{Int64}
     n_reefs::Int64 = size(coordinates, 2)
-    initial_k::Int64 = k_spec == 0 ? ceil(Int, n_reefs/max_cluster_size) : k_spec
-
+    min_k = max(k_spec, min_k_spec) # Ensure k_spec is at least min_k
+    initial_k::Int64 =
+        k_spec == 0 ?
+        max(ceil(Int, n_reefs/max_cluster_size), min_k) :
+        min_k
     # Run k-means multiple times to find best result
     best_clustering_assignment::Vector{Int} = zeros(Int, n_reefs)
     best_score::Float64 = Inf
