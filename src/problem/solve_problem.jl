@@ -360,7 +360,9 @@ end
     improve_solution(
         initial_solution::MSTSolution,
         exclusions_mothership::DataFrame = DataFrame(),
-        exclusions_tender::DataFrame = DataFrame();
+        exclusions_tender::DataFrame = DataFrame(),
+        current_cluster_idx::Int = 1,
+        next_cluster_idx::Int = length(initial_solution.cluster_sets[end]);
         opt_function::Function = HierarchicalRouting.simulated_annealing,
         objective_function::Function = HierarchicalRouting.critical_path,
         perturb_function::Function = HierarchicalRouting.perturb_swap_solution,
@@ -378,6 +380,8 @@ function `objective_function` and the perturbation function `perturb_function`.
 - `initial_solution`: Initial solution to improve
 - `exclusions_mothership`: DataFrame of exclusion polygons for the mothership
 - `exclusions_tender`: DataFrame of exclusion polygons for the tenders
+- `current_cluster_idx`: Index of the current cluster in the sequence
+- `next_cluster_idx`: Index of the next cluster in the sequence
 - `opt_function`: Optimization function to improve the solution
 - `objective_function`: Objective function to quantify and evaluate the solution
 - `perturb_function`: Perturbation function to generate changes in the solution
