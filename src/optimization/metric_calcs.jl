@@ -173,7 +173,7 @@ The total (critical path) cost of the solution.
 """
 function critical_path(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2, Float64}=(1.0, 1.0)
+    vessel_weightings::NTuple{2, Float16}=(Float16(1.0), Float16(1.0))
 )::Float64
     # Within clusters
     cluster_sorties = tender_clust_dist.(soln.tenders[end])
