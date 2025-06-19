@@ -233,7 +233,7 @@ function disturb_remaining_clusters(
         coordinates_array_3d_disturbed,
         k;
         tol=tol,
-        rng=Random.seed!(2)
+        rng=Random.seed!(1)
     )
 
     clustered_targets = similar(raster, Int64, missingval=0)
