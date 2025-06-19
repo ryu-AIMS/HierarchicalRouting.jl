@@ -36,7 +36,7 @@ function perturb_swap_solution(
     enforce_diff_sortie::Bool = false
 )::MSTSolution
     clust_seq_idx = clust_seq_idx_target == -1 ?
-        rand(1:length(soln.tenders[end])) :
+        rand(GLOBAL_RNG, 1:length(soln.tenders[end])) :
         clust_seq_idx_target
 
     tender = deepcopy(soln.tenders[end][clust_seq_idx])
@@ -50,8 +50,8 @@ function perturb_swap_solution(
     # Choose two random sorties to swap nodes between
     # if enforce_diff_sortie is true: ensure different sorties are selected
     sortie_a_idx, sortie_b_idx = enforce_diff_sortie ?
-        shuffle(1:length(sorties))[1:2] :
-        rand(1:length(sorties), 2)
+        shuffle(GLOBAL_RNG, 1:length(sorties))[1:2] :
+        rand(GLOBAL_RNG, 1:length(sorties), 2)
 
     sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
@@ -67,11 +67,11 @@ function perturb_swap_solution(
         if sortie_length < 2
             return soln
         end
-        node_a_idx, node_b_idx = sortie_length == 2 ? (1, 2) : shuffle(1:sortie_length)[1:2]
+        node_a_idx, node_b_idx = sortie_length == 2 ? (1, 2) : shuffle(GLOBAL_RNG, 1:sortie_length)[1:2]
     else
         # Chose two random node indices from different sorties
-        node_a_idx = rand(1:length(sortie_a.nodes))
-        node_b_idx = rand(1:length(sortie_b.nodes))
+        node_a_idx = rand(GLOBAL_RNG, 1:length(sortie_a.nodes))
+        node_b_idx = rand(GLOBAL_RNG, 1:length(sortie_b.nodes))
     end
 
     # Swap the nodes between the two sorties
@@ -137,8 +137,8 @@ function perturb_swap_solution(
     tender_b = soln.tenders[end][clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
-    sortie_a_idx = rand(1:length(tender_a.sorties))
-    sortie_b_idx = rand(1:length(tender_b.sorties))
+    sortie_a_idx = rand(GLOBAL_RNG, 1:length(tender_a.sorties))
+    sortie_b_idx = rand(GLOBAL_RNG, 1:length(tender_b.sorties))
     sortie_a = deepcopy(tender_a.sorties[sortie_a_idx])
     sortie_b = deepcopy(tender_b.sorties[sortie_b_idx])
 
@@ -147,7 +147,7 @@ function perturb_swap_solution(
     end
 
     # Swap two random nodes across the two sorties
-    node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))
+    node_a_idx, node_b_idx = rand(GLOBAL_RNG, 1:length(sortie_a.nodes)), rand(GLOBAL_RNG, 1:length(sortie_b.nodes))
     node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
     sortie_a.nodes[node_a_idx] = node_b
     sortie_b.nodes[node_b_idx] = node_a
@@ -639,12 +639,12 @@ function simulated_annealing(
             if !cross_cluster_flag
                 soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
             else
-                if rand() < 0.5
+                if rand(GLOBAL_RNG) < 0.5
                 # swap two nodes within the same cluster
                 soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
                 else
                     # swap two nodes between two different random clusters
-                    clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
+                    clust_swap_idx = shuffle(GLOBAL_RNG, setdiff(1:length(cluster_set), clust_idx))[1]
                     soln_proposed = perturb_function(
                         soln_current,
                         (clust_idx, clust_swap_idx),
@@ -658,7 +658,7 @@ function simulated_annealing(
             static_ctr += 1
 
             # If the new solution is improved OR meets acceptance prob criteria
-            if improvement > 0 || exp(improvement / temp) > rand()
+            if improvement > 0 || exp(improvement / temp) > rand(GLOBAL_RNG)
                 soln_current = soln_proposed
                 obj_current = obj_proposed
 

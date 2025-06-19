@@ -11,6 +11,8 @@ using Hungarian
     # waypoints::NTuple{2, Point{2, Float64}}
 end
 
+GLOBAL_RNG = MersenneTwister(1234)
+
 """
     generate_cluster_df(
         clusters::Vector{Cluster},
@@ -265,7 +267,7 @@ function disturb_remaining_clusters(
     # Create k_d clusters to create disturbance on subset
     k_d_lower = k+1
     k_d_upper = n_sites
-    k_d = rand(k_d_lower:k_d_upper)
+    k_d = rand(GLOBAL_RNG, k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
         coordinates_3d,
@@ -285,7 +287,7 @@ function disturb_remaining_clusters(
             mean(coordinates_3d[3, disturbance_clusters.assignments .== i])
             for i in 1:k_d
         ] .+
-        t * rand(-1.0:0.01:1.0, k_d)
+        t * rand(GLOBAL_RNG, -1.0:0.01:1.0, k_d)
 
     # Assign the disturbance value to every node in the cluster
     disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]

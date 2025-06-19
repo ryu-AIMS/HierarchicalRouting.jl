@@ -140,6 +140,8 @@ function solve(
     k::Int = 1,
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
+    Random.seed!(GLOBAL_RNG, 1234)
+
     ordered_disturbances = sort(unique(disturbance_clusters))
     n_events = length(ordered_disturbances) + 1
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
