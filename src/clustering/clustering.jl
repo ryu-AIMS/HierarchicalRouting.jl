@@ -233,7 +233,7 @@ function disturb_remaining_clusters(
         coordinates_array_3d_disturbed,
         k;
         tol=tol,
-        rng=Random.seed!(2)
+        rng=Random.seed!(1)
     )
 
     clustered_targets = similar(raster, Int64, missingval=0)
@@ -451,7 +451,7 @@ function _constrained_kmeans_single_iteration(
     max_iter::Int64 = 1000;
     k_spec::Int = 0
 )::Vector{Int64}
-    clustering = kmeans(coordinates, k; maxiter=max_iter)
+    clustering = kmeans(coordinates, k; maxiter=max_iter, rng=Random.seed!(1))
     clustering_assignment::Vector{Int64} = copy(clustering.assignments)
 
     # Build clusters & centroids
