@@ -47,6 +47,7 @@ end
         problem::Problem;
         k::Int=0,
         dist_weighting::Float64=5E-6
+        tol::Float64=0.01
     )::Vector{Cluster}
 
 Cluster the problem data into groups based on the target locations and the depot location.
@@ -59,6 +60,7 @@ The clustering is done using k-means clustering, and the centroids of the cluste
 - `dist_weighting`: Weighting factor for the distances in 3D clustering, used in combination
     with lat/lons at first 2 dimensions. Higher values will give more weight to distance
     from current location (depot). Default = 5E-6.
+- `tol`: Tolerance for k-means convergence. Default = 0.01.
 
 # Returns
 Vector of clustered locations.
@@ -66,7 +68,8 @@ Vector of clustered locations.
 function cluster_problem(
     problem::Problem;
     k::Int=0,
-    dist_weighting::Float64=5E-6
+    dist_weighting::Float64=5E-6,
+    tol::Float64=0.01
 )::Vector{Cluster}
     points::Vector{Point{2, Float64}} = problem.targets.points.geometry
     current_location::Point{2, Float64} = problem.depot
@@ -92,6 +95,7 @@ function cluster_problem(
         coordinates_array;
         max_cluster_size=total_tender_capacity,
         min_k_spec=k,
+        tol
     )
 
     clustered_targets_df::DataFrame = DataFrame(
@@ -110,7 +114,7 @@ end
         k::Int8,
         current_location::Point{2, Float64},
         exclusions::DataFrame;
-        tol::Float64=1.0,
+        tol::Float64=0.01,
         dist_weighting::Float64=2E-5
     )::Raster{Int64, 2}
     disturb_remaining_clusters(
@@ -119,7 +123,7 @@ end
         current_location::Point{2, Float64},
         exclusions::DataFrame,
         total_tender_capacity::Int;
-        tol::Float64=1.0,
+        tol::Float64=0.01,
         dist_weighting::Float64=2E-5
     )::DataFrame
 
@@ -146,7 +150,7 @@ function disturb_remaining_clusters(
     k::Int8,
     current_location::Point{2, Float64},
     exclusions::DataFrame;
-    tol::Float64=1.0,
+    tol::Float64=0.01,
     dist_weighting::Float64=2E-5
 )::Raster{Int64, 2}
     # TODO: Split this function into two separate functions, it does more than original fn
@@ -249,7 +253,7 @@ function disturb_remaining_clusters(
     current_location::Point{2, Float64},
     exclusions::DataFrame,
     total_tender_capacity::Int;
-    tol::Float64=1.0,
+    tol::Float64=0.01,
     dist_weighting::Float64=2E-5
 )::DataFrame
     n_sites::Int = size(unvisited_pts, 1) # number of target sites remaining
@@ -330,6 +334,7 @@ function disturb_remaining_clusters(
         disturbed_coordinates_3d;
         max_cluster_size = total_tender_capacity,
         k_spec = k,
+        tol
     )
 
     return DataFrame(
@@ -346,7 +351,8 @@ end
         k_spec::Int = 0,
         max_iter::Int64 = 1000,
         n_restarts::Int64 = 20,
-        min_k_spec::Int64 = 0
+        min_k_spec::Int64 = 0,
+        tol::Float64 = 0.01
     )::Vector{Int64}
 
 Cluster locations, ensuring that no cluster has more than `max_cluster_size`, and all points
@@ -363,6 +369,7 @@ are assigned to a cluster.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
 - `min_k_spec`: The minimum number of clusters to create. If `k_spec` is 0, this will be used to
     calculate the initial number of clusters.
+- `tol`: Tolerance for k-means convergence.
 
 # Returns
 A vector of cluster assignments for each reef.
@@ -374,7 +381,8 @@ function capacity_constrained_kmeans(
     k_spec::Int = 0,
     max_iter::Int64 = 1000,
     n_restarts::Int64 = 20,
-    min_k_spec::Int64 = 0
+    min_k_spec::Int64 = 0,
+    tol::Float64 = 0.01
 )::Vector{Int64}
     n_reefs::Int64 = size(coordinates, 2)
     min_k = max(k_spec, min_k_spec) # Ensure k_spec is at least min_k
@@ -393,7 +401,8 @@ function capacity_constrained_kmeans(
             max_cluster_size,
             max_split_distance,
             max_iter;
-            k_spec
+            k_spec,
+            tol
         )
         num_clusters::Int64 = maximum(clustering_assignment)
         final_k::Int64 = k_spec == 0 ? num_clusters : k_spec
@@ -423,7 +432,8 @@ end
         max_cluster_size::Int64 = 6,
         max_split_distance::Int64 = 12000,
         max_iter::Int64 = 1000;
-        k_spec::Int = 0
+        k_spec::Int = 0,
+        tol::Float64 = 0.01
     )::Vector{Int64}
 
 Run a single iteration of k-means clustering with constraints on cluster size and distance
@@ -438,6 +448,7 @@ Run a single iteration of k-means clustering with constraints on cluster size an
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `k_spec`: The specified number of clusters to create. If 0, it will be calculated based on
     the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
+- `tol`: Tolerance for k-means convergence.
 
 # Returns
 A vector of cluster assignments for each reef, ensuring that no cluster exceeds the
@@ -450,7 +461,8 @@ function _constrained_kmeans_single_iteration(
     max_cluster_size::Int64 = 6,
     max_split_distance::Int64 = 12000,
     max_iter::Int64 = 1000;
-    k_spec::Int = 0
+    k_spec::Int = 0,
+    tol::Float64 = 0.01
 )::Vector{Int64}
     clustering = kmeans(coordinates, k; maxiter=max_iter)
     clustering_assignment::Vector{Int64} = clustering.assignments
@@ -499,7 +511,8 @@ function _constrained_kmeans_single_iteration(
                         k,
                         max_cluster_size,
                         max_split_distance,
-                        max_iter
+                        max_iter;
+                        tol
                     )
                 else
                     close_clusters = available_clusters
