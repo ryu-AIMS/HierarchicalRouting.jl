@@ -11,7 +11,8 @@ using Hungarian
     # waypoints::NTuple{2, Point{2, Float64}}
 end
 
-GLOBAL_RNG = MersenneTwister(1234)
+Q=1234
+GLOBAL_RNG = MersenneTwister(Q)
 
 """
     generate_cluster_df(
@@ -176,7 +177,7 @@ function disturb_remaining_clusters(
         coordinates_array_3d,
         k_d;
         tol=tol,
-        rng=Random.seed!(1)
+        rng=GLOBAL_RNG
     )
 
     # Create a score based on the disturbance values for each cluster
@@ -233,7 +234,7 @@ function disturb_remaining_clusters(
         coordinates_array_3d_disturbed,
         k;
         tol=tol,
-        rng=Random.seed!(1)
+        rng=GLOBAL_RNG
     )
 
     clustered_targets = similar(raster, Int64, missingval=0)
@@ -273,7 +274,7 @@ function disturb_remaining_clusters(
         coordinates_3d,
         k_d;
         tol=tol,
-        rng=Random.seed!(1)
+        rng=GLOBAL_RNG
     )
 
     # Create a score based on the disturbance values for each cluster
@@ -451,7 +452,7 @@ function _constrained_kmeans_single_iteration(
     max_iter::Int64 = 1000;
     k_spec::Int = 0
 )::Vector{Int64}
-    clustering = kmeans(coordinates, k; maxiter=max_iter, rng=Random.seed!(1))
+    clustering = kmeans(coordinates, k; maxiter=max_iter, rng=GLOBAL_RNG)
     clustering_assignment::Vector{Int64} = copy(clustering.assignments)
 
     # Build clusters & centroids
