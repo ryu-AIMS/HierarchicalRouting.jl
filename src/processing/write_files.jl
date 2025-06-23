@@ -170,14 +170,15 @@ function export_tender_routes(
     sortie_ids::Vector{Int} = vcat(map(t -> 1:length(t.sorties), tender_soln)...)
 
     # Build geometry column as a linestring for each sortie in each cluster
-    coords::Vector{Vector{NTuple{2,Float64}}} = [
-        vcat(
-            [(node[1], node[2]) for line in sortie.line_strings for node in line.points],
-            [(tender.finish[1], tender.finish[2])]
+    geometries::Vector{AG.IGeometry{AG.wkbLineString}} = [
+        AG.createlinestring(
+            vcat(
+                [(node[1], node[2]) for line in sortie.line_strings for node in line.points],
+                [(tender.finish[1], tender.finish[2])]
+            )
         )
         for tender in tender_soln for sortie in tender.sorties
     ]
-    geometries::Vector{AG.IGeometry{AG.wkbLineString}} = AG.createlinestring.(coords)
 
     df = DataFrame(
         id=ids,
