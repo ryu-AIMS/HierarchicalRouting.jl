@@ -17,7 +17,7 @@ GLOBAL_RNG = MersenneTwister(Q)
 """
     generate_cluster_df(
         clusters::Vector{Cluster},
-        depot::Point{2, Float64}
+        depot::Point{2,Float64}
     )::DataFrame
 
 Generate a DataFrame representing clusters vector containing the cluster centroids and their
@@ -110,17 +110,17 @@ end
 
 """
     disturb_remaining_clusters(
-        raster::Raster{Float64, 2},
+        raster::Raster{Float64,2},
         k::Int8,
-        current_location::Point{2, Float64},
+        current_location::Point{2,Float64},
         exclusions::DataFrame;
         tol::Float64=0.01,
         dist_weighting::Float64=2E-5
-    )::Raster{Int64, 2}
+    )::Raster{Int64,2}
     disturb_remaining_clusters(
         unvisited_pts::DataFrame,
         k::Int8,
-        current_location::Point{2, Float64},
+        current_location::Point{2,Float64},
         exclusions::DataFrame,
         total_tender_capacity::Int;
         tol::Float64=0.01,
@@ -347,12 +347,12 @@ end
     capacity_constrained_kmeans(
         coordinates::Matrix{Float64};
         max_cluster_size::Int64,
-        max_split_distance::Int64 = 12000,
-        k_spec::Int = 0,
-        max_iter::Int64 = 1000,
-        n_restarts::Int64 = 20,
-        min_k_spec::Int64 = 0,
-        tol::Float64 = 0.01
+        max_split_distance::Int64=12000,
+        k_spec::Int=0,
+        max_iter::Int64=1000,
+        n_restarts::Int64=20,
+        min_k_spec::Int64=0,
+        tol::Float64=0.01
     )::Vector{Int64}
 
 Cluster locations, ensuring that no cluster has more than `max_cluster_size`, and all points
@@ -429,11 +429,11 @@ end
     _constrained_kmeans_single_iteration(
         coordinates::Matrix{Float64},
         k::Int64;
-        max_cluster_size::Int64 = 6,
-        max_split_distance::Int64 = 12000,
-        max_iter::Int64 = 1000;
-        k_spec::Int = 0,
-        tol::Float64 = 0.01
+        max_cluster_size::Int64=6,
+        max_split_distance::Int64=12000,
+        max_iter::Int64=1000;
+        k_spec::Int=0,
+        tol::Float64=0.01
     )::Vector{Int64}
 
 Run a single iteration of k-means clustering with constraints on cluster size and distance
@@ -538,12 +538,12 @@ end
 
 """
     update_cluster_assignments(
-        cluster_raster::Raster{Int64, 2},
-        prev_centroids::Dict{Int64, Point{2,Float64}}
-    )::Raster{Int64, 2}
+        cluster_raster::Raster{Int64,2},
+        prev_centroids::Dict{Int64,Point{2,Float64}}
+    )::Raster{Int64,2}
     update_cluster_assignments(
         cluster_df::DataFrame,
-        prev_centroids::Dict{Int64, Point{2,Float64}}
+        prev_centroids::Dict{Int64,Point{2,Float64}}
     )::DataFrame
 
 Update cluster assignments in the raster to match previous cluster numbering, based on
