@@ -80,7 +80,7 @@ function polygonize_binary(rast::Raster)::DataFrame
     # Can't easily pre-allocate the vector as we don't know how many true-valued geoms
     # there are.
     n_features = AG.GDAL.ogr_l_getfeaturecount(layer, 1)
-    layer_geoms = Vector{AG.IGeometry}()
+    layer_geoms = Vector{IGeometry}()
     sizehint!(layer_geoms, n_features)
     for i in 0:(n_features-1)
         feat = AG.Feature(AG.GDAL.ogr_l_getfeature(layer, i))

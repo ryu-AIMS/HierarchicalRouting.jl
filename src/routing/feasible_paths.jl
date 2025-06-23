@@ -2,7 +2,7 @@
 """
     get_feasible_matrix(
         nodes::Vector{Point{2,Float64}},
-        exclusions::DataFrame
+        exclusions::Vector{IGeometry{wkbPolygon}}
     )::Tuple{Matrix{Float64} Matrix{Vector{LineString{2,Float64}}}}
 
 Create matrices of distances and paths for feasible routes between waypoints accounting for
@@ -53,7 +53,7 @@ end
 
 """
     get_feasible_vector(
-        nodes::Vector{Point{2,Float64}}, exclusions::DataFrame
+        nodes::Vector{Point{2,Float64}}, exclusions::Vector{IGeometry{wkbPolygon}}
     )::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
 
 Create vectors of feasible:
@@ -63,7 +63,7 @@ between sequential nodes, avoiding exclusions.
 
 # Arguments
 - `nodes`: Vector of lat long tuples.
-- `exclusions`: DataFrame containing exclusion zones representing given vehicle's cumulative
+- `exclusions`: Geometries of exclusion zones representing given vehicle's cumulative
 environmental constraints.
 
 # Returns
@@ -71,10 +71,10 @@ environmental constraints.
 - `path_vector`: A vector of paths between waypoints, represented as LineStrings.
 """
 function get_feasible_vector(
-    nodes::Vector{Point{2,Float64}}, exclusions::DataFrame
+    nodes::Vector{Point{2,Float64}}, exclusions::POLY_VEC
 )::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
     n_points = length(nodes) - 1
-    dist_vector = zeros(Float64, n_points)
+    dist_vector = zeros(n_points)
     path_vector = fill(Vector{LineString{2,Float64}}(), n_points)
 
     for point_i_idx in 1:n_points
@@ -100,7 +100,7 @@ end
     get_feasible_distances(
         current_location::Point{2,Float64},
         targets::Vector{Point{2,Float64}},
-        exclusions::DataFrame
+        exclusions::Vector{IGeometry{wkbPolygon}}
     )::Vector{Float64}
 
 Create a vector of feasible distances between the current location and each target point.
@@ -116,7 +116,7 @@ Create a vector of feasible distances between the current location and each targ
 function get_feasible_distances(
     current_location::Point{2,Float64},
     targets::Vector{Point{2,Float64}},
-    exclusions::DataFrame
+    exclusions::POLY_VEC
 )::Vector{Float64}
     n_points = length(targets)
     dist_vector = zeros(Float64, n_points)
@@ -145,8 +145,8 @@ function get_feasible_distances(
 end
 
 """
-    point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)::Bool
-    point_in_exclusion(point::Point{2,Float64}, exclusions::Vector{AG.IGeometry})::Bool
+    point_in_exclusion(point::Point{2,Float64}, exclusion::IGeometry)::Bool
+    point_in_exclusion(point::Point{2,Float64}, exclusions::Vector{IGeometry{wkbPolygon}})::Bool
     point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Bool
 
 Check if a point is within an exclusion zone.
@@ -154,20 +154,17 @@ Check if a point is within an exclusion zone.
 # Arguments
 - `point`: Point to check.
 - `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
-- `exclusion::AG.IGeometry`: One exclusion zone polygon/geometry from a DataFrame.
-- `exclusions::Vector{AG.IGeometry}`: A vector of exclusion zone polygons/geometry.
+- `exclusion::IGeometry`: One exclusion zone polygon/geometry from a DataFrame.
+- `exclusions::Vector{IGeometry{wkbPolygon}}`: A vector of exclusion zone polygons/geometry.
 
 # Returns
 - `true` if point is within an exclusion zone, `false` otherwise.
 """
-function point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)::Bool
+function point_in_exclusion(point::Point{2,Float64}, exclusion::IGeometry{wkbPolygon})::Bool
     return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
 end
-function point_in_exclusion(point::Point{2,Float64}, exclusions::Vector{AG.IGeometry})::Bool
+function point_in_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Bool
     return any(AG.contains.(exclusions, Ref(AG.createpoint(point[1], point[2]))))
-end
-function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Bool
-    return any(AG.contains.(exclusions.geometry, Ref(AG.createpoint(point[1], point[2]))))
 end
 
 """
@@ -182,9 +179,9 @@ Return the index of the exclusion zone that contains the point.
 # Returns
 - Index of the first exclusion zone that contains the point, or 0 if not found.
 """
-function containing_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Int
+function containing_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Int
     point_ag = AG.createpoint(point[1], point[2])
-    exclusion_idx = findfirst(AG.contains.(exclusions.geometry, [point_ag]))
+    exclusion_idx = findfirst(AG.contains.(exclusions, Ref(point_ag)))
     return isnothing(exclusion_idx) ? 0 : exclusion_idx
 end
 
@@ -213,7 +210,7 @@ start pt and any other intersecting polygons.
 function shortest_feasible_path(
     initial_point::Point{2,Float64},
     final_point::Point{2,Float64},
-    exclusions::DataFrame,
+    exclusions::POLY_VEC,
 )::Tuple{Float64,Vector{LineString{2,Float64}}}
     final_exclusion_idx = point_in_convexhull(final_point, exclusions)
     initial_exclusion_idx = point_in_convexhull(initial_point, exclusions)
@@ -332,7 +329,7 @@ end
 """
     point_in_convexhull(
         point::Point{2,Float64},
-        exclusions::DataFrame
+        exclusions::Vector{IGeometry{wkbPolygon}}
     )::Int
 
 Check if a point is within a convex hull of exclusion zones.
@@ -344,12 +341,9 @@ Check if a point is within a convex hull of exclusion zones.
 # Returns
 - Index of exclusion zone if point is within a convex hull, 0 otherwise.
 """
-function point_in_convexhull(
-    point::Point{2,Float64},
-    exclusions::DataFrame
-)::Int
+function point_in_convexhull(point::Point{2,Float64}, exclusions::POLY_VEC)
     point_ag = AG.createpoint(point[1], point[2])
-    convex_exclusions_ag = AG.convexhull.(exclusions.geometry)
+    convex_exclusions_ag = AG.convexhull.(exclusions)
 
     point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [point_ag])
 
@@ -390,7 +384,7 @@ function build_network!(
     exclusion_idxs::Vector{Int},
     current_point::Point{2,Float64},
     final_point::Point{2,Float64},
-    exclusions::DataFrame,
+    exclusions::POLY_VEC,
     final_exclusion_idx::Int
 )::Nothing
     if current_point == final_point
@@ -449,7 +443,7 @@ end
         points_from::Vector{Point{2,Float64}},
         points_to::Vector{Point{2,Float64}},
         exclusions::DataFrame,
-        final_polygon::AG.IGeometry{AG.wkbPolygon},
+        final_polygon::IGeometry{wkbPolygon},
         initial_point::Point{2,Float64},
         final_point::Point{2,Float64}
     )::Tuple{SimpleWeightedGraph{Int64,Float64}, Vector{Point{2,Float64}},Int64,Int64}
@@ -474,8 +468,8 @@ If polygon is provided, connect it to visible points in graph and visible vertic
 function build_graph(
     points_from::Vector{Point{2,Float64}},
     points_to::Vector{Point{2,Float64}},
-    exclusions::DataFrame,
-    final_polygon::AG.IGeometry{AG.wkbPolygon},
+    exclusions::POLY_VEC,
+    final_polygon::IGeometry{wkbPolygon},
     initial_point::Point{2,Float64},
     final_point::Point{2,Float64}
 )::Tuple{SimpleWeightedGraph{Int64,Float64},Vector{Point{2,Float64}},Int64,Int64}
@@ -586,7 +580,7 @@ Collect all vertices of a polygon.
 # Returns
 - Vector of polygon vertices.
 """
-function collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
+function collect_polygon_vertices(polygon::IGeometry{wkbPolygon}
 )::Vector{Point{2,Float64}}
     exterior_ring = AG.getgeom(polygon, 0)
     n_pts = AG.ngeom(exterior_ring)
@@ -594,18 +588,9 @@ function collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
 
     # iterate safely within all points in the exterior ring to populate pts with vertices
     @inbounds for i in 1:n_pts
-        pt = AG.getpoint(exterior_ring, i - 1) # 0-indexed
+        pt = AG.getpoint(exterior_ring, i - 1)  # 0-indexed
         pts[i] = Point{2,Float64}(pt[1], pt[2])
     end
-
-    # convex_hull = AG.convexhull(polygon)
-    # #! Select points that are either outside or touching the convex hull
-    # points_ag = AG.createpoint.(points_x, points_y)
-    # points_outside_convex_hull = .!AG.contains.([convex_hull], points_ag)
-    # points_touching_convex_hull = AG.touches.([convex_hull], points_ag)
-    # target_points_mask::BitVector = points_outside_convex_hull .|| points_touching_convex_hull
-    # poly_vertices = Point{2, Float64}.(points_x[target_points_mask], points_y[target_points_mask])
-    # n_pts = length(poly_vertices)
 
     return unique(pts)
 end
