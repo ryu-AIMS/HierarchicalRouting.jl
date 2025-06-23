@@ -514,7 +514,7 @@ function _constrained_kmeans_single_iteration(
     k_spec::Int=0,
     tol::Float64=0.01
 )::Vector{Int64}
-    clustering = kmeans(coordinates, k; maxiter=max_iter)
+    clustering = kmeans(coordinates, k; tol=tol, maxiter=max_iter)
     clustering_assignment::Vector{Int64} = clustering.assignments
 
     # Build clusters & centroids
