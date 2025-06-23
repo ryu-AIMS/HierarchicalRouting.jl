@@ -304,7 +304,7 @@ function shortest_feasible_path(
         points_from,
         points_to,
         exclusions,
-        iszero(final_exclusion_idx) ? AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx],
+        iszero(final_exclusion_idx) ? Point{2,Float64}[] : exclusions[final_exclusion_idx],
         initial_point,
         final_point
     )
@@ -467,11 +467,7 @@ function build_graph(
     initial_point::Point{2,Float64},
     final_point::Point{2,Float64}
 )::Tuple{SimpleWeightedGraph{Int64,Float64},Vector{Point{2,Float64}},Int64,Int64}
-    is_polygon = !AG.isempty(final_polygon)
-
-    final_poly_verts::Vector{Point{2,Float64}} = is_polygon ?
-                                                 collect_polygon_vertices(final_polygon) :
-                                                 Point{2,Float64}[]
+    final_poly_verts::Vector{Point{2,Float64}} = collect_polygon_vertices(final_polygon)
 
     # Collect connected points from network
     #? Use `Set`?
@@ -498,68 +494,92 @@ function build_graph(
     # Only add polygon edges and extra visible connections if:
     # 1. A polygon is provided, AND
     # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
-    if is_polygon
-        if !is_visible(initial_point, final_point, final_polygon)
+    if !is_visible(initial_point, final_point, final_polygon)
+        # Add edges connecting any visible polygon vertices to other polyogn vertices
+        for i in final_poly_verts
+            visibility_mask = (final_poly_verts .!= i) .&
+                              is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
 
-            # Add edges connecting any visible polygon vertices to other polyogn vertices
-            for i in final_poly_verts
-                visibility_mask = (final_poly_verts .!= i) .&
-                                  is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
+            visible_points = final_poly_verts[visibility_mask]
 
-                visible_points = final_poly_verts[visibility_mask]
-
-                if !isempty(visible_points)
-                    # Compute indices for all visible points and distances in one go.
-                    add_edge!.(
-                        Ref(graph),
-                        Ref(pt_to_idx[i]),
-                        map(pt -> pt_to_idx[pt], visible_points),
-                        haversine.(Ref(i), visible_points)
-                    )
-                end
-            end
-
-            # Connect all chain points to visible polygon vertices
-            for i in final_poly_verts
-                visible_points = filter(pt -> is_visible(i, pt, exclusions), chain_points)
-                if !isempty(visible_points)
-                    # Compute indices for all visible points and distances in one go.
-                    add_edge!.(
-                        Ref(graph),
-                        Ref(pt_to_idx[i]),
-                        map(pt -> pt_to_idx[pt], visible_points),
-                        haversine.(Ref(i), visible_points)
-                    )
-                end
-            end
-
-            # Connect polygon vertices if not complete loop
-            if final_poly_verts[1] != final_poly_verts[end]
-                add_edge!(
-                    graph,
-                    pt_to_idx[final_poly_verts[end]],
-                    pt_to_idx[final_poly_verts[1]],
-                    haversine(final_poly_verts[end], final_poly_verts[1])
+            if !isempty(visible_points)
+                # Compute indices for all visible points and distances in one go.
+                add_edge!.(
+                    Ref(graph),
+                    Ref(pt_to_idx[i]),
+                    map(pt -> pt_to_idx[pt], visible_points),
+                    haversine.(Ref(i), visible_points)
                 )
             end
         end
-    else
-        # final_point is not in a convex hull, try to connect it to any visible point
-        visible_pts_to_final = filter(
-            pt -> is_visible(pt, final_point, exclusions),
-            unique_points
-        )
-        if !isempty(visible_pts_to_final)
-            add_edge!.(
-                Ref(graph),
-                map(pt -> pt_to_idx[pt], visible_pts_to_final),
-                Ref(pt_to_idx[final_point]),
-                haversine.(visible_pts_to_final, Ref(final_point))
+
+        # Connect all chain points to visible polygon vertices
+        for i in final_poly_verts
+            visible_points = filter(pt -> is_visible(i, pt, exclusions), chain_points)
+            if !isempty(visible_points)
+                # Compute indices for all visible points and distances in one go.
+                add_edge!.(
+                    Ref(graph),
+                    Ref(pt_to_idx[i]),
+                    map(pt -> pt_to_idx[pt], visible_points),
+                    haversine.(Ref(i), visible_points)
+                )
+            end
+        end
+
+        # Connect polygon vertices if not complete loop
+        if final_poly_verts[1] != final_poly_verts[end]
+            add_edge!(
+                graph,
+                pt_to_idx[final_poly_verts[end]],
+                pt_to_idx[final_poly_verts[1]],
+                haversine(final_poly_verts[end], final_poly_verts[1])
             )
         end
     end
 
     return graph, unique_points, pt_to_idx[initial_point], pt_to_idx[final_point]
+end
+function build_graph(
+    points_from::Vector{Point{2,Float64}},
+    points_to::Vector{Point{2,Float64}},
+    exclusions::POLY_VEC,
+    _::Vector{Point{2,Float64}},
+    initial_point::Point{2,Float64},
+    final_point::Point{2,Float64}
+)::Tuple{SimpleWeightedGraph{Int64,Float64},Vector{Point{2,Float64}},Int64,Int64}
+    # Collect connected points from network
+    chain_points::Vector{Point{2,Float64}} = unique(
+        vcat(points_from, points_to, [final_point])
+    )
+    n_points::Int = length(chain_points)
+
+    # Create the graph with one vertex per unique point.
+    graph = SimpleWeightedGraph(n_points)
+    visible_idx = findall(is_visible.(chain_points, Ref(final_point), Ref(exclusions)))
+    initial_pnt_idx = findall(chain_points .== initial_point)
+    final_pnt_idx = findall(chain_points .== final_point)
+
+    # Add candidate (chain) edges.
+    add_edge!.(
+        Ref(graph),
+        vcat(map(p -> findall(chain_points .== p), points_from)...),
+        vcat(map(p -> findall(chain_points .== p), points_to)...),
+        haversine.(points_from, points_to)
+    )
+
+    # Final_point is not in a convex hull, try to connect it to any visible point
+    visible_pts_to_final = chain_points[visible_idx]
+    if !isempty(visible_pts_to_final)
+        add_edge!.(
+            Ref(graph),
+            visible_idx,
+            final_pnt_idx,
+            haversine.(visible_pts_to_final, Ref(final_point))
+        )
+    end
+
+    return graph, chain_points, first(initial_pnt_idx), first(final_pnt_idx)
 end
 
 """
