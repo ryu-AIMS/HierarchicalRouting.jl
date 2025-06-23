@@ -9,12 +9,15 @@ using Rasters
 using DataFrames
 
 import ArchGDAL as AG
+import ArchGDAL: IGeometry, wkbPolygon, wkbLineString, wkbPoint
 import GeoInterface as GI
 import GeometryOps as GO
 import GeoDataFrames as GDF
 
 using Distances
 using Graphs, SimpleWeightedGraphs
+
+const POLY_VEC = Vector{IGeometry{wkbPolygon}}
 
 include("problem/problem_setup.jl")
 
