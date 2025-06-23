@@ -32,7 +32,7 @@ struct Targets
 end
 
 struct Problem
-    depot::Point{2, Float64}
+    depot::Point{2,Float64}
     targets::Targets
     mothership::Vessel
     tenders::Vessel
@@ -44,16 +44,16 @@ end
         subset_path::AbstractString,
         env_data_path::AbstractString,
         env_disturbance_path::AbstractString,
-        depot::Tuple{Float64, Float64},
+        depot::NTuple{2,Float64},
         draft_ms::Real,
         draft_t::Real,
         weight_ms::Real,
         weight_t::Real,
         n_tenders::Integer,
         t_cap::Integer;
-        target_subset_path::AbstractString = "",
-        output_dir::AbstractString = "outputs/",
-        debug_mode::Bool = false,
+        target_subset_path::AbstractString="",
+        output_dir::AbstractString="outputs/",
+        debug_mode::Bool=false,
     )::Problem
 
 Load the problem data to create a `Problem` object from given parameters.
@@ -89,18 +89,18 @@ function load_problem(
     subset_path::AbstractString,
     env_data_path::AbstractString,
     env_disturbance_path::AbstractString,
-    depot::Tuple{Float64, Float64},
+    depot::NTuple{2,Float64},
     draft_ms::Real,
     draft_t::Real,
     weight_ms::Real,
     weight_t::Real,
     n_tenders::Integer,
     t_cap::Integer;
-    target_subset_path::AbstractString = "",
-    output_dir::AbstractString = "outputs/",
-    debug_mode::Bool = false,
+    target_subset_path::AbstractString="",
+    output_dir::AbstractString="outputs/",
+    debug_mode::Bool=false,
 )::Problem
-    depot = Point{2, Float64}(depot)
+    depot = Point{2,Float64}(depot)
     draft_ms = Float64(draft_ms)
     draft_t = Float64(draft_t)
     weight_ms = Float16(weight_ms)
@@ -121,7 +121,7 @@ function load_problem(
         x -> x != suitable_targets_subset.missingval,
         suitable_targets_subset
     )
-    coords::Vector{Point{2, Float64}} = [
+    coords::Vector{Point{2,Float64}} = [
         Point(
             suitable_targets_subset.dims[1][idx[1]],
             suitable_targets_subset.dims[2][idx[2]]
@@ -163,7 +163,7 @@ function load_problem(
         )
     end
     ms_exclusions::DataFrame = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |>
-        buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions!
+                               buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions!
 
     filter_and_simplify_exclusions!(t_exclusions, min_area=1E-7, simplify_tol=5E-4)
     buffer_exclusions!(t_exclusions, buffer_dist=0.0)
@@ -176,14 +176,14 @@ function load_problem(
     )
 
     mothership = Vessel(
-        exclusion = ms_exclusions,
-        weighting = weight_ms
+        exclusion=ms_exclusions,
+        weighting=weight_ms
     )
     tenders = Vessel(
-        exclusion = t_exclusions,
-        capacity = t_cap,
-        number = n_tenders,
-        weighting = weight_t
+        exclusion=t_exclusions,
+        capacity=t_cap,
+        number=n_tenders,
+        weighting=weight_t
     )
 
     return Problem(depot, targets, mothership, tenders)
@@ -210,7 +210,7 @@ function is_within_bbox(geom, min_x, max_x, min_y, max_y)::Bool
 end
 
 """
-    get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64, Float64}
+    get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
 
 Retrieves the bounding box bounds from the given GeoDataFrame.
 
@@ -224,7 +224,7 @@ A tuple containing the bounding box coordinates:
 - min_y,
 - max_y.
 """
-function get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64, Float64}
+function get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
     min_x = minimum(getfield.(AG.envelope.(df.geom), 1))
     max_x = maximum(getfield.(AG.envelope.(df.geom), 2))
     min_y = minimum(getfield.(AG.envelope.(df.geom), 3))
@@ -236,7 +236,7 @@ end
 """
     filter_within_bbox(
         gdf::DataFrame,
-        bbox_bounds::Tuple{Float64, Float64, Float64, Float64}
+        bbox_bounds::NTuple{4,Float64}
     )::DataFrame
 
 Filters the geometries in the given GeoDataFrame `gdf` that are within the bounding box
@@ -255,7 +255,7 @@ A GeoDataFrame containing only the geometries within the bounding box defined by
 """
 function filter_within_bbox(
     gdf::DataFrame,
-    bbox_bounds::Tuple{Float64, Float64, Float64, Float64}
+    bbox_bounds::NTuple{4,Float64}
 )::DataFrame
     filtered_gdf = filter(
         row -> is_within_bbox(
@@ -268,7 +268,7 @@ function filter_within_bbox(
 end
 
 function adjust_exclusions(
-    points::Vector{Point{2, Float64}},
+    points::Vector{Point{2,Float64}},
     exclusions::DataFrame
 )::DataFrame
     exclusion_geometries = exclusions.geometry
@@ -277,15 +277,15 @@ function adjust_exclusions(
     containing_poly_ids = containing_exclusion.(contained_points, Ref(exclusions))
 
     # Dictionary to map exclusion polygons to contained points
-    polygon_points_map = Dict{Int, Vector{Point{2, Float64}}}()
+    polygon_points_map = Dict{Int,Vector{Point{2,Float64}}}()
     for (point, poly_id) in zip(contained_points, containing_poly_ids)
         if !haskey(polygon_points_map, poly_id)
-            polygon_points_map[poly_id] = Vector{Point{2, Float64}}()
+            polygon_points_map[poly_id] = Vector{Point{2,Float64}}()
         end
         push!(polygon_points_map[poly_id], point)
     end
 
-    updated_vertices = Dict{Int, Vector{Tuple{Float64, Float64}}}()
+    updated_vertices = Dict{Int,Vector{Tuple{Float64,Float64}}}()
     for (poly_id, points_to_insert) in polygon_points_map
         @info "Processing polygon ID: $poly_id"
         polygon = exclusion_geometries[poly_id]

@@ -2,7 +2,7 @@
 """
     initial_solution(
         problem::Problem;
-        disturbance_clusters::Set{Int64} = Set{Int64}()
+        disturbance_clusters::Set{Int64}=Set{Int64}()
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -20,7 +20,7 @@ Best total MSTSolution found
 function initial_solution(
     problem::Problem;
     k::Int=1,
-    disturbance_clusters::Set{Int64} = Set{Int64}()
+    disturbance_clusters::Set{Int64}=Set{Int64}()
 )::MSTSolution
     n_events = length(disturbance_clusters) + 1
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
@@ -31,7 +31,7 @@ function initial_solution(
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(
         problem; k
-    );
+    )
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
@@ -57,7 +57,7 @@ function initial_solution(
     disturbance_index = 1
     for i ∈ sort(collect(disturbance_clusters))
         @info "Disturbance event #$disturbance_index at $(ms_route.route.nodes[2i-1]) " *
-            "before $(i)th cluster_id=$(clust_seq[i])"
+              "before $(i)th cluster_id=$(clust_seq[i])"
         disturbance_index += 1
         clusters = vcat(
             clusters[clust_seq][1:i-1],
@@ -76,10 +76,10 @@ function initial_solution(
         )
         if !isempty(removed_nodes)
             @info "Removed nodes due to disturbance event (since previous cluster):\n" *
-            "\t$(join(removed_nodes, "\n\t"))"
+                  "\t$(join(removed_nodes, "\n\t"))"
         end
 
-        sort!(clusters, by = x -> x.id)
+        sort!(clusters, by=x -> x.id)
 
         cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
@@ -88,12 +88,12 @@ function initial_solution(
             cluster_centroids_df,
             i,
             ms_route,
-                getfield.(clusters[clust_seq][1:i-1], :id)
-            )
-            clust_seq = filter(
-                i -> i != 0 && i <= length(clusters),
-                ms_route.cluster_sequence.id
-        );
+            getfield.(clusters[clust_seq][1:i-1], :id)
+        )
+        clust_seq = filter(
+            i -> i != 0 && i <= length(clusters),
+            ms_route.cluster_sequence.id
+        )
 
         cluster_sets[disturbance_index] = clusters
         ms_soln_sets[disturbance_index] = ms_route
@@ -120,7 +120,8 @@ end
 """
     solve_problem(
         problem::Problem;
-        disturbance_clusters::Set{Int64} = Set{Int64}()
+        k::Int=1,
+        disturbance_clusters::Set{Int64}=Set{Int64}()
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -137,8 +138,8 @@ Best total MSTSolution found
 """
 function solve_problem(
     problem::Problem;
-    k::Int = 1,
-    disturbance_clusters::Set{Int64} = Set{Int64}()
+    k::Int=1,
+    disturbance_clusters::Set{Int64}=Set{Int64}()
 )::MSTSolution
     Random.seed!(GLOBAL_RNG, Q)
 
@@ -151,7 +152,7 @@ function solve_problem(
 
     clusters::Vector{Cluster} = cluster_problem(
         problem; k
-    );
+    )
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
@@ -173,8 +174,8 @@ function solve_problem(
 
     #! Optimize the initial tenders solution up to the first disturbance
     next_cluster_idx = !isempty(ordered_disturbances) ?
-        ordered_disturbances[1] :
-        length(clusters)
+                       ordered_disturbances[1] :
+                       length(clusters)
 
     optimized_initial, _ = improve_solution(
         MSTSolution([clusters], [ms_route], [initial_tenders]),
@@ -199,7 +200,7 @@ function solve_problem(
     disturbance_index = 1
     for i ∈ ordered_disturbances
         @info "Disturbance event #$disturbance_index at $(ms_route.route.nodes[2i-1]) " *
-            "before $(i)th cluster_id=$(clust_seq[i])"
+              "before $(i)th cluster_id=$(clust_seq[i])"
         disturbance_index += 1
         clusters = sort!(
             vcat(
@@ -211,7 +212,7 @@ function solve_problem(
                     problem.tenders.exclusion,
                     total_tender_capacity
                 )
-            ), by = x -> x.id
+            ), by=x -> x.id
         )
 
         removed_nodes = setdiff(
@@ -220,7 +221,7 @@ function solve_problem(
         )
         if !isempty(removed_nodes)
             @info "Removed nodes due to disturbance event (since previous cluster):\n" *
-            "\t$(join(removed_nodes, "\n\t"))"
+                  "\t$(join(removed_nodes, "\n\t"))"
         end
 
         cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
@@ -235,7 +236,7 @@ function solve_problem(
         clust_seq = filter(
             i -> i != 0 && i <= length(clusters),
             ms_route.cluster_sequence.id
-        );
+        )
 
         cluster_sets[disturbance_index] = clusters
         ms_soln_sets[disturbance_index] = ms_route
@@ -312,15 +313,15 @@ function optimize_mothership_route(
     problem::Problem,
     cluster_centroids_df::DataFrame
 )::MothershipSolution
-        # Nearest Neighbour to generate initial mothership route & matrix
-        ms_soln_NN::MothershipSolution = nearest_neighbour(
-            cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
-        );
+    # Nearest Neighbour to generate initial mothership route & matrix
+    ms_soln_NN::MothershipSolution = nearest_neighbour(
+        cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
+    )
 
-        # 2-opt to improve the NN soln
-        ms_soln_2opt::MothershipSolution = two_opt(
-            ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
-        );
+    # 2-opt to improve the NN soln
+    ms_soln_2opt::MothershipSolution = two_opt(
+        ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
+    )
     return ms_soln_2opt
 end
 function optimize_mothership_route(
@@ -330,7 +331,7 @@ function optimize_mothership_route(
     ms_route::MothershipSolution,
     cluster_ids_visited::Vector{Int64}
 )::MothershipSolution
-    start_point::Point{2, Float64} =  ms_route.route.nodes[2 * cluster_seq_idx - 1]
+    start_point::Point{2,Float64} = ms_route.route.nodes[2*cluster_seq_idx-1]
 
     remaining_clusters_df::DataFrame = filter(
         row -> row.id ∉ cluster_ids_visited,
@@ -345,7 +346,7 @@ function optimize_mothership_route(
         start_point,
         ms_route,
         cluster_seq_idx
-    );
+    )
 
     # 2-opt to improve the NN soln
     ms_soln_2opt::MothershipSolution = two_opt(
@@ -353,7 +354,7 @@ function optimize_mothership_route(
         problem.mothership.exclusion,
         problem.tenders.exclusion,
         cluster_seq_idx
-    );
+    )
 
     return ms_soln_2opt
 end
@@ -361,19 +362,19 @@ end
 """
     improve_solution(
         initial_solution::MSTSolution,
-        exclusions_mothership::DataFrame = DataFrame(),
-        exclusions_tender::DataFrame = DataFrame(),
-        current_cluster_idx::Int = 1,
-        next_cluster_idx::Int = length(initial_solution.cluster_sets[end]);
-        opt_function::Function = HierarchicalRouting.simulated_annealing,
-        objective_function::Function = HierarchicalRouting.critical_path,
-        perturb_function::Function = HierarchicalRouting.perturb_swap_solution,
-        max_iterations::Int = 1_000,
-        temp_init::Float64 = 500.0,
-        cooling_rate::Float64 = 0.95,
-        static_limit::Int = 20,
-        vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0)
-    )::Tuple{MSTSolution, Float64}
+        exclusions_mothership::DataFrame=DataFrame(),
+        exclusions_tender::DataFrame=DataFrame(),
+        current_cluster_idx::Int=1,
+        next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
+        opt_function::Function=HierarchicalRouting.simulated_annealing,
+        objective_function::Function=HierarchicalRouting.critical_path,
+        perturb_function::Function=HierarchicalRouting.perturb_swap_solution,
+        max_iterations::Int=1_000,
+        temp_init::Float64=500.0,
+        cooling_rate::Float64=0.95,
+        static_limit::Int=20,
+        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    )::Tuple{MSTSolution,Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective \n
 function `objective_function` and the perturbation function `perturb_function`.
@@ -399,19 +400,19 @@ function `objective_function` and the perturbation function `perturb_function`.
 """
 function improve_solution(
     initial_solution::MSTSolution,
-    exclusions_mothership::DataFrame = DataFrame(),
-    exclusions_tender::DataFrame = DataFrame(),
-    current_cluster_idx::Int = 1,
-    next_cluster_idx::Int = length(initial_solution.cluster_sets[end]);
-    opt_function::Function = HierarchicalRouting.simulated_annealing,
-    objective_function::Function = HierarchicalRouting.critical_path,
-    perturb_function::Function = HierarchicalRouting.perturb_swap_solution,
-    max_iterations::Int = 1_000,
-    temp_init::Float64 = 500.0,
-    cooling_rate::Float64 = 0.95,
-    static_limit::Int = 20,
-    vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0)
-)::Tuple{MSTSolution, Float64}
+    exclusions_mothership::DataFrame=DataFrame(),
+    exclusions_tender::DataFrame=DataFrame(),
+    current_cluster_idx::Int=1,
+    next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
+    opt_function::Function=HierarchicalRouting.simulated_annealing,
+    objective_function::Function=HierarchicalRouting.critical_path,
+    perturb_function::Function=HierarchicalRouting.perturb_swap_solution,
+    max_iterations::Int=1_000,
+    temp_init::Float64=500.0,
+    cooling_rate::Float64=0.95,
+    static_limit::Int=20,
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+)::Tuple{MSTSolution,Float64}
     current_mothership_route = initial_solution.mothership_routes[end]
     clust_seq_current = current_mothership_route.cluster_sequence.id[current_cluster_idx+1:next_cluster_idx]
     current_clusters = initial_solution.cluster_sets[end][clust_seq_current]

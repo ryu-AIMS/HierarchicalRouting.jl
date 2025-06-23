@@ -3,10 +3,10 @@
     disturb_clusters(
         remaining_clusters::Vector{Cluster},
         disturbance_df::DataFrame,
-        current_location::Point{2, Float64},
+        current_location::Point{2,Float64},
         exclusions::DataFrame,
         total_tender_capacity::Int;
-        tol::Float64 = 0.01
+        tol::Float64=0.01
     )::Vector{Cluster}
 
 Disturb the clusters by randomly removing nodes from them.
@@ -25,10 +25,10 @@ A vector of `Cluster` objects with nodes removed from them.
 function disturb_clusters(
     remaining_clusters::Vector{Cluster},
     disturbance_df::DataFrame,
-    current_location::Point{2, Float64},
+    current_location::Point{2,Float64},
     exclusions::DataFrame,
     total_tender_capacity::Int;
-    tol::Float64 = 0.01
+    tol::Float64=0.01
 )::Vector{Cluster}
     num_clusters = length(remaining_clusters)
     remaining_nodes = [node for cluster in remaining_clusters for node in cluster.nodes]
