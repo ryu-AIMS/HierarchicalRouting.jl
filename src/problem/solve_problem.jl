@@ -374,9 +374,9 @@ end
         exclusions_tender::DataFrame=DataFrame(),
         current_cluster_idx::Int=1,
         next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
-        opt_function::Function=HierarchicalRouting.simulated_annealing,
-        objective_function::Function=HierarchicalRouting.critical_path,
-        perturb_function::Function=HierarchicalRouting.perturb_swap_solution,
+        opt_function::Function=simulated_annealing,
+        objective_function::Function=critical_path,
+        perturb_function::Function=perturb_swap_solution,
         max_iterations::Int=1_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
@@ -408,13 +408,13 @@ function `objective_function` and the perturbation function `perturb_function`.
 """
 function improve_solution(
     initial_solution::MSTSolution,
-    exclusions_mothership::DataFrame=DataFrame(),
-    exclusions_tender::DataFrame=DataFrame(),
-    current_cluster_idx::Int=1,
-    next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
-    opt_function::Function=HierarchicalRouting.simulated_annealing,
-    objective_function::Function=HierarchicalRouting.critical_path,
-    perturb_function::Function=HierarchicalRouting.perturb_swap_solution,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+    current_cluster_idx::Int,
+    next_cluster_idx::Int;
+    opt_function::Function=simulated_annealing,
+    objective_function::Function=critical_path,
+    perturb_function::Function=perturb_swap_solution,
     max_iterations::Int=1_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
@@ -445,4 +445,36 @@ function improve_solution(
     )
 
     return soln_best, z_best
+end
+
+function improve_solution(
+    init_solution::MSTSolution,
+    problem::Problem;
+    opt_function::Function=simulated_annealing,
+    objective_function::Function=critical_path,
+    perturb_function::Function=perturb_swap_solution,
+    max_iterations::Int=1_000,
+    temp_init::Float64=500.0,
+    cooling_rate::Float64=0.95,
+    static_limit::Int=20,
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+)
+    current_cluster_idx::Int64 = 1
+    next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
+
+    return improve_solution(
+        init_solution,
+        problem.mothership.exclusion,
+        problem.tenders.exclusion,
+        current_cluster_idx,
+        next_cluster_idx;
+        opt_function,
+        objective_function,
+        perturb_function,
+        max_iterations,
+        temp_init,
+        cooling_rate,
+        static_limit,
+        vessel_weightings
+    )
 end
