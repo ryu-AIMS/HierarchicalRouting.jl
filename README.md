@@ -113,9 +113,8 @@ Optional parameters are:
 ```julia
 # Improve solution using simulated annealing
 solution_best, z_best = improve_solution(
-    solution_init,                                          # initial solution to be improved
-    problem.mothership.exclusion,                           # exclusions for mothership
-    problem.tenders.exclusion;                              # exclusions for tenders
+    solution_init,
+    problem
 );
 ```
 
