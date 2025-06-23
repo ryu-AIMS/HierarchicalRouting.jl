@@ -25,25 +25,23 @@ function get_feasible_matrix(
     dist_matrix = zeros(Float64, n_points, n_points)
     path_matrix = fill(Vector{LineString{2,Float64}}(), n_points, n_points)
 
-    for point_j_idx in 1:n_points
-        for point_i_idx in 1:point_j_idx-1
-            point_nodes = getindex(nodes, [point_i_idx, point_j_idx])
-            if point_nodes[1] != point_nodes[2]
-                # TODO: Process elsewhere
-                # Check if any of the points are within an exclusion zone
-                if any(point_in_exclusion.(point_nodes, [exclusions]))
-                    dist_matrix[point_i_idx, point_j_idx] =
-                        dist_matrix[point_j_idx, point_i_idx] =
-                            Inf
-                else
-                    dist_matrix[point_i_idx, point_j_idx],
-                    path_matrix[point_i_idx, point_j_idx] =
-                        shortest_feasible_path(
-                            point_nodes[1], point_nodes[2], exclusions
-                        )
+    for point_j_idx in 1:n_points, point_i_idx in 1:point_j_idx-1
+        point_nodes = getindex(nodes, [point_i_idx, point_j_idx])
+        if point_nodes[1] != point_nodes[2]
+            # TODO: Process elsewhere
+            # Check if any of the points are within an exclusion zone
+            if any(point_in_exclusion.(point_nodes, [exclusions]))
+                dist_matrix[point_i_idx, point_j_idx] =
                     dist_matrix[point_j_idx, point_i_idx] =
-                        dist_matrix[point_i_idx, point_j_idx]
-                end
+                        Inf
+            else
+                dist_matrix[point_i_idx, point_j_idx],
+                path_matrix[point_i_idx, point_j_idx] =
+                    shortest_feasible_path(
+                        point_nodes[1], point_nodes[2], exclusions
+                    )
+                dist_matrix[point_j_idx, point_i_idx] =
+                    dist_matrix[point_i_idx, point_j_idx]
             end
         end
     end
@@ -217,7 +215,7 @@ function shortest_feasible_path(
 
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
-    exclusion_idxs = Int[]
+    exclusion_idxs = Int64[]
     # If initial point is not within an exclusion zone
     if is_visible(initial_point, final_point, exclusions)
         # If initial point is within an exclusion zone and visible to final point
