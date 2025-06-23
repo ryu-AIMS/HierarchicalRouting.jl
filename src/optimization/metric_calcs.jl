@@ -13,7 +13,7 @@ Total distance of the return route.
 """
 function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
     return sum(getindex.(Ref(dist_matrix), route[1:end-1], route[2:end])) +
-        dist_matrix[route[end], route[1]] # Return to start
+           dist_matrix[route[end], route[1]] # Return to start
 end
 
 """
@@ -67,7 +67,7 @@ function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
     #TODO: update to use dist_matrix (stored)
 
     # Get nodes in each sortie
-    sortie_nodes::Vector{Vector{Point{2, Float64}}} = getproperty.(tenders.sorties, :nodes)
+    sortie_nodes::Vector{Vector{Point{2,Float64}}} = getproperty.(tenders.sorties, :nodes)
 
     # Distance from start pt to first node
     sortie_dist::Vector{Float64} = haversine.(
@@ -137,13 +137,13 @@ Optionally, the number of clusters can be specified to limit the calculation to 
 - The sum of (haversine) mothership distances between clusters.
 """
 function mothership_dist_between_clusts(route::Route)::Float64
-    start_segment_points::Vector{Point{2, Float64}} = route.nodes[1:2:end-1]
-    end_segment_points::Vector{Point{2, Float64}} = route.nodes[2:2:end]
+    start_segment_points::Vector{Point{2,Float64}} = route.nodes[1:2:end-1]
+    end_segment_points::Vector{Point{2,Float64}} = route.nodes[2:2:end]
     return sum(haversine.(start_segment_points, end_segment_points))
 end
 function mothership_dist_between_clusts(route::Route, num_clusters::Int)::Float64
-    start_segment_points::Vector{Point{2, Float64}} = route.nodes[1:2:end-1][1:num_clusters]
-    end_segment_points::Vector{Point{2, Float64}} = route.nodes[2:2:end][1:num_clusters]
+    start_segment_points::Vector{Point{2,Float64}} = route.nodes[1:2:end-1][1:num_clusters]
+    end_segment_points::Vector{Point{2,Float64}} = route.nodes[2:2:end][1:num_clusters]
     return sum(haversine.(start_segment_points, end_segment_points))
 end
 
@@ -183,7 +183,7 @@ The total (critical path) cost of the solution.
 """
 function critical_path(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2, AbstractFloat}=(1.0, 1.0)
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Float64
     num_clusters = length(soln.tenders[end])
     # Within clusters
@@ -191,14 +191,14 @@ function critical_path(
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
     mothership_sub_clust_cost = vessel_weightings[1] *
-        mothership_dist_within_clusts(soln.mothership_routes[end].route)[1:num_clusters]
+                                mothership_dist_within_clusts(soln.mothership_routes[end].route)[1:num_clusters]
 
     cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
     cluster_cost_total = sum(cluster_cost_each)
 
     # Between clusters
     tow_cost = vessel_weightings[1] *
-        mothership_dist_between_clusts(soln.mothership_routes[end].route, num_clusters)
+               mothership_dist_between_clusts(soln.mothership_routes[end].route, num_clusters)
 
     return cluster_cost_total + tow_cost
 end

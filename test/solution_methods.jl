@@ -28,7 +28,7 @@
     end
 
     @testset "tender_sequential_nearest_neighbour()" begin
-        solution_init = initial_solution(problem);
+        solution_init = initial_solution(problem)
         typeof(solution_init) == MSTSolution
 
         @test all(

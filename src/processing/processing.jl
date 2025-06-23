@@ -31,7 +31,7 @@ Return the value for a given point based on environmental disturbance data.
 # Returns
 - The environmental data value for the point.
 """
-function get_disturbance_value(pt::Point{2, Float64}, disturbance_data::DataFrame)::Float64
+function get_disturbance_value(pt::Point{2,Float64}, disturbance_data::DataFrame)::Float64
     for row in eachrow(disturbance_data)
         if HierarchicalRouting.point_in_exclusion(pt, row.geometry)
             return row.Hs_MEAN
@@ -56,9 +56,9 @@ Return a DataFrame containing nodes and their corresponding disturbance values.
 - A DataFrame with two columns: `node` and `disturbance_value`.
 """
 function create_disturbance_data_dataframe(
-    nodes::Vector{Point{2, Float64}},
+    nodes::Vector{Point{2,Float64}},
     disturbance_data::DataFrame
 )::DataFrame
     disturbance_values = get_disturbance_value.(nodes, Ref(disturbance_data))
-    return DataFrame(node = nodes, disturbance_value = disturbance_values)
+    return DataFrame(node=nodes, disturbance_value=disturbance_values)
 end
