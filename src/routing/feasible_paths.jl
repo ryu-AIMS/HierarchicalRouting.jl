@@ -19,7 +19,7 @@ Create matrices of distances and paths for feasible routes between waypoints acc
 """
 function get_feasible_matrix(
     nodes::Vector{Point{2,Float64}},
-    exclusions::DataFrame
+    exclusions::POLY_VEC
 )::Tuple{Matrix{Float64},Matrix{Vector{LineString{2,Float64}}}}
     n_points = length(nodes)
     dist_matrix = zeros(Float64, n_points, n_points)
@@ -236,9 +236,7 @@ function shortest_feasible_path(
         )
     else
         # Collect all visible polygon vertices
-        initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
-            initial_exclusion_idx, :geometry
-        ]
+        initial_polygon::IGeometry{wkbPolygon} = exclusions[initial_exclusion_idx]
         poly_vertices::Vector{Point{2,Float64}} = collect_polygon_vertices(
             initial_polygon
         )
@@ -289,7 +287,7 @@ function shortest_feasible_path(
         widest_verts = find_widest_points(
             final_point,
             initial_point,
-            DataFrame(exclusions[initial_exclusion_idx, :])
+            [exclusions[initial_exclusion_idx]]
         )[1]
 
         build_network!.(
@@ -309,8 +307,7 @@ function shortest_feasible_path(
         points_from,
         points_to,
         exclusions,
-        iszero(final_exclusion_idx) ?
-        AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx, :geometry],
+        iszero(final_exclusion_idx) ? AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx],
         initial_point,
         final_point
     )
