@@ -308,7 +308,7 @@ function shortest_feasible_path(
         points_from,
         points_to,
         exclusions,
-        iszero(final_exclusion_idx) ? AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx],
+        iszero(final_exclusion_idx) ? Point{2,Float64}[] : exclusions[final_exclusion_idx],
         initial_point,
         final_point
     )
