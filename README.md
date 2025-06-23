@@ -84,7 +84,7 @@ Optional parameters are:
 ```julia
 # Generate an initial solution
 solution_init = initial_solution(
-    problem,                                                        # problem
+    problem                                                        # problem
 );
 ```
 #### Solution parameters
