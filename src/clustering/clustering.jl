@@ -5,13 +5,13 @@ using Hungarian
 
 @kwdef struct Cluster
     id::Int
-    centroid::Point{2, Float64}
-    nodes::Vector{Point{2, Float64}} = [centroid]
+    centroid::Point{2,Float64}
+    nodes::Vector{Point{2,Float64}} = [centroid]
     # TODO: Add waypoints?
     # waypoints::NTuple{2, Point{2, Float64}}
 end
 
-Q=1234
+Q = 1234
 GLOBAL_RNG = MersenneTwister(Q)
 
 """
@@ -32,12 +32,12 @@ IDs.
 """
 function generate_cluster_df(
     clusters::Vector{Cluster},
-    depot::Point{2, Float64}
+    depot::Point{2,Float64}
 )::DataFrame
     cluster_centroids_df::DataFrame = DataFrame(
-        id  = [0; 1:length(clusters)],
-        lon = [depot[1]; [clust.centroid[1] for clust in clusters]],
-        lat = [depot[2]; [clust.centroid[2] for clust in clusters]]
+        id=[0; 1:length(clusters)],
+        lon=[depot[1]; [clust.centroid[1] for clust in clusters]],
+        lat=[depot[2]; [clust.centroid[2] for clust in clusters]]
     )
     return cluster_centroids_df
 end
@@ -71,8 +71,8 @@ function cluster_problem(
     dist_weighting::Float64=5E-6,
     tol::Float64=0.01
 )::Vector{Cluster}
-    points::Vector{Point{2, Float64}} = problem.targets.points.geometry
-    current_location::Point{2, Float64} = problem.depot
+    points::Vector{Point{2,Float64}} = problem.targets.points.geometry
+    current_location::Point{2,Float64} = problem.depot
     exclusions::DataFrame = problem.tenders.exclusion
     total_tender_capacity::Int = problem.tenders.capacity * problem.tenders.number
 
@@ -99,8 +99,8 @@ function cluster_problem(
     )
 
     clustered_targets_df::DataFrame = DataFrame(
-        id = clustering_assignments,
-        geometry = feasible_points
+        id=clustering_assignments,
+        geometry=feasible_points
     )
 
     clustered_targets::Vector{Cluster} = calculate_cluster_centroids(clustered_targets_df)
@@ -146,13 +146,13 @@ A raster/DataFrame containing new, disturbed clusters. Cluster ID is assigned to
     location.
 """
 function disturb_remaining_clusters(
-    raster::Raster{Float64, 2},
+    raster::Raster{Float64,2},
     k::Int8,
-    current_location::Point{2, Float64},
+    current_location::Point{2,Float64},
     exclusions::DataFrame;
     tol::Float64=0.01,
     dist_weighting::Float64=2E-5
-)::Raster{Int64, 2}
+)::Raster{Int64,2}
     # TODO: Split this function into two separate functions, it does more than original fn
     #! 1st: 3D clustering to generate disturbance clusters,
     #! 2nd: 3D clustering to generate target clusters (as above)
@@ -173,8 +173,8 @@ function disturb_remaining_clusters(
     coordinates_array_3d[3, :] .= raster[indices]
 
     # Create k_d clusters to create disturbance on subset
-    k_d_lower = min(n_sites, k+1)
-    k_d_upper = min(max(k+1, n_sites, k^2), n_sites)
+    k_d_lower = min(n_sites, k + 1)
+    k_d_upper = min(max(k + 1, n_sites, k^2), n_sites)
     k_d = rand(k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
@@ -191,7 +191,7 @@ function disturb_remaining_clusters(
     t = 1.0 # perturbation weighting factor
     cluster_disturbance_vals =
         w * [
-            mean(coordinates_array_3d[3, disturbance_clusters.assignments .== i])
+            mean(coordinates_array_3d[3, disturbance_clusters.assignments.==i])
             for i in 1:k_d
         ] .+
         t * rand(-1.0:0.01:1.0, k_d)
@@ -250,7 +250,7 @@ end
 function disturb_remaining_clusters(
     unvisited_pts::DataFrame,
     k::Int,
-    current_location::Point{2, Float64},
+    current_location::Point{2,Float64},
     exclusions::DataFrame,
     total_tender_capacity::Int;
     tol::Float64=0.01,
@@ -270,7 +270,7 @@ function disturb_remaining_clusters(
     coordinates_3d[3, :] .= unvisited_pts.disturbance_value
 
     # Create k_d clusters to create disturbance on subset
-    k_d_lower = k+1
+    k_d_lower = k + 1
     k_d_upper = n_sites
     k_d = rand(GLOBAL_RNG, k_d_lower:k_d_upper)
 
@@ -289,7 +289,7 @@ function disturb_remaining_clusters(
     t = 1.0 # perturbation weighting factor
     cluster_disturbance_vals =
         w * [
-            mean(coordinates_3d[3, disturbance_clusters.assignments .== i])
+            mean(coordinates_3d[3, disturbance_clusters.assignments.==i])
             for i in 1:k_d
         ] .+
         t * rand(GLOBAL_RNG, -1.0:0.01:1.0, k_d)
@@ -332,14 +332,14 @@ function disturb_remaining_clusters(
     #re-cluster the remaining nodes into k clusters
     clustering_assignments = capacity_constrained_kmeans(
         disturbed_coordinates_3d;
-        max_cluster_size = total_tender_capacity,
-        k_spec = k,
+        max_cluster_size=total_tender_capacity,
+        k_spec=k,
         tol
     )
 
     return DataFrame(
-        id = clustering_assignments,
-        geometry = feasible_pts
+        id=clustering_assignments,
+        geometry=feasible_pts
     )
 end
 
@@ -377,18 +377,18 @@ A vector of cluster assignments for each reef.
 function capacity_constrained_kmeans(
     coordinates::Matrix{Float64};
     max_cluster_size::Int64,
-    max_split_distance::Int64 = 12000,
-    k_spec::Int = 0,
-    max_iter::Int64 = 1000,
-    n_restarts::Int64 = 20,
-    min_k_spec::Int64 = 0,
-    tol::Float64 = 0.01
+    max_split_distance::Int64=12000,
+    k_spec::Int=0,
+    max_iter::Int64=1000,
+    n_restarts::Int64=20,
+    min_k_spec::Int64=0,
+    tol::Float64=0.01
 )::Vector{Int64}
     n_reefs::Int64 = size(coordinates, 2)
     min_k = max(k_spec, min_k_spec) # Ensure k_spec is at least min_k
     initial_k::Int64 =
         k_spec == 0 ?
-        max(ceil(Int, n_reefs/max_cluster_size), min_k) :
+        max(ceil(Int, n_reefs / max_cluster_size), min_k) :
         min_k
     # Run k-means multiple times to find best result
     best_clustering_assignment::Vector{Int} = zeros(Int, n_reefs)
@@ -410,7 +410,7 @@ function capacity_constrained_kmeans(
             .==(1:num_clusters), Ref(clustering_assignment)
         )
         centroids = Tuple(
-            Tuple(mean(coordinates[1:2,c]; dims=2))
+            Tuple(mean(coordinates[1:2, c]; dims=2))
             for c in clusters_list
         )
         cluster_score::Float64 = sum(
@@ -458,11 +458,11 @@ A vector of cluster assignments for each reef, ensuring that no cluster exceeds 
 function _constrained_kmeans_single_iteration(
     coordinates::Matrix{Float64},
     k::Int64,
-    max_cluster_size::Int64 = 6,
-    max_split_distance::Int64 = 12000,
-    max_iter::Int64 = 1000;
-    k_spec::Int = 0,
-    tol::Float64 = 0.01
+    max_cluster_size::Int64=6,
+    max_split_distance::Int64=12000,
+    max_iter::Int64=1000;
+    k_spec::Int=0,
+    tol::Float64=0.01
 )::Vector{Int64}
     clustering = kmeans(coordinates, k; tol=tol, maxiter=max_iter, rng=GLOBAL_RNG)
     clustering_assignment::Vector{Int64} = copy(clustering.assignments)
@@ -473,7 +473,7 @@ function _constrained_kmeans_single_iteration(
         Ref(clustering_assignment)
     )
     centroids = Tuple(
-        Tuple(mean(coordinates[1:2,c]; dims=2))
+        Tuple(mean(coordinates[1:2, c]; dims=2))
         for c in clusters_list
     )
 
@@ -486,7 +486,7 @@ function _constrained_kmeans_single_iteration(
         while length(point_idxs) > max_cluster_size
             # Find furthest point from centroid
             dists_centroid_to_pts::Vector{Float64} = [
-                haversine(coordinates[1:2,p], centroids[c])
+                haversine(coordinates[1:2, p], centroids[c])
                 for p in point_idxs
             ]
             idx::Int64 = point_idxs[argmax(dists_centroid_to_pts)]
@@ -494,11 +494,11 @@ function _constrained_kmeans_single_iteration(
             # Find under-capacity clusters within max_split_distance
             available_clusters = findall(length.(clusters_list) .< max_cluster_size)
             dists_pt_to_centroids = [
-                haversine(coordinates[1:2,idx], centroids[c])
+                haversine(coordinates[1:2, idx], centroids[c])
                 for c in available_clusters
             ]
             close_clusters::Vector{Int64} = available_clusters[
-                dists_pt_to_centroids .≤ [max_split_distance]
+                dists_pt_to_centroids.≤[max_split_distance]
             ]
 
 
@@ -522,7 +522,7 @@ function _constrained_kmeans_single_iteration(
             # Pick the closest among them
             eligible_centroids = centroids[close_clusters]
             eligible_distances::Vector{Float64} = [
-                haversine(coordinates[1:2,idx], c)
+                haversine(coordinates[1:2, idx], c)
                 for c in eligible_centroids
             ]
             target_cluster::Int64 = close_clusters[argmin(eligible_distances)]
@@ -558,14 +558,14 @@ matching closest clster centroids.
 A new raster or DataFrame with updated cluster assignments to match the previous numbering.
 """
 function update_cluster_assignments(
-    cluster_raster::Raster{Int64, 2},
-    prev_centroids::Dict{Int64, Point{2,Float64}}
-)::Raster{Int64, 2}
+    cluster_raster::Raster{Int64,2},
+    prev_centroids::Dict{Int64,Point{2,Float64}}
+)::Raster{Int64,2}
     inds = findall(!=(cluster_raster.missingval), cluster_raster)
     ids = cluster_raster[inds]
     coords = Point{2,Float64}.(
-        cluster_raster.dims[1][getindex.(inds,1)],
-        cluster_raster.dims[2][getindex.(inds,2)]
+        cluster_raster.dims[1][getindex.(inds, 1)],
+        cluster_raster.dims[2][getindex.(inds, 2)]
     )
     # Map cluster IDs from new to previous clusters
     cluster_mapping = compute_cluster_mapping(ids, coords, prev_centroids)
@@ -582,7 +582,7 @@ function update_cluster_assignments(
 end
 function update_cluster_assignments(
     cluster_df::DataFrame,
-    prev_centroids::Dict{Int64, Point{2,Float64}}
+    prev_centroids::Dict{Int64,Point{2,Float64}}
 )::DataFrame
     ids = cluster_df.id
     coords = cluster_df.geometry
@@ -593,7 +593,7 @@ function update_cluster_assignments(
     # Create a new vector of IDs based on mapping
     new_ids = getindex.(Ref(cluster_mapping), cluster_df.id)
 
-    updated_df = DataFrame(id = new_ids, geometry = cluster_df.geometry)
+    updated_df = DataFrame(id=new_ids, geometry=cluster_df.geometry)
     return updated_df
 end
 
@@ -610,11 +610,11 @@ compute the centroids of each new ID, then use the Hungarian assignment against
 """
 function compute_cluster_mapping(
     ids::AbstractVector{Int},
-    coords::AbstractVector{Point{2, Float64}},
-    prev_centroids::Dict{Int, Point{2,Float64}}
-)::Dict{Int, Int}
+    coords::AbstractVector{Point{2,Float64}},
+    prev_centroids::Dict{Int,Point{2,Float64}}
+)::Dict{Int,Int}
     unique_new = Set(ids)
-    new_centroids = Dict{Int, Point{2,Float64}}()
+    new_centroids = Dict{Int,Point{2,Float64}}()
 
     for id_new in unique_new
         idxs = findall(==(id_new), ids)
@@ -669,11 +669,11 @@ Calculate the centroids of the clusters in the raster/DataFrame, and return a ve
 A vector of `Cluster` objects.
 """
 function calculate_cluster_centroids(
-    clusters_raster::Raster{Int64, 2};
+    clusters_raster::Raster{Int64,2};
     cluster_ids=[]
 )::Vector{Cluster}
     unique_clusters = Vector{Int64}(undef, 0)
-    valid_clusters = unique(clusters_raster[clusters_raster .!= clusters_raster.missingval])
+    valid_clusters = unique(clusters_raster[clusters_raster.!=clusters_raster.missingval])
 
     unique_clusters = isempty(cluster_ids) ? sort(valid_clusters) : cluster_ids
 
@@ -693,9 +693,9 @@ function calculate_cluster_centroids(
         row_cent = mean([node[2] for node in nodes])
 
         clusters_vector[idx] = Cluster(
-            id = ex_id,
-            centroid = Point{2, Float64}(col_cent, row_cent),
-            nodes = Point{2, Float64}.(nodes)
+            id=ex_id,
+            centroid=Point{2,Float64}(col_cent, row_cent),
+            nodes=Point{2,Float64}.(nodes)
         )
     end
     return clusters_vector
@@ -715,9 +715,9 @@ function calculate_cluster_centroids(
         lat_cent = mean(getindex.(clustered_points, 2))
 
         clusters_vector[idx] = Cluster(
-            id = ex_id,
-            centroid = Point{2, Float64}(lon_cent, lat_cent),
-            nodes = clustered_points
+            id=ex_id,
+            centroid=Point{2,Float64}(lon_cent, lat_cent),
+            nodes=clustered_points
         )
     end
     return clusters_vector

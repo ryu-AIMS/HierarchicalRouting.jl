@@ -55,7 +55,7 @@ function linestring_to_polygon(
     linestring::AG.IGeometry{AG.wkbLineString}
 )::AG.IGeometry{AG.wkbPolygon}
     num_points::Int = AG.ngeom(linestring)
-    points::Vector{NTuple{2, Float64}} = collect(
+    points::Vector{NTuple{2,Float64}} = collect(
         zip(
             AG.getx.([linestring], 0:num_points-1),
             AG.gety.([linestring], 0:num_points-1)
@@ -86,7 +86,7 @@ function unionize_overlaps!(exclusions::DataFrame)::DataFrame
         if AG.ngeom(geom1) > 1
             # Unionize multi-geometries
             geom_a = linestring_to_polygon(AG.getgeom(geom1, 0))
-            for j in 1:AG.ngeom(geom1) - 1
+            for j in 1:AG.ngeom(geom1)-1
                 geom_b = linestring_to_polygon(AG.getgeom(geom1, j))
                 if AG.intersects(geom_a, geom_b)
                     geom_a = AG.union(geom_a, geom_b)
@@ -126,7 +126,7 @@ function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     unique_geometries = unique(geometries[.!AG.isempty.(geometries)])
 
     empty!(exclusions)
-    append!(exclusions, [(geometry = geom,) for geom in unique_geometries])
+    append!(exclusions, [(geometry=geom,) for geom in unique_geometries])
 
     return exclusions
 end
