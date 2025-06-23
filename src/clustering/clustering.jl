@@ -132,7 +132,7 @@ function cluster_problem(
     dist_vector = get_feasible_distances(
         current_location,
         points,
-        exclusions
+        exclusions.geometry
     )
 
     feasible_idxs = findall(.!isinf.(dist_vector))

@@ -45,7 +45,7 @@ function initial_solution(
             (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
             problem.tenders.number,
             problem.tenders.capacity,
-            problem.tenders.exclusion
+            problem.tenders.exclusion.geometry
         )
         for j in 1:length(clust_seq)
     ]
@@ -435,8 +435,8 @@ function improve_solution(
         current_solution,
         objective_function,
         perturb_function,
-        exclusions_mothership,
-        exclusions_tender,
+        exclusions_mothership.geometry,
+        exclusions_tender.geometry,
         max_iterations,
         temp_init,
         cooling_rate,

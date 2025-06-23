@@ -32,7 +32,7 @@ Perturbed full solution.
 function perturb_swap_solution(
     soln::MSTSolution,
     clust_seq_idx_target::Int64=-1,
-    exclusions_tender::DataFrame=DataFrame();
+    exclusions_tender::POLY_VEC=IGeometry{wkbPolygon}[];
     enforce_diff_sortie::Bool=false
 )::MSTSolution
     clust_seq_idx = clust_seq_idx_target == -1 ?
@@ -348,7 +348,7 @@ Insert unallocated nodes into the solution.
 """
 function insert_unallocated_node(
     soln::MSTSolution,
-    exclusions::DataFrame=DataFrame(),
+    exclusions::POLY_VEC,
     max_dist::Int64=15000;
     t_cap::Int16,
     current_cluster_seq_idx::Int=-1,
@@ -476,8 +476,8 @@ end
 function insert_unallocated_node(
     clusters_ex::Vector{Cluster},
     tenders_ex::Vector{TenderSolution},
-    exclusions::DataFrame=DataFrame(),
-    max_dist::Int64=15000;
+    exclusions::POLY_VEC;
+    max_dist::Int64=15000,
     t_cap::Int16,
     current_cluster_seq_idx::Int=-1,
 )::Vector{Cluster}
@@ -610,8 +610,8 @@ function simulated_annealing(
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    exclusions_mothership::DataFrame=DataFrame(),
-    exclusions_tender::DataFrame=DataFrame(),
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
     max_iterations::Int=5_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
