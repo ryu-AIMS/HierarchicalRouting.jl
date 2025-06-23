@@ -122,6 +122,8 @@ end
         problem::Problem;
         k::Int=1,
         disturbance_clusters::Set{Int64}=Set{Int64}()
+        seed::Union{Nothing,Int64}=nothing,
+        rng::AbstractRNG=Random.GLOBAL_RNG
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -139,9 +141,13 @@ Best total MSTSolution found
 function solve(
     problem::Problem;
     k::Int=1,
-    disturbance_clusters::Set{Int64}=Set{Int64}()
+    disturbance_clusters::Set{Int64}=Set{Int64}(),
+    seed::Union{Nothing,Int64}=nothing,
+    rng::AbstractRNG=Random.GLOBAL_RNG
 )::MSTSolution
-    Random.seed!(GLOBAL_RNG, Q)
+    if !isnothing(seed)
+        Random.seed!(rng, seed)
+    end
 
     ordered_disturbances = sort(unique(disturbance_clusters))
     n_events = length(ordered_disturbances) + 1
