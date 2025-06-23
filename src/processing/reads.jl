@@ -2,7 +2,7 @@
 """
     process_geometry_targets(
         geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-        resolution::Float64 = 0.0001
+        resolution::Float64=0.0001
     )::Raster{Int}
 
 Read and process target location geometries to generate a rasterized representation.
@@ -36,7 +36,7 @@ function process_geometry_targets(
 end
 
 """
-    raster_to_gdf(raster::Raster{Int, 2})::DataFrame
+    raster_to_gdf(raster::Raster{Int,2})::DataFrame
 
 Convert a raster to a GeoDataFrame by extracting the coordinates of the raster cells where
     the value is 1.

@@ -1,11 +1,11 @@
 
 """
     find_widest_points(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame,
-        visited_exclusion_idxs::Vector{Int} = [0]
-    )::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
+        visited_exclusion_idxs::Vector{Int}=[0]
+    )::Tuple{Vector{Point{2,Float64}},Vector{Int}}
 
 Find the intermediate vertices between two points by using the widest visible vertices on
 each (left/right) side of the direct-line path by closest crossed polygon.
@@ -75,10 +75,10 @@ end
 
 """
     vector_angle(
-        base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
+        base_vector::Vector{Float64}, candidate_tuple::NTuple{2,Float64}
     )::Float64
     vector_angle(
-        base_vector::Vector{Float64}, candidate_tuple::Tuple{Float64, Float64}
+        base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
     )::Float64
 
 Calculate the signed angle (radians) of a candidate vector relative to a base vector.
@@ -92,7 +92,7 @@ Calculate the signed angle (radians) of a candidate vector relative to a base ve
 - The signed angle between the two vectors in radians.
 """
 function vector_angle(
-    base_vector::Vector{Float64}, candidate_tuple::Tuple{Float64,Float64}
+    base_vector::Vector{Float64}, candidate_tuple::NTuple{2,Float64}
 )::Float64
     return vector_angle(base_vector, collect(candidate_tuple))
 end
@@ -109,11 +109,11 @@ end
 
 """
     search_widest_points(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exterior_ring::AG.IGeometry{AG.wkbLineString},
         n_pts::Int32,
-    )::NTuple{2, Union{Point{2, Float64}, Nothing}}
+    )::NTuple{2,Union{Point{2,Float64},Nothing}}
 
 Search for the widest visible vertices on each side of the base vector.
 
@@ -169,8 +169,8 @@ end
 
 """
     closest_crossed_polygon(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame,
         visited_exclusion_idxs::Vector{Int}
     )::Tuple{
@@ -331,15 +331,15 @@ end
         exclusion_poly::AG.IGeometry{AG.wkbPolygon}
     )::Bool
     is_visible(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusion_poly::AG.IGeometry{AG.wkbPolygon}
     )::Bool
     is_visible(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame,
-        current_exclusions_idx::Vector{Int} = [0]
+        current_exclusions_idx::Vector{Int}=[0]
     )::Bool
 
 Check if a point is visible from another point, given a vector of, or single exclusion

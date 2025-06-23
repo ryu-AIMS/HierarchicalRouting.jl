@@ -1,9 +1,9 @@
 
 """
     get_feasible_matrix(
-        nodes::Vector{Point{2, Float64}},
+        nodes::Vector{Point{2,Float64}},
         exclusions::DataFrame
-    )::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
+    )::Tuple{Matrix{Float64} Matrix{Vector{LineString{2,Float64}}}}
 
 Create matrices of distances and paths for feasible routes between waypoints accounting for
     (avoiding) environmental constraints.
@@ -53,8 +53,8 @@ end
 
 """
     get_feasible_vector(
-        nodes::Vector{Point{2, Float64}}, exclusions::DataFrame
-    )::Tuple{Vector{Float64}, Vector{Vector{LineString{2, Float64}}}}
+        nodes::Vector{Point{2,Float64}}, exclusions::DataFrame
+    )::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
 
 Create vectors of feasible:
 - distances, and
@@ -98,8 +98,8 @@ end
 
 """
     get_feasible_distances(
-        current_location::Point{2, Float64},
-        targets::Vector{Point{2, Float64}},
+        current_location::Point{2,Float64},
+        targets::Vector{Point{2,Float64}},
         exclusions::DataFrame
     )::Vector{Float64}
 
@@ -145,9 +145,9 @@ function get_feasible_distances(
 end
 
 """
-    point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
-    point_in_exclusion(point::Point{2, Float64}, exclusions::Vector{AG.IGeometry})::Bool
-    point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
+    point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)::Bool
+    point_in_exclusion(point::Point{2,Float64}, exclusions::Vector{AG.IGeometry})::Bool
+    point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Bool
 
 Check if a point is within an exclusion zone.
 
@@ -171,7 +171,7 @@ function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Boo
 end
 
 """
-    containing_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Int
+    containing_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Int
 
 Return the index of the exclusion zone that contains the point.
 
@@ -190,10 +190,10 @@ end
 
 """
     shortest_feasible_path(
-        initial_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        initial_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame
-    )::Tuple{Float64, Vector{LineString{2, Float64}}}
+    )::Tuple{Float64,Vector{LineString{2,Float64}}}
 
 Find the shortest feasible path between two points.
 - Build network of all polygon vertices that recursively intersect with line to finish, from
@@ -331,7 +331,7 @@ end
 
 """
     point_in_convexhull(
-        point::Point{2, Float64},
+        point::Point{2,Float64},
         exclusions::DataFrame
     )::Int
 
@@ -363,11 +363,11 @@ end
 
 """
     build_network!(
-        points_from::Vector{Point{2, Float64}},
-        points_to::Vector{Point{2, Float64}},
+        points_from::Vector{Point{2,Float64}},
+        points_to::Vector{Point{2,Float64}},
         exclusion_idxs::Vector{Int},
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame,
         final_exclusion_idx::Int
     )::Nothing
@@ -446,13 +446,13 @@ end
 
 """
     build_graph(
-        points_from::Vector{Point{2, Float64}},
-        points_to::Vector{Point{2, Float64}},
+        points_from::Vector{Point{2,Float64}},
+        points_to::Vector{Point{2,Float64}},
         exclusions::DataFrame,
         final_polygon::AG.IGeometry{AG.wkbPolygon},
-        initial_point::Point{2, Float64},
-        final_point::Point{2, Float64}
-    )::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
+        initial_point::Point{2,Float64},
+        final_point::Point{2,Float64}
+    )::Tuple{SimpleWeightedGraph{Int64,Float64}, Vector{Point{2,Float64}},Int64,Int64}
 
 Build a graph network from a set of points.
 If polygon is provided, connect it to visible points in graph and visible vertices.
@@ -576,7 +576,7 @@ end
 
 """
     collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
-    )::Vector{Point{2, Float64}}
+    )::Vector{Point{2,Float64}}
 
 Collect all vertices of a polygon.
 

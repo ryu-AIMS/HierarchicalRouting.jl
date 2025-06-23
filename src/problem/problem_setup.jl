@@ -44,16 +44,16 @@ end
         subset_path::AbstractString,
         env_data_path::AbstractString,
         env_disturbance_path::AbstractString,
-        depot::Tuple{Float64, Float64},
+        depot::NTuple{2,Float64},
         draft_ms::Real,
         draft_t::Real,
         weight_ms::Real,
         weight_t::Real,
         n_tenders::Integer,
         t_cap::Integer;
-        target_subset_path::AbstractString = "",
-        output_dir::AbstractString = "outputs/",
-        debug_mode::Bool = false,
+        target_subset_path::AbstractString="",
+        output_dir::AbstractString="outputs/",
+        debug_mode::Bool=false,
     )::Problem
 
 Load the problem data to create a `Problem` object from given parameters.
@@ -89,7 +89,7 @@ function load_problem(
     subset_path::AbstractString,
     env_data_path::AbstractString,
     env_disturbance_path::AbstractString,
-    depot::Tuple{Float64,Float64},
+    depot::NTuple{2,Float64},
     draft_ms::Real,
     draft_t::Real,
     weight_ms::Real,
@@ -210,7 +210,7 @@ function is_within_bbox(geom, min_x, max_x, min_y, max_y)::Bool
 end
 
 """
-    get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64, Float64, Float64, Float64}
+    get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
 
 Retrieves the bounding box bounds from the given GeoDataFrame.
 
@@ -224,7 +224,7 @@ A tuple containing the bounding box coordinates:
 - min_y,
 - max_y.
 """
-function get_bbox_bounds_from_df(df::DataFrame)::Tuple{Float64,Float64,Float64,Float64}
+function get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
     min_x = minimum(getfield.(AG.envelope.(df.geom), 1))
     max_x = maximum(getfield.(AG.envelope.(df.geom), 2))
     min_y = minimum(getfield.(AG.envelope.(df.geom), 3))
@@ -236,7 +236,7 @@ end
 """
     filter_within_bbox(
         gdf::DataFrame,
-        bbox_bounds::Tuple{Float64, Float64, Float64, Float64}
+        bbox_bounds::NTuple{4,Float64}
     )::DataFrame
 
 Filters the geometries in the given GeoDataFrame `gdf` that are within the bounding box
@@ -255,7 +255,7 @@ A GeoDataFrame containing only the geometries within the bounding box defined by
 """
 function filter_within_bbox(
     gdf::DataFrame,
-    bbox_bounds::Tuple{Float64,Float64,Float64,Float64}
+    bbox_bounds::NTuple{4,Float64}
 )::DataFrame
     filtered_gdf = filter(
         row -> is_within_bbox(

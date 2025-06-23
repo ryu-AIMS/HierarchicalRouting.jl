@@ -2,7 +2,7 @@
 """
     export_points(
         clusters::Vector{Cluster},
-        output_path::String = "outputs"
+        output_path::String="outputs"
     )::DataFrame
 
 Export points to a GeoPackage file, saved in the output directory.
@@ -33,8 +33,8 @@ end
 """
     export_clusters(
         cluster_sequence::DataFrame,
-        include_depot::Bool = false,
-        output_path::String = "outputs",
+        include_depot::Bool=false,
+        output_path::String="outputs",
     )::DataFrame
 
 Export clusters to a GeoPackage file, saved in the output directory.
@@ -70,8 +70,8 @@ end
 """
     export_exclusions(
         problem::Problem,
-        output_path::String = "outputs"
-    )::Tuple{DataFrame, DataFrame}
+        output_path::String="outputs"
+    )::Tuple{DataFrame,DataFrame}
 
 Export mothership and tender exclusions (nested in Problem struct) to GeoPackage files,
     saved in the output directory.
@@ -103,8 +103,8 @@ end
 
 """
     export_mothership_routes(
-    line_strings::Vector{LineString{2, Float64}},
-    output_path::String = "outputs"
+    line_strings::Vector{LineString{2,Float64}},
+    output_path::String="outputs"
 )::DataFrame
 
 Export mothership routes to a GeoPackage file, saved in the output directory.
@@ -147,7 +147,7 @@ end
 """
     export_tender_routes(
     tender_soln::Vector{TenderSolution},
-    output_path::String = "outputs"
+    output_path::String="outputs"
 )::DataFrame
 
 Export tender routes to a GeoPackage file, saved in the output directory.

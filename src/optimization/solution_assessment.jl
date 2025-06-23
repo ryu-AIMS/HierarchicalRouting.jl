@@ -3,14 +3,14 @@
     perturb_swap_solution(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
-        exclusions_tender::DataFrame = DataFrame();
-        enforce_diff_sortie::Bool = false
+        exclusions_tender::DataFrame=DataFrame();
+        enforce_diff_sortie::Bool=false
     )::MSTSolution
     perturb_swap_solution(
         soln::MSTSolution,
-        cluster_pair::Tuple{Int, Int},
-        exclusions_mothership::DataFrame = DataFrame(),
-        exclusions_tender::DataFrame = DataFrame()
+        cluster_pair::Tuple{Int,Int},
+        exclusions_mothership::DataFrame=DataFrame(),
+        exclusions_tender::DataFrame=DataFrame()
     )::MSTSolution
 
 Perturb the solution by swapping two nodes:
@@ -298,11 +298,11 @@ end
 """
     find_unallocated_nodes(
         soln::MSTSolution
-    )::Set{Point{2, Float64}}
+    )::Set{Point{2,Float64}}
     find_unallocated_nodes(
         clusters::Vector{Cluster},
         tenders::Vector{TenderSolution}
-    )::Set{Point{2, Float64}}
+    )::Set{Point{2,Float64}}
 
 Find nodes that are not allocated to any sortie in the solution.
 
@@ -339,16 +339,16 @@ end
 """
     insert_unallocated_node(
         soln::MSTSolution,
-        exclusions::DataFrame = DataFrame()
-        max_dist::Int64 = 15000;
+        exclusions::DataFrame=DataFrame()
+        max_dist::Int64=15000;
         t_cap::Int16,
         current_cluster_seq_idx::Int=-1,
     )::MSTSolution
     insert_unallocated_node(
         clusters_ex::Vector{Cluster},
         tenders_ex::Vector{TenderSolution},
-        exclusions::DataFrame = DataFrame(),
-        max_dist::Float64 = 15000;
+        exclusions::DataFrame=DataFrame(),
+        max_dist::Float64=15000;
         t_cap::Int16,
         current_cluster_seq_idx::Int=-1,
     )::Vector{Cluster}
@@ -594,14 +594,14 @@ end
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
-        exclusions_mothership::DataFrame = DataFrame(),
-        exclusions_tender::DataFrame = DataFrame(),
-        max_iterations::Int = 5_000,
-        temp_init::Float64 = 500.0,
-        cooling_rate::Float64 = 0.95,
-        static_limit::Int = 150;
-        vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0),
-        cross_cluster_flag::Bool = false,
+        exclusions_mothership::DataFrame=DataFrame(),
+        exclusions_tender::DataFrame=DataFrame(),
+        max_iterations::Int=5_000,
+        temp_init::Float64=500.0,
+        cooling_rate::Float64=0.95,
+        static_limit::Int=150;
+        vessel_weightings::NTuple{2, AbstractFloat}=(1.0, 1.0),
+        cross_cluster_flag::Bool=false,
     )
 
 Simulated Annealing optimization algorithm to optimize the solution.
