@@ -297,7 +297,6 @@ function shortest_feasible_path(
             Ref(exclusions),
             Ref(final_exclusion_idx)
         )
-
     end
 
     # Build graph from network of points
@@ -383,7 +382,7 @@ function build_network!(
     final_exclusion_idx::Int
 )::Nothing
     if current_point == final_point
-        return
+        return nothing
     end
 
     candidates, next_exclusion_idxs = find_widest_points(
