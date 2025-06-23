@@ -19,7 +19,7 @@ function target_threshold(targets::Raster, threshold::Float64)::Raster
 end
 
 """
-    get_disturbance_value(pt::Point{2, Float64}, disturbance_data::DataFrame)::Float64
+    get_disturbance_value(pt::Point{2,Float64}, disturbance_data::DataFrame)::Float64
 
 Return the value for a given point based on environmental disturbance data.
 
@@ -42,7 +42,7 @@ end
 
 """
     create_disturbance_data_dataframe(
-        nodes::Vector{Point{2, Float64}},
+        nodes::Vector{Point{2,Float64}},
         disturbance_data::DataFrame
     )::DataFrame
 

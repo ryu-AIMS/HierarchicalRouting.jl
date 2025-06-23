@@ -50,9 +50,9 @@ end
 
 """
     adjust_waypoint(
-        waypoint::Point{2, Float64},
+        waypoint::Point{2,Float64},
         exclusions::DataFrame,
-    )::Point{2, Float64}
+    )::Point{2,Float64}
 
 Adjust waypoint if inside exclusion zone to closest boundary point outside exclusion zone.
 
@@ -115,7 +115,7 @@ end
 """
     get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
     get_waypoints(
-        current_point::Point{2, Float64},
+        current_point::Point{2,Float64},
         sequence::DataFrame,
         exclusions::DataFrame
     )::DataFrame
@@ -237,7 +237,7 @@ end
         cluster_centroids::DataFrame,
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
-        current_point::Point{2, Float64},
+        current_point::Point{2,Float64},
         ex_ms_route::MothershipSolution,
         cluster_seq_idx::Int64
     )::MothershipSolution
@@ -690,7 +690,7 @@ end
 """
     tender_sequential_nearest_neighbour(
         cluster::Cluster,
-        waypoints::NTuple{2, Point{2, Float64}},
+        waypoints::NTuple{2,Point{2,Float64}},
         n_tenders::Int8,
         t_cap::Int16,
         exclusions::DataFrame

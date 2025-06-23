@@ -2,7 +2,7 @@
 """
     initial_solution(
         problem::Problem;
-        disturbance_clusters::Set{Int64} = Set{Int64}()
+        disturbance_clusters::Set{Int64}=Set{Int64}()
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -120,7 +120,8 @@ end
 """
     solve(
         problem::Problem;
-        disturbance_clusters::Set{Int64} = Set{Int64}()
+        k::Int=1,
+        disturbance_clusters::Set{Int64}=Set{Int64}()
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -404,19 +405,19 @@ end
 """
     improve_solution(
         initial_solution::MSTSolution,
-        exclusions_mothership::DataFrame = DataFrame(),
-        exclusions_tender::DataFrame = DataFrame(),
-        current_cluster_idx::Int = 1,
-        next_cluster_idx::Int = length(initial_solution.cluster_sets[end]);
-        opt_function::Function = HierarchicalRouting.simulated_annealing,
-        objective_function::Function = HierarchicalRouting.critical_path,
-        perturb_function::Function = HierarchicalRouting.perturb_swap_solution,
-        max_iterations::Int = 1_000,
-        temp_init::Float64 = 500.0,
-        cooling_rate::Float64 = 0.95,
-        static_limit::Int = 20,
-        vessel_weightings::NTuple{2, AbstractFloat} = (1.0, 1.0)
-    )::Tuple{MSTSolution, Float64}
+        exclusions_mothership::DataFrame=DataFrame(),
+        exclusions_tender::DataFrame=DataFrame(),
+        current_cluster_idx::Int=1,
+        next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
+        opt_function::Function=HierarchicalRouting.simulated_annealing,
+        objective_function::Function=HierarchicalRouting.critical_path,
+        perturb_function::Function=HierarchicalRouting.perturb_swap_solution,
+        max_iterations::Int=1_000,
+        temp_init::Float64=500.0,
+        cooling_rate::Float64=0.95,
+        static_limit::Int=20,
+        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    )::Tuple{MSTSolution,Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective \n
 function `objective_function` and the perturbation function `perturb_function`.
