@@ -18,12 +18,12 @@ Create matrices of distances and paths for feasible routes between waypoints acc
     waypoints.
 """
 function get_feasible_matrix(
-    nodes::Vector{Point{2, Float64}},
+    nodes::Vector{Point{2,Float64}},
     exclusions::DataFrame
-)::Tuple{Matrix{Float64}, Matrix{Vector{LineString{2, Float64}}}}
+)::Tuple{Matrix{Float64},Matrix{Vector{LineString{2,Float64}}}}
     n_points = length(nodes)
     dist_matrix = zeros(Float64, n_points, n_points)
-    path_matrix = fill(Vector{LineString{2, Float64}}(), n_points, n_points)
+    path_matrix = fill(Vector{LineString{2,Float64}}(), n_points, n_points)
 
     for point_j_idx in 1:n_points
         for point_i_idx in 1:point_j_idx-1
@@ -34,13 +34,13 @@ function get_feasible_matrix(
                 if any(point_in_exclusion.(point_nodes, [exclusions]))
                     dist_matrix[point_i_idx, point_j_idx] =
                         dist_matrix[point_j_idx, point_i_idx] =
-                        Inf
+                            Inf
                 else
                     dist_matrix[point_i_idx, point_j_idx],
-                        path_matrix[point_i_idx, point_j_idx] =
-                            shortest_feasible_path(
-                                point_nodes[1], point_nodes[2], exclusions
-                            )
+                    path_matrix[point_i_idx, point_j_idx] =
+                        shortest_feasible_path(
+                            point_nodes[1], point_nodes[2], exclusions
+                        )
                     dist_matrix[point_j_idx, point_i_idx] =
                         dist_matrix[point_i_idx, point_j_idx]
                 end
@@ -71,14 +71,14 @@ environmental constraints.
 - `path_vector`: A vector of paths between waypoints, represented as LineStrings.
 """
 function get_feasible_vector(
-    nodes::Vector{Point{2, Float64}}, exclusions::DataFrame
-)::Tuple{Vector{Float64}, Vector{Vector{LineString{2, Float64}}}}
-    n_points = length(nodes)-1
+    nodes::Vector{Point{2,Float64}}, exclusions::DataFrame
+)::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
+    n_points = length(nodes) - 1
     dist_vector = zeros(Float64, n_points)
-    path_vector = fill(Vector{LineString{2, Float64}}(), n_points)
+    path_vector = fill(Vector{LineString{2,Float64}}(), n_points)
 
     for point_i_idx in 1:n_points
-        point_nodes = getindex(nodes, [point_i_idx, point_i_idx+1])
+        point_nodes = getindex(nodes, [point_i_idx, point_i_idx + 1])
         if nodes[point_i_idx] != nodes[point_i_idx+1]
             # TODO: Process elsewhere
             # Check if any of the points are within an exclusion zone
@@ -86,9 +86,9 @@ function get_feasible_vector(
                 dist_vector[point_i_idx] = Inf
             else
                 dist_vector[point_i_idx], path_vector[point_i_idx] =
-                shortest_feasible_path(
-                    point_nodes[1], point_nodes[2], exclusions
-                )
+                    shortest_feasible_path(
+                        point_nodes[1], point_nodes[2], exclusions
+                    )
             end
         end
     end
@@ -114,8 +114,8 @@ Create a vector of feasible distances between the current location and each targ
 - A vector of feasible distances (m) between the current location and each target point.
 """
 function get_feasible_distances(
-    current_location::Point{2, Float64},
-    targets::Vector{Point{2, Float64}},
+    current_location::Point{2,Float64},
+    targets::Vector{Point{2,Float64}},
     exclusions::DataFrame
 )::Vector{Float64}
     n_points = length(targets)
@@ -160,13 +160,13 @@ Check if a point is within an exclusion zone.
 # Returns
 - `true` if point is within an exclusion zone, `false` otherwise.
 """
-function point_in_exclusion(point::Point{2, Float64}, exclusion::AG.IGeometry)::Bool
+function point_in_exclusion(point::Point{2,Float64}, exclusion::AG.IGeometry)::Bool
     return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
 end
-function point_in_exclusion(point::Point{2, Float64}, exclusions::Vector{AG.IGeometry})::Bool
+function point_in_exclusion(point::Point{2,Float64}, exclusions::Vector{AG.IGeometry})::Bool
     return any(AG.contains.(exclusions, Ref(AG.createpoint(point[1], point[2]))))
 end
-function point_in_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Bool
+function point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Bool
     return any(AG.contains.(exclusions.geometry, Ref(AG.createpoint(point[1], point[2]))))
 end
 
@@ -182,7 +182,7 @@ Return the index of the exclusion zone that contains the point.
 # Returns
 - Index of the first exclusion zone that contains the point, or 0 if not found.
 """
-function containing_exclusion(point::Point{2, Float64}, exclusions::DataFrame)::Int
+function containing_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Int
     point_ag = AG.createpoint(point[1], point[2])
     exclusion_idx = findfirst(AG.contains.(exclusions.geometry, [point_ag]))
     return isnothing(exclusion_idx) ? 0 : exclusion_idx
@@ -211,10 +211,10 @@ start pt and any other intersecting polygons.
 - The shortest feasible path as a vector of LineStrings.
 """
 function shortest_feasible_path(
-    initial_point::Point{2, Float64},
-    final_point::Point{2, Float64},
+    initial_point::Point{2,Float64},
+    final_point::Point{2,Float64},
     exclusions::DataFrame,
-)::Tuple{Float64, Vector{LineString{2, Float64}}}
+)::Tuple{Float64,Vector{LineString{2,Float64}}}
     final_exclusion_idx = point_in_convexhull(final_point, exclusions)
     initial_exclusion_idx = point_in_convexhull(initial_point, exclusions)
 
@@ -238,24 +238,24 @@ function shortest_feasible_path(
             final_exclusion_idx
         )
     else
-            # Collect all visible polygon vertices
-            initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
-                initial_exclusion_idx, :geometry
-            ]
-            poly_vertices::Vector{Point{2, Float64}} = collect_polygon_vertices(
-                initial_polygon
+        # Collect all visible polygon vertices
+        initial_polygon::AG.IGeometry{AG.wkbPolygon} = exclusions[
+            initial_exclusion_idx, :geometry
+        ]
+        poly_vertices::Vector{Point{2,Float64}} = collect_polygon_vertices(
+            initial_polygon
         )
         visible_vertices = unique(
             filter(
                 v ->
                     v != initial_point &&
-                    is_visible(initial_point, v, exclusions),
+                        is_visible(initial_point, v, exclusions),
                 poly_vertices
             )
         )
-            if !isempty(visible_vertices)
-                # Connect initial point to every visible polygon vertex
-                n_vis_verts = length(visible_vertices)
+        if !isempty(visible_vertices)
+            # Connect initial point to every visible polygon vertex
+            n_vis_verts = length(visible_vertices)
 
             append!(points_from, fill(initial_point, n_vis_verts))
             append!(points_to, visible_vertices)
@@ -274,16 +274,16 @@ function shortest_feasible_path(
             if !isempty(vis_pts_from_i)
                 append!(points_from, fill(i, n_vis_pts_from_i))
                 append!(points_to, vis_pts_from_i)
-                        append!(
-                            exclusion_idxs,
-                            fill(initial_exclusion_idx, n_vis_pts_from_i)
-                        )
-                    end
-                    if is_visible(i, final_point, exclusions)
-                        # Connect initial point to final point if visible
-                        push!(points_from, i)
-                        push!(points_to, final_point)
-                        push!(exclusion_idxs, initial_exclusion_idx)
+                append!(
+                    exclusion_idxs,
+                    fill(initial_exclusion_idx, n_vis_pts_from_i)
+                )
+            end
+            if is_visible(i, final_point, exclusions)
+                # Connect initial point to final point if visible
+                push!(points_from, i)
+                push!(points_to, final_point)
+                push!(exclusion_idxs, initial_exclusion_idx)
             end
         end
 
@@ -292,7 +292,7 @@ function shortest_feasible_path(
         widest_verts = find_widest_points(
             final_point,
             initial_point,
-            DataFrame(exclusions[initial_exclusion_idx,:])
+            DataFrame(exclusions[initial_exclusion_idx, :])
         )[1]
 
         build_network!.(
@@ -313,7 +313,7 @@ function shortest_feasible_path(
         points_to,
         exclusions,
         iszero(final_exclusion_idx) ?
-            AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx, :geometry],
+        AG.creategeom(AG.wkbPolygon) : exclusions[final_exclusion_idx, :geometry],
         initial_point,
         final_point
     )
@@ -345,7 +345,7 @@ Check if a point is within a convex hull of exclusion zones.
 - Index of exclusion zone if point is within a convex hull, 0 otherwise.
 """
 function point_in_convexhull(
-    point::Point{2, Float64},
+    point::Point{2,Float64},
     exclusions::DataFrame
 )::Int
     point_ag = AG.createpoint(point[1], point[2])
@@ -385,11 +385,11 @@ Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
 - `final_exclusion_idx`: Index of the final exclusion zone.
 """
 function build_network!(
-    points_from::Vector{Point{2, Float64}},
-    points_to::Vector{Point{2, Float64}},
+    points_from::Vector{Point{2,Float64}},
+    points_to::Vector{Point{2,Float64}},
     exclusion_idxs::Vector{Int},
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
+    current_point::Point{2,Float64},
+    final_point::Point{2,Float64},
     exclusions::DataFrame,
     final_exclusion_idx::Int
 )::Nothing
@@ -413,8 +413,8 @@ function build_network!(
         # If vertex is nothing, or already visited/explored,
         # or edge already exists in network, skip
         if isnothing(vertex) ||
-            vertex == current_point ||
-            (current_point, vertex) ∈ zip(points_from, points_to)
+           vertex == current_point ||
+           (current_point, vertex) ∈ zip(points_from, points_to)
             continue
         end
 
@@ -426,7 +426,7 @@ function build_network!(
         # If verticex already visited/explored, skip
         # If final exclusion zone reached, vertices added to graph later in build_graph()
         if vertex ∈ points_from ||
-            (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
+           (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
             continue
         end
 
@@ -472,33 +472,33 @@ If polygon is provided, connect it to visible points in graph and visible vertic
 - Index of final point. Used in a_star to specify target point.
 """
 function build_graph(
-    points_from::Vector{Point{2, Float64}},
-    points_to::Vector{Point{2, Float64}},
+    points_from::Vector{Point{2,Float64}},
+    points_to::Vector{Point{2,Float64}},
     exclusions::DataFrame,
     final_polygon::AG.IGeometry{AG.wkbPolygon},
-    initial_point::Point{2, Float64},
-    final_point::Point{2, Float64}
-)::Tuple{SimpleWeightedGraph{Int64, Float64}, Vector{Point{2, Float64}}, Int64, Int64}
+    initial_point::Point{2,Float64},
+    final_point::Point{2,Float64}
+)::Tuple{SimpleWeightedGraph{Int64,Float64},Vector{Point{2,Float64}},Int64,Int64}
     is_polygon = !AG.isempty(final_polygon)
 
-    final_poly_verts::Vector{Point{2, Float64}} = is_polygon ?
-        collect_polygon_vertices(final_polygon) :
-        Point{2, Float64}[]
+    final_poly_verts::Vector{Point{2,Float64}} = is_polygon ?
+                                                 collect_polygon_vertices(final_polygon) :
+                                                 Point{2,Float64}[]
 
     # Collect connected points from network
     #? Use `Set`?
-    chain_points::Vector{Point{2, Float64}} = unique(
+    chain_points::Vector{Point{2,Float64}} = unique(
         vcat(points_from, points_to, [final_point])
     )
 
-    unique_points::Vector{Point{2, Float64}} = unique(vcat(chain_points, final_poly_verts))
+    unique_points::Vector{Point{2,Float64}} = unique(vcat(chain_points, final_poly_verts))
     n_points::Int = length(unique_points)
 
     # Create the graph with one vertex per unique point.
     graph = SimpleWeightedGraph(n_points)
 
     # Map points to indices
-    pt_to_idx = Dict{Point{2, Float64}, Int}(unique_points .=> 1:n_points)
+    pt_to_idx = Dict{Point{2,Float64},Int}(unique_points .=> 1:n_points)
 
     # Add candidate (chain) edges.
     add_edge!.(Ref(graph),
@@ -516,7 +516,7 @@ function build_graph(
             # Add edges connecting any visible polygon vertices to other polyogn vertices
             for i in final_poly_verts
                 visibility_mask = (final_poly_verts .!= i) .&
-                    is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
+                                  is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
 
                 visible_points = final_poly_verts[visibility_mask]
 
@@ -587,7 +587,7 @@ Collect all vertices of a polygon.
 - Vector of polygon vertices.
 """
 function collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
-)::Vector{Point{2, Float64}}
+)::Vector{Point{2,Float64}}
     exterior_ring = AG.getgeom(polygon, 0)
     n_pts = AG.ngeom(exterior_ring)
     pts = Vector{Point{2,Float64}}(undef, n_pts)

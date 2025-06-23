@@ -16,7 +16,7 @@ Read and process target location geometries to generate a rasterized representat
 """
 function process_geometry_targets(
     geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
-    resolution::Float64 = 0.0001
+    resolution::Float64=0.0001
 )::Raster{Int}
     # Compute centroids from the geometries
     target_centroids = AG.centroid.(geometries)
@@ -29,9 +29,9 @@ function process_geometry_targets(
     return Rasters.rasterize(
         last,
         targets_pts_tuple;
-        res = resolution,
-        missingval = 0,
-        fill = 1,
+        res=resolution,
+        missingval=0,
+        fill=1,
     )
 end
 
@@ -47,16 +47,16 @@ Convert a raster to a GeoDataFrame by extracting the coordinates of the raster c
 # Returns
 A GeoDataFrame containing the coordinates of the raster cells where the value is 1.
 """
-function raster_to_gdf(raster::Raster{Int, 2})
+function raster_to_gdf(raster::Raster{Int,2})
     indices::Vector{CartesianIndex{2}} = findall(x -> x == 1, raster)
 
     lons = raster.dims[1][getindex.(indices, 1)]
     lats = raster.dims[2][getindex.(indices, 2)]
 
-    coords = Point{2, Float64}.(zip(lons, lats))
+    coords = Point{2,Float64}.(zip(lons, lats))
     return DataFrame(
-        ID = 1:length(coords),
-        geometry = coords
+        ID=1:length(coords),
+        geometry=coords
     )
 end
 
@@ -185,8 +185,8 @@ function process_targets(
     subset::DataFrame,
     target_subset_path::String="",
 )::Raster{Int64}
-    suitable_targets_all = Raster(target_path; lazy = true)
-    suitable_targets_masked =  target_threshold(suitable_targets_all, suitable_threshold)
+    suitable_targets_all = Raster(target_path; lazy=true)
+    suitable_targets_masked = target_threshold(suitable_targets_all, suitable_threshold)
 
     suitable_targets_subset::Raster{Int} = Rasters.crop(
         suitable_targets_masked,
