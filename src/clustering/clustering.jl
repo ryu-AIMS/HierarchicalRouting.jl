@@ -11,9 +11,6 @@ using Hungarian
     # waypoints::NTuple{2, Point{2, Float64}}
 end
 
-Q = 1234
-GLOBAL_RNG = MersenneTwister(Q)
-
 """
     generate_cluster_df(
         clusters::Vector{Cluster},
@@ -180,8 +177,7 @@ function disturb_remaining_clusters(
     disturbance_clusters = kmeans(
         coordinates_array_3d,
         k_d;
-        tol=tol,
-        rng=GLOBAL_RNG
+        tol=tol
     )
 
     # Create a score based on the disturbance values for each cluster
@@ -237,8 +233,7 @@ function disturb_remaining_clusters(
     clustering = kmeans(
         coordinates_array_3d_disturbed,
         k;
-        tol=tol,
-        rng=GLOBAL_RNG
+        tol=tol
     )
 
     clustered_targets = similar(raster, Int64, missingval=0)
@@ -272,13 +267,12 @@ function disturb_remaining_clusters(
     # Create k_d clusters to create disturbance on subset
     k_d_lower = k + 1
     k_d_upper = n_sites
-    k_d = rand(GLOBAL_RNG, k_d_lower:k_d_upper)
+    k_d = rand(k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
         coordinates_3d,
         k_d;
-        tol=tol,
-        rng=GLOBAL_RNG
+        tol=tol
     )
 
     # Create a score based on the disturbance values for each cluster
@@ -292,7 +286,7 @@ function disturb_remaining_clusters(
             mean(coordinates_3d[3, disturbance_clusters.assignments.==i])
             for i in 1:k_d
         ] .+
-        t * rand(GLOBAL_RNG, -1.0:0.01:1.0, k_d)
+        t * rand(-1.0:0.01:1.0, k_d)
 
     # Assign the disturbance value to every node in the cluster
     disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
@@ -464,7 +458,7 @@ function _constrained_kmeans_single_iteration(
     k_spec::Int=0,
     tol::Float64=0.01
 )::Vector{Int64}
-    clustering = kmeans(coordinates, k; tol=tol, maxiter=max_iter, rng=GLOBAL_RNG)
+    clustering = kmeans(coordinates, k; tol=tol, maxiter=max_iter)
     clustering_assignment::Vector{Int64} = copy(clustering.assignments)
 
     # Build clusters & centroids
