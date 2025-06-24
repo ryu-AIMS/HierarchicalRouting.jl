@@ -218,9 +218,6 @@ function closest_crossed_polygon(
     vertex_in_line_bbox::Bool = false
     line_in_polygon_bbox::Bool = false
 
-    current_point_geom = AG.createpoint(current_point[1], current_point[2])
-    final_point_geom = AG.createpoint(final_point[1], final_point[2])
-
     closest_polygon = (AG.creategeom(wkbPolygon), AG.creategeom(wkbLineString), 0)
     min_dist = Inf
     polygon_idx = 0
@@ -231,8 +228,8 @@ function closest_crossed_polygon(
 
     # Define bounding box for line to exclude polygons that do not intersect
     line::IGeometry{wkbLineString} = AG.createlinestring(
-        [current_point[1], final_point[1]],
-        [current_point[2], final_point[2]]
+        Float64[current_point[1], final_point[1]],
+        Float64[current_point[2], final_point[2]]
     )
 
     line_min_x::Float64 = min(current_point[1], final_point[1])
@@ -283,10 +280,9 @@ function closest_crossed_polygon(
 
         # Check if line crosses polygon or touches both current and final points
         if AG.crosses(line, geom) ||
-           (AG.touches(current_point_geom, geom) && AG.touches(final_point_geom, geom))
-
+           (GO.touches(current_point, geom) && GO.touches(final_point, geom))
             intersections::IGeometry = AG.intersection(line, geom)
-            pts::Vector{IGeometry} = get_pts(intersections)
+            pts::Vector{IGeometry{wkbPoint}} = get_pts(intersections)
             dist::Float64 = minimum(
                 GO.distance.(
                     Ref{Point{2,Float64}}(current_point),
@@ -302,6 +298,7 @@ function closest_crossed_polygon(
             end
         end
     end
+
     return closest_polygon, polygon_idx
 end
 
