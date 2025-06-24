@@ -19,6 +19,7 @@ Best total MSTSolution found
 """
 function initial_solution(
     problem::Problem;
+    k::Int=1,
     disturbance_clusters::Set{Int64} = Set{Int64}()
 )::MSTSolution
     n_events = length(disturbance_clusters) + 1
@@ -29,7 +30,7 @@ function initial_solution(
 
     # Load problem data
     clusters::Vector{Cluster} = cluster_problem(
-        problem,
+        problem; k
     );
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
