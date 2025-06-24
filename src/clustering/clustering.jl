@@ -42,7 +42,7 @@ end
 """
     cluster_problem(
         problem::Problem;
-        k::Int=1,
+        k::Int=0,
         dist_weighting::Float64=5E-6
     )::Vector{Cluster}
 
