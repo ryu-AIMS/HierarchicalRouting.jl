@@ -216,13 +216,9 @@ function shortest_feasible_path(
     points_from = Point{2,Float64}[]
     points_to = Point{2,Float64}[]
     exclusion_idxs = Int64[]
-    # If initial point is not within an exclusion zone
-    if is_visible(initial_point, final_point, exclusions)
-        # If initial point is within an exclusion zone and visible to final point
-        push!(points_from, initial_point)
-        push!(points_to, final_point)
-        push!(exclusion_idxs, initial_exclusion_idx)
-    elseif iszero(initial_exclusion_idx)
+
+    if iszero(initial_exclusion_idx)
+        # If initial point is not within an exclusion zone
         build_network!(
             points_from,
             points_to,
@@ -232,6 +228,11 @@ function shortest_feasible_path(
             exclusions,
             final_exclusion_idx
         )
+    elseif is_visible(initial_point, final_point, exclusions)
+        # If initial point is within an exclusion zone and visible to final point
+        push!(points_from, initial_point)
+        push!(points_to, final_point)
+        push!(exclusion_idxs, initial_exclusion_idx)
     else
         # Collect all visible polygon vertices
         initial_polygon::IGeometry{wkbPolygon} = exclusions[initial_exclusion_idx]
