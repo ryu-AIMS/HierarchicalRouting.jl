@@ -251,9 +251,9 @@ function shortest_feasible_path(
             # Connect initial point to every visible polygon vertex
             n_vis_verts = length(visible_vertices)
 
-            append!(points_from, fill(initial_point, n_vis_verts))
-            append!(points_to, visible_vertices)
-            append!(exclusion_idxs, fill(initial_exclusion_idx, n_vis_verts))
+            points_from = fill(initial_point, n_vis_verts)
+            points_to = visible_vertices
+            exclusion_idxs = fill(initial_exclusion_idx, n_vis_verts)
 
             #? Connect initial point to all visible vertices on final polygon?
         end
