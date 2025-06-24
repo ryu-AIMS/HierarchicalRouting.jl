@@ -317,7 +317,7 @@ A vector of points from the intersection geometry.
 function get_pts(intersections::IGeometry{AG.wkbPoint})::Vector{IGeometry{wkbPoint}}
     return [intersections]
 end
-function get_pts(intersections::IGeometry)::Vector{IGeometry}
+function get_pts(intersections::IGeometry{wkbLineString})::Vector{IGeometry{wkbPoint}}
     n = AG.ngeom(intersections)
     return AG.getgeom.(Ref(intersections), 0:n-1)
 end
