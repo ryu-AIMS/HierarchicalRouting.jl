@@ -80,13 +80,13 @@ function get_feasible_vector(
         if nodes[point_i_idx] != nodes[point_i_idx+1]
             # TODO: Process elsewhere
             # Check if any of the points are within an exclusion zone
-            if any(point_in_exclusion.(point_nodes, [exclusions]))
-                dist_vector[point_i_idx] = Inf
-            else
+            if !any(point_in_exclusion.(point_nodes, [exclusions]))
                 dist_vector[point_i_idx], path_vector[point_i_idx] =
                     shortest_feasible_path(
                         point_nodes[1], point_nodes[2], exclusions
                     )
+            else
+                dist_vector[point_i_idx] = Inf
             end
         end
     end
