@@ -283,7 +283,7 @@ function perturb_swap_solution(
     tenders_all[clust_b_seq_idx] = tender_b_improved
 
     tenders_full_updated::Vector{Vector{TenderSolution}} = [
-        copy(soln.tenders[end]),
+        soln.tenders[end],
         tenders_all
     ]
     # Create new perturbed solution
