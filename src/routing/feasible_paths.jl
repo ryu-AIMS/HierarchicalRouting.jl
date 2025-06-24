@@ -592,19 +592,11 @@ Collect all vertices of a polygon.
 - `polygon`: Polygon to collect vertices from.
 
 # Returns
-- Vector of polygon vertices.
+Vector of polygon vertices.
 """
-function collect_polygon_vertices(polygon::IGeometry{wkbPolygon}
-)::Vector{Point{2,Float64}}
-    exterior_ring = AG.getgeom(polygon, 0)
-    n_pts = AG.ngeom(exterior_ring)
-    pts = Vector{Point{2,Float64}}(undef, n_pts)
-
-    # iterate safely within all points in the exterior ring to populate pts with vertices
-    @inbounds for i in 1:n_pts
-        pt = AG.getpoint(exterior_ring, i - 1)  # 0-indexed
-        pts[i] = Point{2,Float64}(pt[1], pt[2])
-    end
+function collect_polygon_vertices(polygon::IGeometry{wkbPolygon})::Vector{Point{2,Float64}}
+    exterior_ring::IGeometry{wkbLineString} = GI.getgeom(polygon, 1)
+    pts::Vector{Point{2,Float64}} = Point{2,Float64}.(GI.coordinates(exterior_ring))
 
     return unique(pts)
 end
