@@ -437,7 +437,7 @@ end
     )::TenderSolution
 
 Apply the 2-opt heuristic to improve current routes by uncrossing crossed links between
-    waypoints for the whole route or between current location and depot.
+waypoints for the whole route or between current location and depot.
 
 # Arguments
 - `ms_soln_current`: Current MothershipSolution to improve.
