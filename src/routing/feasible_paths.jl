@@ -143,15 +143,13 @@ function get_feasible_distances(
 end
 
 """
-    point_in_exclusion(point::Point{2,Float64}, exclusion::IGeometry)::Bool
+    point_in_exclusion(point::Point{2,Float64}, exclusion::IGeometry{wkbPolygon})::Bool
     point_in_exclusion(point::Point{2,Float64}, exclusions::Vector{IGeometry{wkbPolygon}})::Bool
-    point_in_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Bool
 
 Check if a point is within an exclusion zone.
 
 # Arguments
 - `point`: Point to check.
-- `exclusions::DataFrame`: A DataFrame containing exclusion zone polygons.
 - `exclusion::IGeometry`: One exclusion zone polygon/geometry from a DataFrame.
 - `exclusions::Vector{IGeometry{wkbPolygon}}`: A vector of exclusion zone polygons/geometry.
 
@@ -166,7 +164,7 @@ function point_in_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Bool
 end
 
 """
-    containing_exclusion(point::Point{2,Float64}, exclusions::DataFrame)::Int
+    containing_exclusion(point::Point{2,Float64}, exclusions::Vector{IGeometry{wkbPolygon}})::Int
 
 Return the index of the exclusion zone that contains the point.
 
@@ -187,7 +185,7 @@ end
     shortest_feasible_path(
         initial_point::Point{2,Float64},
         final_point::Point{2,Float64},
-        exclusions::DataFrame
+        exclusions::Vector{IGeometry{wkbPolygon}}
     )::Tuple{Float64,Vector{LineString{2,Float64}}}
 
 Find the shortest feasible path between two points.
@@ -199,7 +197,7 @@ start pt and any other intersecting polygons.
 # Arguments
 - `initial_point`: Starting point of path.
 - `final_point`: Ending point of path.
-- `exclusions`: A DataFrame containing exclusion zone polygons.
+- `exclusions`: A vector of exclusion zones.
 
 # Returns
 - The distance of the shortest feasible path (in metres).
@@ -357,7 +355,7 @@ end
         exclusion_idxs::Vector{Int},
         current_point::Point{2,Float64},
         final_point::Point{2,Float64},
-        exclusions::DataFrame,
+        exclusions::Vector{IGeometry{wkbPolygon}},
         final_exclusion_idx::Int
     )::Nothing
 
@@ -437,7 +435,7 @@ end
     build_graph(
         points_from::Vector{Point{2,Float64}},
         points_to::Vector{Point{2,Float64}},
-        exclusions::DataFrame,
+        exclusions::Vector{IGeometry{wkbPolygon}},
         final_polygon::IGeometry{wkbPolygon},
         initial_point::Point{2,Float64},
         final_point::Point{2,Float64}
@@ -584,8 +582,7 @@ function build_graph(
 end
 
 """
-    collect_polygon_vertices(polygon::AG.IGeometry{AG.wkbPolygon}
-    )::Vector{Point{2,Float64}}
+    collect_polygon_vertices(polygon::IGeometry{wkbPolygon})::Vector{Point{2,Float64}}
 
 Collect all vertices of a polygon.
 

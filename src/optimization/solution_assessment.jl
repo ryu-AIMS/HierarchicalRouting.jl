@@ -319,7 +319,7 @@ end
 """
     insert_unallocated_node(
         soln::MSTSolution,
-        exclusions::DataFrame=DataFrame()
+        exclusions::Vector{IGeometry{wkbPolygon}}
         max_dist::Int64=15000;
         t_cap::Int16,
         current_cluster_seq_idx::Int=-1,
@@ -327,7 +327,7 @@ end
     insert_unallocated_node(
         clusters_ex::Vector{Cluster},
         tenders_ex::Vector{TenderSolution},
-        exclusions::DataFrame=DataFrame(),
+        exclusions::Vector{IGeometry{wkbPolygon}},
         max_dist::Float64=15000;
         t_cap::Int16,
         current_cluster_seq_idx::Int=-1,

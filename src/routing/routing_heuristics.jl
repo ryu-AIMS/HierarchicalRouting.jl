@@ -54,7 +54,7 @@ end
 """
     adjust_waypoint(
         waypoint::Point{2,Float64},
-        exclusions::DataFrame,
+        exclusions::Vector{IGeometry{wkbPolygon}},
     )::Point{2,Float64}
 
 Adjust waypoint if inside exclusion zone to closest boundary point outside exclusion zone.
@@ -66,7 +66,6 @@ function adjust_waypoint(
     waypoint::Point{2,Float64},
     exclusions::POLY_VEC,
 )::Point{2,Float64}
-
     waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
     convex_hulls::POLY_VEC = AG.convexhull.(exclusions)
     containing_polygons::POLY_VEC = filter(
@@ -924,7 +923,7 @@ end
         waypoints::NTuple{2,Point{2,Float64}},
         n_tenders::Int8,
         t_cap::Int16,
-        exclusions::DataFrame
+        exclusions::Vector{IGeometry{wkbPolygon}}
     )::TenderSolution
 
 Assign nodes to tenders sequentially (stop-by-stop) based on nearest neighbor.

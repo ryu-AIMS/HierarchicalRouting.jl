@@ -171,7 +171,7 @@ end
     closest_crossed_polygon(
         current_point::Point{2,Float64},
         final_point::Point{2,Float64},
-        exclusions::DataFrame,
+        exclusions::Vector{IGeometry{wkbPolygon}},
         visited_exclusion_idxs::Vector{Int}
     )::Tuple{
         Tuple{
@@ -335,7 +335,7 @@ end
     is_visible(
         current_point::Point{2,Float64},
         final_point::Point{2,Float64},
-        exclusions::DataFrame,
+        exclusions::Vector{IGeometry{wkbPolygon}},
         current_exclusions_idx::Vector{Int}=[0]
     )::Bool
 
