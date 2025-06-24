@@ -378,14 +378,6 @@ end
 function is_visible(
     current_point::Point{2,Float64},
     final_point::Point{2,Float64},
-    exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int64}=[0]
-)::Bool
-    return is_visible(current_point, final_point, exclusions.geometry, current_exclusions_idx)
-end
-function is_visible(
-    current_point::Point{2,Float64},
-    final_point::Point{2,Float64},
     geometries::POLY_VEC,
     current_exclusions_idx::Vector{Int}=[0]
 )
