@@ -98,26 +98,28 @@ end
         dist_matrix::Matrix{Float64}
     )::Float64
 
+Compute the cost of a sortie, which starts and ends at given points, but does not return to
+    start.
+
 # Arguments
 - `sortie`: Route object containing nodes and distance matrix.
-- `node_order`: Vector of node indices (not including the start and finish).
+- `node_order`: Vector of node indices representing the order of the sortie.
 - `dist_matrix`: Distance matrix between nodes, ordered by node index.
 
 # Returns
 The total distance of the sortie.
 """
 function tender_sortie_dist(sortie::Route)::Float64
-    dist = sum(@view sortie.dist_matrix[1:end-1, 2:end])
-    return dist
+    return sum(@view sortie.dist_matrix[1:end-1, 2:end])
 end
 function tender_sortie_dist(
     node_order::Vector{Int64},
     dist_matrix::Matrix{Float64}
 )::Float64
-    dist = dist_matrix[1, node_order[1]+1] # dist from start (node 1) to first node
-    dist += sum(@view dist_matrix[node_order[1:end-1] .+ 1, node_order[2:end] .+ 1])
-    dist += dist_matrix[node_order[end]+1, end] # dist from last deployment loc to end node
-    return dist
+    return sum(
+        dist_matrix[node_order[i], node_order[i+1]]
+        for i in 1:(length(node_order)-1)
+    )
 end
 
 """
@@ -171,7 +173,7 @@ The total (critical path) cost of the solution.
 """
 function critical_path(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2, Float64}=(1.0, 1.0)
+    vessel_weightings::NTuple{2, Float16}=(Float16(1.0), Float16(1.0))
 )::Float64
     # Within clusters
     cluster_sorties = tender_clust_dist.(soln.tenders[end])
