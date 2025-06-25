@@ -227,6 +227,20 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
+# Compute critical path for a perturbed waypoint. Update both mothership and tender routes.
+function adjusted_waypoint_critial_path(
+    p::Point{2,Float64},
+    idx::Int64,
+    wpts::Vector{Point{2,Float64}},
+    soln::MSTSolution
+)::Float64
+    tmp_wpts = copy(wpts)
+    tmp_wpts[idx] = p
+    cand = update_waypoints(soln, tmp_wpts)
+
+    return critical_path(cand)
+end
+
 function update_waypoints(soln::MSTSolution, tmp_wpts::Vector{Point{2, Float64}})::MSTSolution
     # Update the waypoints in the mothership route
     new_route::Route = Route(
