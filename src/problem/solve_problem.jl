@@ -133,7 +133,10 @@ Generate a solution to the problem for:
 
 # Arguments
 - `problem`: Problem instance to solve
+- `k`: Number of clusters to generate
 - `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
+- `seed`: Optional seed for random number generation
+- `rng`: AbstractRNG for random number generation
 
 # Returns
 Best total MSTSolution found
