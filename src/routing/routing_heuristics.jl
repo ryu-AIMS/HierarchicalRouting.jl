@@ -227,6 +227,31 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
+function update_waypoints(soln::MSTSolution, tmp_wpts::Vector{Point{2, Float64}})::MSTSolution
+    # Update the waypoints in the mothership route
+    new_route::Route = Route(
+        tmp_wpts,
+        soln.mothership_routes[end].route.dist_matrix,
+        soln.mothership_routes[end].route.line_strings
+    )
+
+    # Create a new MothershipSolution with the updated route
+    new_ms_soln = MothershipSolution(
+        soln.mothership_routes[end].cluster_sequence,
+        new_route
+    )
+
+    # Update the tender solutions with the new waypoints
+    tender_soln_new = generate_proxy_sorties(soln, tmp_wpts)
+
+    # Return a new MSTSolution with the updated mothership route
+    return MSTSolution(
+        soln.cluster_sets,
+        [new_ms_soln],
+        [tender_soln_new]
+    )
+end
+
 function generate_proxy_sorties(
     soln::MSTSolution,
     tmp_wpts::Vector{Point{2, Float64}}
