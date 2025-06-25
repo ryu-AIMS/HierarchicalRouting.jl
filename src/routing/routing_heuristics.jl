@@ -227,6 +227,44 @@ function get_waypoints(
     return DataFrame(waypoint = waypoints, connecting_clusters = connecting_clusters)
 end
 
+function steepest_descent(
+    idx::Int,
+    wpts::Vector{Point{2,Float64}},
+    soln::MSTSolution,
+    exclusions_mothership::DataFrame,
+    learning_rate::Float64,
+    tolerance::Float64,
+    max_desc_iters::Int;
+    δ::Float64 = 1e-3
+)::Point{2,Float64}
+    point = wpts[idx]
+
+    for _ in 1:max_desc_iters
+        x, y = point[1], point[2]
+
+        # Cost when shifting point in each cardinal/compass direction
+        Δ_E = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x + δ, y), idx, wpts, soln)
+        Δ_W = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x - δ, y), idx, wpts, soln)
+        Δ_N = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x, y + δ), idx, wpts, soln)
+        Δ_S = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x, y - δ), idx, wpts, soln)
+
+        # Compute gradients
+        g_x = (Δ_E - Δ_W) / (2δ)
+        g_y = (Δ_N - Δ_S) / (2δ)
+
+        # Check if the gradient is small enough to stop
+        g_x^2 + g_y^2 < tolerance^2 && break
+
+        # Respect exclusion zones
+        candidate = Point(x-learning_rate*g_x, y-learning_rate*g_y)
+        point_in_exclusion(candidate, exclusions_mothership) && break
+
+        point = candidate
+    end
+
+    return point
+end
+
 # Compute critical path for a perturbed waypoint. Update both mothership and tender routes.
 function adjusted_waypoint_critial_path(
     p::Point{2,Float64},
