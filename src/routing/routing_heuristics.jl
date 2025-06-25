@@ -227,6 +227,38 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
+function generate_proxy_sorties(
+    soln::MSTSolution,
+    tmp_wpts::Vector{Point{2, Float64}}
+)::Vector{TenderSolution}
+    # Update the tender solutions with the new waypoints
+    tender_soln_ex = soln.tenders[end]
+
+    ids = getfield.(tender_soln_ex, :id);
+    starts_ex = getfield.(tender_soln_ex, :start);
+    finishes_ex = getfield.(tender_soln_ex, :finish);
+    sorties = getfield.(tender_soln_ex, :sorties);
+    dist_mats = getfield.(tender_soln_ex, :dist_matrix);
+
+    js = 1:length(tender_soln_ex)
+
+    starts_new = tmp_wpts[2 .* js]
+    finishes_new = tmp_wpts[2 .* js .+ 1]
+
+    # mask of which tenders actually need updating
+    mask = .!((starts_ex .== starts_new) .& (finishes_ex .== finishes_new))
+
+    tender_soln_new = copy(tender_soln_ex)
+    tender_soln_new[mask] = TenderSolution.(
+        ids[mask],
+        starts_ex[mask],
+        finishes_ex[mask],
+        sorties[mask],
+        dist_mats[mask]
+    )
+    return tender_soln_new
+end
+
 """
     nearest_neighbour(
         cluster_centroids::DataFrame,
