@@ -227,6 +227,46 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
+function optimize_waypoints(
+    soln::MSTSolution,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame;
+    learning_rate::Float64=1e-8,
+    tolerance::Float64=1e-6,
+    max_desc_iters::Int=50,
+    max_search_iters::Int=10
+)::MSTSolution
+    wpts = copy(soln.mothership_routes[end].route.nodes)
+    n = length(wpts)
+
+    for _ in 1:max_search_iters
+        improved = false
+        for idx in 2:(n-1)
+            curr_pt = wpts[idx]
+
+            new_pt = steepest_descent(
+                idx, wpts, soln,
+                exclusions_mothership,
+                exclusions_tender,
+                learning_rate,
+                tolerance,
+                max_desc_iters
+            )
+
+            if haversine(new_pt, curr_pt) > tolerance
+                wpts[idx] = new_pt
+                improved = true
+            end
+        end
+        improved || break
+    end
+
+    # Update solution and regenerate tender sorties once more
+    soln_opt = update_waypoints(soln, wpts, exclusions_mothership, exclusions_tender)
+
+    return soln_opt
+end
+
 function steepest_descent(
     idx::Int,
     wpts::Vector{Point{2,Float64}},
