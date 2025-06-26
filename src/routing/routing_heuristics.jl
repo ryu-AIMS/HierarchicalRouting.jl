@@ -232,6 +232,7 @@ function steepest_descent(
     wpts::Vector{Point{2,Float64}},
     soln::MSTSolution,
     exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
     learning_rate::Float64,
     tolerance::Float64,
     max_desc_iters::Int;
@@ -243,12 +244,14 @@ function steepest_descent(
         x, y = point[1], point[2]
 
         # Cost when shifting point in each cardinal/compass direction
-        Δ_N, Δ_S, Δ_E, Δ_W = adjusted_waypoint_critial_path.(
+        Δ_N, Δ_S, Δ_E, Δ_W = getindex.(adjusted_waypoint_critial_path.(
             [Point(x, y + δ), Point(x, y - δ), Point(x + δ, y), Point(x - δ, y)],
             Ref(idx),
             Ref(wpts),
-            Ref(soln)
-        )
+            Ref(soln),
+            Ref(exclusions_mothership),
+            Ref(exclusions_tender)
+        ), 1)
 
         # Compute gradients
         g_x = (Δ_E - Δ_W) / (2δ)
