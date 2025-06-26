@@ -243,10 +243,12 @@ function steepest_descent(
         x, y = point[1], point[2]
 
         # Cost when shifting point in each cardinal/compass direction
-        Δ_E = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x + δ, y), idx, wpts, soln)
-        Δ_W = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x - δ, y), idx, wpts, soln)
-        Δ_N = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x, y + δ), idx, wpts, soln)
-        Δ_S = HierarchicalRouting.adjusted_waypoint_critial_path(Point(x, y - δ), idx, wpts, soln)
+        Δ_N, Δ_S, Δ_E, Δ_W = adjusted_waypoint_critial_path.(
+            [Point(x, y + δ), Point(x, y - δ), Point(x + δ, y), Point(x - δ, y)],
+            Ref(idx),
+            Ref(wpts),
+            Ref(soln)
+        )
 
         # Compute gradients
         g_x = (Δ_E - Δ_W) / (2δ)
