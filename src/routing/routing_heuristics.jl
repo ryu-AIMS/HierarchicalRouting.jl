@@ -281,27 +281,38 @@ function adjusted_waypoint_critial_path(
     return critical_path(cand)
 end
 
-function update_waypoints(soln::MSTSolution, tmp_wpts::Vector{Point{2, Float64}})::MSTSolution
+function update_waypoints(
+    solution_ex::MSTSolution,
+    waypoints_proposed::Vector{Point{2, Float64}},
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+    idx::Int64
+)::MSTSolution
     # Update the waypoints in the mothership route
-    new_route::Route = Route(
-        tmp_wpts,
-        soln.mothership_routes[end].route.dist_matrix,
-        soln.mothership_routes[end].route.line_strings
+    line_strings_proposed = deepcopy(solution_ex.mothership_routes[end].route.line_strings)
+    line_strings_proposed[idx-1].points[end] = line_strings_proposed[idx].points[1] = waypoints_proposed[idx]
+    #! Temp solution: will only work for straight line segments
+
+    # Update mothership route with new waypoints and line_strings
+    ms_route_new::Route = Route(
+        waypoints_proposed,
+        solution_ex.mothership_routes[end].route.dist_matrix, #dist_matrix_proposed,
+        vcat(line_strings_proposed...)
     )
 
     # Create a new MothershipSolution with the updated route
-    new_ms_soln = MothershipSolution(
-        soln.mothership_routes[end].cluster_sequence,
-        new_route
+    ms_soln_new = MothershipSolution(
+        solution_ex.mothership_routes[end].cluster_sequence,
+        ms_route_new
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_proxy_sorties(soln, tmp_wpts)
+    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed, exclusions_tender)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
-        soln.cluster_sets,
-        [new_ms_soln],
+        solution_ex.cluster_sets,
+        [ms_soln_new],
         [tender_soln_new]
     )
 end
