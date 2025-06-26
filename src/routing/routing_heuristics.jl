@@ -322,6 +322,43 @@ function update_waypoints(
         [tender_soln_new]
     )
 end
+function update_waypoints(
+    solution_ex::MSTSolution,
+    waypoints_proposed::Vector{Point{2, Float64}},
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame
+)::MSTSolution
+    # Update the waypoints in the mothership route
+    dist_vector_proposed, line_strings_proposed = get_feasible_vector(
+        waypoints_proposed, exclusions_mothership
+    )
+    n = length(dist_vector_proposed)
+    # Ensure the distance matrix is square and matches the number of waypoints
+    dist_matrix_proposed = zeros(Float64, n+1, n+1)
+    diag_idxs = CartesianIndex.(1:n, 2:n+1)
+    dist_matrix_proposed[diag_idxs] .= dist_vector_proposed
+    ms_route_new::Route = Route(
+        waypoints_proposed,
+        dist_matrix_proposed,
+        vcat(line_strings_proposed...)
+    )
+
+    # Create a new MothershipSolution with the updated route
+    ms_soln_new = MothershipSolution(
+        solution_ex.mothership_routes[end].cluster_sequence,
+        ms_route_new
+    )
+
+    # Update the tender solutions with the new waypoints
+    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed, exclusions_tender)
+
+    # Return a new MSTSolution with the updated mothership route
+    return MSTSolution(
+        solution_ex.cluster_sets,
+        [ms_soln_new],
+        [tender_soln_new]
+    )
+end
 
 function generate_proxy_sorties(
     soln::MSTSolution,
