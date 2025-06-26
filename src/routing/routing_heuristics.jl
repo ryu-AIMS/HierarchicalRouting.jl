@@ -264,6 +264,22 @@ function optimize_waypoints(
     # Update solution and regenerate tender sorties once more
     soln_opt = update_waypoints(soln, wpts, exclusions_mothership, exclusions_tender)
 
+    # Ordered waypoint pairs for each cluster
+    wpts_pairs = collect(zip(soln_opt.mothership_routes[end].route.nodes[2:2:end-1], soln_opt.mothership_routes[end].route.nodes[3:2:end-1]))
+    cluster_order = soln_opt.mothership_routes[end].cluster_sequence.id[2:end-1]
+    wpts_pairs_ordered = [
+        wpts_pairs[i] for i in sortperm(cluster_order)
+    ]
+
+    # Ensure the tender sorties are updated with feasible paths
+    soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
+        soln_opt.cluster_sets[end],
+        wpts_pairs_ordered,
+        Ref(Int8(maximum([length(s.sorties) for s in soln_opt.tenders[end]]))),
+        Ref(Int16(maximum([length(t.nodes) for s in soln_opt.tenders[end] for t in s.sorties]))),
+        Ref(exclusions_tender)
+    )
+
     return soln_opt
 end
 
