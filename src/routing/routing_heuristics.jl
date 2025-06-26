@@ -333,14 +333,15 @@ function adjusted_waypoint_critial_path(
     waypoints_ex::Vector{Point{2,Float64}},
     solution_ex::MSTSolution,
     exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame
+    exclusions_tender::DataFrame;
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Tuple{Float64, MSTSolution}
     waypoints_proposed = copy(waypoints_ex)
     waypoints_proposed[idx] = point_proposed
 
     solution_proposed = update_waypoints(solution_ex, waypoints_proposed, exclusions_mothership, exclusions_tender, idx)
 
-    return (critical_path(solution_proposed), solution_proposed)
+    return critical_path(solution_proposed, vessel_weightings), solution_proposed
 end
 
 function update_waypoints(
