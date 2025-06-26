@@ -325,7 +325,8 @@ end
 
 function generate_proxy_sorties(
     soln::MSTSolution,
-    tmp_wpts::Vector{Point{2, Float64}}
+    tmp_wpts::Vector{Point{2, Float64}},
+    exclusions_tender::DataFrame
 )::Vector{TenderSolution}
     # Update the tender solutions with the new waypoints
     tender_soln_ex = soln.tenders[end]
@@ -341,15 +342,59 @@ function generate_proxy_sorties(
     starts_new = tmp_wpts[2 .* js]
     finishes_new = tmp_wpts[2 .* js .+ 1]
 
-    # mask of which tenders actually need updating
+    # mask which tenders need updating
     mask = .!((starts_ex .== starts_new) .& (finishes_ex .== finishes_new))
+
+    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, length(sorties[mask]))
+    for (i,s) in enumerate(sorties[mask])
+        new_routes = Vector{Route}(undef, length(s))
+        for (j, r) in enumerate(s)
+            line_strings_updated = deepcopy(r.line_strings)
+            # Recalculate line strings from waypoint to first node and last node to finish
+            if r.line_strings[1].points[1] != starts_new[i] # start changes
+                continue_from = findfirst(
+                    ==(r.nodes[1]),
+                    first.(getproperty.(line_strings_updated, :points))
+                )
+
+                # re-calc linestrings for the first segment: start to first node
+                new_segment_flattened = [LineString{2, Float64}(
+                        [starts_new[i], r.nodes[1]]
+                    )]
+                line_strings_updated = [
+                    new_segment_flattened;
+                    line_strings_updated[continue_from:end]
+                ]
+            end
+            if r.line_strings[end].points[end] != finishes_new[i] # finish changes
+                keep_until = findlast(
+                    ==(r.nodes[end]),
+                    last.(getproperty.(line_strings_updated, :points))
+                )
+                # re-calc linestrings for the last segment: last node to finish
+                new_segment_flattened = [LineString{2, Float64}(
+                        [r.nodes[end], finishes_new[i]]
+                    )]
+                line_strings_updated = [
+                    line_strings_updated[1:keep_until];
+                    new_segment_flattened
+                ]
+            end
+            new_routes[j] = Route(
+                r.nodes,
+                r.dist_matrix,
+                line_strings_updated
+            )
+        end
+        sorties_new[i] = new_routes
+    end
 
     tender_soln_new = copy(tender_soln_ex)
     tender_soln_new[mask] = TenderSolution.(
         ids[mask],
-        starts_ex[mask],
-        finishes_ex[mask],
-        sorties[mask],
+        starts_new[mask],
+        finishes_new[mask],
+        sorties_new,
         dist_mats[mask]
     )
     return tender_soln_new
