@@ -269,16 +269,19 @@ end
 
 # Compute critical path for a perturbed waypoint. Update both mothership and tender routes.
 function adjusted_waypoint_critial_path(
-    p::Point{2,Float64},
+    point_proposed::Point{2,Float64},
     idx::Int64,
-    wpts::Vector{Point{2,Float64}},
-    soln::MSTSolution
-)::Float64
-    tmp_wpts = copy(wpts)
-    tmp_wpts[idx] = p
-    cand = update_waypoints(soln, tmp_wpts)
+    waypoints_ex::Vector{Point{2,Float64}},
+    solution_ex::MSTSolution,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame
+)::Tuple{Float64, MSTSolution}
+    waypoints_proposed = copy(waypoints_ex)
+    waypoints_proposed[idx] = point_proposed
 
-    return critical_path(cand)
+    solution_proposed = update_waypoints(solution_ex, waypoints_proposed, exclusions_mothership, exclusions_tender, idx)
+
+    return (critical_path(solution_proposed), solution_proposed)
 end
 
 function update_waypoints(
