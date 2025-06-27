@@ -229,13 +229,17 @@ end
 
 function optimize_waypoints(
     soln::MSTSolution,
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame;
+    problem::Problem;
     learning_rate::Float64=1e-8,
     tolerance::Float64=1e-6,
     max_desc_iters::Int=50,
     max_search_iters::Int=10
 )::MSTSolution
+    exclusions_mothership::DataFrame = problem.mothership.exclusion
+    exclusions_tender::DataFrame = problem.tenders.exclusion
+    n_tenders::Int8 = problem.tenders.number
+    t_cap::Int16 = problem.tenders.capacity
+    vessel_weightings::NTuple{2,AbstractFloat}=(problem.mothership.weighting, problem.tenders.weighting)
     wpts = copy(soln.mothership_routes[end].route.nodes)
     n = length(wpts)
 
@@ -250,7 +254,8 @@ function optimize_waypoints(
                 exclusions_tender,
                 learning_rate,
                 tolerance,
-                max_desc_iters
+                max_desc_iters;
+                vessel_weightings
             )
 
             if haversine(new_pt, curr_pt) > tolerance
@@ -275,8 +280,8 @@ function optimize_waypoints(
     soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
         soln_opt.cluster_sets[end],
         wpts_pairs_ordered,
-        Ref(Int8(maximum([length(s.sorties) for s in soln_opt.tenders[end]]))),
-        Ref(Int16(maximum([length(t.nodes) for s in soln_opt.tenders[end] for t in s.sorties]))),
+        Ref(n_tenders),
+        Ref(t_cap),
         Ref(exclusions_tender)
     )
 
@@ -292,7 +297,8 @@ function steepest_descent(
     learning_rate::Float64,
     tolerance::Float64,
     max_desc_iters::Int;
-    δ::Float64 = 1e-3
+    δ::Float64 = 1e-3,
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Point{2,Float64}
     point = wpts[idx]
 
@@ -306,7 +312,8 @@ function steepest_descent(
             Ref(wpts),
             Ref(soln),
             Ref(exclusions_mothership),
-            Ref(exclusions_tender)
+            Ref(exclusions_tender);
+            vessel_weightings = vessel_weightings
         ), 1)
 
         # Compute gradients
