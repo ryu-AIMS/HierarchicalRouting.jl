@@ -243,7 +243,7 @@ function optimize_waypoints(
         for idx in 2:(n-1)
             curr_pt = wpts[idx]
 
-            new_pt = steepest_descent(
+            new_pt = waypoint_descent_step(
                 idx, wpts, soln,
                 exclusions_mothership,
                 learning_rate,
@@ -261,7 +261,7 @@ function optimize_waypoints(
     end
 
     # Update solution and regenerate tender sorties once more
-    soln_opt = update_waypoints(soln, wpts, exclusions_mothership)
+    soln_opt = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
 
     # Ordered waypoint pairs for each cluster
     wpts_pairs::Vector{NTuple{2,Point{2,Float64}}} = collect(zip(soln_opt.mothership_routes[end].route.nodes[2:2:end-1], soln_opt.mothership_routes[end].route.nodes[3:2:end-1]))
@@ -282,7 +282,7 @@ function optimize_waypoints(
     return soln_opt
 end
 
-function steepest_descent(
+function waypoint_descent_step(
     idx::Int,
     wpts::Vector{Point{2,Float64}},
     soln::MSTSolution,
@@ -299,7 +299,7 @@ function steepest_descent(
         x, y = point[1], point[2]
 
         # Cost when shifting point in each cardinal/compass direction
-        Δ_N, Δ_S, Δ_E, Δ_W = getindex.(adjusted_waypoint_critial_path.(
+        Δ_N, Δ_S, Δ_E, Δ_W = getindex.(evaluate_perturbation.(
                 [Point(x, y + δ), Point(x, y - δ), Point(x + δ, y), Point(x - δ, y)],
                 Ref(idx),
                 Ref(wpts),
@@ -325,7 +325,7 @@ function steepest_descent(
 end
 
 # Compute critical path for a perturbed waypoint. Update both mothership and tender routes.
-function adjusted_waypoint_critial_path(
+function evaluate_perturbation(
     point_proposed::Point{2,Float64},
     idx::Int64,
     waypoints_ex::Vector{Point{2,Float64}},
@@ -335,12 +335,12 @@ function adjusted_waypoint_critial_path(
     waypoints_proposed = copy(waypoints_ex)
     waypoints_proposed[idx] = point_proposed
 
-    solution_proposed = update_waypoints(solution_ex, waypoints_proposed, idx)
+    solution_proposed = patch_mothership_waypoints(solution_ex, waypoints_proposed, idx)
 
     return critical_path(solution_proposed, vessel_weightings), solution_proposed
 end
 
-function update_waypoints(
+function patch_mothership_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
     idx::Int64
@@ -365,7 +365,7 @@ function update_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed)
+    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -374,7 +374,8 @@ function update_waypoints(
         [tender_soln_new]
     )
 end
-function update_waypoints(
+
+function rebuild_solution_with_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
     exclusions_mothership::DataFrame
@@ -401,7 +402,7 @@ function update_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed)
+    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -411,7 +412,7 @@ function update_waypoints(
     )
 end
 
-function generate_proxy_sorties(
+function generate_tender_sorties(
     soln::MSTSolution,
     tmp_wpts::Vector{Point{2,Float64}}
 )::Vector{TenderSolution}
