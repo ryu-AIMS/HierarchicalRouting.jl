@@ -232,10 +232,8 @@ using Optim, Optimization, OptimizationOptimJL
 function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
-    learning_rate::Float64=1e-8,
-    tolerance::Float64=1e-6,
-    max_desc_iters::Int=50,
-    max_search_iters::Int=10
+    tolerance::Float64=5e5, # stop when gradient norm below this
+    iterations::Int=10  # treated as max iterations for Optim
 )::MSTSolution
     exclusions_mothership::DataFrame = problem.mothership.exclusion
     exclusions_tender::DataFrame = problem.tenders.exclusion
@@ -244,45 +242,57 @@ function optimize_waypoints(
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting, problem.tenders.weighting
     )
-    wpts = copy(soln.mothership_routes[end].route.nodes)
-    n = length(wpts)
 
-    for _ in 1:max_search_iters
-        improved = false
-        for idx in 2:(n-1)
-            curr_pt = wpts[idx]
+    # Flatten initial waypoints
+    w0::Vector{Point{2,Float64}} = soln.mothership_routes[end].route.nodes[2:end-1]
+    x0::Vector{NTuple{2,Float64}} = reduce(vcat, Tuple.(w0))
+    x0_flat::Vector{Float64} = collect(Iterators.flatten(x0))
 
-            new_pt = waypoint_descent_step(
-                idx, wpts, soln,
-                exclusions_mothership,
-                learning_rate,
-                tolerance,
-                max_desc_iters;
-                vessel_weightings
-            )
+    # Objective from x -> critical_path
+    function obj(x_flat::Vector{Float64})::Float64
+        wpts::Vector{Point{2, Float64}} = Point.(
+            [
+                soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
+                tuple.(x_flat[1:2:end], x_flat[2:2:end])...,
+                soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
+            ]
+        )
 
-            if haversine(new_pt, curr_pt) > tolerance
-                wpts[idx] = new_pt
-                improved = true
-            end
-        end
-        improved || break
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+        return critical_path(soln_proposed, vessel_weightings)
     end
 
-    # Update solution and regenerate tender sorties once more
-    soln_opt = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+    # Run Optim with simple gradient descent
+    opt_options = Optim.Options(
+        iterations = iterations,
+        g_tol = tolerance,
+        show_trace = true
+    )
+    result = optimize(
+        obj,
+        x0_flat,
+        GradientDescent(),
+        opt_options
+    )
 
-    # Ordered waypoint pairs for each cluster
-    wpts_pairs::Vector{NTuple{2,Point{2,Float64}}} = collect(zip(soln_opt.mothership_routes[end].route.nodes[2:2:end-1], soln_opt.mothership_routes[end].route.nodes[3:2:end-1]))
-    cluster_order::Vector{Int64} = soln_opt.mothership_routes[end].cluster_sequence.id[2:end-1]
-    wpts_pairs_ordered::Vector{NTuple{2,Point{2,Float64}}} = [
-        wpts_pairs[i] for i in sortperm(cluster_order)
-    ]
+    x_best_flat = Optim.minimizer(result)
+    x_best::Vector{Point{2, Float64}} = Point.(
+        [
+            soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
+            tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
+            soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
+        ]
+    )
 
-    # Ensure the tender sorties are updated with feasible paths
+    # Rebuild solution with the optimal waypoints
+    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
+
+    # Regenerate tender sorties
+    launch_idxs::Vector{Int64} = soln_opt.mothership_routes[end].cluster_sequence.id[2:end-1] .* 2
+    pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(x_best[launch_idxs], x_best[launch_idxs .+ 1])
     soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
         soln_opt.cluster_sets[end],
-        wpts_pairs_ordered,
+        pairs,
         Ref(n_tenders),
         Ref(t_cap),
         Ref(exclusions_tender)
