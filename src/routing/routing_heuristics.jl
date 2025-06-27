@@ -227,31 +227,8 @@ function get_waypoints(
     return DataFrame(waypoint = waypoints, connecting_clusters = connecting_clusters)
 end
 
-"""
-    optimize_waypoints(
-        soln::MSTSolution,
-        problem::Problem;
-        learning_rate::Float64=1e-8,
-        tolerance::Float64=1e-6,
-        max_desc_iters::Int=50,
-        max_search_iters::Int=10
-    )::MSTSolution
+using Optim, Optimization, OptimizationOptimJL
 
-Optimize the waypoints in the mothership route of the given solution using a gradient descent
-method. This method iteratively adjusts the waypoints to minimize the critical path cost of the solution,
-while respecting exclusion zones for the mothership and ensuring feasible tender sorties.
-
-# Arguments
-- `soln`: The initial MSTSolution containing mothership routes and tender sorties.
-- `problem`: The Problem instance containing mothership and tender specifications.
-- `learning_rate`: Step size for the descent.
-- `tolerance`: Tolerance for stopping the descent.
-- `max_desc_iters`: Maximum number of descent iterations for each waypoint.
-- `max_search_iters`: Maximum number of iterations to search for improvements.
-
-# Returns
-An optimized MSTSolution with updated waypoints and tender sorties.
-"""
 function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
