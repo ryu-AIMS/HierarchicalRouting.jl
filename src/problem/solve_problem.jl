@@ -114,7 +114,10 @@ function initial_solution(
         end
     end
 
-    return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    solution_init::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    solution_opt::MSTSolution = optimize_waypoints(solution_init, problem)
+
+    return solution_opt
 end
 
 """
