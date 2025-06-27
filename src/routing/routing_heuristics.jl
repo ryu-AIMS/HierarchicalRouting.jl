@@ -244,7 +244,6 @@ function optimize_waypoints(
             new_pt = steepest_descent(
                 idx, wpts, soln,
                 exclusions_mothership,
-                exclusions_tender,
                 learning_rate,
                 tolerance,
                 max_desc_iters;
@@ -260,7 +259,7 @@ function optimize_waypoints(
     end
 
     # Update solution and regenerate tender sorties once more
-    soln_opt = update_waypoints(soln, wpts, exclusions_mothership, exclusions_tender)
+    soln_opt = update_waypoints(soln, wpts, exclusions_mothership)
 
     # Ordered waypoint pairs for each cluster
     wpts_pairs::Vector{NTuple{2,Point{2,Float64}}} = collect(zip(soln_opt.mothership_routes[end].route.nodes[2:2:end-1], soln_opt.mothership_routes[end].route.nodes[3:2:end-1]))
@@ -286,7 +285,6 @@ function steepest_descent(
     wpts::Vector{Point{2,Float64}},
     soln::MSTSolution,
     exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame,
     learning_rate::Float64,
     tolerance::Float64,
     max_desc_iters::Int;
@@ -303,9 +301,7 @@ function steepest_descent(
                 [Point(x, y + δ), Point(x, y - δ), Point(x + δ, y), Point(x - δ, y)],
                 Ref(idx),
                 Ref(wpts),
-                Ref(soln),
-                Ref(exclusions_mothership),
-                Ref(exclusions_tender);
+                Ref(soln);
                 vessel_weightings=vessel_weightings
             ), 1)
 
@@ -331,15 +327,13 @@ function adjusted_waypoint_critial_path(
     point_proposed::Point{2,Float64},
     idx::Int64,
     waypoints_ex::Vector{Point{2,Float64}},
-    solution_ex::MSTSolution,
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame;
+    solution_ex::MSTSolution;
     vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Tuple{Float64,MSTSolution}
     waypoints_proposed = copy(waypoints_ex)
     waypoints_proposed[idx] = point_proposed
 
-    solution_proposed = update_waypoints(solution_ex, waypoints_proposed, exclusions_mothership, exclusions_tender, idx)
+    solution_proposed = update_waypoints(solution_ex, waypoints_proposed, idx)
 
     return critical_path(solution_proposed, vessel_weightings), solution_proposed
 end
@@ -347,8 +341,6 @@ end
 function update_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame,
     idx::Int64
 )::MSTSolution
     # Update the waypoints in the mothership route
@@ -370,7 +362,7 @@ function update_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed, exclusions_tender)
+    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -382,8 +374,7 @@ end
 function update_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame
+    exclusions_mothership::DataFrame
 )::MSTSolution
     # Update the waypoints in the mothership route
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
@@ -407,7 +398,7 @@ function update_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed, exclusions_tender)
+    tender_soln_new = generate_proxy_sorties(solution_ex, waypoints_proposed)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -419,8 +410,7 @@ end
 
 function generate_proxy_sorties(
     soln::MSTSolution,
-    tmp_wpts::Vector{Point{2,Float64}},
-    exclusions_tender::DataFrame
+    tmp_wpts::Vector{Point{2,Float64}}
 )::Vector{TenderSolution}
     # Update the tender solutions with the new waypoints
     tender_soln_ex = soln.tenders[end]
