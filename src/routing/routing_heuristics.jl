@@ -227,6 +227,31 @@ function get_waypoints(
     return DataFrame(waypoint = waypoints, connecting_clusters = connecting_clusters)
 end
 
+"""
+    optimize_waypoints(
+        soln::MSTSolution,
+        problem::Problem;
+        learning_rate::Float64=1e-8,
+        tolerance::Float64=1e-6,
+        max_desc_iters::Int=50,
+        max_search_iters::Int=10
+    )::MSTSolution
+
+Optimize the waypoints in the mothership route of the given solution using a gradient descent
+method. This method iteratively adjusts the waypoints to minimize the critical path cost of the solution,
+while respecting exclusion zones for the mothership and ensuring feasible tender sorties.
+
+# Arguments
+- `soln`: The initial MSTSolution containing mothership routes and tender sorties.
+- `problem`: The Problem instance containing mothership and tender specifications.
+- `learning_rate`: Step size for the descent.
+- `tolerance`: Tolerance for stopping the descent.
+- `max_desc_iters`: Maximum number of descent iterations for each waypoint.
+- `max_search_iters`: Maximum number of iterations to search for improvements.
+
+# Returns
+An optimized MSTSolution with updated waypoints and tender sorties.
+"""
 function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
@@ -289,6 +314,38 @@ function optimize_waypoints(
     return soln_opt
 end
 
+"""
+    waypoint_descent_step(
+        idx::Int,
+        wpts::Vector{Point{2,Float64}},
+        soln::MSTSolution,
+        exclusions_mothership::DataFrame,
+        learning_rate::Float64,
+        tolerance::Float64,
+        max_desc_iters::Int;
+        δ::Float64=1e-3,
+        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    )::Point{2,Float64}
+
+Perform a descent step on a waypoint to minimize the critical path cost of the solution.
+This finds the waypoint that reduces the cost the most in the direction of the gradient,
+considering the combined cost of the mothership route and tender sorties, while respecting
+exclusion zones for the mothership.
+
+# Arguments
+- `idx`: Index of the waypoint to be updated.
+- `wpts`: Vector of waypoints in the solution.
+- `soln`: The existing MSTSolution to be updated.
+- `exclusions_mothership`: DataFrame containing exclusion zones for the mothership.
+- `learning_rate`: Step size for the descent.
+- `tolerance`: Tolerance for stopping the descent.
+- `max_desc_iters`: Maximum number of descent iterations.
+- `δ`: Perturbation step size for gradient calculation.
+- `vessel_weightings`: Weightings for mothership and tender costs.
+
+# Returns
+The updated waypoint after the descent step.
+"""
 function waypoint_descent_step(
     idx::Int,
     wpts::Vector{Point{2,Float64}},
@@ -331,7 +388,29 @@ function waypoint_descent_step(
     return point
 end
 
-# Compute critical path for a perturbed waypoint. Update both mothership and tender routes.
+"""
+    evaluate_perturbation(
+        point_proposed::Point{2,Float64},
+        idx::Int64,
+        waypoints_ex::Vector{Point{2,Float64}},
+        solution_ex::MSTSolution;
+        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    )::Tuple{Float64,MSTSolution}
+
+Evaluate the (critical path) cost of a proposed perturbation to a waypoint in the existing
+solution. Update the mothership route and tender sorties with the proposed waypoint.
+
+# Arguments
+- `point_proposed`: The proposed new waypoint to evaluate.
+- `idx`: Index of the waypoint to be updated.
+- `waypoints_ex`: Existing waypoints in the solution.
+- `solution_ex`: Existing MSTSolution to be updated.
+- `vessel_weightings`: Weightings for mothership and tender costs.
+
+# Returns
+- The (critical path) cost of the proposed solution.
+- The updated MSTSolution with the proposed waypoint.
+"""
 function evaluate_perturbation(
     point_proposed::Point{2,Float64},
     idx::Int64,
@@ -347,6 +426,25 @@ function evaluate_perturbation(
     return critical_path(solution_proposed, vessel_weightings), solution_proposed
 end
 
+"""
+    patch_mothership_waypoints(
+        solution_ex::MSTSolution,
+        waypoints_proposed::Vector{Point{2,Float64}},
+        idx::Int64
+    )::MSTSolution
+
+Patch the mothership waypoints in the existing solution with proposed waypoints.\n
+Note: This function is lighter than `rebuild_solution_with_waypoints()` and is used for
+perturbation evaluation in the optimization process.
+
+# Arguments
+- `solution_ex`: The existing MSTSolution to be updated.
+- `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
+- `idx`: Index of the waypoint to be updated.
+
+# Returns
+A new MSTSolution with the updated mothership route and tender sorties.
+"""
 function patch_mothership_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
@@ -382,6 +480,23 @@ function patch_mothership_waypoints(
     )
 end
 
+"""
+    rebuild_solution_with_waypoints(
+        solution_ex::MSTSolution,
+        waypoints_proposed::Vector{Point{2,Float64}},
+        exclusions_mothership::DataFrame
+    )::MSTSolution
+
+Rebuild full `MSTSolution` with updated waypoints and other attributes.
+
+# Arguments
+- `solution_ex`: The existing MSTSolution to be updated.
+- `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
+- `exclusions_mothership`: DataFrame containing exclusion zones for the mothership.
+
+# Returns
+A new MSTSolution with the updated mothership route and tender sorties.
+"""
 function rebuild_solution_with_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
@@ -419,6 +534,21 @@ function rebuild_solution_with_waypoints(
     )
 end
 
+"""
+    generate_tender_sorties(
+        soln::MSTSolution,
+        tmp_wpts::Vector{Point{2,Float64}}
+    )::Vector{TenderSolution}
+
+Generate tender sorties based on the updated waypoints, including all updated attributes.
+
+# Arguments
+- `soln`: The existing MSTSolution containing tenders.
+- `tmp_wpts`: Vector of temporary waypoints to update the tender sorties.
+
+# Returns
+Updated TenderSolution objects with new waypoints.
+"""
 function generate_tender_sorties(
     soln::MSTSolution,
     tmp_wpts::Vector{Point{2,Float64}}
