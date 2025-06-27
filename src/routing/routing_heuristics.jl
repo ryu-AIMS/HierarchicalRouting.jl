@@ -239,7 +239,9 @@ function optimize_waypoints(
     exclusions_tender::DataFrame = problem.tenders.exclusion
     n_tenders::Int8 = problem.tenders.number
     t_cap::Int16 = problem.tenders.capacity
-    vessel_weightings::NTuple{2,AbstractFloat} = (problem.mothership.weighting, problem.tenders.weighting)
+    vessel_weightings::NTuple{2,AbstractFloat} = (
+        problem.mothership.weighting, problem.tenders.weighting
+    )
     wpts = copy(soln.mothership_routes[end].route.nodes)
     n = length(wpts)
 
@@ -352,13 +354,14 @@ function update_waypoints(
 )::MSTSolution
     # Update the waypoints in the mothership route
     line_strings_proposed = deepcopy(solution_ex.mothership_routes[end].route.line_strings)
-    line_strings_proposed[idx-1].points[end] = line_strings_proposed[idx].points[1] = waypoints_proposed[idx]
+    line_strings_proposed[idx-1].points[end] = waypoints_proposed[idx]
+    line_strings_proposed[idx].points[1] = waypoints_proposed[idx]
     #! Temp solution: will only work for straight line segments
 
     # Update mothership route with new waypoints and line_strings
     ms_route_new::Route = Route(
         waypoints_proposed,
-        solution_ex.mothership_routes[end].route.dist_matrix, #dist_matrix_proposed,
+        solution_ex.mothership_routes[end].route.dist_matrix,
         vcat(line_strings_proposed...)
     )
 
