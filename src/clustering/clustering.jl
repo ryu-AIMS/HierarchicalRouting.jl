@@ -42,7 +42,7 @@ end
 """
     cluster_problem(
         problem::Problem;
-        k::Int=1,
+        k::Int=0,
         dist_weighting::Float64=5E-6
     )::Vector{Cluster}
 
@@ -450,7 +450,7 @@ function _constrained_kmeans_single_iteration(
     k_spec::Int = 0
 )::Vector{Int64}
     clustering = kmeans(coordinates, k; maxiter=max_iter)
-    clustering_assignment::Vector{Int64} = copy(clustering.assignments)
+    clustering_assignment::Vector{Int64} = clustering.assignments
 
     # Build clusters & centroids
     clusters_list::Vector{Vector{Int64}} = findall.(

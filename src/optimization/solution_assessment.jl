@@ -110,14 +110,15 @@ function perturb_swap_solution(
         vcat(linestrings[2]...)
     )
 
-    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
-    tenders_all[clust_seq_idx] = TenderSolution(
-        tender.id,
-        tender.start,
-        tender.finish,
-        sorties,
-        tender.dist_matrix  #? recompute
+    tender_new = TenderSolution(tender, sorties)
+    tender_improved = two_opt(
+        tender_new,
+        exclusions_tender
     )
+
+    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
+    tenders_all[clust_seq_idx] = tender_improved
+
     tenders_full_updated::Vector{Vector{TenderSolution}} = [
         copy(soln.tenders[end]),
         tenders_all
@@ -246,24 +247,23 @@ function perturb_swap_solution(
         for i in 1:length(tender_b.sorties)
     ]
 
+    tender_a_new, tender_b_new = TenderSolution.(
+        [tender_a, tender_b],
+        [sorties_a, sorties_b]
+    )
+    # Re-run two-opt on the modified sorties
+    tender_a_improved, tender_b_improved = two_opt.(
+        [tender_a_new, tender_b_new],
+        Ref(exclusions_tender)
+    )
+
     # Update tenders with existing start/finish (not yet adjusted)
-    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
-    tenders_all[clust_a_seq_idx] = TenderSolution(
-        tender_a.id,
-        tender_a.start,
-        tender_a.finish,
-        sorties_a,
-        tender_a.dist_matrix
-    )
-    tenders_all[clust_b_seq_idx] = TenderSolution(
-        tender_b.id,
-        tender_b.start,
-        tender_b.finish,
-        sorties_b,
-        tender_b.dist_matrix
-    )
+    tenders_all::Vector{Vector{TenderSolution}} = copy(soln.tenders[end])
+    tenders_all[clust_a_seq_idx] = tender_a_improved
+    tenders_all[clust_b_seq_idx] = tender_b_improved
+
     tenders_full_updated::Vector{Vector{TenderSolution}} = [
-        copy(soln.tenders[end]),
+        soln.tenders[end],
         tenders_all
     ]
     # Create new perturbed solution
