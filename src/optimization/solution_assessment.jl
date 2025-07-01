@@ -110,13 +110,7 @@ function perturb_swap_solution(
         vcat(linestrings[2]...)
     )
 
-    tender_new = TenderSolution(
-        tender.id,
-        tender.start,
-        tender.finish,
-        sorties,
-        tender.dist_matrix  #? recompute
-    )
+    tender_new = TenderSolution(tender, sorties)
     tender_improved = two_opt(
         tender_new,
         exclusions_tender
@@ -253,19 +247,9 @@ function perturb_swap_solution(
         for i in 1:length(tender_b.sorties)
     ]
 
-    tender_a_new = TenderSolution(
-        tender_a.id,
-        tender_a.start,
-        tender_a.finish,
-        sorties_a,
-        tender_a.dist_matrix
-    )
-    tender_b_new = TenderSolution(
-        tender_b.id,
-        tender_b.start,
-        tender_b.finish,
-        sorties_b,
-        tender_b.dist_matrix
+    tender_a_new, tender_b_new = TenderSolution.(
+        [tender_a, tender_b],
+        [sorties_a, sorties_b]
     )
     # Re-run two-opt on the modified sorties
     tender_a_improved = two_opt(

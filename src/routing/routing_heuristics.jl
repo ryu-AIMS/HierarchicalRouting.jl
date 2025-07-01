@@ -17,6 +17,13 @@ struct TenderSolution
     sorties::Vector{Route}
     dist_matrix::Matrix{Float64}
 end
+TenderSolution(t::TenderSolution, sorties::Vector{Route}) = TenderSolution(
+    t.id,
+    t.start,
+    t.finish,
+    sorties,
+    t.dist_matrix
+)
 
 struct MSTSolution
     cluster_sets::Vector{Vector{Cluster}}
