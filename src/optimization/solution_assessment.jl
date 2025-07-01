@@ -252,13 +252,9 @@ function perturb_swap_solution(
         [sorties_a, sorties_b]
     )
     # Re-run two-opt on the modified sorties
-    tender_a_improved = two_opt(
-        tender_a_new,
-        exclusions_tender
-    )
-    tender_b_improved = two_opt(
-        tender_b_new,
-        exclusions_tender
+    tender_a_improved, tender_b_improved = two_opt.(
+        [tender_a_new, tender_b_new],
+        Ref(exclusions_tender)
     )
 
     # Update tenders with existing start/finish (not yet adjusted)
