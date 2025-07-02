@@ -3,10 +3,10 @@
     disturb_clusters(
         remaining_clusters::Vector{Cluster},
         disturbance_df::DataFrame,
-        current_location::Point{2, Float64},
+        current_location::Point{2,Float64},
         exclusions::DataFrame,
         total_tender_capacity::Int;
-        res::Float64 = 0.0001
+        tol::Float64=0.01
     )::Vector{Cluster}
 
 Disturb the clusters by randomly removing nodes from them.
@@ -17,7 +17,7 @@ Disturb the clusters by randomly removing nodes from them.
 - `current_location`: The current location of the mothership at the time of disturbance.
 - `exclusions`: A DataFrame containing exclusion zones that should not be disturbed.
 - `total_tender_capacity`: The total capacity available for the tender fleet.
-- `res`: The resolution of the raster to be created from the disturbance data.
+- `tol`: A tolerance value for distance calculations.
 
 # Returns
 A vector of `Cluster` objects with nodes removed from them.
@@ -25,10 +25,10 @@ A vector of `Cluster` objects with nodes removed from them.
 function disturb_clusters(
     remaining_clusters::Vector{Cluster},
     disturbance_df::DataFrame,
-    current_location::Point{2, Float64},
+    current_location::Point{2,Float64},
     exclusions::DataFrame,
     total_tender_capacity::Int;
-    res::Float64 = 0.0001
+    tol::Float64=0.01
 )::Vector{Cluster}
     num_clusters = length(remaining_clusters)
     remaining_nodes = [node for cluster in remaining_clusters for node in cluster.nodes]
@@ -45,7 +45,8 @@ function disturb_clusters(
         num_clusters,
         current_location,
         exclusions,
-        total_tender_capacity
+        total_tender_capacity;
+        tol
     )
 
     # Update the cluster assignments based on previous numbering

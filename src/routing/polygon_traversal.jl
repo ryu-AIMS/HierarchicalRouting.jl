@@ -1,11 +1,11 @@
 
 """
     find_widest_points(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame,
-        visited_exclusion_idxs::Vector{Int} = [0]
-    )::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
+        visited_exclusion_idxs::Vector{Int}=[0]
+    )::Tuple{Vector{Point{2,Float64}},Vector{Int}}
 
 Find the intermediate vertices between two points by using the widest visible vertices on
 each (left/right) side of the direct-line path by closest crossed polygon.
@@ -23,11 +23,11 @@ the widest visible vertices.
 - A vector of polygon indices crossed by the line.
 """
 function find_widest_points(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
+    current_point::Point{2,Float64},
+    final_point::Point{2,Float64},
     exclusions::DataFrame,
-    visited_exclusion_idxs::Vector{Int} = [0]
-)::Tuple{Vector{Point{2, Float64}}, Vector{Int}}
+    visited_exclusion_idxs::Vector{Int}=[0]
+)::Tuple{Vector{Point{2,Float64}},Vector{Int}}
 
     if is_visible(current_point, final_point, exclusions)
         return [final_point], [0]
@@ -44,7 +44,7 @@ function find_widest_points(
     end
 
     # Search for the widest vertices (left and right) along the polygon's exterior.
-    widest_vertices::NTuple{2, Union{Point{2, Float64}, Nothing}} = search_widest_points(
+    widest_vertices::NTuple{2,Union{Point{2,Float64},Nothing}} = search_widest_points(
         current_point, final_point, exterior_ring, n_pts
     )
 
@@ -75,10 +75,10 @@ end
 
 """
     vector_angle(
-        base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
+        base_vector::Vector{Float64}, candidate_tuple::NTuple{2,Float64}
     )::Float64
     vector_angle(
-        base_vector::Vector{Float64}, candidate_tuple::Tuple{Float64, Float64}
+        base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
     )::Float64
 
 Calculate the signed angle (radians) of a candidate vector relative to a base vector.
@@ -92,7 +92,7 @@ Calculate the signed angle (radians) of a candidate vector relative to a base ve
 - The signed angle between the two vectors in radians.
 """
 function vector_angle(
-    base_vector::Vector{Float64}, candidate_tuple::Tuple{Float64, Float64}
+    base_vector::Vector{Float64}, candidate_tuple::NTuple{2,Float64}
 )::Float64
     return vector_angle(base_vector, collect(candidate_tuple))
 end
@@ -100,20 +100,20 @@ function vector_angle(
     base_vector::Vector{Float64}, candidate_vector::Vector{Float64}
 )::Float64
     # Cross product tells us the direction of the angle
-    cross = base_vector[1]*candidate_vector[2] - base_vector[2]*candidate_vector[1]
+    cross = base_vector[1] * candidate_vector[2] - base_vector[2] * candidate_vector[1]
     # Dot product tells us the magnitude of the angle
-    dot_val = base_vector[1]*candidate_vector[1] + base_vector[2]*candidate_vector[2]
+    dot_val = base_vector[1] * candidate_vector[1] + base_vector[2] * candidate_vector[2]
 
     return atan(cross, dot_val)
 end
 
 """
     search_widest_points(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exterior_ring::AG.IGeometry{AG.wkbLineString},
         n_pts::Int32,
-    )::NTuple{2, Union{Point{2, Float64}, Nothing}}
+    )::NTuple{2,Union{Point{2,Float64},Nothing}}
 
 Search for the widest visible vertices on each side of the base vector.
 
@@ -127,11 +127,11 @@ Search for the widest visible vertices on each side of the base vector.
 The widest visible polygon vertex on each (L/R) side of the base vector/line.
 """
 function search_widest_points(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
+    current_point::Point{2,Float64},
+    final_point::Point{2,Float64},
     exterior_ring::AG.IGeometry{AG.wkbLineString},
     n_pts::Int32,
-)::NTuple{2, Union{Point{2, Float64}, Nothing}}
+)::NTuple{2,Union{Point{2,Float64},Nothing}}
     max_angle_L, max_angle_R = 0.0, 0.0
     furthest_vert_L, furthest_vert_R = nothing, nothing
     # Base vector from current_point to final_point to calc angle from
@@ -141,12 +141,12 @@ function search_widest_points(
     ]
 
     x::Float64, y::Float64 = 0.0, 0.0
-    pt = Point{2, Float64}(x, y)
-    candidate_tuple::Tuple{Float64, Float64} = (0.0, 0.0)
+    pt = Point{2,Float64}(x, y)
+    candidate_tuple::Tuple{Float64,Float64} = (0.0, 0.0)
     angle::Float64 = 0.0
-    for i in 0:n_pts - 1
+    for i in 0:n_pts-1
         x, y, _ = AG.getpoint(exterior_ring, i)
-        pt = Point{2, Float64}(x, y)
+        pt = Point{2,Float64}(x, y)
 
         # Tuple from current_point to this vertex.
         candidate_tuple = ((pt[1] - current_point[1]), (pt[2] - current_point[2]))
@@ -169,8 +169,8 @@ end
 
 """
     closest_crossed_polygon(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame,
         visited_exclusion_idxs::Vector{Int}
     )::Tuple{
@@ -199,8 +199,8 @@ Find the first polygon that is intersected by a line between two given points.
 - `polygon_idx`: The index of the (first) polygon crossed.
 """
 function closest_crossed_polygon(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
+    current_point::Point{2,Float64},
+    final_point::Point{2,Float64},
     exclusions::DataFrame,
     visited_exclusion_idxs::Vector{Int64}
 )::Tuple{
@@ -214,7 +214,7 @@ function closest_crossed_polygon(
     # Create placeholder variables
     exterior_ring::AG.IGeometry{AG.wkbLineString} = AG.creategeom(AG.wkbLineString)
     n_pts::Int32 = 0
-    pt_ref = Ref{NTuple{3, Float64}}()
+    pt_ref = Ref{NTuple{3,Float64}}()
     vertex_in_line_bbox::Bool = false
     line_in_polygon_bbox::Bool = false
 
@@ -270,10 +270,10 @@ function closest_crossed_polygon(
 
         # Check if line crosses bounding box
         line_in_polygon_bbox = !vertex_in_line_bbox ? (
-            line_min_x <= maximum(view(poly_xs,1:n_pts)) &&
-            line_max_x >= minimum(view(poly_xs,1:n_pts)) &&
-            line_min_y <= maximum(view(poly_ys,1:n_pts)) &&
-            line_max_y >= minimum(view(poly_ys,1:n_pts))
+            line_min_x <= maximum(view(poly_xs, 1:n_pts)) &&
+            line_max_x >= minimum(view(poly_xs, 1:n_pts)) &&
+            line_min_y <= maximum(view(poly_ys, 1:n_pts)) &&
+            line_max_y >= minimum(view(poly_ys, 1:n_pts))
         ) : false
 
         # Skip polygons with no vertices in or crossing bounding box
@@ -283,7 +283,7 @@ function closest_crossed_polygon(
 
         # Check if line crosses polygon or touches both current and final points
         if AG.crosses(line, geom) ||
-            (AG.touches(current_point_geom, geom) && AG.touches(final_point_geom, geom))
+           (AG.touches(current_point_geom, geom) && AG.touches(final_point_geom, geom))
 
             intersections::AG.IGeometry = AG.intersection(line, geom)
             pts::Vector{AG.IGeometry} = get_pts(intersections)
@@ -331,15 +331,15 @@ end
         exclusion_poly::AG.IGeometry{AG.wkbPolygon}
     )::Bool
     is_visible(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusion_poly::AG.IGeometry{AG.wkbPolygon}
     )::Bool
     is_visible(
-        current_point::Point{2, Float64},
-        final_point::Point{2, Float64},
+        current_point::Point{2,Float64},
+        final_point::Point{2,Float64},
         exclusions::DataFrame,
-        current_exclusions_idx::Vector{Int} = [0]
+        current_exclusions_idx::Vector{Int}=[0]
     )::Bool
 
 Check if a point is visible from another point, given a vector of, or single exclusion
@@ -361,11 +361,11 @@ function is_visible(
     exclusion_poly::AG.IGeometry{AG.wkbPolygon}
 )::Bool
     return !AG.intersects(exclusion_poly, line_to_point) ||
-        AG.touches(exclusion_poly, line_to_point)
+           AG.touches(exclusion_poly, line_to_point)
 end
 function is_visible(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
+    current_point::Point{2,Float64},
+    final_point::Point{2,Float64},
     exclusion_poly::AG.IGeometry{AG.wkbPolygon}
 )::Bool
     line_to_point::AG.IGeometry{AG.wkbLineString} = AG.createlinestring([
@@ -375,10 +375,10 @@ function is_visible(
     return is_visible(line_to_point, exclusion_poly)
 end
 function is_visible(
-    current_point::Point{2, Float64},
-    final_point::Point{2, Float64},
+    current_point::Point{2,Float64},
+    final_point::Point{2,Float64},
     exclusions::DataFrame,
-    current_exclusions_idx::Vector{Int} = [0]
+    current_exclusions_idx::Vector{Int}=[0]
 )::Bool
     #! Broadcast/vectorise function
     current_exclusions = Set{Int}()

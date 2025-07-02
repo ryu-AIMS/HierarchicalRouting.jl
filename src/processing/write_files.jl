@@ -2,7 +2,7 @@
 """
     export_points(
         clusters::Vector{Cluster},
-        output_path::String = "outputs"
+        output_path::String="outputs"
     )::DataFrame
 
 Export points to a GeoPackage file, saved in the output directory.
@@ -16,16 +16,16 @@ Export points to a GeoPackage file, saved in the output directory.
 """
 function export_points(
     clusters::Vector{Cluster},
-    output_path::String = "outputs"
+    output_path::String="outputs"
 )::DataFrame
-    total_points = sum(length.(getfield.(clusters,:nodes)))
+    total_points = sum(length.(getfield.(clusters, :nodes)))
     ids = collect(1:total_points)
     geoms = vcat(getfield.(clusters, :nodes)...)
     cluster_ids = vcat(
-        [fill.(getfield(cluster,:id), length(cluster.nodes)) for cluster in clusters]...
+        [fill.(getfield(cluster, :id), length(cluster.nodes)) for cluster in clusters]...
     )
 
-    df = DataFrame(id = ids, geometry = geoms, cluster_id = cluster_ids)
+    df = DataFrame(id=ids, geometry=geoms, cluster_id=cluster_ids)
     GDF.write(joinpath(output_path, "points.gpkg"), df)
     return df
 end
@@ -33,8 +33,8 @@ end
 """
     export_clusters(
         cluster_sequence::DataFrame,
-        include_depot::Bool = false,
-        output_path::String = "outputs",
+        include_depot::Bool=false,
+        output_path::String="outputs",
     )::DataFrame
 
 Export clusters to a GeoPackage file, saved in the output directory.
@@ -49,18 +49,18 @@ Export clusters to a GeoPackage file, saved in the output directory.
 """
 function export_clusters(
     cluster_sequence::DataFrame,
-    include_depot::Bool = false,
-    output_path::String = "outputs",
+    include_depot::Bool=false,
+    output_path::String="outputs",
 )::DataFrame
     if !include_depot
-        cluster_sequence = cluster_sequence[cluster_sequence.id .!= 0, :]
+        cluster_sequence = cluster_sequence[cluster_sequence.id.!=0, :]
     end
     df = DataFrame(
-        order_id = include_depot ?
-            (0:size(cluster_sequence, 1)-1) :
-            (1:size(cluster_sequence, 1)),
-        cluster_id = cluster_sequence.id,
-        geometry = AG.createpoint.(cluster_sequence.lon, cluster_sequence.lat)
+        order_id=include_depot ?
+                 (0:size(cluster_sequence, 1)-1) :
+                 (1:size(cluster_sequence, 1)),
+        cluster_id=cluster_sequence.id,
+        geometry=AG.createpoint.(cluster_sequence.lon, cluster_sequence.lat)
     )
 
     GDF.write(joinpath(output_path, "clusters.gpkg"), df)
@@ -70,8 +70,8 @@ end
 """
     export_exclusions(
         problem::Problem,
-        output_path::String = "outputs"
-    )::Tuple{DataFrame, DataFrame}
+        output_path::String="outputs"
+    )::Tuple{DataFrame,DataFrame}
 
 Export mothership and tender exclusions (nested in Problem struct) to GeoPackage files,
     saved in the output directory.
@@ -86,8 +86,8 @@ Export mothership and tender exclusions (nested in Problem struct) to GeoPackage
 """
 function export_exclusions(
     problem::Problem,
-    output_path::String = "outputs"
-)::Tuple{DataFrame, DataFrame}
+    output_path::String="outputs"
+)::Tuple{DataFrame,DataFrame}
     exclusions_ms = problem.mothership.exclusion
     exclusions_tenders = problem.tenders.exclusion
 
@@ -103,8 +103,8 @@ end
 
 """
     export_mothership_routes(
-    line_strings::Vector{LineString{2, Float64}},
-    output_path::String = "outputs"
+    line_strings::Vector{LineString{2,Float64}},
+    output_path::String="outputs"
 )::DataFrame
 
 Export mothership routes to a GeoPackage file, saved in the output directory.
@@ -117,13 +117,13 @@ Export mothership routes to a GeoPackage file, saved in the output directory.
 - `df`: DataFrame with id and geometry columns.
 """
 function export_mothership_routes(
-    line_strings::Vector{LineString{2, Float64}},
-    output_path::String = "outputs"
+    line_strings::Vector{LineString{2,Float64}},
+    output_path::String="outputs"
 )::DataFrame
     ids::Vector{Int64} = collect(1:length(line_strings))
     geometries::Vector{AG.IGeometry{AG.wkbLineString}} = _process_line.(line_strings)
 
-    df = DataFrame(id = ids, geometry = geometries)
+    df = DataFrame(id=ids, geometry=geometries)
 
     GDF.write(joinpath(output_path, "routes_ms.gpkg"), df)
     return df
@@ -147,7 +147,7 @@ end
 """
     export_tender_routes(
     tender_soln::Vector{TenderSolution},
-    output_path::String = "outputs"
+    output_path::String="outputs"
 )::DataFrame
 
 Export tender routes to a GeoPackage file, saved in the output directory.
@@ -161,30 +161,29 @@ Export tender routes to a GeoPackage file, saved in the output directory.
 """
 function export_tender_routes(
     tender_soln::Vector{TenderSolution},
-    output_path::String = "outputs"
+    output_path::String="outputs"
 )::DataFrame
     total_routes::Int64 = sum(length.(getfield.(tender_soln, :sorties)))
     ids::Vector{Int64} = collect(1:total_routes)
 
     cluster_ids::Vector{Int} = vcat(map(t -> fill(t.id, length(t.sorties)), tender_soln)...)
-    sortie_ids::Vector{Int}  = vcat(map(t -> 1:length(t.sorties), tender_soln)...)
+    sortie_ids::Vector{Int} = vcat(map(t -> 1:length(t.sorties), tender_soln)...)
 
     # Build geometry column as a linestring for each sortie in each cluster
-    geometries::Vector{AG.IGeometry{AG.wkbLineString}} = [
-        AG.createlinestring(
-            vcat(
-                [(node[1],node[2]) for line in sortie.line_strings for node in line.points],
-                [(tender.finish[1], tender.finish[2])]
-            )
+    coords::Vector{Vector{NTuple{2,Float64}}} = [
+        vcat(
+            [(node[1], node[2]) for line in sortie.line_strings for node in line.points],
+            [(tender.finish[1], tender.finish[2])]
         )
         for tender in tender_soln for sortie in tender.sorties
     ]
+    geometries::Vector{AG.IGeometry{AG.wkbLineString}} = AG.createlinestring.(coords)
 
     df = DataFrame(
-        id = ids,
-        cluster_id = cluster_ids,
-        sortie_id = sortie_ids,
-        geometry = geometries
+        id=ids,
+        cluster_id=cluster_ids,
+        sortie_id=sortie_ids,
+        geometry=geometries
     )
 
     GDF.write(joinpath(output_path, "routes_tenders.gpkg"), df)
