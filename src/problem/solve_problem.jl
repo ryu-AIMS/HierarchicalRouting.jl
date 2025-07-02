@@ -194,18 +194,19 @@ function solve_problem(
     ms_soln_sets[1] = optimized_initial.mothership_routes[1]
     tender_soln_sets[1] = initial_tenders
 
-    disturbance_index = 1
-    for i ∈ ordered_disturbances
-        @info "Disturbance event #$disturbance_index at $(ms_route.route.nodes[2i-1]) " *
-            "before $(i)th cluster_id=$(clust_seq[i])"
-        disturbance_index += 1
+    disturbance_index_count = 1
+    for disturbance_cluster_idx ∈ ordered_disturbances
+        @info "Disturbance event #$disturbance_cluster_idx at " *
+            "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
+            "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
+        disturbance_index_count += 1
         clusters = sort!(
             vcat(
-                clusters[clust_seq][1:i-1],
+                clusters[clust_seq][1:disturbance_cluster_idx-1],
                 disturb_clusters(
-                    clusters[clust_seq][i:end],
+                    clusters[clust_seq][disturbance_cluster_idx:end],
                     problem.targets.disturbance_gdf,
-                    ms_route.route.nodes[2i-1],
+                    ms_route.route.nodes[2*disturbance_cluster_idx-1],
                     problem.tenders.exclusion,
                     total_tender_capacity
                 )
@@ -213,7 +214,7 @@ function solve_problem(
         )
 
         removed_nodes = setdiff(
-            vcat([c.nodes for c in cluster_sets[disturbance_index-1]]...),
+            vcat([c.nodes for c in cluster_sets[disturbance_cluster_idx-1]]...),
             vcat([c.nodes for c in clusters]...)
         )
         if !isempty(removed_nodes)
@@ -226,22 +227,22 @@ function solve_problem(
         ms_route = optimize_mothership_route(
             problem,
             cluster_centroids_df,
-            i,
+            disturbance_cluster_idx,
             ms_route,
-            getfield.(clusters[clust_seq][1:i-1], :id)
+            getfield.(clusters[clust_seq][1:disturbance_cluster_idx-1], :id)
         )
         clust_seq = filter(
             i -> i != 0 && i <= length(clusters),
             ms_route.cluster_sequence.id
         );
 
-        cluster_sets[disturbance_index] = clusters
-        ms_soln_sets[disturbance_index] = ms_route
+        cluster_sets[disturbance_cluster_idx] = clusters
+        ms_soln_sets[disturbance_cluster_idx] = ms_route
         current_tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
 
         for j in 1:length(clust_seq)
-            if j < i
-                current_tender_soln[j] = tender_soln_sets[disturbance_index-1][j]
+            if j < disturbance_cluster_idx
+                current_tender_soln[j] = tender_soln_sets[disturbance_cluster_idx-1][j]
             else
                 current_tender_soln[j] = tender_sequential_nearest_neighbour(
                     clusters[clust_seq][j],
@@ -253,15 +254,15 @@ function solve_problem(
             end
         end
 
-        j = disturbance_index <= length(ordered_disturbances) ?
-            ordered_disturbances[disturbance_index] :
+        next_disturbance_cluster_idx = disturbance_cluster_idx <= length(ordered_disturbances) ?
+            ordered_disturbances[disturbance_cluster_idx] :
             length(clusters) + 1
 
         optimized_current_solution, _ = improve_solution(
             MSTSolution([clusters], [ms_route], [current_tender_soln]),
             problem.mothership.exclusion,
             problem.tenders.exclusion,
-            i, j
+            disturbance_cluster_idx, next_disturbance_cluster_idx
         )
 
         updated_clusters = optimized_current_solution.cluster_sets[1]
@@ -273,7 +274,7 @@ function solve_problem(
         tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(current_tender_soln, :id)))
         current_tender_soln[tender_idxs] .= updated_tenders
 
-        tender_soln_sets[disturbance_index] = current_tender_soln
+        tender_soln_sets[disturbance_cluster_idx] = current_tender_soln
     end
 
     return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
