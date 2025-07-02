@@ -276,7 +276,9 @@ function optimize_waypoints(
             current_point = waypoints[idx]
 
             new_point = waypoint_descent_step(
-                idx, waypoints, existing_soln,
+                existing_soln,
+                idx,
+                waypoints,
                 exclusions_mothership,
                 learning_rate,
                 tolerance,
@@ -326,9 +328,9 @@ end
 
 """
     waypoint_descent_step(
+        soln::MSTSolution,
         idx::Int,
         wpts::Vector{Point{2,Float64}},
-        soln::MSTSolution,
         exclusions_mothership::DataFrame,
         learning_rate::Float64,
         tolerance::Float64,
@@ -343,9 +345,9 @@ considering the combined cost of the mothership route and tender sorties, while 
 exclusion zones for the mothership.
 
 # Arguments
+- `soln`: The existing MSTSolution to be updated.
 - `idx`: Index of the waypoint to be updated.
 - `wpts`: Vector of waypoints in the solution.
-- `soln`: The existing MSTSolution to be updated.
 - `exclusions_mothership`: DataFrame containing exclusion zones for the mothership.
 - `learning_rate`: Step size for the descent.
 - `tolerance`: Tolerance for stopping the descent.
@@ -357,9 +359,9 @@ exclusion zones for the mothership.
 The updated waypoint after the descent step.
 """
 function waypoint_descent_step(
+    soln::MSTSolution,
     idx::Int,
     wpts::Vector{Point{2,Float64}},
-    soln::MSTSolution,
     exclusions_mothership::DataFrame,
     learning_rate::Float64,
     tolerance::Float64,
@@ -374,10 +376,10 @@ function waypoint_descent_step(
 
         # Cost when shifting point in each cardinal/compass direction
         Δ_N, Δ_S, Δ_E, Δ_W = getindex.(evaluate_perturbation.(
+                Ref(soln),
                 [Point(x, y + δ), Point(x, y - δ), Point(x + δ, y), Point(x - δ, y)],
                 Ref(idx),
-                Ref(wpts),
-                Ref(soln);
+                Ref(wpts);
                 vessel_weightings=vessel_weightings
             ), 1)
 
@@ -400,10 +402,10 @@ end
 
 """
     evaluate_perturbation(
+        existing_soln::MSTSolution,
         point_proposed::Point{2,Float64},
         idx::Int64,
-        existing_waypoints::Vector{Point{2,Float64}},
-        existing_soln::MSTSolution;
+        existing_waypoints::Vector{Point{2,Float64}};
         vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
     )::Tuple{Float64,MSTSolution}
 
@@ -411,10 +413,10 @@ Evaluate the (critical path) cost of a proposed perturbation to a waypoint in th
 solution. Update the mothership route and tender sorties with the proposed waypoint.
 
 # Arguments
+- `existing_soln`: Existing MSTSolution to be updated.
 - `point_proposed`: The proposed new waypoint to evaluate.
 - `idx`: Index of the waypoint to be updated.
 - `existing_waypoints`: Existing waypoints in the solution.
-- `existing_soln`: Existing MSTSolution to be updated.
 - `vessel_weightings`: Weightings for mothership and tender costs.
 
 # Returns
@@ -422,10 +424,10 @@ solution. Update the mothership route and tender sorties with the proposed waypo
 - The updated MSTSolution with the proposed waypoint.
 """
 function evaluate_perturbation(
+    existing_soln::MSTSolution,
     point_proposed::Point{2,Float64},
     idx::Int64,
-    existing_waypoints::Vector{Point{2,Float64}},
-    existing_soln::MSTSolution;
+    existing_waypoints::Vector{Point{2,Float64}};
     vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Tuple{Float64,MSTSolution}
     waypoints_proposed = copy(existing_waypoints)
@@ -642,11 +644,11 @@ end
         exclusions_tender::DataFrame,
     )::MothershipSolution
     nearest_neighbour(
+        current_ms_route::MothershipSolution,
         cluster_centroids::DataFrame,
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
         current_point::Point{2,Float64},
-        current_ms_route::MothershipSolution,
         cluster_seq_idx::Int64
     )::MothershipSolution
 
@@ -655,11 +657,11 @@ Apply the nearest neighbor algorithm:
 - starting from the current point and returning to the depot.
 
 # Arguments
+- `current_ms_route`: MothershipSolution object containing the existing route.
 - `cluster_centroids`: DataFrame containing id, lat, lon. Depot has `id=0` in row 1.
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
 - `current_point`: Point{2, Float64} representing the current location of the mothership.
-- `current_ms_route`: MothershipSolution object containing the existing route.
 - `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
 
 # Returns
@@ -736,11 +738,11 @@ function nearest_neighbour(
     )
 end
 function nearest_neighbour(
+    current_ms_route::MothershipSolution,
     cluster_centroids::DataFrame,
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
     current_point::Point{2,Float64},
-    current_ms_route::MothershipSolution,
     cluster_seq_idx::Int64
 )::MothershipSolution
     # TODO: Use vector rather than DataFrame for cluster_centroids
