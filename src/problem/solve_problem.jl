@@ -147,17 +147,18 @@ function solve(
     tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
-    clusters::Vector{Cluster} = cluster_problem(
-        problem; k
-    );
+    # Cluster the problem data
+    clusters::Vector{Cluster} = cluster_problem(problem; k);
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
+    # Route the mothership using nearest neighbour and 2-opt
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
     clust_seq::Vector{Int64} = filter(
         i -> i != 0 && i <= length(clusters),
         ms_route.cluster_sequence.id
     )
 
+    # Generate initial tender solutions using sequential nearest neighbour
     initial_tenders = [
         tender_sequential_nearest_neighbour(
             clusters[clust_seq][j],
@@ -169,7 +170,7 @@ function solve(
         for j in 1:length(clust_seq)
     ]
 
-    #! Optimize the initial tenders solution up to the first disturbance
+    # Optimize the initial tenders solution up to the first disturbance
     next_cluster_idx = !isempty(ordered_disturbances) ?
         ordered_disturbances[1] :
         length(clusters)
@@ -189,12 +190,14 @@ function solve(
         1
     )
 
+    # Iterate through each disturbance event and update solution
     disturbance_index_count = 1
     for disturbance_cluster_idx ∈ ordered_disturbances
         @info "Disturbance event #$disturbance_cluster_idx at " *
             "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
             "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
         disturbance_index_count += 1
+        # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = sort!(
             vcat(
                 clusters[clust_seq][1:disturbance_cluster_idx-1],
@@ -216,7 +219,7 @@ function solve(
             @info "Removed nodes due to disturbance event (since previous cluster):\n" *
             "\t$(join(removed_nodes, "\n\t"))"
         end
-
+        # Re-generate the cluster centroids to route mothership
         cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
         ms_route = optimize_mothership_route(
@@ -231,10 +234,12 @@ function solve(
             ms_route.cluster_sequence.id
         );
 
+        # Update cluster sets, mothership solution, and tender solutions
         cluster_sets[disturbance_cluster_idx] = clusters
         ms_soln_sets[disturbance_cluster_idx] = ms_route
         current_tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
 
+        # Generate tender solutions for the current disturbance cluster
         for j in 1:length(clust_seq)
             if j < disturbance_cluster_idx
                 current_tender_soln[j] = tender_soln_sets[disturbance_cluster_idx-1][j]
@@ -253,6 +258,7 @@ function solve(
             ordered_disturbances[disturbance_cluster_idx] :
             length(clusters) + 1
 
+        # Improve the current solution using the optimization function
         optimized_current_solution, _ = improve_solution(
             MSTSolution([clusters], [ms_route], [current_tender_soln]),
             problem.mothership.exclusion,
@@ -260,6 +266,7 @@ function solve(
             disturbance_cluster_idx, next_disturbance_cluster_idx
         )
 
+        # Update with improved solution to the current cluster set and tender solutions
         cluster_sets[disturbance_cluster_idx],
         ms_soln_sets[disturbance_cluster_idx],
         tender_soln_sets[disturbance_cluster_idx] = apply_improved!(
