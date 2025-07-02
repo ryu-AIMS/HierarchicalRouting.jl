@@ -229,7 +229,7 @@ end
 
 """
     optimize_waypoints(
-        soln::MSTSolution,
+        existing_soln::MSTSolution,
         problem::Problem;
         learning_rate::Float64=1e-8,
         tolerance::Float64=1e-6,
@@ -242,7 +242,7 @@ method. This method iteratively adjusts the waypoints to minimize the critical p
 while respecting exclusion zones for the mothership and ensuring feasible tender sorties.
 
 # Arguments
-- `soln`: The initial MSTSolution containing mothership routes and tender sorties.
+- `existing_soln`: The initial MSTSolution containing mothership routes and tender sorties.
 - `problem`: The Problem instance containing mothership and tender specifications.
 - `learning_rate`: Step size for the descent.
 - `tolerance`: Tolerance for stopping the descent.
@@ -253,7 +253,7 @@ while respecting exclusion zones for the mothership and ensuring feasible tender
 An optimized MSTSolution with updated waypoints and tender sorties.
 """
 function optimize_waypoints(
-    soln::MSTSolution,
+    existing_soln::MSTSolution,
     problem::Problem;
     learning_rate::Float64=1e-8,
     tolerance::Float64=1e-6,
@@ -267,16 +267,16 @@ function optimize_waypoints(
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting, problem.tenders.weighting
     )
-    wpts = copy(soln.mothership_routes[end].route.nodes)
-    n = length(wpts)
+    waypoints = copy(existing_soln.mothership_routes[end].route.nodes)
+    n_waypoints = length(waypoints)
 
     for _ in 1:max_search_iters
         improved = false
-        for idx in 2:(n-1)
-            curr_pt = wpts[idx]
+        for idx in 2:(n_waypoints-1)
+            current_point = waypoints[idx]
 
-            new_pt = waypoint_descent_step(
-                idx, wpts, soln,
+            new_point = waypoint_descent_step(
+                idx, waypoints, existing_soln,
                 exclusions_mothership,
                 learning_rate,
                 tolerance,
@@ -284,8 +284,8 @@ function optimize_waypoints(
                 vessel_weightings
             )
 
-            if haversine(new_pt, curr_pt) > tolerance
-                wpts[idx] = new_pt
+            if haversine(new_point, current_point) > tolerance
+                waypoints[idx] = new_point
                 improved = true
             end
         end
@@ -293,25 +293,35 @@ function optimize_waypoints(
     end
 
     # Update solution and regenerate tender sorties once more
-    soln_opt = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+    improved_soln::MSTSolution = rebuild_solution_with_waypoints(
+        existing_soln,
+        waypoints,
+        exclusions_mothership
+    )
 
     # Ordered waypoint pairs for each cluster
-    wpts_pairs::Vector{NTuple{2,Point{2,Float64}}} = collect(zip(soln_opt.mothership_routes[end].route.nodes[2:2:end-1], soln_opt.mothership_routes[end].route.nodes[3:2:end-1]))
-    cluster_order::Vector{Int64} = soln_opt.mothership_routes[end].cluster_sequence.id[2:end-1]
+    waypoint_pairs::Vector{NTuple{2,Point{2,Float64}}} = collect(
+        zip(
+            improved_soln.mothership_routes[end].route.nodes[2:2:end-1],
+            improved_soln.mothership_routes[end].route.nodes[3:2:end-1]
+        )
+    )
+    cluster_order::Vector{Int64} =
+        improved_soln.mothership_routes[end].cluster_sequence.id[2:end-1]
     wpts_pairs_ordered::Vector{NTuple{2,Point{2,Float64}}} = [
-        wpts_pairs[i] for i in sortperm(cluster_order)
+        waypoint_pairs[i] for i in sortperm(cluster_order)
     ]
 
     # Ensure the tender sorties are updated with feasible paths
-    soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
-        soln_opt.cluster_sets[end],
+    improved_soln.tenders[end] = tender_sequential_nearest_neighbour.(
+        improved_soln.cluster_sets[end],
         wpts_pairs_ordered,
         Ref(n_tenders),
         Ref(t_cap),
         Ref(exclusions_tender)
     )
 
-    return soln_opt
+    return improved_soln
 end
 
 """
@@ -392,8 +402,8 @@ end
     evaluate_perturbation(
         point_proposed::Point{2,Float64},
         idx::Int64,
-        waypoints_ex::Vector{Point{2,Float64}},
-        solution_ex::MSTSolution;
+        existing_waypoints::Vector{Point{2,Float64}},
+        existing_soln::MSTSolution;
         vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
     )::Tuple{Float64,MSTSolution}
 
@@ -403,8 +413,8 @@ solution. Update the mothership route and tender sorties with the proposed waypo
 # Arguments
 - `point_proposed`: The proposed new waypoint to evaluate.
 - `idx`: Index of the waypoint to be updated.
-- `waypoints_ex`: Existing waypoints in the solution.
-- `solution_ex`: Existing MSTSolution to be updated.
+- `existing_waypoints`: Existing waypoints in the solution.
+- `existing_soln`: Existing MSTSolution to be updated.
 - `vessel_weightings`: Weightings for mothership and tender costs.
 
 # Returns
@@ -414,21 +424,21 @@ solution. Update the mothership route and tender sorties with the proposed waypo
 function evaluate_perturbation(
     point_proposed::Point{2,Float64},
     idx::Int64,
-    waypoints_ex::Vector{Point{2,Float64}},
-    solution_ex::MSTSolution;
+    existing_waypoints::Vector{Point{2,Float64}},
+    existing_soln::MSTSolution;
     vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Tuple{Float64,MSTSolution}
-    waypoints_proposed = copy(waypoints_ex)
+    waypoints_proposed = copy(existing_waypoints)
     waypoints_proposed[idx] = point_proposed
 
-    solution_proposed = patch_mothership_waypoints(solution_ex, waypoints_proposed, idx)
+    solution_proposed = patch_mothership_waypoints(existing_soln, waypoints_proposed, idx)
 
     return critical_path(solution_proposed, vessel_weightings), solution_proposed
 end
 
 """
     patch_mothership_waypoints(
-        solution_ex::MSTSolution,
+        existing_soln::MSTSolution,
         waypoints_proposed::Vector{Point{2,Float64}},
         idx::Int64
     )::MSTSolution
@@ -438,7 +448,7 @@ Note: This function is lighter than `rebuild_solution_with_waypoints()` and is u
 perturbation evaluation in the optimization process.
 
 # Arguments
-- `solution_ex`: The existing MSTSolution to be updated.
+- `existing_soln`: The existing MSTSolution to be updated.
 - `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
 - `idx`: Index of the waypoint to be updated.
 
@@ -446,12 +456,12 @@ perturbation evaluation in the optimization process.
 A new MSTSolution with the updated mothership route and tender sorties.
 """
 function patch_mothership_waypoints(
-    solution_ex::MSTSolution,
+    existing_soln::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
     idx::Int64
 )::MSTSolution
     # Update the waypoints in the mothership route
-    line_strings_proposed = deepcopy(solution_ex.mothership_routes[end].route.line_strings)
+    line_strings_proposed = deepcopy(existing_soln.mothership_routes[end].route.line_strings)
     line_strings_proposed[idx-1].points[end] = waypoints_proposed[idx]
     line_strings_proposed[idx].points[1] = waypoints_proposed[idx]
     #! Temp solution: will only work for straight line segments
@@ -459,22 +469,22 @@ function patch_mothership_waypoints(
     # Update mothership route with new waypoints and line_strings
     ms_route_new::Route = Route(
         waypoints_proposed,
-        solution_ex.mothership_routes[end].route.dist_matrix,
+        existing_soln.mothership_routes[end].route.dist_matrix,
         vcat(line_strings_proposed...)
     )
 
     # Create a new MothershipSolution with the updated route
     ms_soln_new = MothershipSolution(
-        solution_ex.mothership_routes[end].cluster_sequence,
+        existing_soln.mothership_routes[end].cluster_sequence,
         ms_route_new
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
+    tender_soln_new = generate_tender_sorties(existing_soln, waypoints_proposed)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
-        solution_ex.cluster_sets,
+        existing_soln.cluster_sets,
         [ms_soln_new],
         [tender_soln_new]
     )
@@ -482,7 +492,7 @@ end
 
 """
     rebuild_solution_with_waypoints(
-        solution_ex::MSTSolution,
+        existing_soln::MSTSolution,
         waypoints_proposed::Vector{Point{2,Float64}},
         exclusions_mothership::DataFrame
     )::MSTSolution
@@ -490,7 +500,7 @@ end
 Rebuild full `MSTSolution` with updated waypoints and other attributes.
 
 # Arguments
-- `solution_ex`: The existing MSTSolution to be updated.
+- `existing_soln`: The existing MSTSolution to be updated.
 - `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
 - `exclusions_mothership`: DataFrame containing exclusion zones for the mothership.
 
@@ -498,7 +508,7 @@ Rebuild full `MSTSolution` with updated waypoints and other attributes.
 A new MSTSolution with the updated mothership route and tender sorties.
 """
 function rebuild_solution_with_waypoints(
-    solution_ex::MSTSolution,
+    existing_soln::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
     exclusions_mothership::DataFrame
 )::MSTSolution
@@ -519,16 +529,16 @@ function rebuild_solution_with_waypoints(
 
     # Create a new MothershipSolution with the updated route
     ms_soln_new = MothershipSolution(
-        solution_ex.mothership_routes[end].cluster_sequence,
+        existing_soln.mothership_routes[end].cluster_sequence,
         ms_route_new
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
+    tender_soln_new = generate_tender_sorties(existing_soln, waypoints_proposed)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
-        solution_ex.cluster_sets,
+        existing_soln.cluster_sets,
         [ms_soln_new],
         [tender_soln_new]
     )
@@ -636,7 +646,7 @@ end
         exclusions_mothership::DataFrame,
         exclusions_tender::DataFrame,
         current_point::Point{2,Float64},
-        ex_ms_route::MothershipSolution,
+        current_ms_route::MothershipSolution,
         cluster_seq_idx::Int64
     )::MothershipSolution
 
@@ -649,7 +659,7 @@ Apply the nearest neighbor algorithm:
 - `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
 - `exclusions_tender`: DataFrame containing exclusion zones for tenders.
 - `current_point`: Point{2, Float64} representing the current location of the mothership.
-- `ex_ms_route`: MothershipSolution object containing the existing route.
+- `current_ms_route`: MothershipSolution object containing the existing route.
 - `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
 
 # Returns
@@ -730,7 +740,7 @@ function nearest_neighbour(
     exclusions_mothership::DataFrame,
     exclusions_tender::DataFrame,
     current_point::Point{2,Float64},
-    ex_ms_route::MothershipSolution,
+    current_ms_route::MothershipSolution,
     cluster_seq_idx::Int64
 )::MothershipSolution
     # TODO: Use vector rather than DataFrame for cluster_centroids
@@ -783,12 +793,15 @@ function nearest_neighbour(
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
     waypoints = get_waypoints(
         current_point,
-        vcat(DataFrame(ex_ms_route.cluster_sequence[cluster_seq_idx, :]), sequenced_remaining_centroids),
+        vcat(
+            DataFrame(current_ms_route.cluster_sequence[cluster_seq_idx, :]),
+            sequenced_remaining_centroids
+        ),
         exclusions_all
     )
 
     cluster_sequence = vcat(
-        ex_ms_route.cluster_sequence[1:cluster_seq_idx, :],
+        current_ms_route.cluster_sequence[1:cluster_seq_idx, :],
         sequenced_remaining_centroids
     )
     ordered_clusters = sort(cluster_sequence[1:end-1, :], :id)
@@ -802,10 +815,10 @@ function nearest_neighbour(
     _, waypoint_path_vector = get_feasible_vector(
         waypoints.waypoint, exclusions_mothership
     )
-    ex_path = ex_ms_route.route.line_strings[
+    ex_path = current_ms_route.route.line_strings[
         1:findfirst(
-        x -> x == ex_ms_route.route.nodes[2*cluster_seq_idx-1],
-        getindex.(getproperty.(ex_ms_route.route.line_strings, :points), 2)
+        x -> x == current_ms_route.route.nodes[2*cluster_seq_idx-1],
+        getindex.(getproperty.(current_ms_route.route.line_strings, :points), 2)
     )
     ]
     new_path = vcat(waypoint_path_vector...)
@@ -815,7 +828,7 @@ function nearest_neighbour(
         cluster_sequence=cluster_sequence,
         route=Route(
             vcat(
-                ex_ms_route.route.nodes[1:2*cluster_seq_idx-2],
+                current_ms_route.route.nodes[1:2*cluster_seq_idx-2],
                 waypoints.waypoint
             ),
             updated_full_dist_matrix,
