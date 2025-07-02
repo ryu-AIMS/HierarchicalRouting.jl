@@ -461,10 +461,10 @@ function patch_mothership_waypoints(
     idx::Int64
 )::MSTSolution
     # Update the waypoints in the mothership route
+    #! Temp solution: will only work for straight line segments
     line_strings_proposed = deepcopy(existing_soln.mothership_routes[end].route.line_strings)
     line_strings_proposed[idx-1].points[end] = waypoints_proposed[idx]
     line_strings_proposed[idx].points[1] = waypoints_proposed[idx]
-    #! Temp solution: will only work for straight line segments
 
     # Update mothership route with new waypoints and line_strings
     ms_route_new::Route = Route(
