@@ -118,7 +118,7 @@ function initial_solution(
 end
 
 """
-    solve_problem(
+    solve(
         problem::Problem;
         disturbance_clusters::Set{Int64} = Set{Int64}()
     )::MSTSolution
@@ -135,7 +135,7 @@ Generate a solution to the problem for:
 # Returns
 Best total MSTSolution found
 """
-function solve_problem(
+function solve(
     problem::Problem;
     k::Int = 1,
     disturbance_clusters::Set{Int64} = Set{Int64}()
