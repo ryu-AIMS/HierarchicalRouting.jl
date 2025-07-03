@@ -320,7 +320,7 @@ function apply_improved!(
     #Overwrite updated tenders
     updated_tenders = soln.tenders[1]
     tender_ids = getfield.(updated_tenders, :id)
-    Main.@infiltrate
+
     tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(existing_tenders, :id)))
     existing_tenders[tender_idxs] .= updated_tenders
 
