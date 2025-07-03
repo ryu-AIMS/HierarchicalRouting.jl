@@ -196,10 +196,9 @@ function solve(
 
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
     cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = apply_improved!(
-        clusters,
-        tender_soln_sets,
         optimized_initial,
-        1
+        clusters,
+        initial_tenders,
     )
 
     # Iterate through each disturbance event and update solution
@@ -282,7 +281,9 @@ function solve(
         cluster_sets[disturbance_cluster_idx],
         ms_soln_sets[disturbance_cluster_idx],
         tender_soln_sets[disturbance_cluster_idx] = apply_improved!(
-            clusters, tender_soln_sets, optimized_current_solution, d_idx
+            optimized_current_solution,
+            clusters,
+            current_tender_soln
         )
     end
 
