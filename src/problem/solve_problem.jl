@@ -195,11 +195,10 @@ function solve(
     )
 
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
-    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = apply_improved!(
-        clusters,
-        tender_soln_sets,
+    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = apply_improved(
         optimized_initial,
-        1
+        clusters,
+        initial_tenders,
     )
 
     # Iterate through each disturbance event and update solution
@@ -281,8 +280,10 @@ function solve(
         # Update with improved solution to the current cluster set and tender solutions
         cluster_sets[disturbance_cluster_idx],
         ms_soln_sets[disturbance_cluster_idx],
-        tender_soln_sets[disturbance_cluster_idx] = apply_improved!(
-            clusters, tender_soln_sets, optimized_current_solution, d_idx
+        tender_soln_sets[disturbance_cluster_idx] = apply_improved(
+            optimized_current_solution,
+            clusters,
+            current_tender_soln
         )
     end
 
@@ -290,47 +291,46 @@ function solve(
 end
 
 """
-    apply_improved!(
-        clusters::Vector{Cluster},
-        tenders::Vector{Vector{TenderSolution}},
-        soln::MSTSolution,
-        event_idx::Int
+    apply_improved(
+        improved_soln::MSTSolution,
+        existing_clusters::Vector{Cluster},
+        existing_tenders::Vector{TenderSolution},
     )::Tuple{Vector{Cluster}, MothershipSolution, Vector{TenderSolution}}
 
-Overwrite the clusters and tenders in the current solution with the updated ones from the improved solution.
+Update the clusters and tenders with the improved solution.
 
 # Arguments
-- `clusters`: Vector of clusters to update.
-- `tenders`: Vector of tender solutions for each event.
-- `soln`: The improved solution containing updated clusters and tenders.
-- `event_idx`: Index of the event for which the tenders are being updated.
+- `improved_soln`: The improved solution containing updated clusters and tenders.
+- `existing_clusters`: Vector of clusters to update.
+- `existing_tenders`: Vector of tender solutions for each event.
 
 # Returns
-- A tuple containing the updated clusters, the mothership route, and the updated tenders for the specified event index.
+- A tuple containing the updated clusters, the mothership route, and the updated tenders for
+the specified event index.
 """
-function apply_improved!(
-    clusters::Vector{Cluster},
-    tenders::Vector{Vector{TenderSolution}},
-    soln::MSTSolution,
-    event_idx::Int
+function apply_improved(
+    improved_soln::MSTSolution,
+    existing_clusters::Vector{Cluster},
+    existing_tenders::Vector{TenderSolution},
 )
-    # Overwrite updated clusters
-    updated_clusters = soln.cluster_sets[1]
-    ids = getfield.(updated_clusters, :id)
-    clusters[ids] .= updated_clusters
+    # Update clusters
+    improved_clusters = improved_soln.cluster_sets[1]
+    ids = getfield.(improved_clusters, :id)
+    updated_clusters::Vector{Cluster} = deepcopy(existing_clusters)
+    updated_clusters[ids] .= improved_clusters
 
-    #Overwrite updated tenders
-    updated_tenders = soln.tenders[1]
-    tender_ids = getfield.(updated_tenders, :id)
-    Main.@infiltrate
-    tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(tenders[event_idx], :id)))
-    tenders[event_idx][tender_idxs] .= updated_tenders
+    # Update tenders
+    improved_tenders = improved_soln.tenders[1]
+    tender_ids = getfield.(improved_tenders, :id)
 
-    # Record the updated clusters and tenders for the current index
+    tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(existing_tenders, :id)))
+    updated_tender_soln::Vector{TenderSolution} = deepcopy(existing_tenders)
+    updated_tender_soln[tender_idxs] .= improved_tenders
+
     return (
-      deepcopy(clusters),
-      soln.mothership_routes[1],
-      tenders[event_idx]
+      updated_clusters,
+      deepcopy(improved_soln.mothership_routes[1]),
+      updated_tender_soln
     )
 end
 
