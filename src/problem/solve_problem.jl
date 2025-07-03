@@ -305,7 +305,8 @@ Update the clusters and tenders with the improved solution.
 - `existing_tenders`: Vector of tender solutions for each event.
 
 # Returns
-- A tuple containing the updated clusters, the mothership route, and the updated tenders for the specified event index.
+- A tuple containing the updated clusters, the mothership route, and the updated tenders for
+the specified event index.
 """
 function apply_improved(
     improved_soln::MSTSolution,
