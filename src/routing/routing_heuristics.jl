@@ -301,60 +301,6 @@ function optimize_waypoints(
 end
 
 """
-    patch_mothership_waypoints(
-        solution_ex::MSTSolution,
-        waypoints_proposed::Vector{Point{2,Float64}},
-        idx::Int64
-    )::MSTSolution
-
-Patch the mothership waypoints in the existing solution with proposed waypoints.\n
-Note: This function is lighter than `rebuild_solution_with_waypoints()` and is used for
-perturbation evaluation in the optimization process.
-
-# Arguments
-- `solution_ex`: The existing MSTSolution to be updated.
-- `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
-- `idx`: Index of the waypoint to be updated.
-
-# Returns
-A new MSTSolution with the updated mothership route and tender sorties.
-"""
-function patch_mothership_waypoints(
-    solution_ex::MSTSolution,
-    waypoints_proposed::Vector{Point{2,Float64}},
-    idx::Int64
-)::MSTSolution
-    # Update the waypoints in the mothership route
-    line_strings_proposed = deepcopy(solution_ex.mothership_routes[end].route.line_strings)
-    line_strings_proposed[idx-1].points[end] = waypoints_proposed[idx]
-    line_strings_proposed[idx].points[1] = waypoints_proposed[idx]
-    #! Temp solution: will only work for straight line segments
-
-    # Update mothership route with new waypoints and line_strings
-    ms_route_new::Route = Route(
-        waypoints_proposed,
-        solution_ex.mothership_routes[end].route.dist_matrix,
-        vcat(line_strings_proposed...)
-    )
-
-    # Create a new MothershipSolution with the updated route
-    ms_soln_new = MothershipSolution(
-        solution_ex.mothership_routes[end].cluster_sequence,
-        ms_route_new
-    )
-
-    # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
-
-    # Return a new MSTSolution with the updated mothership route
-    return MSTSolution(
-        solution_ex.cluster_sets,
-        [ms_soln_new],
-        [tender_soln_new]
-    )
-end
-
-"""
     rebuild_solution_with_waypoints(
         solution_ex::MSTSolution,
         waypoints_proposed::Vector{Point{2,Float64}},
