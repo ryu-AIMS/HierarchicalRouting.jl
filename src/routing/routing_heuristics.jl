@@ -245,8 +245,7 @@ function optimize_waypoints(
 
     # Flatten initial waypoints
     waypoints_initial::Vector{Point{2,Float64}} = soln.mothership_routes[end].route.nodes[2:end-1]
-    x0::Vector{NTuple{2,Float64}} = reduce(vcat, Tuple.(waypoints_initial))
-    x0_flat::Vector{Float64} = collect(Iterators.flatten(x0))
+    x0::Vector{Float64} = copy(reinterpret(Float64, waypoints_initial))
 
     # Objective from x -> critical_path
     function obj(x::Vector{Float64})::Float64
@@ -270,7 +269,7 @@ function optimize_waypoints(
     )
     result = optimize(
         obj,
-        x0_flat,
+        x0,
         GradientDescent(),
         opt_options
     )
