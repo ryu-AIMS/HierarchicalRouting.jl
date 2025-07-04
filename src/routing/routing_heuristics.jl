@@ -443,7 +443,7 @@ function generate_tender_sorties(
     finishes_new = tmp_wpts[2 .* js.+1]
 
     # mask which tenders need updating
-    mask = .!((starts_ex .== starts_new) .& (finishes_ex .== finishes_new))
+    mask = (starts_ex .!= starts_new) .|| (finishes_ex .!= finishes_new)
 
     sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, length(sorties[mask]))
     for (i, s) in enumerate(sorties[mask])
