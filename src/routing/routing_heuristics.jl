@@ -256,7 +256,10 @@ function optimize_waypoints(
                 soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
             ]
         )
-
+        if any(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
+            # Penalise if any proposed waypoint is in an exclusion zone
+            return 2*z₀
+        end
         soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
         return critical_path(soln_proposed, vessel_weightings)
     end
@@ -267,6 +270,7 @@ function optimize_waypoints(
         g_tol = tolerance,
         show_trace = true
     )
+    z₀ = critical_path(soln, vessel_weightings)
     result = optimize(
         obj,
         x0,
