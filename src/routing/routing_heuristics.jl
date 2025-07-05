@@ -449,6 +449,228 @@ function generate_tender_sorties(
     return tender_soln_new
 end
 
+using Optim, Optimization, OptimizationOptimJL
+
+function optimize_waypoints(
+    soln::MSTSolution,
+    problem::Problem;
+    tolerance::Float64=5e5, # stop when gradient norm below this
+    iterations::Int=10  # treated as max iterations for Optim
+)::MSTSolution
+    exclusions_mothership::DataFrame = problem.mothership.exclusion
+    exclusions_tender::DataFrame = problem.tenders.exclusion
+    n_tenders::Int8 = problem.tenders.number
+    t_cap::Int16 = problem.tenders.capacity
+    vessel_weightings::NTuple{2,AbstractFloat} = (
+        problem.mothership.weighting, problem.tenders.weighting
+    )
+
+    # Flatten initial waypoints
+    waypoints_initial::Vector{Point{2,Float64}} = soln.mothership_routes[end].route.nodes[2:end-1]
+    x0::Vector{Float64} = copy(reinterpret(Float64, waypoints_initial))
+
+    # Objective from x -> critical_path
+    function obj(x::Vector{Float64})::Float64
+        wpts::Vector{Point{2, Float64}} = Point.(
+            [
+                soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
+                tuple.(x[1:2:end], x[2:2:end])...,
+                soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
+            ]
+        )
+        if any(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
+            # Penalise if any proposed waypoint is in an exclusion zone
+            return 2*z₀
+        end
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+        return critical_path(soln_proposed, vessel_weightings)
+    end
+
+    # Run Optim with simple gradient descent
+    opt_options = Optim.Options(
+        iterations = iterations,
+        g_tol = tolerance,
+        show_trace = true
+    )
+    z₀ = critical_path(soln, vessel_weightings)
+    result = optimize(
+        obj,
+        x0,
+        GradientDescent(),
+        opt_options
+    )
+
+    x_best_flat = Optim.minimizer(result)
+    x_best::Vector{Point{2, Float64}} = Point.(
+        [
+            soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
+            tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
+            soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
+        ]
+    )
+
+    # Rebuild solution with the optimal waypoints
+    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
+
+    # Regenerate tender sorties
+    clust_seq::Vector{Int64} = soln_opt.mothership_routes[end].cluster_sequence.id[2:end-1]
+    pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(x_best[2:2:end-1], x_best[3:2:end-1])
+    soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
+        soln_opt.cluster_sets[end],
+        pairs,
+        Ref(n_tenders),
+        Ref(t_cap),
+        Ref(exclusions_tender)
+    )
+
+    return soln_opt
+end
+
+"""
+    rebuild_solution_with_waypoints(
+        solution_ex::MSTSolution,
+        waypoints_proposed::Vector{Point{2,Float64}},
+        exclusions_mothership::DataFrame
+    )::MSTSolution
+
+Rebuild full `MSTSolution` with updated waypoints and other attributes.
+
+# Arguments
+- `solution_ex`: The existing MSTSolution to be updated.
+- `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
+- `exclusions_mothership`: DataFrame containing exclusion zones for the mothership.
+
+# Returns
+A new MSTSolution with the updated mothership route and tender sorties.
+"""
+function rebuild_solution_with_waypoints(
+    solution_ex::MSTSolution,
+    waypoints_proposed::Vector{Point{2,Float64}},
+    exclusions_mothership::DataFrame
+)::MSTSolution
+    # Update the waypoints in the mothership route
+    dist_vector_proposed, line_strings_proposed = get_feasible_vector(
+        waypoints_proposed, exclusions_mothership
+    )
+    n = length(dist_vector_proposed)
+    # Ensure the distance matrix is square and matches the number of waypoints
+    dist_matrix_proposed = zeros(Float64, n + 1, n + 1)
+    diag_idxs = CartesianIndex.(1:n, 2:n+1)
+    dist_matrix_proposed[diag_idxs] .= dist_vector_proposed
+    ms_route_new::Route = Route(
+        waypoints_proposed,
+        dist_matrix_proposed,
+        vcat(line_strings_proposed...)
+    )
+
+    # Create a new MothershipSolution with the updated route
+    ms_soln_new = MothershipSolution(
+        solution_ex.mothership_routes[end].cluster_sequence,
+        ms_route_new
+    )
+
+    # Update the tender solutions with the new waypoints
+    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
+
+    # Return a new MSTSolution with the updated mothership route
+    return MSTSolution(
+        solution_ex.cluster_sets,
+        [ms_soln_new],
+        [tender_soln_new]
+    )
+end
+
+"""
+    generate_tender_sorties(
+        soln::MSTSolution,
+        tmp_wpts::Vector{Point{2,Float64}}
+    )::Vector{TenderSolution}
+
+Generate tender sorties based on the updated waypoints, including all updated attributes.
+
+# Arguments
+- `soln`: The existing MSTSolution containing tenders.
+- `tmp_wpts`: Vector of temporary waypoints to update the tender sorties.
+
+# Returns
+Updated TenderSolution objects with new waypoints.
+"""
+function generate_tender_sorties(
+    soln::MSTSolution,
+    tmp_wpts::Vector{Point{2,Float64}}
+)::Vector{TenderSolution}
+    # Update the tender solutions with the new waypoints
+    tender_soln_ex = soln.tenders[end]
+
+    ids = getfield.(tender_soln_ex, :id)
+    starts_ex = getfield.(tender_soln_ex, :start)
+    finishes_ex = getfield.(tender_soln_ex, :finish)
+    sorties = getfield.(tender_soln_ex, :sorties)
+    dist_mats = getfield.(tender_soln_ex, :dist_matrix)
+
+    js = 1:length(tender_soln_ex)
+
+    starts_new = tmp_wpts[2 .* js]
+    finishes_new = tmp_wpts[2 .* js.+1]
+
+    # mask which tenders need updating
+    mask = (starts_ex .!= starts_new) .|| (finishes_ex .!= finishes_new)
+
+    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, length(sorties[mask]))
+    for (i, s) in enumerate(sorties[mask])
+        new_routes = Vector{Route}(undef, length(s))
+        for (j, r) in enumerate(s)
+            line_strings_updated = deepcopy(r.line_strings)
+            # Recalculate line strings from waypoint to first node and last node to finish
+            if r.line_strings[1].points[1] != starts_new[i] # start changes
+                continue_from = findfirst(
+                    ==(r.nodes[1]),
+                    first.(getproperty.(line_strings_updated, :points))
+                )
+
+                # re-calc linestrings for the first segment: start to first node
+                new_segment_flattened = [LineString{2,Float64}(
+                    [starts_new[i], r.nodes[1]]
+                )]
+                line_strings_updated = [
+                    new_segment_flattened;
+                    line_strings_updated[continue_from:end]
+                ]
+            end
+            if r.line_strings[end].points[end] != finishes_new[i] # finish changes
+                keep_until = findlast(
+                    ==(r.nodes[end]),
+                    last.(getproperty.(line_strings_updated, :points))
+                )
+                # re-calc linestrings for the last segment: last node to finish
+                new_segment_flattened = [LineString{2,Float64}(
+                    [r.nodes[end], finishes_new[i]]
+                )]
+                line_strings_updated = [
+                    line_strings_updated[1:keep_until];
+                    new_segment_flattened
+                ]
+            end
+            new_routes[j] = Route(
+                r.nodes,
+                r.dist_matrix,
+                line_strings_updated
+            )
+        end
+        sorties_new[i] = new_routes
+    end
+
+    tender_soln_new = copy(tender_soln_ex)
+    tender_soln_new[mask] = TenderSolution.(
+        ids[mask],
+        starts_new[mask],
+        finishes_new[mask],
+        sorties_new,
+        dist_mats[mask]
+    )
+    return tender_soln_new
+end
+
 """
     nearest_neighbour(
         cluster_centroids::DataFrame,
