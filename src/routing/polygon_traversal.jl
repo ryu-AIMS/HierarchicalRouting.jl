@@ -321,6 +321,10 @@ function get_pts(intersections::IGeometry{wkbLineString})::Vector{IGeometry{wkbP
     n = AG.ngeom(intersections)
     return AG.getgeom.(Ref(intersections), 0:n-1)
 end
+function get_pts(intersections::IGeometry{wkbMultiLineString})::Vector{IGeometry{wkbPoint}}
+    n = AG.ngeom(intersections)
+    return AG.getgeom.(Ref(intersections), 0:n-1)
+end
 
 """
     is_visible(
