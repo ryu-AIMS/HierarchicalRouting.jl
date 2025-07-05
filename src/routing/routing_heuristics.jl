@@ -227,7 +227,7 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
-using Optim, Optimization, OptimizationOptimJL
+using Optim
 
 function optimize_waypoints(
     soln::MSTSolution,
@@ -243,34 +243,42 @@ function optimize_waypoints(
         problem.mothership.weighting, problem.tenders.weighting
     )
 
+    last_ms_route = soln.mothership_routes[end]
+
     # Flatten initial waypoints
-    waypoints_initial::Vector{Point{2,Float64}} = soln.mothership_routes[end].route.nodes[2:end-1]
-    x0::Vector{Float64} = copy(reinterpret(Float64, waypoints_initial))
+    waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
+    x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
     # Objective from x -> critical_path
-    function obj(x::Vector{Float64})::Float64
-        wpts::Vector{Point{2, Float64}} = Point.(
+    function obj(x::Vector{Float64}; penalty=)::Float64
+        # Rebuild waypoints
+        wpts::Vector{Point{2,Float64}} = Point.(
             [
-                soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
-                tuple.(x[1:2:end], x[2:2:end])...,
-                soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
-            ]
-        )
+            last_ms_route.route.nodes[1],  # first waypoint (depot)
+            tuple.(x[1:2:end], x[2:2:end])...,
+            last_ms_route.route.nodes[end]  # last waypoint (depot)
+        ])
+
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+
+        score = critical_path(soln_proposed, vessel_weightings)
         if any(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
             # Penalise if any proposed waypoint is in an exclusion zone
-            return 2*z₀
+            score *= 100.0
         end
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
-        return critical_path(soln_proposed, vessel_weightings)
+
+        return score
     end
+
+    # z₀ = critical_path(soln, vessel_weightings)
 
     # Run Optim with simple gradient descent
     opt_options = Optim.Options(
-        iterations = iterations,
-        g_tol = tolerance,
-        show_trace = true
+        iterations=iterations,
+        g_tol=tolerance,
+        show_trace=true
     )
-    z₀ = critical_path(soln, vessel_weightings)
+
     result = optimize(
         obj,
         x0,
@@ -279,19 +287,19 @@ function optimize_waypoints(
     )
 
     x_best_flat = Optim.minimizer(result)
-    x_best::Vector{Point{2, Float64}} = Point.(
+    x_best::Vector{Point{2,Float64}} = Point.(
         [
-            soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
-            tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
-            soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
-        ]
+        last_ms_route.route.nodes[1],  # first waypoint (depot)
+        tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
+        last_ms_route.route.nodes[end]  # last waypoint (depot)
+    ]
     )
 
     # Rebuild solution with the optimal waypoints
     soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
 
     # Regenerate tender sorties
-    clust_seq::Vector{Int64} = soln_opt.mothership_routes[end].cluster_sequence.id[2:end-1]
+    clust_seq::Vector{Int64} = last_ms_route.cluster_sequence.id[2:end-1]
     pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(x_best[2:2:end-1], x_best[3:2:end-1])
     soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
         soln_opt.cluster_sets[end],
