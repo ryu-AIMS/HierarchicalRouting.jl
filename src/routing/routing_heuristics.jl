@@ -250,7 +250,7 @@ function optimize_waypoints(
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
     # Objective from x -> critical_path
-    function obj(x::Vector{Float64}; penalty=)::Float64
+    function obj(x::Vector{Float64})::Float64
         # Rebuild waypoints
         wpts::Vector{Point{2,Float64}} = Point.(
             [
@@ -269,8 +269,6 @@ function optimize_waypoints(
 
         return score
     end
-
-    # z₀ = critical_path(soln, vessel_weightings)
 
     # Run Optim with simple gradient descent
     opt_options = Optim.Options(
