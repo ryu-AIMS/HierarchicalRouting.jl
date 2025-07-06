@@ -34,24 +34,24 @@ Create a plot of nodes by cluster.
 """
 function clusters(
     ;
-    clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
-    cluster_sequence::Union{DataFrame, Nothing} = nothing,
-    cluster_radius::Real = 0,
-    nodes::Bool = true,
-    centers::Bool = false,
-    labels::Bool = false
+    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
+    cluster_sequence::Union{DataFrame,Nothing}=nothing,
+    cluster_radius::Real=0,
+    nodes::Bool=true,
+    centers::Bool=false,
+    labels::Bool=false
 )
-    fig = Figure(size = (800, 600))
-    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     clusters!(
         ax,
-        clusters = clusters,
-        cluster_sequence = cluster_sequence,
-        cluster_radius = cluster_radius,
-        nodes = nodes,
-        centers = centers,
-        labels = labels
+        clusters=clusters,
+        cluster_sequence=cluster_sequence,
+        cluster_radius=cluster_radius,
+        nodes=nodes,
+        centers=centers,
+        labels=labels
     )
 
     return fig, ax
@@ -82,12 +82,12 @@ Plot nodes by cluster.
 """
 function clusters!(
     ax::Axis;
-    clusters::Union{Vector{HierarchicalRouting.Cluster}, Nothing} = nothing,
-    cluster_sequence::Union{DataFrame, Nothing} = nothing,
-    cluster_radius::Real = 0,
-    nodes::Bool = true,
-    centers::Bool = false,
-    labels::Bool = false
+    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
+    cluster_sequence::Union{DataFrame,Nothing}=nothing,
+    cluster_radius::Real=0,
+    nodes::Bool=true,
+    centers::Bool=false,
+    labels::Bool=false
 )
     # Validate inputs
     if isnothing(clusters) && isnothing(cluster_sequence)
@@ -98,7 +98,7 @@ function clusters!(
     if !isnothing(cluster_sequence)
         sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
         colormap = distinguishable_colors(length(sequence_id) + 2)[3:end]
-        centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)[2:end-1,:]
+        centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)[2:end-1, :]
     elseif !isnothing(clusters)
         sequence_id = 1:length(clusters)
         colormap = distinguishable_colors(length(clusters) + 2)[3:end]
@@ -115,25 +115,25 @@ function clusters!(
 
         # plot nodes
         if nodes && !isnothing(clusters) && !isempty(clusters[seq].nodes)
-            scatter!(ax, clusters[seq].nodes, color = color, markersize = 10, marker = :x)
+            scatter!(ax, clusters[seq].nodes, color=color, markersize=10, marker=:x)
         end
 
         center_lon, center_lat = !isnothing(cluster_sequence) ?
-            centroids[idx, :] :
-            centroids[seq, :]
+                                 centroids[idx, :] :
+                                 centroids[seq, :]
 
         if cluster_radius > 0
             circle_lons = center_lon .+ circle_offsets[1]
             circle_lats = center_lat .+ circle_offsets[2]
 
-            poly!(ax, hcat(circle_lons, circle_lats), color = (color, 0.2), strokecolor = color, label = "Cluster Centroids")
+            poly!(ax, hcat(circle_lons, circle_lats), color=(color, 0.2), strokecolor=color, label="Cluster Centroids")
         end
 
         if centers
-            scatter!(ax, [center_lon], [center_lat], markersize = 10, color = (color, 0.2), strokewidth = 0)
+            scatter!(ax, [center_lon], [center_lat], markersize=10, color=(color, 0.2), strokewidth=0)
         end
         if labels
-            text!(ax, center_lon, center_lat, text = string(seq), align = (:center, :center), color = color)
+            text!(ax, center_lon, center_lat, text=string(seq), align=(:center, :center), color=color)
         end
     end
     return ax
@@ -156,12 +156,12 @@ Create a plot of exclusion zones.
 """
 function exclusions(
     exclusions::DataFrame;
-    labels::Bool = false
+    labels::Bool=false
 )
-    fig = Figure(size = (800, 600))
-    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
-    exclusions!(ax, exclusions, labels = labels)
+    exclusions!(ax, exclusions, labels=labels)
 
     return fig, ax
 end
@@ -185,17 +185,17 @@ Plot exclusion zones.
 function exclusions!(
     ax::Axis,
     exclusions::DataFrame;
-    labels::Bool = false
+    labels::Bool=false
 )
     for (i, zone) in enumerate(eachrow(exclusions))
         polygon = zone[:geometry]
         for ring in GeoInterface.coordinates(polygon)
             xs, ys = [coord[1] for coord in ring], [coord[2] for coord in ring]
-            poly!(ax, xs, ys, color = (:gray, 0.5), strokecolor = :black)#, label = "Exclusion Zone")
+            poly!(ax, xs, ys, color=(:gray, 0.5), strokecolor=:black)#, label = "Exclusion Zone")
 
             if labels
                 centroid_x, centroid_y = mean(xs), mean(ys)
-                text!(ax, centroid_x, centroid_y, text = string(i), align = (:center, :center), color = :grey)
+                text!(ax, centroid_x, centroid_y, text=string(i), align=(:center, :center), color=:grey)
             end
         end
     end
@@ -223,14 +223,14 @@ Create a plot of LineStrings for mothership route.
 """
 function linestrings(
     route::HierarchicalRouting.Route;
-    markers::Bool = false,
-    labels::Bool = false,
-    color = nothing
+    markers::Bool=false,
+    labels::Bool=false,
+    color=nothing
 )
-    fig = Figure(size = (800, 600))
-    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
-    linestrings!(ax, route, markers = markers, labels = labels, color = color)
+    linestrings!(ax, route, markers=markers, labels=labels, color=color)
 
     return fig, ax
 end
@@ -258,9 +258,9 @@ Plot LineStrings for mothership route.
 function linestrings!(
     ax::Axis,
     route::HierarchicalRouting.Route;
-    markers::Bool = false,
-    labels::Bool = false,
-    color = nothing
+    markers::Bool=false,
+    labels::Bool=false,
+    color=nothing
 )
     line_strings = route.line_strings
     waypoints = route.nodes[1:end-1]
@@ -273,7 +273,7 @@ function linestrings!(
 
     # Mark waypoints with 'x'
     if markers
-        scatter!(waypoint_matrix, marker = 'x', markersize = 10, color = :black)#, label = "Waypoints")
+        scatter!(waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
         # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
     end
 
@@ -286,12 +286,12 @@ function linestrings!(
                  [Point(p[1], p[2]) for p in line_string.points] :
                  [Point(p[1], p[2]) for l in line_string for p in l.points]
         line_width = line_color == :black ? 3 : 2
-        lines!(ax, points, color = line_color, linewidth = line_width)
+        lines!(ax, points, color=line_color, linewidth=line_width)
     end
 
     if labels
         # Annotate waypoints by sequence
-        text!(ax, waypoint_matrix[:,1], waypoint_matrix[:,2] .+ 0.002, text = string.(0:size(waypoint_matrix,1)-1), align = (:center, :center), color = :black)
+        text!(ax, waypoint_matrix[:, 1], waypoint_matrix[:, 2] .+ 0.002, text=string.(0:size(waypoint_matrix, 1)-1), align=(:center, :center), color=:black)
     end
     return ax
 end
@@ -312,8 +312,8 @@ Create a plot of tender routes within each cluster.
 function tenders(
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )
-    fig = Figure(size = (800, 600))
-    ax = Axis(fig[1, 1], xlabel = "Longitude", ylabel = "Latitude")
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     tenders!(ax, tender_soln)
 
@@ -351,10 +351,10 @@ function tenders!(
     for (t_n, t_soln) in enumerate(tender_soln)
         base_hue = convert_rgb_to_hue(colormap[t_n])
         s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s+3)[3:end]
+        palette = sequential_palette(base_hue, s + 3)[3:end]
 
         for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color = color)
+            linestrings!(ax, sortie, color=color)
         end
     end
     return ax
@@ -370,10 +370,10 @@ function tenders!(
     for t_soln in tender_soln
         base_hue = convert_rgb_to_hue(colormap[t_soln.id])
         s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s+3)[3:end]
+        palette = sequential_palette(base_hue, s + 3)[3:end]
 
         for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color = color)
+            linestrings!(ax, sortie, color=color)
         end
     end
     return ax
