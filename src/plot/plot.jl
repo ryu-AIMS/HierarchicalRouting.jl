@@ -299,6 +299,20 @@ function linestrings!(
     return ax
 end
 
+function route!(
+    ax::Axis,
+    ms::HierarchicalRouting.MothershipSolution;
+    markers::Bool=false,
+    labels::Bool=false,
+    color=nothing
+)
+    return linestrings!(ax, ms.route; markers, labels, color)
+end
+
+function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})
+    return tenders!(ax, tender_soln)
+end
+
 """
     tenders(
         tender_soln::Vector{HierarchicalRouting.TenderSolution}
@@ -381,6 +395,26 @@ function tenders!(
         end
     end
     return ax
+end
+
+function solution(problem::HierarchicalRouting.Problem, soln::HierarchicalRouting.MSTSolution)
+    fig = Figure(size=(750, 880))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+
+    # Add exclusions for the mothership
+    exclusions!(ax, problem.mothership.exclusion, labels=true)
+
+    # Add exclusions for tenders
+    exclusions!(ax, problem.tenders.exclusion, labels=true)
+
+    # Add clustered points
+    clusters!(ax, clusters=soln.cluster_sets[end])
+
+    # Plot mothership and tender routes
+    route!(ax, soln.mothership_routes[1])
+    route!(ax, soln.tenders[1])
+
+    return fig, ax
 end
 
 function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
