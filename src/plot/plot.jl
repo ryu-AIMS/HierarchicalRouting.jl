@@ -397,24 +397,72 @@ function tenders!(
     return ax
 end
 
-function solution(problem::HierarchicalRouting.Problem, soln::HierarchicalRouting.MSTSolution)
+"""
+    solution(
+        problem::HierarchicalRouting.Problem,
+        soln::HierarchicalRouting.MSTSolution;
+        cluster_radius::Float64=0.0,
+        show_mothership_exclusions::Bool=false,
+        show_tenders_exclusions::Bool=true,
+        show_mothership::Bool=true,
+        show_tenders::Bool=true,
+        fig_size=(750, 880)
+    )::Figure
+
+Create a plot of the full routing solution, including:
+- exclusion zones for the **mothership** and **tenders**,
+- mothership route,
+- tender sorties (coloured by cluster), and
+- clustered target points (coloured by cluster).
+
+# Arguments
+- `problem`: The hierarchical routing problem instance.
+- `soln`: The full solution to the problem.
+- `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
+- `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
+- `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
+- `show_mothership`: Whether to show the **mothership** route.
+- `show_tenders`: Whether to show **tender** routes.
+- `fig_size`: Size of the figure.
+
+# Returns
+- `fig`: The created Figure object containing the plot.
+"""
+function solution(
+    problem::HierarchicalRouting.Problem,
+    soln::HierarchicalRouting.MSTSolution;
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=false,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+)::Figure
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
-    # Add exclusions for the mothership
-    exclusions!(ax, problem.mothership.exclusion, labels=true)
+    # Exclusions
+    show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
+    show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
 
-    # Add exclusions for tenders
-    exclusions!(ax, problem.tenders.exclusion, labels=true)
+    # Clusters
+    clusters!(
+        ax,
+        clusters=soln.cluster_sets[end],
+        nodes=true,
+        centers=false,
+        labels=false,
+        cluster_radius=cluster_radius
+    )
 
-    # Add clustered points
-    clusters!(ax, clusters=soln.cluster_sets[end])
+    # Mothership route
+    if show_mothership
+        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
+    end
 
-    # Plot mothership and tender routes
-    route!(ax, soln.mothership_routes[1])
-    route!(ax, soln.tenders[1])
+    # Tender sorties/routes
+    show_tenders && route!(ax, soln.tenders[end])
 
-    return fig, ax
+    return fig
 end
 
 function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
