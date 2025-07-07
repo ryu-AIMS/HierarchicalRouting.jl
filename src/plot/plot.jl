@@ -44,7 +44,7 @@ function clusters(
     labels::Bool=false
 )::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude", dest = "+proj=natearth")
 
     clusters!(
         ax,
@@ -162,7 +162,7 @@ function exclusions(
     labels::Bool=false
 )::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude", dest = "+proj=natearth")
 
     exclusions!(ax, exclusions, labels=labels)
 
@@ -231,7 +231,7 @@ function linestrings(
     color=nothing
 )::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude", dest = "+proj=natearth")
 
     linestrings!(ax, route, markers=markers, labels=labels, color=color)
 
@@ -330,7 +330,7 @@ function tenders(
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude", dest = "+proj=natearth")
 
     tenders!(ax, tender_soln)
 
@@ -438,7 +438,7 @@ function solution(
     show_tenders::Bool=true,
 )::Figure
     fig = Figure(size=(750, 880))
-    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude", dest = "+proj=natearth")
 
     # Exclusions
     show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
