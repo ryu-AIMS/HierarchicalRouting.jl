@@ -163,7 +163,7 @@ function solve(
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
     # Cluster the problem data
-    clusters::Vector{Cluster} = cluster_problem(problem; k);
+    clusters::Vector{Cluster} = cluster_problem(problem; k)
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     # Route the mothership using nearest neighbour and 2-opt
@@ -198,19 +198,23 @@ function solve(
     )
 
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
-    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = apply_improved!(
-        clusters,
-        tender_soln_sets,
-        optimized_initial,
-        1
-    )
+    # cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = apply_improved!(
+    #     clusters,
+    #     tender_soln_sets,
+    #     optimized_initial,
+    #     1
+    # )
+
+    cluster_sets[1] = optimized_initial.cluster_sets[1]
+    ms_soln_sets[1] = optimized_initial.mothership_routes[1]
+    tender_soln_sets[1] = optimized_initial.tenders[1]
 
     # Iterate through each disturbance event and update solution
     disturbance_index_count = 1
     for disturbance_cluster_idx ∈ ordered_disturbances
         @info "Disturbance event #$disturbance_cluster_idx at " *
-            "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
-            "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
+              "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
+              "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
         disturbance_index_count += 1
         # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = sort!(
@@ -270,8 +274,8 @@ function solve(
         end
 
         next_disturbance_cluster_idx = disturbance_cluster_idx <= length(ordered_disturbances) ?
-            ordered_disturbances[disturbance_cluster_idx] :
-            length(clusters) + 1
+                                       ordered_disturbances[disturbance_cluster_idx] :
+                                       length(clusters) + 1
 
         # Improve the current solution using the optimization function
         optimized_current_solution, _ = improve_solution(
@@ -322,18 +326,17 @@ function apply_improved!(
     ids = getfield.(updated_clusters, :id)
     clusters[ids] .= updated_clusters
 
-    #Overwrite updated tenders
+    # Overwrite updated tenders
     updated_tenders = soln.tenders[1]
     tender_ids = getfield.(updated_tenders, :id)
-    Main.@infiltrate
     tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(tenders[event_idx], :id)))
     tenders[event_idx][tender_idxs] .= updated_tenders
 
     # Record the updated clusters and tenders for the current index
     return (
-      deepcopy(clusters),
-      soln.mothership_routes[1],
-      tenders[event_idx]
+        clusters,
+        soln.mothership_routes[1],
+        updated_tenders
     )
 end
 
