@@ -250,7 +250,7 @@ function optimize_waypoints(
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
     # Objective from x -> critical_path
-    function obj(x::Vector{Float64})::Float64
+    function obj(x::Vector{Float64}; penalty=100.0)::Float64
         # Rebuild waypoints
         wpts::Vector{Point{2,Float64}} = Point.(
             [
@@ -264,7 +264,7 @@ function optimize_waypoints(
         score = critical_path(soln_proposed, vessel_weightings)
         if any(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
             # Penalise if any proposed waypoint is in an exclusion zone
-            score *= 100.0
+            score *= penalty
         end
 
         return score
@@ -455,7 +455,7 @@ function generate_tender_sorties(
     return tender_soln_new
 end
 
-using Optim, Optimization, OptimizationOptimJL
+using Optim
 
 function optimize_waypoints(
     soln::MSTSolution,
