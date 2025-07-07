@@ -19,7 +19,7 @@ using GLMakie, GeoMakie
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Tuple{Figure, GeoAxis}
 
 Create a plot of nodes by cluster.
 
@@ -32,7 +32,7 @@ Create a plot of nodes by cluster.
 - `labels`: Plot cluster labels flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig, ax`: Figure and GeoAxis objects.
 """
 function clusters(
     ;
@@ -42,9 +42,9 @@ function clusters(
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
-)::Tuple{Figure, Axis}
+)::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     clusters!(
         ax,
@@ -60,19 +60,19 @@ function clusters(
 end
 """
     clusters!(
-        ax::Axis;
+        ax::GeoAxis;
         clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
         cluster_sequence::Union{DataFrame,Nothing}=nothing,
         cluster_radius::Real=0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
-    )::Axis
+    )::GeoAxis
 
 Plot nodes by cluster.
 
 # Arguments
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 - `clusters`: Clusters to plot.
 - `cluster_sequence`: Cluster by sequence visited.
 - `cluster_radius`: Radius of circle to represent clusters.
@@ -81,17 +81,17 @@ Plot nodes by cluster.
 - `labels`: Plot cluster labels flag.
 
 # Returns
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 """
 function clusters!(
-    ax::Axis;
+    ax::GeoAxis;
     clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
     cluster_sequence::Union{DataFrame,Nothing}=nothing,
     cluster_radius::Real=0,
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
-)::Axis
+)::GeoAxis
     # Validate inputs
     if isnothing(clusters) && isnothing(cluster_sequence)
         error("At least one of `clusters` or `cluster_sequence` must be provided.")
@@ -146,7 +146,7 @@ end
     exclusions(
         exclusions::DataFrame;
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Tuple{Figure, GeoAxis}
 
 Create a plot of exclusion zones.
 
@@ -155,14 +155,14 @@ Create a plot of exclusion zones.
 - `labels`: Plot exclusion zones flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig, ax`: Figure and GeoAxis objects.
 """
 function exclusions(
     exclusions::DataFrame;
     labels::Bool=false
-)::Tuple{Figure, Axis}
+)::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     exclusions!(ax, exclusions, labels=labels)
 
@@ -170,26 +170,26 @@ function exclusions(
 end
 """
     exclusions!(
-        ax::Axis,
+        ax::GeoAxis,
         exclusions::DataFrame;
         labels::Bool=false
-    )::Axis
+    )::GeoAxis
 
 Plot exclusion zones.
 
 # Arguments
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 - `exclusions`: Exclusion zone polygons.
 - `labels`: Plot exclusion zones flag.
 
 # Returns
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 """
 function exclusions!(
-    ax::Axis,
+    ax::GeoAxis,
     exclusions::DataFrame;
     labels::Bool=false
-)::Axis
+)::GeoAxis
     for (i, zone) in enumerate(eachrow(exclusions))
         polygon = zone[:geometry]
         for ring in GeoInterface.coordinates(polygon)
@@ -211,7 +211,7 @@ end
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
-    )::Tuple{Figure, Axis}
+    )::Tuple{Figure, GeoAxis}
 
 Create a plot of LineStrings for mothership route.
 
@@ -222,16 +222,16 @@ Create a plot of LineStrings for mothership route.
 - `color`: LineString color.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig, ax`: Figure and GeoAxis objects.
 """
 function linestrings(
     route::HierarchicalRouting.Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)::Tuple{Figure, Axis}
+)::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     linestrings!(ax, route, markers=markers, labels=labels, color=color)
 
@@ -239,32 +239,32 @@ function linestrings(
 end
 """
     linestrings!(
-        ax::Axis,
+        ax::GeoAxis,
         route::HierarchicalRouting.Route;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
-    )::Axis
+    )::GeoAxis
 
 Plot LineStrings for mothership route.
 
 # Arguments
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 - `route`: Route including nodes and LineStrings.
 - `markers`: Plot waypoints flag.
 - `labels`: Plot LineString labels flag.
 - `color`: LineString color.
 
 # Returns
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 """
 function linestrings!(
-    ax::Axis,
+    ax::GeoAxis,
     route::HierarchicalRouting.Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)::Axis
+)::GeoAxis
     line_strings = route.line_strings
     waypoints = route.nodes[1:end-1]
 
@@ -300,7 +300,7 @@ function linestrings!(
 end
 
 function route!(
-    ax::Axis,
+    ax::GeoAxis,
     ms::HierarchicalRouting.MothershipSolution;
     markers::Bool=false,
     labels::Bool=false,
@@ -309,14 +309,14 @@ function route!(
     return linestrings!(ax, ms.route; markers, labels, color)
 end
 
-function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})
+function route!(ax::GeoAxis, tender_soln::Vector{HierarchicalRouting.TenderSolution})
     return tenders!(ax, tender_soln)
 end
 
 """
     tenders(
         tender_soln::Vector{HierarchicalRouting.TenderSolution}
-    )::Tuple{Figure, Axis}
+    )::Tuple{Figure, GeoAxis}
 
 Create a plot of tender routes within each cluster.
 
@@ -324,13 +324,13 @@ Create a plot of tender routes within each cluster.
 - `tender_soln::Vector{HierarchicalRouting.TenderSolution}`: Tender solutions.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig, ax`: Figure and GeoAxis objects.
 """
 function tenders(
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
-)::Tuple{Figure, Axis}
+)::Tuple{Figure, GeoAxis}
     fig = Figure(size=(800, 600))
-    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax = GeoAxis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     tenders!(ax, tender_soln)
 
@@ -339,29 +339,29 @@ end
 
 """
     tenders!(
-        ax::Axis,
+        ax::GeoAxis,
         tender_soln::Vector{HierarchicalRouting.TenderSolution}
-    )::Axis
+    )::GeoAxis
     function tenders!(
-        ax::Axis,
+        ax::GeoAxis,
         tender_soln::Vector{HierarchicalRouting.TenderSolution},
         num_clusters::Int64
-    )::Axis
+    )::GeoAxis
 
 Plot tender routes within each cluster, colored by cluster, sequentially shaded by sortie.
 
 # Arguments
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 - `tender_soln`: Tender solutions.
 - `num_clusters`: Number of clusters to color/plot.
 
 # Returns
-- `ax`: Axis object.
+- `ax`: GeoAxis object.
 """
 function tenders!(
-    ax::Axis,
+    ax::GeoAxis,
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
-)::Axis
+)::GeoAxis
     # Create custom colormap, skipping the first two colors (yellow and black)
     colormap = distinguishable_colors(length(tender_soln) + 2)[3:end]
 
@@ -378,10 +378,10 @@ function tenders!(
     return ax
 end
 function tenders!(
-    ax::Axis,
+    ax::GeoAxis,
     tender_soln::Vector{HierarchicalRouting.TenderSolution},
     num_clusters::Int64
-)::Axis
+)::GeoAxis
     colormap = distinguishable_colors(num_clusters + 2)[3:end]
 
     # TODO: Plot critical path (longest) thicker than other paths
