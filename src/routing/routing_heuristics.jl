@@ -477,16 +477,16 @@ function optimize_waypoints(
 
     # Objective from x -> critical_path
     function obj(x::Vector{Float64})::Float64
-        wpts::Vector{Point{2, Float64}} = Point.(
+        wpts::Vector{Point{2,Float64}} = Point.(
             [
-                soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
-                tuple.(x[1:2:end], x[2:2:end])...,
-                soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
-            ]
+            soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
+            tuple.(x[1:2:end], x[2:2:end])...,
+            soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
+        ]
         )
         if any(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
             # Penalise if any proposed waypoint is in an exclusion zone
-            return 2*z₀
+            return 2 * z₀
         end
         soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
         return critical_path(soln_proposed, vessel_weightings)
@@ -494,9 +494,9 @@ function optimize_waypoints(
 
     # Run Optim with simple gradient descent
     opt_options = Optim.Options(
-        iterations = iterations,
-        g_tol = tolerance,
-        show_trace = true
+        iterations=iterations,
+        g_tol=tolerance,
+        show_trace=true
     )
     z₀ = critical_path(soln, vessel_weightings)
     result = optimize(
@@ -507,12 +507,12 @@ function optimize_waypoints(
     )
 
     x_best_flat = Optim.minimizer(result)
-    x_best::Vector{Point{2, Float64}} = Point.(
+    x_best::Vector{Point{2,Float64}} = Point.(
         [
-            soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
-            tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
-            soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
-        ]
+        soln.mothership_routes[end].route.nodes[1],  # first waypoint (depot)
+        tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
+        soln.mothership_routes[end].route.nodes[end]  # last waypoint (depot)
+    ]
     )
 
     # Rebuild solution with the optimal waypoints
