@@ -291,8 +291,10 @@ function optimize_waypoints(
 
     result = optimize(
         obj,
+        lb,
+        ub,
         x0,
-        GradientDescent(),
+        Fminbox(GradientDescent()),
         opt_options
     )
 
