@@ -42,7 +42,7 @@ function clusters(
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
-)::Tuple{Figure, Axis}
+)::Tuple{Figure,Axis}
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -136,7 +136,8 @@ function clusters!(
             scatter!(ax, [center_lon], [center_lat], markersize=10, color=(color, 0.2), strokewidth=0)
         end
         if labels
-            text!(ax, center_lon, center_lat, text=string(seq), align=(:center, :center), color=color)
+            seq_id = HierarchicalRouting.generate_letter_id(seq)
+            text!(ax, center_lon, center_lat, text=seq_id, align=(:center, :center), color=color)
         end
     end
     return ax
@@ -160,7 +161,7 @@ Create a plot of exclusion zones.
 function exclusions(
     exclusions::DataFrame;
     labels::Bool=false
-)::Tuple{Figure, Axis}
+)::Tuple{Figure,Axis}
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -229,7 +230,7 @@ function linestrings(
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)::Tuple{Figure, Axis}
+)::Tuple{Figure,Axis}
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -328,7 +329,7 @@ Create a plot of tender routes within each cluster.
 """
 function tenders(
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
-)::Tuple{Figure, Axis}
+)::Tuple{Figure,Axis}
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -450,7 +451,7 @@ function solution(
         clusters=soln.cluster_sets[end],
         nodes=true,
         centers=false,
-        labels=false,
+        labels=true,
         cluster_radius=cluster_radius
     )
 
