@@ -35,6 +35,7 @@ include("problem/solve_problem.jl")
 include("problem/disturbance_events.jl")
 
 include("plot/plot.jl")
+include("show.jl")
 
 include("processing/write_files.jl")
 
