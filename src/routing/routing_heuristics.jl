@@ -17,6 +17,9 @@ struct TenderSolution
     sorties::Vector{Route}
     dist_matrix::Matrix{Float64}
 end
+function generate_letter_id(t::TenderSolution)
+    return generate_letter_id(t.id)
+end
 
 function TenderSolution(t::TenderSolution, sorties::Vector{Route})
     return TenderSolution(
