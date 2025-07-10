@@ -16,16 +16,16 @@ struct TenderSolution
     finish::Point{2,Float64}
     sorties::Vector{Route}
     dist_matrix::Matrix{Float64}
+end
 
-    function TenderSolution(t::TenderSolution, sorties::Vector{Route})
-        return new(
-            t.id,
-            t.start,
-            t.finish,
-            sorties,
-            t.dist_matrix
-        )
-    end
+function TenderSolution(t::TenderSolution, sorties::Vector{Route})
+    return TenderSolution(
+        t.id,
+        t.start,
+        t.finish,
+        sorties,
+        t.dist_matrix
+    )
 end
 
 struct MSTSolution
