@@ -26,6 +26,17 @@ function TenderSolution(t::TenderSolution, sorties::Vector{Route})
         sorties,
         t.dist_matrix
     )
+    dist_matrix::Matrix{Float64}
+
+    function TenderSolution(t::TenderSolution, sorties::Vector{Route})
+        return new(
+            t.id,
+            t.start,
+            t.finish,
+            sorties,
+            t.dist_matrix
+        )
+    end
 end
 
 struct MSTSolution
