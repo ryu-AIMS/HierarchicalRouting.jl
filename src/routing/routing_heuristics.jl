@@ -11,19 +11,22 @@ end
 end
 
 struct TenderSolution
-    id::Int
+    id::Int64
     start::Point{2,Float64}
     finish::Point{2,Float64}
     sorties::Vector{Route}
     dist_matrix::Matrix{Float64}
+
+    function TenderSolution(t::TenderSolution, sorties::Vector{Route})
+        return new(
+            t.id,
+            t.start,
+            t.finish,
+            sorties,
+            t.dist_matrix
+        )
+    end
 end
-TenderSolution(t::TenderSolution, sorties::Vector{Route}) = TenderSolution(
-    t.id,
-    t.start,
-    t.finish,
-    sorties,
-    t.dist_matrix
-)
 
 struct MSTSolution
     cluster_sets::Vector{Vector{Cluster}}

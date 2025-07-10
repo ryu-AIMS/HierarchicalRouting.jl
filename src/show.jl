@@ -53,6 +53,24 @@ function Base.show(io::IO, mime::MIME"text/plain", mothership::MothershipSolutio
     )
 end
 
+function Base.show(io::IO, mime::MIME"text/plain", tender::TenderSolution)
+    # nclust = nrows(mothership.cluster_sequence)
+    sequence::DataFrame = mothership.cluster_sequence
+
+    println(
+        io,
+        """
+        TenderSolution:
+            id: $(tender.id)
+            Start location: $(tender.start)
+            Finish location: $(tender.finish)
+            Number of sorties: $(length(tender.sorties))
+
+            Cluster visitation sequence: $(sequence.id)
+        """
+    )
+end
+
 function Base.show(io::IO, mime::MIME"text/plain", soln::MSTSolution)
     nclust = length(soln.cluster_sets[end])
     ntend = length(soln.tenders[end])
