@@ -279,6 +279,16 @@ function optimize_waypoints(
         show_trace=true
     )
 
+    problem_bbox = get_bbox_bounds([
+        exclusions_mothership.geometry,
+        exclusions_tender.geometry,
+        problem.targets.points.geometry
+    ])
+
+    m = length(x0) ÷ 2
+    lb::Vector{Float64} = reduce(vcat, ([problem_bbox[1], problem_bbox[3]] for _ in 1:m))
+    ub::Vector{Float64} = reduce(vcat, ([problem_bbox[2], problem_bbox[4]] for _ in 1:m))
+
     result = optimize(
         obj,
         x0,
