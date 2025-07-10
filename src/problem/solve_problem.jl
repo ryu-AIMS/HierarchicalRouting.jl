@@ -50,7 +50,7 @@ function initial_solution(
         for j in 1:length(clust_seq)
     ]
 
-    cluster_sets[1] = deepcopy(clusters)
+    cluster_sets[1] = clusters
     ms_soln_sets[1] = ms_route
     tender_soln_sets[1] = initial_tenders
 
