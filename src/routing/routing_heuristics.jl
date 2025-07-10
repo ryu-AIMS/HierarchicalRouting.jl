@@ -299,7 +299,6 @@ function optimize_waypoints(
     soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
 
     # Regenerate tender sorties
-    clust_seq::Vector{Int64} = last_ms_route.cluster_sequence.id[2:end-1]
     pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(x_best[2:2:end-1], x_best[3:2:end-1])
     soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
         soln_opt.cluster_sets[end],
