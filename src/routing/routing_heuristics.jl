@@ -252,7 +252,9 @@ function optimize_waypoints(
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
     # Objective from x -> critical_path
-    function obj(x::Vector{Float64}; penalty=100.0)::Float64
+    function obj(
+        x::Vector{Float64};
+    )::Float64
         # Rebuild waypoints
         wpts::Vector{Point{2,Float64}} = Point.(
             [
@@ -264,12 +266,10 @@ function optimize_waypoints(
         soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
 
         score = critical_path(soln_proposed, vessel_weightings)
-        if any(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
-            # Penalise if any proposed waypoint is in an exclusion zone
-            score *= penalty
-        end
 
-        return score
+        # Penalise by an `exclusion_count` factor of `penalty`.
+        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
+        return score + score * exclusion_count
     end
 
     # Run Optim with simple gradient descent
