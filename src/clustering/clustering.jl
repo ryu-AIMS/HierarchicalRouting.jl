@@ -63,9 +63,7 @@ end
 function generate_letter_id(c::Cluster)
     return generate_letter_id(c.id)
 end
-function generate_letter_id(t::TenderSolution)
-    return generate_letter_id(t.id)
-end
+
 
 """
     generate_cluster_df(
