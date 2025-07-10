@@ -11,10 +11,42 @@ using Clustering
     # waypoints::NTuple{2, Point{2, Float64}}
 end
 
-function generate_letter_id(idx::Int64)
+"""
+    generate_letter_id(idx::Int64)::String
+
+Generate Letter-based ID from a number.
+Applies an Excel-style ordering, where 0-25 produces A-Z.
+Numbers greater than 25 results in two-character IDs and increments accordingly:
+e.g., A-Z, AA-AZ, BA-BZ, etc.
+
+# Examples
+
+```julia
+import HierarchicalRouting as HR
+
+HR.generate_letter_id(0)
+# A
+
+HR.generate_letter_id(25)
+# Z
+
+HR.generate_letter_id(26)
+# AA
+
+HR.generate_letter_id(51)
+# AZ
+
+HR.generate_letter_id(52)
+# BA
+
+HR.generate_letter_id(77)
+# BZ
+```
+"""
+function generate_letter_id(idx::Int64)::String
     idx < 0 && throw(ArgumentError("Index must be non-negative"))
 
-    result = ""
+    result::String = ""
     n = idx
 
     while true
