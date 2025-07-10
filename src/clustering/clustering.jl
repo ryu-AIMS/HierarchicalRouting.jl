@@ -11,6 +11,30 @@ using Clustering
     # waypoints::NTuple{2, Point{2, Float64}}
 end
 
+function generate_letter_id(idx::Int64)
+    idx < 0 && throw(ArgumentError("Index must be non-negative"))
+
+    result = ""
+    n = idx
+
+    while true
+        result = string(Char('A' + (n % 26))) * result
+        n = n ÷ 26
+        if n == 0
+            break
+        end
+        n -= 1  # Key adjustment for letter-based numbering
+    end
+
+    return result
+end
+function generate_letter_id(c::Cluster)
+    return generate_letter_id(c.id)
+end
+function generate_letter_id(t::TenderSolution)
+    return generate_letter_id(t.id)
+end
+
 """
     generate_cluster_df(
         clusters::Vector{Cluster},
