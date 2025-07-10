@@ -401,7 +401,7 @@ function generate_tender_sorties(
     # mask which tenders need updating
     mask = (starts_ex .!= starts_new) .|| (finishes_ex .!= finishes_new)
 
-    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, length(sorties[mask]))
+    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, sum(mask))
     for (i, s) in enumerate(sorties[mask])
         new_routes = Vector{Route}(undef, length(s))
         for (j, r) in enumerate(s)
