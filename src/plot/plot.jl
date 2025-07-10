@@ -136,8 +136,16 @@ function clusters!(
             scatter!(ax, [center_lon], [center_lat], markersize=10, color=(color, 0.2), strokewidth=0)
         end
         if labels
-            seq_id = HierarchicalRouting.generate_letter_id(seq)
-            text!(ax, center_lon, center_lat, text=seq_id, align=(:center, :center), color=color)
+            text!(
+                ax,
+                center_lon,
+                center_lat,
+                text=HierarchicalRouting.generate_letter_id(seq - 1),
+                font="bold",
+                fontsize=24,
+                align=(:center, :center),
+                color=color
+            )
         end
     end
     return ax
