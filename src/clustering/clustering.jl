@@ -1,10 +1,10 @@
 
-using Clustering
 using Random
 using Hungarian
+using Clustering
 
 @kwdef struct Cluster
-    id::Int
+    id::Int64
     centroid::Point{2,Float64}
     nodes::Vector{Point{2,Float64}} = [centroid]
     # TODO: Add waypoints?
