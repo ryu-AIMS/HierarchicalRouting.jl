@@ -307,18 +307,16 @@ function route!(
     end
     return ax
 end
-
 function route!(
     ax::Axis,
     ms::HierarchicalRouting.MothershipSolution;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)
+)::Axis
     return route!(ax, ms.route; markers, labels, color)
 end
-
-function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})
+function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})::Axis
     return tenders!(ax, tender_soln)
 end
 
