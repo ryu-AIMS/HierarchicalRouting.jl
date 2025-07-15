@@ -14,12 +14,18 @@ using GLMakie, GeoMakie
     clusters(
         ;
         clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-        cluster_sequence::Union{DataFrame,Nothing}=nothing,
-        cluster_radius::Real=0,
+        cluster_radius::Union{Float64, Int64}=0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Tuple{Figure,Axis}
+    clusters(
+        ;
+        cluster_sequence::Union{DataFrame,Nothing}=nothing,
+        cluster_radius::Union{Float64, Int64}=0,
+        centers::Bool=false,
+        labels::Bool=false
+    )::Tuple{Figure,Axis}
 
 Create a plot of nodes by cluster.
 
@@ -37,8 +43,7 @@ Create a plot of nodes by cluster.
 function clusters(
     ;
     clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-    cluster_sequence::Union{DataFrame,Nothing}=nothing,
-    cluster_radius::Real=0,
+    cluster_radius::Union{Float64,Int64}=0,
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
@@ -48,25 +53,74 @@ function clusters(
 
     clusters!(
         ax,
-        clusters=clusters,
-        cluster_sequence=cluster_sequence,
-        cluster_radius=cluster_radius,
-        nodes=nodes,
-        centers=centers,
-        labels=labels
+        clusters,
+        cluster_radius,
+        nodes,
+        centers,
+        labels
     )
 
     return fig, ax
 end
+function clusters(
+    ;
+    cluster_sequence::Union{DataFrame,Nothing}=nothing,
+    cluster_radius::Union{Float64,Int64}=0,
+    centers::Bool=false,
+    labels::Bool=false
+)::Tuple{Figure,Axis}
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+
+    clusters!(
+        ax,
+        cluster_sequence;
+        cluster_radius,
+        centers,
+        labels
+    )
+
+    return fig, ax
+end
+
+function _calc_radius_offset(radius::Float64)::Union{Tuple,Nothing}
+    offsets = if radius > 0
+        (
+            radius .* cos.(range(0, 2π, length=100)),
+            radius .* sin.(range(0, 2π, length=100))
+        )
+    else
+        nothing
+    end
+
+    return offsets
+end
+
 """
     clusters!(
         ax::Axis;
-        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-        cluster_sequence::Union{DataFrame,Nothing}=nothing,
-        cluster_radius::Real=0,
+        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing},
+        cluster_radius::Float64=0.0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
+    )::Axis
+    clusters!(
+        ax::Axis;
+        cluster_sequence::Union{DataFrame,Nothing},
+        cluster_radius::Float64=0.0,
+        centers::Bool=false,
+        labels::Bool=false
+    )::Axis
+    clusters!(
+        ax::Axis,
+        cluster_radius::Float64,
+        sequence_ids::Vector{Int},
+        centroids::Vector{Point{2,Float64}},
+        centers::Bool=false,
+        labels::Bool=false;
+        nodes=false,
+        clusters=nothing
     )::Axis
 
 Plot nodes by cluster.
@@ -76,6 +130,8 @@ Plot nodes by cluster.
 - `clusters`: Clusters to plot.
 - `cluster_sequence`: Cluster by sequence visited.
 - `cluster_radius`: Radius of circle to represent clusters.
+- `sequence_ids`: Sequence IDs for clusters.
+- `centroids`: Cluster centroids.
 - `nodes`: Plot nodes flag.
 - `centers`: Plot cluster centers flag.
 - `labels`: Plot cluster labels flag.
@@ -85,46 +141,54 @@ Plot nodes by cluster.
 """
 function clusters!(
     ax::Axis;
-    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-    cluster_sequence::Union{DataFrame,Nothing}=nothing,
-    cluster_radius::Real=0,
+    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing},
+    cluster_radius::Float64=0.0,
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
 )::Axis
-    # Validate inputs
-    if isnothing(clusters) && isnothing(cluster_sequence)
-        error("At least one of `clusters` or `cluster_sequence` must be provided.")
-    end
+    sequence_ids = getfield.(clusters, :id)
+    centroids = getfield.(clusters, :centroid)
 
-    sequence_id, colormap, centroids = nothing, nothing, nothing
-    if !isnothing(cluster_sequence)
-        sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
-        colormap = distinguishable_colors(length(sequence_id) + 2)[3:end]
-        centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)[2:end-1, :]
-    elseif !isnothing(clusters)
-        sequence_id = 1:length(clusters)
-        colormap = distinguishable_colors(length(clusters) + 2)[3:end]
-        centroids = hcat([cluster.centroid[1] for cluster in clusters], [cluster.centroid[2] for cluster in clusters])
-    end
+    return clusters!(ax, cluster_radius, sequence_ids, centroids, centers, labels; nodes, clusters)
+end
+function clusters!(
+    ax::Axis;
+    cluster_sequence::Union{DataFrame,Nothing},
+    cluster_radius::Float64=0.0,
+    centers::Bool=false,
+    labels::Bool=false
+)::Axis
+    sequence_ids = cluster_sequence.id[2:end-1]
 
-    circle_offsets = cluster_radius > 0 ? (
-        cluster_radius .* cos.(range(0, 2π, length=100)),
-        cluster_radius .* sin.(range(0, 2π, length=100))
-    ) : nothing
+    centroids = collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
+    ordered_centroids = centroids[sortperm(sequence_ids)]
+    ordered_ids = sort(sequence_ids)
 
-    for (idx, seq) in enumerate(sequence_id)
+    return clusters!(ax, cluster_radius, ordered_ids, ordered_centroids, centers, labels)
+end
+function clusters!(
+    ax::Axis,
+    cluster_radius::Float64,
+    sequence_ids::Vector{Int},
+    centroids::Vector{Point{2,Float64}},
+    centers::Bool=false,
+    labels::Bool=false;
+    nodes=false,
+    clusters=nothing
+)::Axis
+    colormap = create_colormap(sequence_ids)
+    circle_offsets = _calc_radius_offset(cluster_radius)
+
+    for seq in sequence_ids
         color = colormap[seq]
 
-        # plot nodes
-        if nodes && !isnothing(clusters) && !isempty(clusters[seq].nodes)
+        # Plot nodes
+        if !isnothing(clusters) && nodes
             scatter!(ax, clusters[seq].nodes, color=color, markersize=10, marker=:x)
         end
 
-        center_lon, center_lat = !isnothing(cluster_sequence) ?
-                                 centroids[idx, :] :
-                                 centroids[seq, :]
-
+        center_lon, center_lat = centroids[seq]
         if cluster_radius > 0
             circle_lons = center_lon .+ circle_offsets[1]
             circle_lats = center_lat .+ circle_offsets[2]
@@ -135,6 +199,7 @@ function clusters!(
         if centers
             scatter!(ax, [center_lon], [center_lat], markersize=10, color=(color, 0.2), strokewidth=0)
         end
+
         if labels
             text!(
                 ax,
@@ -148,6 +213,7 @@ function clusters!(
             )
         end
     end
+
     return ax
 end
 
@@ -215,7 +281,7 @@ function exclusions!(
 end
 
 """
-    linestrings(
+    route(
         route::HierarchicalRouting.Route;
         markers::Bool=false,
         labels::Bool=false,
@@ -233,7 +299,7 @@ Create a plot of LineStrings for mothership route.
 # Returns
 - `fig, ax`: Figure and Axis objects.
 """
-function linestrings(
+function route(
     route::HierarchicalRouting.Route;
     markers::Bool=false,
     labels::Bool=false,
@@ -242,24 +308,34 @@ function linestrings(
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
-    linestrings!(ax, route, markers=markers, labels=labels, color=color)
+    route!(ax, route, markers=markers, labels=labels, color=color)
 
     return fig, ax
 end
 """
-    linestrings!(
+    route!(
         ax::Axis,
         route::HierarchicalRouting.Route;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
     )::Axis
+    route!(
+        ax::Axis,
+        ms::HierarchicalRouting.MothershipSolution;
+        markers::Bool=false,
+        labels::Bool=false,
+        color=nothing
+    )::Axis
+    route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})::Axis
 
 Plot LineStrings for mothership route.
 
 # Arguments
 - `ax`: Axis object.
 - `route`: Route including nodes and LineStrings.
+- `ms`: Solution instance containing mothership route.
+- `tender_soln`: Solution instance containing tender routes.
 - `markers`: Plot waypoints flag.
 - `labels`: Plot LineString labels flag.
 - `color`: LineString color.
@@ -267,7 +343,7 @@ Plot LineStrings for mothership route.
 # Returns
 - `ax`: Axis object.
 """
-function linestrings!(
+function route!(
     ax::Axis,
     route::HierarchicalRouting.Route;
     markers::Bool=false,
@@ -307,19 +383,33 @@ function linestrings!(
     end
     return ax
 end
-
 function route!(
     ax::Axis,
     ms::HierarchicalRouting.MothershipSolution;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)
-    return linestrings!(ax, ms.route; markers, labels, color)
+)::Axis
+    return route!(ax, ms.route; markers, labels, color)
 end
-
-function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})
+function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})::Axis
     return tenders!(ax, tender_soln)
+end
+function route!(
+    ax::Axis,
+    tender_soln::Vector{HierarchicalRouting.TenderSolution},
+    colormap::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
+)::Axis
+    for t_soln in tender_soln
+        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
+        s = length(t_soln.sorties)
+        palette = sequential_palette(base_hue, s + 3)[3:end]
+
+        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
+            linestrings!(ax, sortie, color=color)
+        end
+    end
+    return ax
 end
 
 """
@@ -371,39 +461,16 @@ function tenders!(
     ax::Axis,
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )::Axis
-    # Create custom colormap, skipping the first two colors (yellow and black)
-    colormap = distinguishable_colors(length(tender_soln) + 2)[3:end]
-
-    # TODO: Plot critical path (longest) thicker than other paths
-    for (t_n, t_soln) in enumerate(tender_soln)
-        base_hue = convert_rgb_to_hue(colormap[t_n])
-        s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s + 3)[3:end]
-
-        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color=color)
-        end
-    end
-    return ax
+    colormap = create_colormap(getfield.(tender_soln, :id))
+    return route!(ax, tender_soln, colormap)
 end
 function tenders!(
     ax::Axis,
     tender_soln::Vector{HierarchicalRouting.TenderSolution},
     num_clusters::Int64
 )::Axis
-    colormap = distinguishable_colors(num_clusters + 2)[3:end]
-
-    # TODO: Plot critical path (longest) thicker than other paths
-    for t_soln in tender_soln
-        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
-        s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s + 3)[3:end]
-
-        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color=color)
-        end
-    end
-    return ax
+    colormap = create_colormap(1:num_clusters)
+    return route!(ax, tender_soln, colormap)
 end
 
 """
@@ -455,12 +522,12 @@ function solution(
 
     # Clusters
     clusters!(
-        ax,
+        ax;
         clusters=soln.cluster_sets[end],
         nodes=true,
         centers=false,
         labels=true,
-        cluster_radius=cluster_radius
+        cluster_radius
     )
 
     # Mothership route
@@ -474,6 +541,16 @@ function solution(
     return fig
 end
 
+function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
+    # Create custom colormap, skipping the first two colors (yellow and black)
+    max_id = maximum(ids)
+    colormap = distinguishable_colors(max_id + 2)[3:end]
+    return colormap
+end
+function create_colormap(ids::UnitRange{Int64})
+    return create_colormap(collect(ids))
+end
+
 function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
     base_color_float64 = ColorTypes.RGB{Float64}(
         float(base_color.r),
@@ -483,5 +560,5 @@ function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
     return ColorTypes.HSV(base_color_float64).h
 end
 
-export clusters, clusters!, exclusions, exclusions!, linestrings, linestrings!, tenders, tenders!
+export clusters, clusters!, exclusions, exclusions!, route, route!, tenders, tenders!
 end
