@@ -138,18 +138,15 @@ function clusters!(
     colormap = create_colormap(sequence_ids)
     circle_offsets = _calc_radius_offset(cluster_radius)
 
-    for (idx, seq) in enumerate(sequence_id)
+    for seq in sequence_ids
         color = colormap[seq]
 
-        # plot nodes
-        if nodes && !isnothing(clusters) && !isempty(clusters[seq].nodes)
+        # Plot nodes
+        if !isnothing(clusters) && nodes
             scatter!(ax, clusters[seq].nodes, color=color, markersize=10, marker=:x)
         end
 
-        center_lon, center_lat = isnothing(cluster_sequence) ?
-                                 centroids[seq] :
-                                 centroids[idx]
-
+        center_lon, center_lat = centroids[seq]
         if cluster_radius > 0
             circle_lons = center_lon .+ circle_offsets[1]
             circle_lats = center_lat .+ circle_offsets[2]
@@ -160,6 +157,7 @@ function clusters!(
         if centers
             scatter!(ax, [center_lon], [center_lat], markersize=10, color=(color, 0.2), strokewidth=0)
         end
+
         if labels
             text!(
                 ax,
@@ -173,6 +171,7 @@ function clusters!(
             )
         end
     end
+
     return ax
 end
 
