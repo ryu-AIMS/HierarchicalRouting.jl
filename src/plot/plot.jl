@@ -12,16 +12,14 @@ using GLMakie, GeoMakie
 
 """
     clusters(
-        ;
-        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
+        clusters::Vector{HierarchicalRouting.Cluster};
         cluster_radius::Union{Float64, Int64}=0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
     )::Tuple{Figure,Axis}
     clusters(
-        ;
-        cluster_sequence::Union{DataFrame,Nothing}=nothing,
+        cluster_sequence::DataFrame;
         cluster_radius::Union{Float64, Int64}=0,
         centers::Bool=false,
         labels::Bool=false
@@ -97,7 +95,7 @@ end
 """
     clusters!(
         ax::Axis;
-        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing},
+        clusters::Vector{HierarchicalRouting.Cluster};
         cluster_radius::Float64=0.0,
         nodes::Bool=true,
         centers::Bool=false,
@@ -105,7 +103,7 @@ end
     )::Axis
     clusters!(
         ax::Axis;
-        cluster_sequence::Union{DataFrame,Nothing},
+        cluster_sequence::DataFrame;
         cluster_radius::Float64=0.0,
         centers::Bool=false,
         labels::Bool=false
