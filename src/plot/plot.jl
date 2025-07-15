@@ -14,12 +14,18 @@ using GLMakie, GeoMakie
     clusters(
         ;
         clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-        cluster_sequence::Union{DataFrame,Nothing}=nothing,
         cluster_radius::Real=0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Tuple{Figure,Axis}
+    clusters(
+        ;
+        cluster_sequence::Union{DataFrame,Nothing}=nothing,
+        cluster_radius::Real=0,
+        centers::Bool=false,
+        labels::Bool=false
+    )::Tuple{Figure,Axis}
 
 Create a plot of nodes by cluster.
 
@@ -92,13 +98,29 @@ end
 
 """
     clusters!(
-        ax::Axis;
-        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-        cluster_sequence::Union{DataFrame,Nothing}=nothing,
-        cluster_radius::Real=0,
+        ax::Axis,
+        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing};
+        cluster_radius::Float64=0.0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
+    )::Axis
+    clusters!(
+        ax::Axis,
+        cluster_sequence::Union{DataFrame,Nothing};
+        cluster_radius::Float64=0.0,
+        centers::Bool=false,
+        labels::Bool=false
+    )::Axis
+    clusters!(
+        ax::Axis,
+        cluster_radius::Float64,
+        sequence_ids::Vector{Int},
+        centroids::Vector{NTuple{2,Float64}},
+        centers::Bool=false,
+        labels::Bool=false;
+        nodes=false,
+        clusters=nothing
     )::Axis
 
 Plot nodes by cluster.
@@ -108,6 +130,8 @@ Plot nodes by cluster.
 - `clusters`: Clusters to plot.
 - `cluster_sequence`: Cluster by sequence visited.
 - `cluster_radius`: Radius of circle to represent clusters.
+- `sequence_ids`: Sequence IDs for clusters.
+- `centroids`: Cluster centroids.
 - `nodes`: Plot nodes flag.
 - `centers`: Plot cluster centers flag.
 - `labels`: Plot cluster labels flag.
