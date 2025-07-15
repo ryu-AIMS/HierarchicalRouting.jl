@@ -106,10 +106,12 @@ function clusters!(
     max_id = maximum(sequence_id)
     colormap = distinguishable_colors(max_id + 2)[3:end]
 
-    circle_offsets = cluster_radius > 0 ? (
-        cluster_radius .* cos.(range(0, 2π, length=100)),
-        cluster_radius .* sin.(range(0, 2π, length=100))
-    ) : nothing
+    circle_offsets = cluster_radius > 0 ?
+                     (
+                        cluster_radius .* cos.(range(0, 2π, length=100)),
+                        cluster_radius .* sin.(range(0, 2π, length=100))
+                     ) :
+                     nothing
 
     for (idx, seq) in enumerate(sequence_id)
         color = colormap[seq]
