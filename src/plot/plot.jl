@@ -117,9 +117,7 @@ function clusters!(
     centroids = isnothing(cluster_sequence) ?
                 getfield.(clusters, :centroid) :
                 collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
-    max_id = maximum(sequence_id)
-    colormap = distinguishable_colors(max_id + 2)[3:end]
-
+    colormap = create_colormap(sequence_ids)
     circle_offsets = _calc_radius_offset(cluster_radius)
 
     for (idx, seq) in enumerate(sequence_id)
@@ -388,9 +386,7 @@ function tenders!(
     ax::Axis,
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )::Axis
-    # Create custom colormap, skipping the first two colors (yellow and black)
-    max_id = maximum(getfield.(tender_soln, :id))
-    colormap = distinguishable_colors(max_id + 2)[3:end]
+    colormap = create_colormap(getfield.(tender_soln, :id))
 
     # TODO: Plot critical path (longest) thicker than other paths
     for t_soln in tender_soln
@@ -409,7 +405,7 @@ function tenders!(
     tender_soln::Vector{HierarchicalRouting.TenderSolution},
     num_clusters::Int64
 )::Axis
-    colormap = distinguishable_colors(num_clusters + 2)[3:end]
+    colormap = create_colormap(collect(1:num_clusters))
 
     # TODO: Plot critical path (longest) thicker than other paths
     for t_soln in tender_soln
@@ -490,6 +486,16 @@ function solution(
     show_tenders && route!(ax, soln.tenders[end])
 
     return fig
+end
+
+function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
+    # Create custom colormap, skipping the first two colors (yellow and black)
+    max_id = maximum(ids)
+    colormap = distinguishable_colors(max_id + 2)[3:end]
+    return colormap
+end
+function create_colormap(ids::UnitRange{Int64})
+    return create_colormap(collect(ids))
 end
 
 function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
