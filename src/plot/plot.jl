@@ -523,11 +523,11 @@ function solution(
     # Clusters
     clusters!(
         ax,
-        clusters=soln.cluster_sets[end],
+        soln.cluster_sets[end];
         nodes=true,
         centers=false,
         labels=true,
-        cluster_radius=cluster_radius
+        cluster_radius
     )
 
     # Mothership route
