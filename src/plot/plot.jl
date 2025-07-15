@@ -116,7 +116,7 @@ end
         ax::Axis,
         cluster_radius::Float64,
         sequence_ids::Vector{Int},
-        centroids::Vector{NTuple{2,Float64}},
+        centroids::Vector{Point{2,Float64}},
         centers::Bool=false,
         labels::Bool=false;
         nodes=false,
@@ -171,7 +171,7 @@ function clusters!(
     ax::Axis,
     cluster_radius::Float64,
     sequence_ids::Vector{Int},
-    centroids::Vector{NTuple{2,Float64}},
+    centroids::Vector{Point{2,Float64}},
     centers::Bool=false,
     labels::Bool=false;
     nodes=false,
