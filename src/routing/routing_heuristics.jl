@@ -277,12 +277,12 @@ function optimize_waypoints(
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership.geometry)
 
         score = critical_path(soln_proposed, vessel_weightings)
 
         # Penalise by an `exclusion_count` factor of `penalty`.
-        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
+        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership.geometry)))
         return score + score * exclusion_count
     end
 
@@ -322,7 +322,7 @@ function optimize_waypoints(
     )
 
     # Rebuild solution with the optimal waypoints
-    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
+    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership.geometry)
 
     # Regenerate tender sorties
     ms_route_opt::MothershipSolution = soln_opt.mothership_routes[end]
@@ -347,7 +347,7 @@ end
     rebuild_solution_with_waypoints(
         solution_ex::MSTSolution,
         waypoints_proposed::Vector{Point{2,Float64}},
-        exclusions_mothership::DataFrame
+        exclusions_mothership::POLY_VEC
     )::MSTSolution
 
 Rebuild full `MSTSolution` with updated waypoints and other attributes.
@@ -355,7 +355,7 @@ Rebuild full `MSTSolution` with updated waypoints and other attributes.
 # Arguments
 - `solution_ex`: The existing MSTSolution to be updated.
 - `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
-- `exclusions_mothership`: DataFrame containing exclusion zones for the mothership.
+- `exclusions_mothership`: Exclusion zone polygons for the mothership.
 
 # Returns
 A new MSTSolution with the updated mothership route and tender sorties.
@@ -363,7 +363,7 @@ A new MSTSolution with the updated mothership route and tender sorties.
 function rebuild_solution_with_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
-    exclusions_mothership::DataFrame
+    exclusions_mothership::POLY_VEC
 )::MSTSolution
     # Update the waypoints in the mothership route
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
