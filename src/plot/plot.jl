@@ -469,7 +469,7 @@ function tenders!(
     tender_soln::Vector{HierarchicalRouting.TenderSolution},
     num_clusters::Int64
 )::Axis
-    colormap = create_colormap(collect(1:num_clusters))
+    colormap = create_colormap(1:num_clusters)
     return route!(ax, tender_soln, colormap)
 end
 
