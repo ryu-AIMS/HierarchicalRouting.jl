@@ -282,7 +282,7 @@ function closest_crossed_polygon(
         if AG.crosses(line, geom) ||
            (GO.touches(current_point, geom) && GO.touches(final_point, geom))
             intersections::IGeometry = AG.intersection(line, geom)
-            pts::Vector{IGeometry{wkbPoint}} = get_pts(intersections)
+            pts::Vector{IGeometry} = get_pts(intersections)
             dist::Float64 = minimum(
                 GO.distance.(
                     Ref{Point{2,Float64}}(current_point),
@@ -317,11 +317,7 @@ A vector of points from the intersection geometry.
 function get_pts(intersections::IGeometry{AG.wkbPoint})::Vector{IGeometry{wkbPoint}}
     return [intersections]
 end
-function get_pts(intersections::IGeometry{wkbLineString})::Vector{IGeometry{wkbPoint}}
-    n = AG.ngeom(intersections)
-    return AG.getgeom.(Ref(intersections), 0:n-1)
-end
-function get_pts(intersections::IGeometry{wkbMultiLineString})::Vector{IGeometry{wkbPoint}}
+function get_pts(intersections::AG.IGeometry)
     n = AG.ngeom(intersections)
     return AG.getgeom.(Ref(intersections), 0:n-1)
 end
