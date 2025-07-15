@@ -215,7 +215,7 @@ function exclusions!(
 end
 
 """
-    linestrings(
+    route(
         route::HierarchicalRouting.Route;
         markers::Bool=false,
         labels::Bool=false,
@@ -233,7 +233,7 @@ Create a plot of LineStrings for mothership route.
 # Returns
 - `fig, ax`: Figure and Axis objects.
 """
-function linestrings(
+function route(
     route::HierarchicalRouting.Route;
     markers::Bool=false,
     labels::Bool=false,
@@ -242,12 +242,12 @@ function linestrings(
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
-    linestrings!(ax, route, markers=markers, labels=labels, color=color)
+    route!(ax, route, markers=markers, labels=labels, color=color)
 
     return fig, ax
 end
 """
-    linestrings!(
+    route!(
         ax::Axis,
         route::HierarchicalRouting.Route;
         markers::Bool=false,
@@ -267,7 +267,7 @@ Plot LineStrings for mothership route.
 # Returns
 - `ax`: Axis object.
 """
-function linestrings!(
+function route!(
     ax::Axis,
     route::HierarchicalRouting.Route;
     markers::Bool=false,
@@ -315,7 +315,7 @@ function route!(
     labels::Bool=false,
     color=nothing
 )
-    return linestrings!(ax, ms.route; markers, labels, color)
+    return route!(ax, ms.route; markers, labels, color)
 end
 
 function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})
@@ -381,7 +381,7 @@ function tenders!(
         palette = sequential_palette(base_hue, s + 3)[3:end]
 
         for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color=color)
+            route!(ax, sortie, color=color)
         end
     end
     return ax
@@ -400,7 +400,7 @@ function tenders!(
         palette = sequential_palette(base_hue, s + 3)[3:end]
 
         for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color=color)
+            route!(ax, sortie, color=color)
         end
     end
     return ax
@@ -483,5 +483,5 @@ function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
     return ColorTypes.HSV(base_color_float64).h
 end
 
-export clusters, clusters!, exclusions, exclusions!, linestrings, linestrings!, tenders, tenders!
+export clusters, clusters!, exclusions, exclusions!, route, route!, tenders, tenders!
 end
