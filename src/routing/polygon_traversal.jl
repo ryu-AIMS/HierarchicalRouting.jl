@@ -376,7 +376,7 @@ function is_visible(
     final_point::Point{2,Float64},
     geometries::POLY_VEC,
     current_exclusions_idx::Vector{Int}=[0]
-)
+)::Bool
     current_exclusions = Set{Int64}(current_exclusions_idx)
 
     line_to_point::IGeometry{wkbLineString} = AG.createlinestring([
