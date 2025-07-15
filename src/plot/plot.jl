@@ -41,8 +41,7 @@ Create a plot of nodes by cluster.
 - `fig, ax`: Figure and Axis objects.
 """
 function clusters(
-    ;
-    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
+    clusters::Vector{HierarchicalRouting.Cluster};
     cluster_radius::Union{Float64,Int64}=0,
     nodes::Bool=true,
     centers::Bool=false,
@@ -63,8 +62,7 @@ function clusters(
     return fig, ax
 end
 function clusters(
-    ;
-    cluster_sequence::Union{DataFrame,Nothing}=nothing,
+    cluster_sequence::DataFrame;
     cluster_radius::Union{Float64,Int64}=0,
     centers::Bool=false,
     labels::Bool=false
