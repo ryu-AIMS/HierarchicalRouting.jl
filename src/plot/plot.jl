@@ -97,16 +97,14 @@ function clusters!(
         error("At least one of `clusters` or `cluster_sequence` must be provided.")
     end
 
-    sequence_id, colormap, centroids = nothing, nothing, nothing
-    if !isnothing(cluster_sequence)
-        sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
-        colormap = distinguishable_colors(length(sequence_id) + 2)[3:end]
-        centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)[2:end-1, :]
-    elseif !isnothing(clusters)
-        sequence_id = 1:length(clusters)
-        colormap = distinguishable_colors(length(clusters) + 2)[3:end]
-        centroids = hcat([cluster.centroid[1] for cluster in clusters], [cluster.centroid[2] for cluster in clusters])
-    end
+    sequence_id = isnothing(cluster_sequence) ?
+                  (1:length(clusters)) :
+                  cluster_sequence.id[2:end-1]
+    centroids = isnothing(cluster_sequence) ?
+                getfield.(clusters, :centroid) :
+                collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
+    max_id = maximum(sequence_id)
+    colormap = distinguishable_colors(max_id + 2)[3:end]
 
     circle_offsets = cluster_radius > 0 ? (
         cluster_radius .* cos.(range(0, 2π, length=100)),
