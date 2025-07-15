@@ -380,7 +380,8 @@ function tenders!(
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )::Axis
     # Create custom colormap, skipping the first two colors (yellow and black)
-    colormap = distinguishable_colors(length(tender_soln) + 2)[3:end]
+    max_id = maximum(getfield.(tender_soln, :id))
+    colormap = distinguishable_colors(max_id + 2)[3:end]
 
     # TODO: Plot critical path (longest) thicker than other paths
     for (t_n, t_soln) in enumerate(tender_soln)
