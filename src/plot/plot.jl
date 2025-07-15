@@ -121,9 +121,9 @@ function clusters!(
             scatter!(ax, clusters[seq].nodes, color=color, markersize=10, marker=:x)
         end
 
-        center_lon, center_lat = !isnothing(cluster_sequence) ?
-                                 centroids[idx, :] :
-                                 centroids[seq, :]
+        center_lon, center_lat = isnothing(cluster_sequence) ?
+                                 centroids[seq] :
+                                 centroids[idx]
 
         if cluster_radius > 0
             circle_lons = center_lon .+ circle_offsets[1]
