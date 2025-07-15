@@ -157,7 +157,7 @@ HierarchicalRouting.Plot.exclusions!(ax, problem.mothership.exclusion, labels=tr
 # Add exclusions for tenders
 HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels=true);
 # Add clustered points
-HierarchicalRouting.Plot.clusters!(ax, clusters=solution_best.cluster_sets[end]);
+HierarchicalRouting.Plot.clusters!(ax, solution_best.cluster_sets[end]);
 # Add mothership routes
 HierarchicalRouting.Plot.route!(
     ax,
@@ -183,8 +183,8 @@ HierarchicalRouting.Plot.exclusions!.(
     labels=false
 );
 # Add clustered points
-HierarchicalRouting.Plot.clusters!(ax1, clusters=solution_init.cluster_sets[end]);
-HierarchicalRouting.Plot.clusters!(ax2, clusters=solution_best.cluster_sets[end]);
+HierarchicalRouting.Plot.clusters!(ax1, solution_init.cluster_sets[end]);
+HierarchicalRouting.Plot.clusters!(ax2, solution_best.cluster_sets[end]);
 # Add mothership routes
 HierarchicalRouting.Plot.route!.(
     [ax1, ax2],
@@ -222,26 +222,20 @@ HierarchicalRouting.Plot.exclusions!.(
 # Add clustered points
 HierarchicalRouting.Plot.clusters!(
     ax1,
-    clusters=solution_best.cluster_sets[end],
+    solution_best.cluster_sets[end],
     labels=true,
-    centers=false,
-    nodes= true,
     cluster_radius=0.025
 );
 HierarchicalRouting.Plot.clusters!(
     ax2,
-    clusters=solution_best.cluster_sets[end],
+    solution_best.cluster_sets[end],
     labels=true,
-    centers=false,
-    nodes= true,
     cluster_radius=0.025
 );
 HierarchicalRouting.Plot.clusters!(
     ax3,
-    clusters=solution_best.cluster_sets[end],
+    solution_best.cluster_sets[end],
     labels=true,
-    centers=false,
-    nodes= true,
     cluster_radius=0.025
 );
 # Add mothership routes
