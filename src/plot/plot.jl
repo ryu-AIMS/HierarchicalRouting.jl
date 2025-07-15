@@ -58,6 +58,20 @@ function clusters(
 
     return fig, ax
 end
+
+function _calc_radius_offset(radius::Float64)::Union{Tuple,Nothing}
+    offsets = if radius > 0
+        (
+            radius .* cos.(range(0, 2π, length=100)),
+            radius .* sin.(range(0, 2π, length=100))
+        )
+    else
+        nothing
+    end
+
+    return offsets
+end
+
 """
     clusters!(
         ax::Axis;
@@ -106,12 +120,7 @@ function clusters!(
     max_id = maximum(sequence_id)
     colormap = distinguishable_colors(max_id + 2)[3:end]
 
-    circle_offsets = cluster_radius > 0 ?
-                     (
-                        cluster_radius .* cos.(range(0, 2π, length=100)),
-                        cluster_radius .* sin.(range(0, 2π, length=100))
-                     ) :
-                     nothing
+    circle_offsets = _calc_radius_offset(cluster_radius)
 
     for (idx, seq) in enumerate(sequence_id)
         color = colormap[seq]
