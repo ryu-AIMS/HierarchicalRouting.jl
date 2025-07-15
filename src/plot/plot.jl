@@ -336,6 +336,22 @@ end
 function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})::Axis
     return tenders!(ax, tender_soln)
 end
+function route!(
+    ax::Axis,
+    tender_soln::Vector{HierarchicalRouting.TenderSolution},
+    colormap::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
+)::Axis
+    for t_soln in tender_soln
+        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
+        s = length(t_soln.sorties)
+        palette = sequential_palette(base_hue, s + 3)[3:end]
+
+        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
+            linestrings!(ax, sortie, color=color)
+        end
+    end
+    return ax
+end
 
 """
     tenders(
@@ -387,18 +403,7 @@ function tenders!(
     tender_soln::Vector{HierarchicalRouting.TenderSolution}
 )::Axis
     colormap = create_colormap(getfield.(tender_soln, :id))
-
-    # TODO: Plot critical path (longest) thicker than other paths
-    for t_soln in tender_soln
-        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
-        s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s + 3)[3:end]
-
-        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            route!(ax, sortie, color=color)
-        end
-    end
-    return ax
+    return route!(ax, tender_soln, colormap)
 end
 function tenders!(
     ax::Axis,
@@ -406,18 +411,7 @@ function tenders!(
     num_clusters::Int64
 )::Axis
     colormap = create_colormap(collect(1:num_clusters))
-
-    # TODO: Plot critical path (longest) thicker than other paths
-    for t_soln in tender_soln
-        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
-        s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s + 3)[3:end]
-
-        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            route!(ax, sortie, color=color)
-        end
-    end
-    return ax
+    return route!(ax, tender_soln, colormap)
 end
 
 """
