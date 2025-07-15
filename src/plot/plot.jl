@@ -98,16 +98,16 @@ end
 
 """
     clusters!(
-        ax::Axis,
-        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing};
+        ax::Axis;
+        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing},
         cluster_radius::Float64=0.0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
     )::Axis
     clusters!(
-        ax::Axis,
-        cluster_sequence::Union{DataFrame,Nothing};
+        ax::Axis;
+        cluster_sequence::Union{DataFrame,Nothing},
         cluster_radius::Float64=0.0,
         centers::Bool=false,
         labels::Bool=false
@@ -140,8 +140,8 @@ Plot nodes by cluster.
 - `ax`: Axis object.
 """
 function clusters!(
-    ax::Axis,
-    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing};
+    ax::Axis;
+    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing},
     cluster_radius::Float64=0.0,
     nodes::Bool=true,
     centers::Bool=false,
@@ -153,8 +153,8 @@ function clusters!(
     return clusters!(ax, cluster_radius, sequence_ids, centroids, centers, labels; nodes, clusters)
 end
 function clusters!(
-    ax::Axis,
-    cluster_sequence::Union{DataFrame,Nothing};
+    ax::Axis;
+    cluster_sequence::Union{DataFrame,Nothing},
     cluster_radius::Float64=0.0,
     centers::Bool=false,
     labels::Bool=false
@@ -522,8 +522,8 @@ function solution(
 
     # Clusters
     clusters!(
-        ax,
-        soln.cluster_sets[end];
+        ax;
+        clusters=soln.cluster_sets[end],
         nodes=true,
         centers=false,
         labels=true,
