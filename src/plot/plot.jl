@@ -384,8 +384,8 @@ function tenders!(
     colormap = distinguishable_colors(max_id + 2)[3:end]
 
     # TODO: Plot critical path (longest) thicker than other paths
-    for (t_n, t_soln) in enumerate(tender_soln)
-        base_hue = convert_rgb_to_hue(colormap[t_n])
+    for t_soln in tender_soln
+        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
         s = length(t_soln.sorties)
         palette = sequential_palette(base_hue, s + 3)[3:end]
 
