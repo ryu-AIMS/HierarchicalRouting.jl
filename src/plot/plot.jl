@@ -98,25 +98,43 @@ Plot nodes by cluster.
 - `ax`: Axis object.
 """
 function clusters!(
-    ax::Axis;
-    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-    cluster_sequence::Union{DataFrame,Nothing}=nothing,
-    cluster_radius::Real=0,
+    ax::Axis,
+    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing};
+    cluster_radius::Float64=0.0,
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
 )::Axis
-    # Validate inputs
-    if isnothing(clusters) && isnothing(cluster_sequence)
-        error("At least one of `clusters` or `cluster_sequence` must be provided.")
-    end
+    sequence_ids = getfield.(clusters, :id)
+    centroids = getfield.(clusters, :centroid)
 
-    sequence_id = isnothing(cluster_sequence) ?
-                  (1:length(clusters)) :
-                  cluster_sequence.id[2:end-1]
-    centroids = isnothing(cluster_sequence) ?
-                getfield.(clusters, :centroid) :
-                collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
+    return clusters!(ax, cluster_radius, sequence_ids, centroids, centers, labels; nodes, clusters)
+end
+function clusters!(
+    ax::Axis,
+    cluster_sequence::Union{DataFrame,Nothing};
+    cluster_radius::Float64=0.0,
+    centers::Bool=false,
+    labels::Bool=false
+)::Axis
+    sequence_ids = cluster_sequence.id[2:end-1]
+
+    centroids = collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
+    ordered_centroids = centroids[sortperm(sequence_ids)]
+    ordered_ids = sort(sequence_ids)
+
+    return clusters!(ax, cluster_radius, ordered_ids, ordered_centroids, centers, labels)
+end
+function clusters!(
+    ax::Axis,
+    cluster_radius::Float64,
+    sequence_ids::Vector{Int},
+    centroids::Vector{NTuple{2,Float64}},
+    centers::Bool=false,
+    labels::Bool=false;
+    nodes=false,
+    clusters=nothing
+)::Axis
     colormap = create_colormap(sequence_ids)
     circle_offsets = _calc_radius_offset(cluster_radius)
 
