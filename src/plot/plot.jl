@@ -14,7 +14,7 @@ using GLMakie, GeoMakie
     clusters(
         ;
         clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-        cluster_radius::Real=0,
+        cluster_radius::Union{Float64, Int64}=0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
@@ -22,7 +22,7 @@ using GLMakie, GeoMakie
     clusters(
         ;
         cluster_sequence::Union{DataFrame,Nothing}=nothing,
-        cluster_radius::Real=0,
+        cluster_radius::Union{Float64, Int64}=0,
         centers::Bool=false,
         labels::Bool=false
     )::Tuple{Figure,Axis}
@@ -43,7 +43,7 @@ Create a plot of nodes by cluster.
 function clusters(
     ;
     clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-    cluster_radius::Real=0,
+    cluster_radius::Union{Float64,Int64}=0,
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
@@ -65,7 +65,7 @@ end
 function clusters(
     ;
     cluster_sequence::Union{DataFrame,Nothing}=nothing,
-    cluster_radius::Real=0,
+    cluster_radius::Union{Float64,Int64}=0,
     centers::Bool=false,
     labels::Bool=false
 )::Tuple{Figure,Axis}
