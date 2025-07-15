@@ -31,5 +31,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [compat]
 GeoDataFrames = "0.3"
 Hungarian = "0.7.0"
+Optim = "1.12.0"
 Random = "1.11.0"
 Test = "1.11.0"

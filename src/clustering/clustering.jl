@@ -1,14 +1,70 @@
 
-using Clustering
 using Random
 using Hungarian
+using Clustering
 
 @kwdef struct Cluster
-    id::Int
+    id::Int64
     centroid::Point{2,Float64}
     nodes::Vector{Point{2,Float64}} = [centroid]
     # TODO: Add waypoints?
     # waypoints::NTuple{2, Point{2, Float64}}
+end
+
+"""
+    generate_letter_id(idx::Int64)::String
+
+Generate Letter-based ID from a number.
+Applies an Excel-style ordering, where 0-25 produces A-Z.
+Numbers greater than 25 results in two-character IDs and increments accordingly:
+e.g., A-Z, AA-AZ, BA-BZ, etc.
+
+# Examples
+
+```julia
+import HierarchicalRouting as HR
+
+HR.generate_letter_id(0)
+# A
+
+HR.generate_letter_id(25)
+# Z
+
+HR.generate_letter_id(26)
+# AA
+
+HR.generate_letter_id(51)
+# AZ
+
+HR.generate_letter_id(52)
+# BA
+
+HR.generate_letter_id(77)
+# BZ
+```
+"""
+function generate_letter_id(idx::Int64)::String
+    idx < 0 && throw(ArgumentError("Index must be non-negative"))
+
+    result::String = ""
+    n = idx
+
+    while true
+        result = string(Char('A' + (n % 26))) * result
+        n = n ÷ 26
+        if n == 0
+            break
+        end
+        n -= 1  # Key adjustment for letter-based numbering
+    end
+
+    return result
+end
+function generate_letter_id(c::Cluster)
+    return generate_letter_id(c.id)
+end
+function generate_letter_id(t::TenderSolution)
+    return generate_letter_id(t.id)
 end
 
 """
@@ -76,7 +132,7 @@ function cluster_problem(
     dist_vector = get_feasible_distances(
         current_location,
         points,
-        exclusions
+        exclusions.geometry
     )
 
     feasible_idxs = findall(.!isinf.(dist_vector))
@@ -458,7 +514,7 @@ function _constrained_kmeans_single_iteration(
     k_spec::Int=0,
     tol::Float64=0.01
 )::Vector{Int64}
-    clustering = kmeans(coordinates, k; maxiter=max_iter)
+    clustering = kmeans(coordinates, k; tol=tol, maxiter=max_iter)
     clustering_assignment::Vector{Int64} = clustering.assignments
 
     # Build clusters & centroids

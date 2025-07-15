@@ -121,7 +121,7 @@ function export_mothership_routes(
     output_path::String="outputs"
 )::DataFrame
     ids::Vector{Int64} = collect(1:length(line_strings))
-    geometries::Vector{AG.IGeometry{AG.wkbLineString}} = _process_line.(line_strings)
+    geometries::Vector{IGeometry{wkbLineString}} = _process_line.(line_strings)
 
     df = DataFrame(id=ids, geometry=geometries)
 
@@ -130,7 +130,7 @@ function export_mothership_routes(
 end
 
 """
-    _process_line(line::LineString{2,Float64})::AG.IGeometry{AG.wkbLineString}
+    _process_line(line::LineString{2,Float64})::IGeometry{wkbLineString}
 
 Process a LineString to create a geometry.
 
@@ -140,7 +140,7 @@ Process a LineString to create a geometry.
 # Returns
 - LineString geometry.
 """
-function _process_line(line::LineString{2,Float64})::AG.IGeometry{AG.wkbLineString}
+function _process_line(line::LineString{2,Float64})::IGeometry{wkbLineString}
     return AG.createlinestring([(p[1], p[2]) for p in line.points])
 end
 
@@ -177,7 +177,7 @@ function export_tender_routes(
         )
         for tender in tender_soln for sortie in tender.sorties
     ]
-    geometries::Vector{AG.IGeometry{AG.wkbLineString}} = AG.createlinestring.(coords)
+    geometries::Vector{IGeometry{wkbLineString}} = AG.createlinestring.(coords)
 
     df = DataFrame(
         id=ids,

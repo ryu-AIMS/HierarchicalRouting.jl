@@ -9,12 +9,15 @@ using Rasters
 using DataFrames
 
 import ArchGDAL as AG
+import ArchGDAL: IGeometry, wkbPolygon, wkbLineString, wkbPoint, wkbMultiLineString
 import GeoInterface as GI
 import GeometryOps as GO
 import GeoDataFrames as GDF
 
 using Distances
 using Graphs, SimpleWeightedGraphs
+
+const POLY_VEC = Vector{IGeometry{wkbPolygon}}
 
 include("problem/problem_setup.jl")
 
@@ -35,6 +38,7 @@ include("problem/solve_problem.jl")
 include("problem/disturbance_events.jl")
 
 include("plot/plot.jl")
+include("show.jl")
 
 include("processing/write_files.jl")
 

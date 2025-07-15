@@ -1,7 +1,7 @@
 
 """
     process_geometry_targets(
-        geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+        geometries::Vector{IGeometry{wkbPolygon}},
         resolution::Float64=0.0001
     )::Raster{Int}
 
@@ -15,7 +15,7 @@ Read and process target location geometries to generate a rasterized representat
 - A rasterized representation of the target locations.
 """
 function process_geometry_targets(
-    geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+    geometries::POLY_VEC,
     resolution::Float64=0.0001
 )::Raster{Int}
     # Compute centroids from the geometries
@@ -141,7 +141,7 @@ end
 
 """
     process_targets(
-        target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+        target_geometries::Vector{IGeometry{wkbPolygon}},
         subset::DataFrame,
         target_subset_path::String=""
     )::Raster{Int64}
@@ -166,7 +166,7 @@ points, applying thresholds and cropping to a target subset.
 A rasterized representation of the target locations, cropped to the study area.
 """
 function process_targets(
-    target_geometries::Vector{AG.IGeometry{AG.wkbPolygon}},
+    target_geometries::POLY_VEC,
     subset::DataFrame,
     target_subset_path::String="",
 )::Raster{Int64}

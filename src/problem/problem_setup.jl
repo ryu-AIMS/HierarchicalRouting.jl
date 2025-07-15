@@ -272,9 +272,9 @@ function adjust_exclusions(
     exclusions::DataFrame
 )::DataFrame
     exclusion_geometries = exclusions.geometry
-    poly_adjustment_mask = point_in_exclusion.(points, Ref(exclusions))
+    poly_adjustment_mask = point_in_exclusion.(points, Ref(exclusion_geometries))
     contained_points = points[poly_adjustment_mask]
-    containing_poly_ids = containing_exclusion.(contained_points, Ref(exclusions))
+    containing_poly_ids = containing_exclusion.(contained_points, Ref(exclusion_geometries))
 
     # Dictionary to map exclusion polygons to contained points
     polygon_points_map = Dict{Int,Vector{Point{2,Float64}}}()

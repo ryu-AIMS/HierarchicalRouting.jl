@@ -45,12 +45,12 @@ function initial_solution(
             (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
             problem.tenders.number,
             problem.tenders.capacity,
-            problem.tenders.exclusion
+            problem.tenders.exclusion.geometry
         )
         for j in 1:length(clust_seq)
     ]
 
-    cluster_sets[1] = deepcopy(clusters)
+    cluster_sets[1] = clusters
     ms_soln_sets[1] = ms_route
     tender_soln_sets[1] = initial_tenders
 
@@ -114,7 +114,10 @@ function initial_solution(
         end
     end
 
-    return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    solution_init::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    solution_opt::MSTSolution = optimize_waypoints(solution_init, problem)
+
+    return solution_opt
 end
 
 """
@@ -160,7 +163,7 @@ function solve(
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
     # Cluster the problem data
-    clusters::Vector{Cluster} = cluster_problem(problem; k);
+    clusters::Vector{Cluster} = cluster_problem(problem; k)
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     # Route the mothership using nearest neighbour and 2-opt
@@ -195,19 +198,16 @@ function solve(
     )
 
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
-    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = apply_improved!(
-        clusters,
-        tender_soln_sets,
-        optimized_initial,
-        1
-    )
+    cluster_sets[1] = optimized_initial.cluster_sets[1]
+    ms_soln_sets[1] = optimized_initial.mothership_routes[1]
+    tender_soln_sets[1] = optimized_initial.tenders[1]
 
     # Iterate through each disturbance event and update solution
     disturbance_index_count = 1
     for disturbance_cluster_idx ∈ ordered_disturbances
         @info "Disturbance event #$disturbance_cluster_idx at " *
-            "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
-            "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
+              "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
+              "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
         disturbance_index_count += 1
         # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = sort!(
@@ -267,8 +267,8 @@ function solve(
         end
 
         next_disturbance_cluster_idx = disturbance_cluster_idx <= length(ordered_disturbances) ?
-            ordered_disturbances[disturbance_cluster_idx] :
-            length(clusters) + 1
+                                       ordered_disturbances[disturbance_cluster_idx] :
+                                       length(clusters) + 1
 
         # Improve the current solution using the optimization function
         optimized_current_solution, _ = improve_solution(
@@ -279,59 +279,15 @@ function solve(
         )
 
         # Update with improved solution to the current cluster set and tender solutions
-        cluster_sets[disturbance_cluster_idx],
-        ms_soln_sets[disturbance_cluster_idx],
-        tender_soln_sets[disturbance_cluster_idx] = apply_improved!(
-            clusters, tender_soln_sets, optimized_current_solution, d_idx
-        )
+        cluster_sets[disturbance_cluster_idx] = optimized_current_solution.cluster_sets[1]
+        ms_soln_sets[disturbance_cluster_idx] = optimized_current_solution.mothership_routes[1]
+        tender_soln_sets[disturbance_cluster_idx] = optimized_current_solution.tenders[1]
     end
 
-    return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
-end
+    solution_init::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    solution_opt::MSTSolution = optimize_waypoints(solution_init, problem)
 
-"""
-    apply_improved!(
-        clusters::Vector{Cluster},
-        tenders::Vector{Vector{TenderSolution}},
-        soln::MSTSolution,
-        event_idx::Int
-    )::Tuple{Vector{Cluster}, MothershipSolution, Vector{TenderSolution}}
-
-Overwrite the clusters and tenders in the current solution with the updated ones from the improved solution.
-
-# Arguments
-- `clusters`: Vector of clusters to update.
-- `tenders`: Vector of tender solutions for each event.
-- `soln`: The improved solution containing updated clusters and tenders.
-- `event_idx`: Index of the event for which the tenders are being updated.
-
-# Returns
-- A tuple containing the updated clusters, the mothership route, and the updated tenders for the specified event index.
-"""
-function apply_improved!(
-    clusters::Vector{Cluster},
-    tenders::Vector{Vector{TenderSolution}},
-    soln::MSTSolution,
-    event_idx::Int
-)
-    # Overwrite updated clusters
-    updated_clusters = soln.cluster_sets[1]
-    ids = getfield.(updated_clusters, :id)
-    clusters[ids] .= updated_clusters
-
-    #Overwrite updated tenders
-    updated_tenders = soln.tenders[1]
-    tender_ids = getfield.(updated_tenders, :id)
-    Main.@infiltrate
-    tender_idxs = findfirst.(.==(tender_ids), Ref(getfield.(tenders[event_idx], :id)))
-    tenders[event_idx][tender_idxs] .= updated_tenders
-
-    # Record the updated clusters and tenders for the current index
-    return (
-      deepcopy(clusters),
-      soln.mothership_routes[1],
-      tenders[event_idx]
-    )
+    return solution_opt
 end
 
 """
@@ -418,9 +374,9 @@ end
         exclusions_tender::DataFrame=DataFrame(),
         current_cluster_idx::Int=1,
         next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
-        opt_function::Function=HierarchicalRouting.simulated_annealing,
-        objective_function::Function=HierarchicalRouting.critical_path,
-        perturb_function::Function=HierarchicalRouting.perturb_swap_solution,
+        opt_function::Function=simulated_annealing,
+        objective_function::Function=critical_path,
+        perturb_function::Function=perturb_swap_solution,
         max_iterations::Int=1_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
@@ -452,13 +408,13 @@ function `objective_function` and the perturbation function `perturb_function`.
 """
 function improve_solution(
     initial_solution::MSTSolution,
-    exclusions_mothership::DataFrame=DataFrame(),
-    exclusions_tender::DataFrame=DataFrame(),
-    current_cluster_idx::Int=1,
-    next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
-    opt_function::Function=HierarchicalRouting.simulated_annealing,
-    objective_function::Function=HierarchicalRouting.critical_path,
-    perturb_function::Function=HierarchicalRouting.perturb_swap_solution,
+    exclusions_mothership::DataFrame,
+    exclusions_tender::DataFrame,
+    current_cluster_idx::Int,
+    next_cluster_idx::Int;
+    opt_function::Function=simulated_annealing,
+    objective_function::Function=critical_path,
+    perturb_function::Function=perturb_swap_solution,
     max_iterations::Int=1_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
@@ -479,8 +435,8 @@ function improve_solution(
         current_solution,
         objective_function,
         perturb_function,
-        exclusions_mothership,
-        exclusions_tender,
+        exclusions_mothership.geometry,
+        exclusions_tender.geometry,
         max_iterations,
         temp_init,
         cooling_rate,
@@ -489,4 +445,36 @@ function improve_solution(
     )
 
     return soln_best, z_best
+end
+
+function improve_solution(
+    init_solution::MSTSolution,
+    problem::Problem;
+    opt_function::Function=simulated_annealing,
+    objective_function::Function=critical_path,
+    perturb_function::Function=perturb_swap_solution,
+    max_iterations::Int=1_000,
+    temp_init::Float64=500.0,
+    cooling_rate::Float64=0.95,
+    static_limit::Int=20,
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+)
+    current_cluster_idx::Int64 = 1
+    next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
+
+    return improve_solution(
+        init_solution,
+        problem.mothership.exclusion,
+        problem.tenders.exclusion,
+        current_cluster_idx,
+        next_cluster_idx;
+        opt_function,
+        objective_function,
+        perturb_function,
+        max_iterations,
+        temp_init,
+        cooling_rate,
+        static_limit,
+        vessel_weightings
+    )
 end

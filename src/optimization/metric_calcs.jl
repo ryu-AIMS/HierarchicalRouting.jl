@@ -143,6 +143,11 @@ function mothership_dist_between_clusts(route::Route, num_clusters::Int=0)::Floa
 
     return sum(haversine.(start_segment_points[1:n], end_segment_points[1:n]))
 end
+function mothership_dist_between_clusts(route::Route, num_clusters::Int)::Float64
+    start_segment_points::Vector{Point{2,Float64}} = route.nodes[1:2:end-1][1:num_clusters]
+    end_segment_points::Vector{Point{2,Float64}} = route.nodes[2:2:end][1:num_clusters]
+    return sum(haversine.(start_segment_points, end_segment_points))
+end
 
 """
     mothership_dist_within_clusts(route::Route)::Vector{Float64}
