@@ -37,7 +37,6 @@ Create a plot of nodes by cluster.
 function clusters(
     ;
     clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-    cluster_sequence::Union{DataFrame,Nothing}=nothing,
     cluster_radius::Real=0,
     nodes::Bool=true,
     centers::Bool=false,
@@ -48,12 +47,31 @@ function clusters(
 
     clusters!(
         ax,
-        clusters=clusters,
-        cluster_sequence=cluster_sequence,
-        cluster_radius=cluster_radius,
-        nodes=nodes,
-        centers=centers,
-        labels=labels
+        clusters,
+        cluster_radius,
+        nodes,
+        centers,
+        labels
+    )
+
+    return fig, ax
+end
+function clusters(
+    ;
+    cluster_sequence::Union{DataFrame,Nothing}=nothing,
+    cluster_radius::Real=0,
+    centers::Bool=false,
+    labels::Bool=false
+)::Tuple{Figure,Axis}
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+
+    clusters!(
+        ax,
+        cluster_sequence;
+        cluster_radius,
+        centers,
+        labels
     )
 
     return fig, ax
