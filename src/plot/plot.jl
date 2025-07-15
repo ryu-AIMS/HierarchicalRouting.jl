@@ -254,12 +254,22 @@ end
         labels::Bool=false,
         color=nothing
     )::Axis
+    route!(
+        ax::Axis,
+        ms::HierarchicalRouting.MothershipSolution;
+        markers::Bool=false,
+        labels::Bool=false,
+        color=nothing
+    )::Axis
+    route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})::Axis
 
 Plot LineStrings for mothership route.
 
 # Arguments
 - `ax`: Axis object.
 - `route`: Route including nodes and LineStrings.
+- `ms`: Solution instance containing mothership route.
+- `tender_soln`: Solution instance containing tender routes.
 - `markers`: Plot waypoints flag.
 - `labels`: Plot LineString labels flag.
 - `color`: LineString color.
