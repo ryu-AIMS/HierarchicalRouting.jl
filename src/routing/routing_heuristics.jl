@@ -366,8 +366,9 @@ function rebuild_solution_with_waypoints(
     exclusions_mothership::POLY_VEC
 )::MSTSolution
     # Update the waypoints in the mothership route
+    adjusted_waypoints = adjust_waypoint.(waypoints_proposed, Ref(exclusions_mothership))
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
-        waypoints_proposed, exclusions_mothership
+        adjusted_waypoints, exclusions_mothership
     )
     n = length(dist_vector_proposed)
     # Ensure the distance matrix is square and matches the number of waypoints
@@ -375,7 +376,7 @@ function rebuild_solution_with_waypoints(
     diag_idxs = CartesianIndex.(1:n, 2:n+1)
     dist_matrix_proposed[diag_idxs] .= dist_vector_proposed
     ms_route_new::Route = Route(
-        waypoints_proposed,
+        adjusted_waypoints,
         dist_matrix_proposed,
         vcat(line_strings_proposed...)
     )
@@ -387,7 +388,7 @@ function rebuild_solution_with_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
+    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
