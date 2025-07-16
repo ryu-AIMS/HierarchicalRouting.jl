@@ -402,7 +402,7 @@ function route!(
         palette = sequential_palette(base_hue, s + 3)[3:end]
 
         for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color=color)
+            route!(ax, sortie, color=color)
         end
     end
     return ax
