@@ -1,6 +1,13 @@
 module Plot
 
-import ..HierarchicalRouting
+using ..HierarchicalRouting:
+    Problem,
+    Cluster,
+    MothershipSolution,
+    TenderSolution,
+    MSTSolution,
+    Route,
+    generate_letter_id
 
 using DataFrames
 using Rasters
@@ -12,7 +19,7 @@ using GLMakie, GeoMakie
 
 """
     clusters(
-        clusters::Vector{HierarchicalRouting.Cluster};
+        clusters::Vector{Cluster};
         cluster_radius::Union{Float64, Int64}=0,
         nodes::Bool=true,
         centers::Bool=false,
@@ -39,7 +46,7 @@ Create a plot of nodes by cluster.
 - `fig, ax`: Figure and Axis objects.
 """
 function clusters(
-    clusters::Vector{HierarchicalRouting.Cluster};
+    clusters::Vector{Cluster};
     cluster_radius::Union{Float64,Int64}=0,
     nodes::Bool=true,
     centers::Bool=false,
@@ -95,7 +102,7 @@ end
 """
     clusters!(
         ax::Axis;
-        clusters::Vector{HierarchicalRouting.Cluster};
+        clusters::Vector{Cluster};
         cluster_radius::Float64=0.0,
         nodes::Bool=true,
         centers::Bool=false,
@@ -137,7 +144,7 @@ Plot nodes by cluster.
 """
 function clusters!(
     ax::Axis,
-    clusters::Vector{HierarchicalRouting.Cluster};
+    clusters::Vector{Cluster};
     cluster_radius::Float64=0.0,
     nodes::Bool=true,
     centers::Bool=false,
@@ -201,7 +208,7 @@ function clusters!(
                 ax,
                 center_lon,
                 center_lat,
-                text=HierarchicalRouting.generate_letter_id(seq - 1),
+                text=generate_letter_id(seq - 1),
                 font="bold",
                 fontsize=24,
                 align=(:center, :center),
@@ -278,7 +285,7 @@ end
 
 """
     route(
-        route::HierarchicalRouting.Route;
+        route::Route;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
@@ -296,7 +303,7 @@ Create a plot of LineStrings for mothership route.
 - `fig, ax`: Figure and Axis objects.
 """
 function route(
-    route::HierarchicalRouting.Route;
+    route::Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
@@ -311,19 +318,19 @@ end
 """
     route!(
         ax::Axis,
-        route::HierarchicalRouting.Route;
+        route::Route;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
     )::Axis
     route!(
         ax::Axis,
-        ms::HierarchicalRouting.MothershipSolution;
+        ms::MothershipSolution;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
     )::Axis
-    route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})::Axis
+    route!(ax::Axis, tender_soln::Vector{TenderSolution})::Axis
 
 Plot LineStrings for mothership route.
 
@@ -341,7 +348,7 @@ Plot LineStrings for mothership route.
 """
 function route!(
     ax::Axis,
-    route::HierarchicalRouting.Route;
+    route::Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
@@ -381,19 +388,19 @@ function route!(
 end
 function route!(
     ax::Axis,
-    ms::HierarchicalRouting.MothershipSolution;
+    ms::MothershipSolution;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
 )::Axis
     return route!(ax, ms.route; markers, labels, color)
 end
-function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})::Axis
+function route!(ax::Axis, tender_soln::Vector{TenderSolution})::Axis
     return tenders!(ax, tender_soln)
 end
 function route!(
     ax::Axis,
-    tender_soln::Vector{HierarchicalRouting.TenderSolution},
+    tender_soln::Vector{TenderSolution},
     colormap::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
 )::Axis
     for t_soln in tender_soln
@@ -410,19 +417,19 @@ end
 
 """
     tenders(
-        tender_soln::Vector{HierarchicalRouting.TenderSolution}
+        tender_soln::Vector{TenderSolution}
     )::Tuple{Figure, Axis}
 
 Create a plot of tender routes within each cluster.
 
 # Arguments
-- `tender_soln::Vector{HierarchicalRouting.TenderSolution}`: Tender solutions.
+- `tender_soln::Vector{TenderSolution}`: Tender solutions.
 
 # Returns
 - `fig, ax`: Figure and Axis objects.
 """
 function tenders(
-    tender_soln::Vector{HierarchicalRouting.TenderSolution}
+    tender_soln::Vector{TenderSolution}
 )::Tuple{Figure,Axis}
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
@@ -435,11 +442,11 @@ end
 """
     tenders!(
         ax::Axis,
-        tender_soln::Vector{HierarchicalRouting.TenderSolution}
+        tender_soln::Vector{TenderSolution}
     )::Axis
     function tenders!(
         ax::Axis,
-        tender_soln::Vector{HierarchicalRouting.TenderSolution},
+        tender_soln::Vector{TenderSolution},
         num_clusters::Int64
     )::Axis
 
@@ -455,14 +462,14 @@ Plot tender routes within each cluster, colored by cluster, sequentially shaded 
 """
 function tenders!(
     ax::Axis,
-    tender_soln::Vector{HierarchicalRouting.TenderSolution}
+    tender_soln::Vector{TenderSolution}
 )::Axis
     colormap = create_colormap(getfield.(tender_soln, :id))
     return route!(ax, tender_soln, colormap)
 end
 function tenders!(
     ax::Axis,
-    tender_soln::Vector{HierarchicalRouting.TenderSolution},
+    tender_soln::Vector{TenderSolution},
     num_clusters::Int64
 )::Axis
     colormap = create_colormap(1:num_clusters)
@@ -471,8 +478,8 @@ end
 
 """
     solution(
-        problem::HierarchicalRouting.Problem,
-        soln::HierarchicalRouting.MSTSolution;
+        problem::Problem,
+        soln::MSTSolution;
         cluster_radius::Float64=0.0,
         show_mothership_exclusions::Bool=false,
         show_tenders_exclusions::Bool=true,
@@ -501,8 +508,8 @@ Create a plot of the full routing solution, including:
 - `fig`: The created Figure object containing the plot.
 """
 function solution(
-    problem::HierarchicalRouting.Problem,
-    soln::HierarchicalRouting.MSTSolution;
+    problem::Problem,
+    soln::MSTSolution;
     cluster_radius::Float64=0.0,
     show_mothership_exclusions::Bool=false,
     show_tenders_exclusions::Bool=true,
