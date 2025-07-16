@@ -72,7 +72,7 @@ function clusters(
 
     clusters!(
         ax,
-        cluster_sequence,
+        cluster_sequence;
         cluster_radius,
         centers,
         labels
