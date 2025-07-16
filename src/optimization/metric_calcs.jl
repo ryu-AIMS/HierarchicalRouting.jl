@@ -136,17 +136,12 @@ Optionally, the number of clusters can be specified to limit the calculation to 
 - The sum of (haversine) mothership distances between clusters.
 """
 function mothership_dist_between_clusts(route::Route, num_clusters::Int=0)::Float64
-    start_segment_points::Vector{Point{2, Float64}} = route.nodes[1:2:end-1]
-    end_segment_points::Vector{Point{2, Float64}} = route.nodes[2:2:end]
+    start_segment_points::Vector{Point{2,Float64}} = route.nodes[1:2:end-1]
+    end_segment_points::Vector{Point{2,Float64}} = route.nodes[2:2:end]
 
     n = iszero(num_clusters) ? length(start_segment_points) : num_clusters
 
     return sum(haversine.(start_segment_points[1:n], end_segment_points[1:n]))
-end
-function mothership_dist_between_clusts(route::Route, num_clusters::Int)::Float64
-    start_segment_points::Vector{Point{2,Float64}} = route.nodes[1:2:end-1][1:num_clusters]
-    end_segment_points::Vector{Point{2,Float64}} = route.nodes[2:2:end][1:num_clusters]
-    return sum(haversine.(start_segment_points, end_segment_points))
 end
 
 """
