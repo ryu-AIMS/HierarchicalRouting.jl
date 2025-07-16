@@ -3,14 +3,14 @@
     perturb_swap_solution(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
-        exclusions_tender::DataFrame=DataFrame();
+        exclusions_tender::POLY_VEC=IGeometry{wkbPolygon}[];
         enforce_diff_sortie::Bool=false
     )::MSTSolution
     perturb_swap_solution(
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
-        exclusions_mothership::DataFrame=DataFrame(),
-        exclusions_tender::DataFrame=DataFrame()
+        exclusions_mothership::POLY_VEC=IGeometry{wkbPolygon}[],
+        exclusions_tender::POLY_VEC=IGeometry{wkbPolygon}[]
     )::MSTSolution
 
 Perturb the solution by swapping two nodes:
@@ -128,8 +128,8 @@ end
 function perturb_swap_solution(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
-    exclusions_mothership::DataFrame=DataFrame(),
-    exclusions_tender::DataFrame=DataFrame()
+    exclusions_mothership::POLY_VEC=IGeometry{wkbPolygon}[],
+    exclusions_tender::POLY_VEC=IGeometry{wkbPolygon}[]
 )::MSTSolution
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
@@ -574,8 +574,8 @@ end
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
-        exclusions_mothership::DataFrame=DataFrame(),
-        exclusions_tender::DataFrame=DataFrame(),
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC,
         max_iterations::Int=5_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,

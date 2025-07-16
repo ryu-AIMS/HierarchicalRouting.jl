@@ -4,7 +4,7 @@
         remaining_clusters::Vector{Cluster},
         disturbance_df::DataFrame,
         current_location::Point{2,Float64},
-        exclusions::DataFrame,
+        exclusions::POLY_VEC,
         total_tender_capacity::Int;
         tol::Float64=0.01
     )::Vector{Cluster}
@@ -26,7 +26,7 @@ function disturb_clusters(
     remaining_clusters::Vector{Cluster},
     disturbance_df::DataFrame,
     current_location::Point{2,Float64},
-    exclusions::DataFrame,
+    exclusions::POLY_VEC,
     total_tender_capacity::Int;
     tol::Float64=0.01
 )::Vector{Cluster}

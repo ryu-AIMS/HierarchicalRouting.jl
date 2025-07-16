@@ -115,11 +115,11 @@ function adjust_waypoint(
 end
 
 """
-    get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
+    get_waypoints(sequence::DataFrame, exclusions::POLY_VEC)::DataFrame
     get_waypoints(
         current_point::Point{2,Float64},
         sequence::DataFrame,
-        exclusions::DataFrame
+        exclusions::POLY_VEC
     )::DataFrame
 
 Calculate mothership waypoints between sequential clusters.
@@ -129,12 +129,12 @@ unless within exclusion zone, then adjust to closest boundary point.
 # Arguments
 - `sequence`: `id`, and centroid (`lat`, `long`) coordinates in sequence; including depot as
     the first and last rows with `id=0`.
-- `exclusions`: DataFrame containing exclusion zones.
+- `exclusions`: Exclusion zone polygons.
 
 # Returns
 - A DataFrame containing waypoints and connecting clusters.
 """
-function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
+function get_waypoints(sequence::DataFrame, exclusions::POLY_VEC)::DataFrame
     # TODO: Implement convex hull exclusion zones
     # TODO: Use graph to determine feasible paths and waypoints along path
     n_cluster_seqs = nrow(sequence)
@@ -161,10 +161,10 @@ function get_waypoints(sequence::DataFrame, exclusions::DataFrame)::DataFrame
         )
 
         # Adjust waypoints if they are inside exclusion polygons
-        prev_waypoint = point_in_exclusion(prev_waypoint, exclusions.geometry) ?
-                        adjust_waypoint(prev_waypoint, exclusions.geometry) : prev_waypoint
-        next_waypoint = point_in_exclusion(next_waypoint, exclusions.geometry) ?
-                        adjust_waypoint(next_waypoint, exclusions.geometry) : next_waypoint
+        prev_waypoint = point_in_exclusion(prev_waypoint, exclusions) ?
+                        adjust_waypoint(prev_waypoint, exclusions) : prev_waypoint
+        next_waypoint = point_in_exclusion(next_waypoint, exclusions) ?
+                        adjust_waypoint(next_waypoint, exclusions) : next_waypoint
 
         waypoints[2*i-2] = prev_waypoint
         connecting_clusters[2*i-2] = (prev_clust, current_clust)
@@ -181,7 +181,7 @@ end
 function get_waypoints(
     current_point::Point{2,Float64},
     sequence::DataFrame,
-    exclusions::DataFrame
+    exclusions::POLY_VEC
 )::DataFrame
     # TODO: Implement convex hull exclusion zones
     # TODO: Use graph to determine feasible paths and waypoints along path
@@ -209,11 +209,11 @@ function get_waypoints(
         )
         #! prev_waypoint in exclusion calls adjust_waypoint() to find closest point outside exclusion
         # Adjust waypoints if they are inside exclusion polygons
-        prev_waypoint = point_in_exclusion(prev_waypoint, exclusions.geometry) ?
-                        adjust_waypoint(prev_waypoint, exclusions.geometry) :
+        prev_waypoint = point_in_exclusion(prev_waypoint, exclusions) ?
+                        adjust_waypoint(prev_waypoint, exclusions) :
                         prev_waypoint
-        next_waypoint = point_in_exclusion(next_waypoint, exclusions.geometry) ?
-                        adjust_waypoint(next_waypoint, exclusions.geometry) :
+        next_waypoint = point_in_exclusion(next_waypoint, exclusions) ?
+                        adjust_waypoint(next_waypoint, exclusions) :
                         next_waypoint
 
         waypoints[2*i-2] = prev_waypoint
@@ -237,8 +237,8 @@ function optimize_waypoints(
     tolerance::Float64=5e5, # stop when gradient norm below this
     iterations::Int=10  # treated as max iterations for Optim
 )::MSTSolution
-    exclusions_mothership::DataFrame = problem.mothership.exclusion
-    exclusions_tender::DataFrame = problem.tenders.exclusion
+    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
     n_tenders::Int8 = problem.tenders.number
     t_cap::Int16 = problem.tenders.capacity
     vessel_weightings::NTuple{2,AbstractFloat} = (
@@ -316,7 +316,7 @@ end
     rebuild_solution_with_waypoints(
         solution_ex::MSTSolution,
         waypoints_proposed::Vector{Point{2,Float64}},
-        exclusions_mothership::DataFrame
+        exclusions_mothership::POLY_VEC
     )::MSTSolution
 
 Rebuild full `MSTSolution` with updated waypoints and other attributes.
@@ -324,7 +324,7 @@ Rebuild full `MSTSolution` with updated waypoints and other attributes.
 # Arguments
 - `solution_ex`: The existing MSTSolution to be updated.
 - `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
-- `exclusions_mothership`: DataFrame containing exclusion zones for the mothership.
+- `exclusions_mothership`: Exclusion zone polygons for the mothership.
 
 # Returns
 A new MSTSolution with the updated mothership route and tender sorties.
@@ -332,7 +332,7 @@ A new MSTSolution with the updated mothership route and tender sorties.
 function rebuild_solution_with_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
-    exclusions_mothership::DataFrame
+    exclusions_mothership::POLY_VEC
 )::MSTSolution
     # Update the waypoints in the mothership route
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
@@ -460,13 +460,13 @@ end
 """
     nearest_neighbour(
         cluster_centroids::DataFrame,
-        exclusions_mothership::DataFrame,
-        exclusions_tender::DataFrame,
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC,
     )::MothershipSolution
     nearest_neighbour(
         cluster_centroids::DataFrame,
-        exclusions_mothership::DataFrame,
-        exclusions_tender::DataFrame,
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC,
         current_point::Point{2,Float64},
         ex_ms_route::MothershipSolution,
         cluster_seq_idx::Int64
@@ -478,8 +478,8 @@ Apply the nearest neighbor algorithm:
 
 # Arguments
 - `cluster_centroids`: DataFrame containing id, lat, lon. Depot has `id=0` in row 1.
-- `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
-- `exclusions_tender`: DataFrame containing exclusion zones for tenders.
+- `exclusions_mothership`: Exclusion zone polygons for mothership.
+- `exclusions_tender`: Exclusion zone polygons for tenders.
 - `current_point`: Point{2, Float64} representing the current location of the mothership.
 - `ex_ms_route`: MothershipSolution object containing the existing route.
 - `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
@@ -494,14 +494,14 @@ MothershipSolution object containing:
 """
 function nearest_neighbour(
     cluster_centroids::DataFrame,
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
 )::MothershipSolution
     # TODO: Use vector rather than DataFrame for cluster_centroids
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids::Vector{Point{2,Float64}} = adjust_waypoint.(
         Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
-        Ref(exclusions_mothership.geometry)
+        Ref(exclusions_mothership)
     )
 
     cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
@@ -510,7 +510,7 @@ function nearest_neighbour(
     # Create distance matrix between feasible nodes - cluster centroids
     dist_matrix = get_feasible_matrix(
         feasible_centroids,
-        exclusions_mothership.geometry
+        exclusions_mothership
     )[1]
 
     tour_length = size(dist_matrix, 1)
@@ -548,7 +548,7 @@ function nearest_neighbour(
 
     # Calc feasible path between waypoints.
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
-        waypoints.waypoint, exclusions_mothership.geometry
+        waypoints.waypoint, exclusions_mothership
     )
     path = vcat(waypoint_path_vector...)
 
@@ -559,8 +559,8 @@ function nearest_neighbour(
 end
 function nearest_neighbour(
     cluster_centroids::DataFrame,
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
     current_point::Point{2,Float64},
     ex_ms_route::MothershipSolution,
     cluster_seq_idx::Int64
@@ -569,7 +569,7 @@ function nearest_neighbour(
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids::Vector{Point{2,Float64}} = adjust_waypoint.(
         Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
-        Ref(exclusions_mothership.geometry)
+        Ref(exclusions_mothership)
     )
     cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
     cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
@@ -577,7 +577,7 @@ function nearest_neighbour(
     # Create distance matrix between start, end, and feasible cluster centroids
     dist_matrix = get_feasible_matrix(
         vcat([current_point], feasible_centroids),
-        exclusions_mothership.geometry
+        exclusions_mothership
     )[1]
     centroid_matrix = dist_matrix[3:end, 3:end]
     current_dist_vector = dist_matrix[1, 3:end]
@@ -659,18 +659,18 @@ end
 """
     two_opt(
         ms_soln_current::MothershipSolution,
-        exclusions_mothership::DataFrame,
-        exclusions_tender::DataFrame,
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC,
     )::MothershipSolution
     two_opt(
         ms_soln_current::MothershipSolution,
-        exclusions_mothership::DataFrame,
-        exclusions_tender::DataFrame,
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC,
         cluster_seq_idx::Int64
     )::MothershipSolution
     two_opt(
         tender_soln_current::TenderSolution,
-        exclusions_tender::DataFrame,
+        exclusions_tender::POLY_VEC,
     )::TenderSolution
 
 Apply the 2-opt heuristic to improve current routes by uncrossing crossed links between
@@ -679,8 +679,8 @@ waypoints for the whole route or between current location and depot.
 # Arguments
 - `ms_soln_current`: Current MothershipSolution to improve.
 - `tender_soln_current`: Current TenderSolution to improve.
-- `exclusions_mothership`: DataFrame containing exclusion zones for mothership.
-- `exclusions_tender`: DataFrame containing exclusion zones for tenders.
+- `exclusions_mothership`: Exclusion zone polygons for mothership.
+- `exclusions_tender`: Exclusion zone polygons for tenders.
 - `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
 
 # Returns
@@ -693,8 +693,8 @@ MothershipSolution object containing:
 """
 function two_opt(
     ms_soln_current::MothershipSolution,
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
 )::MothershipSolution
 
     cluster_centroids = ms_soln_current.cluster_sequence
@@ -737,7 +737,7 @@ function two_opt(
 
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
         waypoints.waypoint,
-        exclusions_mothership.geometry
+        exclusions_mothership
     )
 
     path = vcat(waypoint_path_vector...)
@@ -749,8 +749,8 @@ function two_opt(
 end
 function two_opt(
     ms_soln_current::MothershipSolution,
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
     cluster_seq_idx::Int64
 )::MothershipSolution
     # TODO: only apply to the route between the current cluster and the depot
@@ -933,7 +933,7 @@ Assign nodes to tenders sequentially (stop-by-stop) based on nearest neighbor.
 - `waypoints`: Tuple of start and end waypoints.
 - `n_tenders`: Number of tenders.
 - `t_cap`: Tender capacity.
-- `exclusions`: DataFrame containing exclusion zones.
+- `exclusions`: Exclusion zone polygons.
 
 # Returns
 - `solution`: TenderRoutingSolution object containing:
