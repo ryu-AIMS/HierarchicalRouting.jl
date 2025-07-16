@@ -10,11 +10,6 @@ using ..HierarchicalRouting:
     generate_letter_id
 
 using DataFrames
-using Rasters
-using Statistics
-
-using GeometryBasics
-
 using GLMakie, GeoMakie
 
 """
