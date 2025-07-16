@@ -1,4 +1,6 @@
 
+using Optim
+
 struct Route
     nodes::Vector{Point{2,Float64}}
     dist_matrix::Matrix{Float64}
@@ -242,8 +244,6 @@ function get_waypoints(
 
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
-
-using Optim
 
 function optimize_waypoints(
     soln::MSTSolution,
