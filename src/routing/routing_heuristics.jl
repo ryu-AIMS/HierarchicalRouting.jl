@@ -249,7 +249,8 @@ function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
     tolerance::Float64=5e5, # stop when gradient norm below this
-    iterations::Int=10  # treated as max iterations for Optim
+    iterations::Int=10,
+    box_buffer::Float64=0.0
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
@@ -303,8 +304,8 @@ function optimize_waypoints(
     lats = clamp.(problem_bbox[3:4], -90.0, 90.0)
 
     m = length(x0) ÷ 2
-    lb::Vector{Float64} = repeat([lons[1], lats[1]], m)
-    ub::Vector{Float64} = repeat([lons[2], lats[2]], m)
+    lb::Vector{Float64} = repeat([lons[1], lats[1]] .- box_buffer, m)
+    ub::Vector{Float64} = repeat([lons[2], lats[2]] .+ box_buffer, m)
 
     result = optimize(
         obj,
