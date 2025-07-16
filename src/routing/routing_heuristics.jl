@@ -248,6 +248,7 @@ using Optim
 function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
+    descent_function=GradientDescent(),
     tolerance::Float64=5e5, # stop when gradient norm below this
     iterations::Int=10,
     box_buffer::Float64=0.0
@@ -312,7 +313,9 @@ function optimize_waypoints(
         lb,
         ub,
         x0,
-        Fminbox(GradientDescent()),
+        Fminbox(
+            descent_function,
+        ),
         opt_options
     )
 
