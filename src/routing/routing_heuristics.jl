@@ -298,10 +298,13 @@ function optimize_waypoints(
         exclusions_tender.geometry,
         problem.targets.points.geometry
     ])
+    # Ensure bounds are within lat/lon limits
+    lons = clamp.(problem_bbox[1:2], -180.0, 180.0)
+    lats = clamp.(problem_bbox[3:4], -90.0, 90.0)
 
     m = length(x0) ÷ 2
-    lb::Vector{Float64} = repeat([problem_bbox[1], problem_bbox[3]] for _ in 1:m)
-    ub::Vector{Float64} = repeat([problem_bbox[2], problem_bbox[4]] for _ in 1:m)
+    lb::Vector{Float64} = repeat([lons[1], lats[1]], m)
+    ub::Vector{Float64} = repeat([lons[2], lats[2]], m)
 
     result = optimize(
         obj,
