@@ -19,10 +19,6 @@ struct TenderSolution
     sorties::Vector{Route}
     dist_matrix::Matrix{Float64}
 end
-function generate_letter_id(t::TenderSolution)
-    return generate_letter_id(t.id)
-end
-
 function TenderSolution(t::TenderSolution, sorties::Vector{Route})
     return TenderSolution(
         t.id,
@@ -31,17 +27,10 @@ function TenderSolution(t::TenderSolution, sorties::Vector{Route})
         sorties,
         t.dist_matrix
     )
-    dist_matrix::Matrix{Float64}
+end
 
-    function TenderSolution(t::TenderSolution, sorties::Vector{Route})
-        return new(
-            t.id,
-            t.start,
-            t.finish,
-            sorties,
-            t.dist_matrix
-        )
-    end
+function generate_letter_id(t::TenderSolution)
+    return generate_letter_id(t.id)
 end
 
 struct MSTSolution
