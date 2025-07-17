@@ -268,12 +268,13 @@ function optimize_waypoints(
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership.geometry)
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership
+        )
 
         score = critical_path(soln_proposed, vessel_weightings)
 
         # Penalise by an `exclusion_count` factor of `penalty`.
-        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership.geometry)))
+        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
         return score + score * exclusion_count
     end
 
@@ -285,8 +286,8 @@ function optimize_waypoints(
     )
 
     problem_bbox = get_bbox_bounds([
-        exclusions_mothership.geometry,
-        exclusions_tender.geometry,
+        exclusions_mothership,
+        exclusions_tender,
         problem.targets.points.geometry
     ])
     # Ensure bounds are within lat/lon limits
@@ -318,7 +319,7 @@ function optimize_waypoints(
     )
 
     # Rebuild solution with the optimal waypoints
-    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership.geometry)
+    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
 
     # Regenerate tender sorties
     ms_route_opt::MothershipSolution = soln_opt.mothership_routes[end]
@@ -333,7 +334,7 @@ function optimize_waypoints(
         pairs,
         Ref(n_tenders),
         Ref(t_cap),
-        Ref(exclusions_tender.geometry)
+        Ref(exclusions_tender)
     )
 
     return soln_opt
