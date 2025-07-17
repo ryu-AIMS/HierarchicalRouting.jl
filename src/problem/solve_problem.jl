@@ -442,6 +442,7 @@ function improve_solution(
     cluster_seq_ids = current_mothership_route.cluster_sequence.id
     clust_seq_current = cluster_seq_ids[current_cluster_idx+1:next_cluster_idx+1]
     current_clusters = initial_solution.cluster_sets[end][clust_seq_current]
+    sort!(current_clusters, by=c -> c.id)
     current_tender_set = initial_solution.tenders[end]
     current_tender_routes = current_tender_set[current_cluster_idx:next_cluster_idx]
     current_solution = MSTSolution(
