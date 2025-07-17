@@ -38,7 +38,6 @@ function Base.show(io::IO, mime::MIME"text/plain", clusters::Vector{Cluster})
 end
 
 function Base.show(io::IO, mime::MIME"text/plain", mothership::MothershipSolution)
-    # nclust = nrows(mothership.cluster_sequence)
     sequence::DataFrame = mothership.cluster_sequence
 
     println(
