@@ -64,6 +64,15 @@ function Base.show(io::IO, mime::MIME"text/plain", tender::TenderSolution)
         """
     )
 end
+function Base.show(io::IO, mime::MIME"text/plain", tenders::Vector{TenderSolution})
+    n = length(tenders)
+    println(io, "$n tenders:")
+
+    for tender in tenders
+        show(io, mime, tender)
+        print(io, "\n")
+    end
+end
 
 function Base.show(io::IO, mime::MIME"text/plain", soln::MSTSolution)
     nclust = length(soln.cluster_sets[end])
