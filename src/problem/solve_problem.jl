@@ -406,8 +406,8 @@ Multiple dispatch to improve full and partial solutions (respectively).
 
 # Arguments
 - `initial_solution`: Initial solution to improve
-- `exclusions_mothership`: DataFrame of exclusion polygons for the mothership
-- `exclusions_tender`: DataFrame of exclusion polygons for the tenders
+- `exclusions_mothership`: Exclusion zone polygon polygons for the mothership
+- `exclusions_tender`: Exclusion zone polygon polygons for the tenders
 - `current_cluster_idx`: Index of the current cluster in the sequence
 - `next_cluster_idx`: Index of the next cluster in the sequence
 - `opt_function`: Optimization function to improve the solution
