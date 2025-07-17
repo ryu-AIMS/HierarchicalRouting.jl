@@ -203,12 +203,10 @@ function solve(
     tender_soln_sets[1] = optimized_initial.tenders[1]
 
     # Iterate through each disturbance event and update solution
-    disturbance_index_count = 1
     for disturbance_cluster_idx ∈ ordered_disturbances
         @info "Disturbance event #$disturbance_cluster_idx at " *
               "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
               "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
-        disturbance_index_count += 1
         # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = sort!(
             vcat(
