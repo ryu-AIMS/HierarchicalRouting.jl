@@ -126,13 +126,13 @@ function cluster_problem(
 )::Vector{Cluster}
     points::Vector{Point{2,Float64}} = problem.targets.points.geometry
     current_location::Point{2,Float64} = problem.depot
-    exclusions::DataFrame = problem.tenders.exclusion
+    exclusions::POLY_VEC = problem.tenders.exclusion.geometry
     total_tender_capacity::Int = problem.tenders.capacity * problem.tenders.number
 
     dist_vector = get_feasible_distances(
         current_location,
         points,
-        exclusions.geometry
+        exclusions
     )
 
     feasible_idxs = findall(.!isinf.(dist_vector))
@@ -166,7 +166,7 @@ end
         raster::Raster{Float64,2},
         k::Int8,
         current_location::Point{2,Float64},
-        exclusions::DataFrame;
+        exclusions::POLY_VEC;
         tol::Float64=0.01,
         dist_weighting::Float64=2E-5
     )::Raster{Int64,2}
@@ -174,7 +174,7 @@ end
         unvisited_pts::DataFrame,
         k::Int8,
         current_location::Point{2,Float64},
-        exclusions::DataFrame,
+        exclusions::POLY_VEC,
         total_tender_capacity::Int;
         tol::Float64=0.01,
         dist_weighting::Float64=2E-5
@@ -202,7 +202,7 @@ function disturb_remaining_clusters(
     raster::Raster{Float64,2},
     k::Int8,
     current_location::Point{2,Float64},
-    exclusions::DataFrame;
+    exclusions::POLY_VEC;
     tol::Float64=0.01,
     dist_weighting::Float64=2E-5
 )::Raster{Int64,2}
@@ -302,7 +302,7 @@ function disturb_remaining_clusters(
     unvisited_pts::DataFrame,
     k::Int,
     current_location::Point{2,Float64},
-    exclusions::DataFrame,
+    exclusions::POLY_VEC,
     total_tender_capacity::Int;
     tol::Float64=0.01,
     dist_weighting::Float64=2E-5

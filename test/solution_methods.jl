@@ -6,8 +6,8 @@
         clusters, cluster_centroids_df = HierarchicalRouting.process_problem(problem)
         ms_soln_NN = HierarchicalRouting.nearest_neighbour(
             cluster_centroids_df,
-            problem.mothership.exclusion,
-            problem.tenders.exclusion
+            problem.mothership.exclusion.geometry,
+            problem.tenders.exclusion.geometry
         )
         @test typeof(ms_soln_NN) == MSTSolution
     end
@@ -16,13 +16,13 @@
         clusters, cluster_centroids_df = HierarchicalRouting.process_problem(problem)
         ms_soln_NN = HierarchicalRouting.nearest_neighbour(
             cluster_centroids_df,
-            problem.mothership.exclusion,
-            problem.tenders.exclusion
+            problem.mothership.exclusion.geometry,
+            problem.tenders.exclusion.geometry
         )
         ms_soln_2opt = HierarchicalRouting.two_opt(
             ms_soln_NN,
-            problem.mothership.exclusion,
-            problem.tenders.exclusion
+            problem.mothership.exclusion.geometry,
+            problem.tenders.exclusion.geometry
         )
         @test typeof(ms_soln_2opt) == MSTSolution
     end

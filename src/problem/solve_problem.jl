@@ -65,7 +65,7 @@ function initial_solution(
                 clusters[clust_seq][i:end],
                 problem.targets.disturbance_gdf,
                 ms_route.route.nodes[2i-1],
-                problem.tenders.exclusion,
+                problem.tenders.exclusion.geometry,
                 total_tender_capacity
             )
         )
@@ -107,7 +107,7 @@ function initial_solution(
                     (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
                     problem.tenders.number,
                     problem.tenders.capacity,
-                    problem.tenders.exclusion
+                    problem.tenders.exclusion.geometry
                 )
             end
             tender_soln_sets[disturbance_index] = current_tender_soln
@@ -180,7 +180,7 @@ function solve(
             (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
             problem.tenders.number,
             problem.tenders.capacity,
-            problem.tenders.exclusion
+            problem.tenders.exclusion.geometry
         )
         for j in 1:length(clust_seq)
     ]
@@ -192,8 +192,8 @@ function solve(
 
     optimized_initial, _ = improve_solution(
         MSTSolution([clusters], [ms_route], [initial_tenders]),
-        problem.mothership.exclusion,
-        problem.tenders.exclusion,
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry,
         1, next_cluster_idx
     )
 
@@ -217,7 +217,7 @@ function solve(
                     clusters[clust_seq][disturbance_cluster_idx:end],
                     problem.targets.disturbance_gdf,
                     ms_route.route.nodes[2*disturbance_cluster_idx-1],
-                    problem.tenders.exclusion,
+                    problem.tenders.exclusion.geometry,
                     total_tender_capacity
                 )
             ), by=x -> x.id
@@ -261,7 +261,7 @@ function solve(
                     (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
                     problem.tenders.number,
                     problem.tenders.capacity,
-                    problem.tenders.exclusion
+                    problem.tenders.exclusion.geometry
                 )
             end
         end
@@ -323,12 +323,16 @@ function optimize_mothership_route(
 )::MothershipSolution
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN::MothershipSolution = nearest_neighbour(
-        cluster_centroids_df, problem.mothership.exclusion, problem.tenders.exclusion
+        cluster_centroids_df,
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry
     )
 
     # 2-opt to improve the NN soln
     ms_soln_2opt::MothershipSolution = two_opt(
-        ms_soln_NN, problem.mothership.exclusion, problem.tenders.exclusion
+        ms_soln_NN,
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry
     )
     return ms_soln_2opt
 end
@@ -349,8 +353,8 @@ function optimize_mothership_route(
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN::MothershipSolution = nearest_neighbour(
         remaining_clusters_df,
-        problem.mothership.exclusion,
-        problem.tenders.exclusion,
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry,
         start_point,
         ms_route,
         cluster_seq_idx
@@ -359,8 +363,8 @@ function optimize_mothership_route(
     # 2-opt to improve the NN soln
     ms_soln_2opt::MothershipSolution = two_opt(
         ms_soln_NN,
-        problem.mothership.exclusion,
-        problem.tenders.exclusion,
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry,
         cluster_seq_idx
     )
 
@@ -370,8 +374,8 @@ end
 """
     improve_solution(
         initial_solution::MSTSolution,
-        exclusions_mothership::DataFrame=DataFrame(),
-        exclusions_tender::DataFrame=DataFrame(),
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC,
         current_cluster_idx::Int=1,
         next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
         opt_function::Function=simulated_annealing,
@@ -383,14 +387,27 @@ end
         static_limit::Int=20,
         vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
     )::Tuple{MSTSolution,Float64}
+    improve_solution(
+        init_solution::MSTSolution,
+        problem::Problem;
+        opt_function::Function=simulated_annealing,
+        objective_function::Function=critical_path,
+        perturb_function::Function=perturb_swap_solution,
+        max_iterations::Int=1_000,
+        temp_init::Float64=500.0,
+        cooling_rate::Float64=0.95,
+        static_limit::Int=20,
+        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    )
 
-Improve the solution using the optimization function `opt_function` with the objective \n
-function `objective_function` and the perturbation function `perturb_function`.
+Improve the solution using the optimization function `opt_function` with the objective
+function `objective_function` and the perturbation function `perturb_function`.\n
+Multiple dispatch to improve full and partial solutions (respectively).
 
 # Arguments
 - `initial_solution`: Initial solution to improve
-- `exclusions_mothership`: DataFrame of exclusion polygons for the mothership
-- `exclusions_tender`: DataFrame of exclusion polygons for the tenders
+- `exclusions_mothership`: Exclusion zone polygon polygons for the mothership
+- `exclusions_tender`: Exclusion zone polygon polygons for the tenders
 - `current_cluster_idx`: Index of the current cluster in the sequence
 - `next_cluster_idx`: Index of the next cluster in the sequence
 - `opt_function`: Optimization function to improve the solution
@@ -408,8 +425,8 @@ function `objective_function` and the perturbation function `perturb_function`.
 """
 function improve_solution(
     initial_solution::MSTSolution,
-    exclusions_mothership::DataFrame,
-    exclusions_tender::DataFrame,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
     current_cluster_idx::Int,
     next_cluster_idx::Int;
     opt_function::Function=simulated_annealing,
@@ -435,8 +452,8 @@ function improve_solution(
         current_solution,
         objective_function,
         perturb_function,
-        exclusions_mothership.geometry,
-        exclusions_tender.geometry,
+        exclusions_mothership,
+        exclusions_tender,
         max_iterations,
         temp_init,
         cooling_rate,
@@ -446,7 +463,6 @@ function improve_solution(
 
     return soln_best, z_best
 end
-
 function improve_solution(
     init_solution::MSTSolution,
     problem::Problem;
@@ -464,8 +480,8 @@ function improve_solution(
 
     return improve_solution(
         init_solution,
-        problem.mothership.exclusion,
-        problem.tenders.exclusion,
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry,
         current_cluster_idx,
         next_cluster_idx;
         opt_function,

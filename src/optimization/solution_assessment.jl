@@ -3,14 +3,14 @@
     perturb_swap_solution(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
-        exclusions_tender::DataFrame=DataFrame();
+        exclusions_tender::POLY_VEC=POLY_VEC();
         enforce_diff_sortie::Bool=false
     )::MSTSolution
     perturb_swap_solution(
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
-        exclusions_mothership::DataFrame=DataFrame(),
-        exclusions_tender::DataFrame=DataFrame()
+        exclusions_mothership::POLY_VEC=POLY_VEC(),
+        exclusions_tender::POLY_VEC=POLY_VEC()
     )::MSTSolution
 
 Perturb the solution by swapping two nodes:
@@ -22,8 +22,8 @@ Perturb the solution by swapping two nodes:
 - `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
     selects cluster.
 - `cluster_pair`: Tuple of two cluster sequence indices to swap nodes between.
-- `exclusions_tender`: DataFrame of exclusions for tender. Default = DataFrame().
-- `exclusions_mothership`: DataFrame of exclusions for mothership. Default = DataFrame().
+- `exclusions_tender`: Exclusion zone polygons for tender. Default = DataFrame().
+- `exclusions_mothership`: Exclusion zone polygons for mothership. Default = DataFrame().
 - `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
 # Returns
@@ -32,7 +32,7 @@ Perturbed full solution.
 function perturb_swap_solution(
     soln::MSTSolution,
     clust_seq_idx_target::Int64=-1,
-    exclusions_tender::POLY_VEC=IGeometry{wkbPolygon}[];
+    exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
     clust_seq_idx = clust_seq_idx_target == -1 ?
@@ -128,8 +128,8 @@ end
 function perturb_swap_solution(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
-    exclusions_mothership::DataFrame=DataFrame(),
-    exclusions_tender::DataFrame=DataFrame()
+    exclusions_mothership::POLY_VEC=POLY_VEC(),
+    exclusions_tender::POLY_VEC=POLY_VEC()
 )::MSTSolution
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
@@ -339,7 +339,7 @@ Insert unallocated nodes into the solution.
 - `soln`: Solution to insert unallocated nodes into.
 - `clusters_ex`: Vector of existing clusters.
 - `tenders_ex`: Vector of existing tender solutions.
-- `exclusions`: DataFrame of exclusion zones to avoid. Default = DataFrame().
+- `exclusions`: Exclusion zone polygon zones to avoid.
 - `max_dist`: Maximum distance to consider for cluster assignment - feasible distance (m)
     from start and finish waypoints to the unallocated node. Default = 15000.
 - `t_cap`: Tender capacity.
@@ -574,8 +574,8 @@ end
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
-        exclusions_mothership::DataFrame=DataFrame(),
-        exclusions_tender::DataFrame=DataFrame(),
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC,
         max_iterations::Int=5_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
@@ -590,8 +590,8 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `soln_init`: Initial solution.
 - `objective_function`: Function to evaluate the solution.
 - `perturb_function`: Function to perturb the solution.
-- `exclusions_mothership`: DataFrame of exclusions for mothership. Default = DataFrame().
-- `exclusions_tender`: DataFrame of exclusions for tender. Default = DataFrame().
+- `exclusions_mothership`: Exclusion zone polygons for mothership.
+- `exclusions_tender`: Exclusion zone polygons for tender.
 - `max_iterations`: Maximum number of iterations. Default = 5_000.
 - `temp_init`: Initial temperature. Default = 500.0.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
