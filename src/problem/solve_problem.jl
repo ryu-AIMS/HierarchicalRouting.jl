@@ -439,12 +439,15 @@ function improve_solution(
     vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Tuple{MSTSolution,Float64}
     current_mothership_route = initial_solution.mothership_routes[end]
+
     cluster_seq_ids = current_mothership_route.cluster_sequence.id
     clust_seq_current = cluster_seq_ids[current_cluster_idx+1:next_cluster_idx+1]
     current_clusters = initial_solution.cluster_sets[end][clust_seq_current]
     sort!(current_clusters, by=c -> c.id)
+
     current_tender_set = initial_solution.tenders[end]
     current_tender_routes = current_tender_set[current_cluster_idx:next_cluster_idx]
+
     current_solution = MSTSolution(
         [current_clusters],
         [current_mothership_route],
