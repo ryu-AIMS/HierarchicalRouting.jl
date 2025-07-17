@@ -172,7 +172,7 @@ function load_problem(
     filter_and_simplify_exclusions!(t_exclusions, min_area=1E-7, simplify_tol=5E-4)
     t_exclusions = adjust_exclusions(
         targets.points.geometry,
-        t_exclusions.geometry
+        t_exclusions
     )
 
     mothership = Vessel(
@@ -269,7 +269,7 @@ end
 
 function adjust_exclusions(
     points::Vector{Point{2,Float64}},
-    exclusions::POLY_VEC
+    exclusions::DataFrame
 )::DataFrame
     exclusion_geometries = exclusions.geometry
     poly_adjustment_mask = point_in_exclusion.(points, Ref(exclusion_geometries))
