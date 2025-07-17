@@ -203,12 +203,10 @@ function solve(
     tender_soln_sets[1] = optimized_initial.tenders[1]
 
     # Iterate through each disturbance event and update solution
-    disturbance_index_count = 1
     for disturbance_cluster_idx ∈ ordered_disturbances
         @info "Disturbance event #$disturbance_cluster_idx at " *
               "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
               "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
-        disturbance_index_count += 1
         # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = sort!(
             vcat(
@@ -439,9 +437,15 @@ function improve_solution(
     vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Tuple{MSTSolution,Float64}
     current_mothership_route = initial_solution.mothership_routes[end]
-    clust_seq_current = current_mothership_route.cluster_sequence.id[current_cluster_idx+1:next_cluster_idx]
+
+    cluster_seq_ids = current_mothership_route.cluster_sequence.id
+    clust_seq_current = cluster_seq_ids[current_cluster_idx+1:next_cluster_idx+1]
     current_clusters = initial_solution.cluster_sets[end][clust_seq_current]
-    current_tender_routes = initial_solution.tenders[end][current_cluster_idx:next_cluster_idx-1]
+    sort!(current_clusters, by=c -> c.id)
+
+    current_tender_set = initial_solution.tenders[end]
+    current_tender_routes = current_tender_set[current_cluster_idx:next_cluster_idx]
+
     current_solution = MSTSolution(
         [current_clusters],
         [current_mothership_route],
