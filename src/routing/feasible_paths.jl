@@ -374,11 +374,13 @@ Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
 function build_network!(
     points_from::Vector{Point{2,Float64}},
     points_to::Vector{Point{2,Float64}},
-    exclusion_idxs::Vector{Int},
+    exclusion_idxs::Vector{Int64},
     current_point::Point{2,Float64},
     final_point::Point{2,Float64},
     exclusions::POLY_VEC,
-    final_exclusion_idx::Int
+    final_exclusion_idx::Int64;
+    visited::Set{Point{2,Float64}}=Set{Point{2,Float64}}(),
+    existing_edges::Set{Tuple{Point{2,Float64},Point{2,Float64}}}=Set{Tuple{Point{2,Float64},Point{2,Float64}}}()
 )::Nothing
     if current_point == final_point
         return nothing
@@ -396,37 +398,39 @@ function build_network!(
     sizehint!(points_to, length_vectors_new)
     sizehint!(exclusion_idxs, length_vectors_new)
 
-    for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
-        # If vertex is nothing, or already visited/explored,
-        # or edge already exists in network, skip
-        if isnothing(vertex) ||
-           vertex == current_point ||
-           (current_point, vertex) ∈ zip(points_from, points_to)
+    for (candidate, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
+        # Skip invalid or previously visited candidates
+        should_skip = isnothing(candidate) ||
+                      candidate == current_point ||
+                      candidate ∈ visited ||
+                      (current_point, candidate) ∈ existing_edges
+        if should_skip
             continue
         end
 
         # Record new point/edge
+        push!(existing_edges, (current_point, candidate))
         push!(points_from, current_point)
-        push!(points_to, vertex)
+        push!(points_to, candidate)
         push!(exclusion_idxs, next_exclusion_idx)
 
-        # If verticex already visited/explored, skip
-        # If final exclusion zone reached, vertices added to graph later in build_graph()
-        if vertex ∈ points_from ||
-           (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
-            continue
+        # Continue building network if not at final exclusion zone
+        keep_building = candidate ∉ visited &&
+                        !(next_exclusion_idx == final_exclusion_idx &&
+                          !isnothing(next_exclusion_idx))
+        if keep_building
+            build_network!(
+                points_from,
+                points_to,
+                exclusion_idxs,
+                candidate,
+                final_point,
+                exclusions,
+                final_exclusion_idx;
+                visited=visited,
+                existing_edges=existing_edges
+            )
         end
-
-        # Continue building network from this vertex to final point
-        build_network!(
-            points_from,
-            points_to,
-            exclusion_idxs,
-            vertex,
-            final_point,
-            exclusions,
-            final_exclusion_idx
-        )
     end
     # TODO: check if path from current_point to next/intermediate point is feasible (no intersecting polygons in between)
 end
