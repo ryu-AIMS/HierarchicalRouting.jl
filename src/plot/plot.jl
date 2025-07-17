@@ -518,6 +518,14 @@ function solution(
     show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
     show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
 
+    # Tender sorties/routes
+    show_tenders && route!(ax, soln.tenders[end])
+
+    # Mothership route
+    if show_mothership
+        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
+    end
+
     # Clusters
     clusters!(
         ax,
@@ -525,14 +533,6 @@ function solution(
         labels=true,
         cluster_radius
     )
-
-    # Mothership route
-    if show_mothership
-        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
-    end
-
-    # Tender sorties/routes
-    show_tenders && route!(ax, soln.tenders[end])
 
     return fig
 end
