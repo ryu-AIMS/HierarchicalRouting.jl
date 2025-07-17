@@ -386,6 +386,9 @@ function build_network!(
         return nothing
     end
 
+    # Mark current point as visited
+    push!(visited, current_point)
+
     candidates, next_exclusion_idxs = find_widest_points(
         current_point,
         final_point,
