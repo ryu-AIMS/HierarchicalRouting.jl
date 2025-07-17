@@ -32,7 +32,7 @@ Perturbed full solution.
 function perturb_swap_solution(
     soln::MSTSolution,
     clust_seq_idx_target::Int64=-1,
-    exclusions_tender::POLY_VEC=IGeometry{wkbPolygon}[];
+    exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
     clust_seq_idx = clust_seq_idx_target == -1 ?
@@ -128,8 +128,8 @@ end
 function perturb_swap_solution(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
-    exclusions_mothership::POLY_VEC=IGeometry{wkbPolygon}[],
-    exclusions_tender::POLY_VEC=IGeometry{wkbPolygon}[]
+    exclusions_mothership::POLY_VEC=POLY_VEC(),
+    exclusions_tender::POLY_VEC=POLY_VEC()
 )::MSTSolution
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
