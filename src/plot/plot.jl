@@ -607,6 +607,71 @@ function solution(
     return fig
 end
 
+function solution_disturbances(
+    problem::Problem,
+    solution_disturbed::MSTSolution,
+    disturbance_clusters::Set{Int64};
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=false,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+)::Figure
+    fig = Figure(size=(1650, 600))  ## 3 fig plot
+    ax1, ax2, ax3 =
+        Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
+        Axis(fig[1, 2], xlabel="Longitude"),
+        Axis(fig[1, 3], xlabel="Longitude")
+
+    # Exclusions
+    if show_mothership_exclusions
+        exclusions!.([ax1, ax2, ax3], Ref(problem.mothership.exclusion); labels=false)
+    end
+    if show_tenders_exclusions
+        exclusions!.([ax1, ax2, ax3], Ref(problem.tenders.exclusion); labels=false)
+    end
+
+    # Clusters
+    clusters!.(
+        [ax1, ax2, ax3],
+        [solution_disturbed.cluster_sets[end], solution_disturbed.cluster_sets[end], solution_disturbed.cluster_sets[end]];
+        cluster_radius=cluster_radius,
+        nodes=true,
+        centers=false,
+        labels=true,
+    )
+
+    # Tender sorties/routes
+    if show_tenders
+        ordered_disturbances = sort(unique(disturbance_clusters))
+        route!.(
+            [ax1, ax2, ax3],
+            [
+                solution_disturbed.tenders[1][1:ordered_disturbances[1]-1],
+                solution_disturbed.tenders[2][1:ordered_disturbances[2]-1],
+                solution_disturbed.tenders[3]
+            ],
+            length.(solution_disturbed.tenders[1:3])
+        )
+    end
+
+    # Mothership route
+    if show_mothership
+        route!.(
+            [ax1, ax2, ax3],
+            [
+                solution_disturbed.mothership_routes[1].route,
+                solution_disturbed.mothership_routes[2].route,
+                solution_disturbed.mothership_routes[3].route
+            ];
+            labels=true,
+            color=:black
+        )
+    end
+
+    return fig
+end
+
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     # Create custom colormap, skipping the first two colors (yellow and black)
     max_id = maximum(ids)
