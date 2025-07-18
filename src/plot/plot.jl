@@ -538,6 +538,61 @@ function solution(
 
     return fig
 end
+function solution(
+    problem::Problem,
+    soln_a::MSTSolution,
+    soln_b::MSTSolution;
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=false,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+)::Figure
+    fig = Figure(size=(1350, 750))  ## 2 fig plot
+    ax1, ax2 =
+        Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
+        Axis(fig[1, 2], xlabel="Longitude")
+
+    # Exclusions
+    if show_mothership_exclusions
+        exclusions!.([ax1, ax2], problem.mothership.exclusion; labels=false)
+    end
+    if show_tenders_exclusions
+        exclusions!.([ax1, ax2], problem.tenders.exclusion; labels=false)
+    end
+
+    # Clusters
+    clusters!.(
+        [ax1, ax2],
+        [soln_a.cluster_sets[end], soln_b.cluster_sets[end]];
+        cluster_radius=cluster_radius,
+        nodes=true,
+        centers=false,
+        labels=true,
+    )
+
+    # Tender sorties/routes
+    if show_tenders
+        tenders!.(
+            [ax1, ax2],
+            [soln_a.tenders[end], soln_b.tenders[end]]
+        )
+    end
+
+    # Mothership route
+    if show_mothership
+        route!.(
+            [ax1, ax2],
+            [soln_a.mothership_routes[end], soln_b.mothership_routes[end]];
+            markers=true,
+            labels=true,
+            color=:black
+        )
+    end
+
+    return fig
+end
+
 
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     # Create custom colormap, skipping the first two colors (yellow and black)
