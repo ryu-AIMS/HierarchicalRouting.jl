@@ -484,7 +484,16 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-        fig_size=(750, 880)
+    )::Figure
+    solution(
+        problem::Problem,
+        soln_a::MSTSolution,
+        soln_b::MSTSolution;
+        cluster_radius::Float64=0.0,
+        show_mothership_exclusions::Bool=true,
+        show_tenders_exclusions::Bool=true,
+        show_mothership::Bool=true,
+        show_tenders::Bool=true,
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -496,12 +505,13 @@ Create a plot of the full routing solution, including:
 # Arguments
 - `problem`: The hierarchical routing problem instance.
 - `soln`: The full solution to the problem.
+- `soln_a`: The first solution to compare.
+- `soln_b`: The second solution to compare.
 - `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
 - `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
-- `fig_size`: Size of the figure.
 
 # Returns
 - `fig`: The created Figure object containing the plot.
@@ -539,6 +549,60 @@ function solution(
         centers=false,
         labels=true
     )
+
+    return fig
+end
+function solution(
+    problem::Problem,
+    soln_a::MSTSolution,
+    soln_b::MSTSolution;
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=false,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+)::Figure
+    fig = Figure(size=(1350, 750))  ## 2 fig plot
+    ax1, ax2 =
+        Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
+        Axis(fig[1, 2], xlabel="Longitude")
+
+    # Exclusions
+    if show_mothership_exclusions
+        exclusions!.([ax1, ax2], problem.mothership.exclusion; labels=false)
+    end
+    if show_tenders_exclusions
+        exclusions!.([ax1, ax2], problem.tenders.exclusion; labels=false)
+    end
+
+    # Clusters
+    clusters!.(
+        [ax1, ax2],
+        [soln_a.cluster_sets[end], soln_b.cluster_sets[end]];
+        cluster_radius=cluster_radius,
+        nodes=true,
+        centers=false,
+        labels=true,
+    )
+
+    # Tender sorties/routes
+    if show_tenders
+        tenders!.(
+            [ax1, ax2],
+            [soln_a.tenders[end], soln_b.tenders[end]]
+        )
+    end
+
+    # Mothership route
+    if show_mothership
+        route!.(
+            [ax1, ax2],
+            [soln_a.mothership_routes[end], soln_b.mothership_routes[end]];
+            markers=true,
+            labels=true,
+            color=:black
+        )
+    end
 
     return fig
 end
