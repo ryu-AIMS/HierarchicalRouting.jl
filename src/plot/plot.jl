@@ -603,6 +603,40 @@ function solution(
     return fig
 end
 
+"""
+    function solution_disturbances(
+        problem::Problem,
+        solution_disturbed::MSTSolution,
+        disturbance_clusters::Set{Int64};
+        cluster_radius::Float64=0.0,
+        show_mothership_exclusions::Bool=true,
+        show_tenders_exclusions::Bool=true,
+        show_mothership::Bool=true,
+        show_tenders::Bool=true,
+    )::Figure
+
+Create a plot of the solution at each progressive disturbance event, including:
+- exclusion zones for the **mothership** and **tenders**,
+- mothership route,
+- tender sorties (coloured by cluster), and
+- clustered points remaining remaining after disturbance event (coloured by cluster).
+
+#! NOTE: This function assumes 2 disturbance events.
+#TODO: Generalize to any number of disturbance events.
+
+# Arguments
+- `problem`: The hierarchical routing problem instance.
+- `solution_disturbed`: The solution with disturbances.
+- `disturbance_clusters`: Set of disturbance cluster IDs.
+- `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
+- `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
+- `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
+- `show_mothership`: Whether to show the **mothership** route.
+- `show_tenders`: Whether to show **tender** routes.
+
+# Returns
+- `fig`: The created Figure object containing the plot.
+"""
 function solution_disturbances(
     problem::Problem,
     solution_disturbed::MSTSolution,
@@ -613,6 +647,8 @@ function solution_disturbances(
     show_mothership::Bool=true,
     show_tenders::Bool=true,
 )::Figure
+    #! NOTE: This function assumes 2 disturbance events.
+    #TODO: Generalize to any number of disturbance events.
     fig = Figure(size=(1650, 600))  ## 3 fig plot
     ax1, ax2, ax3 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
