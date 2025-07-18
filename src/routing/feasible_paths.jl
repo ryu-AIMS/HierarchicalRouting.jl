@@ -287,6 +287,7 @@ function shortest_feasible_path(
             [exclusions[initial_exclusion_idx]]
         )[1]
 
+        # visited = Set(vcat(points_from, points_to))
         build_network!.(
             Ref(points_from),
             Ref(points_to),
@@ -294,7 +295,8 @@ function shortest_feasible_path(
             widest_verts,
             Ref(final_point),
             Ref(exclusions),
-            Ref(final_exclusion_idx)
+            Ref(final_exclusion_idx);
+            # visited=visited
         )
     end
 
@@ -386,6 +388,9 @@ function build_network!(
         return nothing
     end
 
+    # Mark current point as visited
+    # push!(visited, current_point)
+
     candidates, next_exclusion_idxs = find_widest_points(
         current_point,
         final_point,
@@ -427,7 +432,7 @@ function build_network!(
                 final_point,
                 exclusions,
                 final_exclusion_idx;
-                visited=visited,
+                # visited=visited,
                 existing_edges=existing_edges
             )
         end
