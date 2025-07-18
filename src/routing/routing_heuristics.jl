@@ -234,13 +234,46 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
+"""
+    optimize_waypoints(
+        soln::MSTSolution,
+        problem::Problem;
+        opt_method=GradientDescent(),
+        cost_tol::Float64=0.0,
+        gradient_tol::Float64=3e5,
+        iterations::Int64=10,
+        time_limit::Float64=60.0
+    )::MSTSolution
+
+Optimize waypoint positions in the final mothership route using gradient-based optimization
+to minimize the critical path time while avoiding exclusion zones.
+
+This function takes the waypoints from the last mothership route (excluding depot start/end
+points) and optimizes their positions within a constrained search space. The optimization
+minimizes the critical path score while penalizing waypoints that fall within exclusion
+zones.
+
+# Arguments
+- `soln::MSTSolution`: Current mothership and tender solution.
+- `problem::Problem`: Definition of problem context (vessel specs and exclusion zones)
+- `opt_method`: Optimization algorithm (default: GradientDescent())
+- `cost_tol`: Relative cost function tolerance. Stop optimization if function falls below this value.
+- `gradient_tol::Float64`: Gradient norm convergence tolerance. \
+                           Stop optimization when gradient norm falls below this value
+- `iterations::Int64`: Maximum number of optimization iterations
+- `time_limit::Float64`: Soft limit on the time spent optimizing
+
+# Returns
+Updated mothership and tender solution with optimized waypoint positions and regenerated tender sorties
+"""
 function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
-    descent_function=GradientDescent(),
-    tolerance::Float64=5e5, # stop when gradient norm below this
-    iterations::Int=10,
-    box_buffer::Float64=0.0
+    opt_method=GradientDescent(),
+    cost_tol::Float64=0.0,
+    gradient_tol::Float64=3e4,
+    iterations::Int64=10,
+    time_limit::Float64=60.0
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
@@ -268,55 +301,54 @@ function optimize_waypoints(
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership
-        )
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
 
-        score = critical_path(soln_proposed, vessel_weightings)
+        # score = critical_path(soln_proposed, vessel_weightings)
+        score = critical_distance_path(soln_proposed, vessel_weightings)
 
         # Penalise by an `exclusion_count` factor of `penalty`.
         exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
         return score + score * exclusion_count
     end
 
-    # Run Optim with simple gradient descent
+
+    # Run Optim with the provided optimization method.
     opt_options = Optim.Options(
         iterations=iterations,
-        g_tol=tolerance,
-        show_trace=true
+        f_reltol=cost_tol,
+        g_abstol=gradient_tol,
+        show_trace=true,
+        allow_f_increases=false,  # allow or disallow function value to increase
+        time_limit=time_limit
     )
 
-    problem_bbox = get_bbox_bounds([
-        exclusions_mothership,
-        exclusions_tender,
-        problem.targets.points.geometry
-    ])
-    # Ensure bounds are within lat/lon limits
-    lons = clamp.(problem_bbox[1:2], -180.0, 180.0)
-    lats = clamp.(problem_bbox[3:4], -90.0, 90.0)
-
-    m = length(x0) ÷ 2
-    lb::Vector{Float64} = repeat([lons[1], lats[1]] .- box_buffer, m)
-    ub::Vector{Float64} = repeat([lons[2], lats[2]] .+ box_buffer, m)
+    # Each waypoint is bounded to its surrounding area (in decimal degrees)
+    lb = x0 .- 0.05
+    ub = x0 .+ 0.05
 
     result = optimize(
         obj,
         lb,
         ub,
         x0,
-        Fminbox(
-            descent_function,
-        ),
+        Fminbox(opt_method),
         opt_options
     )
 
+    @info "Type:" summary(result)
+    @info "Minimum value:" minimum(result)
+    @info "Convergence status:" Optim.converged(result)
+    @info "X status:" Optim.x_converged(result)
+    @info "Function status:" Optim.f_converged(result)
+    @info "Gradient status:" Optim.g_converged(result)
+    # @info "Gradient trace:" Optim.g_norm_trace(result)
+
     x_best_flat = Optim.minimizer(result)
-    x_best::Vector{Point{2,Float64}} = Point.(
-        [
+    x_best::Vector{Point{2,Float64}} = Point.([
         last_ms_route.route.nodes[1],  # first waypoint (depot)
         tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
         last_ms_route.route.nodes[end]  # last waypoint (depot)
-    ]
-    )
+    ])
 
     # Rebuild solution with the optimal waypoints
     soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
@@ -598,7 +630,7 @@ function nearest_neighbour(
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids::Vector{Point{2,Float64}} = adjust_waypoint.(
         Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
-        Ref(exclusions_mothership)
+        Ref(exclusions_mothership.geometry)
     )
     cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
     cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
@@ -606,7 +638,7 @@ function nearest_neighbour(
     # Create distance matrix between start, end, and feasible cluster centroids
     dist_matrix = get_feasible_matrix(
         vcat([current_point], feasible_centroids),
-        exclusions_mothership
+        exclusions_mothership.geometry
     )[1]
     centroid_matrix = dist_matrix[3:end, 3:end]
     current_dist_vector = dist_matrix[1, 3:end]
