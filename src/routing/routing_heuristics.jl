@@ -1,4 +1,6 @@
 
+using Optim
+
 struct Route
     nodes::Vector{Point{2,Float64}}
     dist_matrix::Matrix{Float64}
@@ -17,7 +19,6 @@ struct TenderSolution
     sorties::Vector{Route}
     dist_matrix::Matrix{Float64}
 end
-
 function TenderSolution(t::TenderSolution, sorties::Vector{Route})
     return TenderSolution(
         t.id,
@@ -26,6 +27,10 @@ function TenderSolution(t::TenderSolution, sorties::Vector{Route})
         sorties,
         t.dist_matrix
     )
+end
+
+function generate_letter_id(t::TenderSolution)
+    return generate_letter_id(t.id)
 end
 
 struct MSTSolution
@@ -229,13 +234,13 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
-using Optim
-
 function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
+    descent_function=GradientDescent(),
     tolerance::Float64=5e5, # stop when gradient norm below this
-    iterations::Int=10  # treated as max iterations for Optim
+    iterations::Int=10,
+    box_buffer::Float64=0.0
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
@@ -252,7 +257,9 @@ function optimize_waypoints(
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
     # Objective from x -> critical_path
-    function obj(x::Vector{Float64}; penalty=100.0)::Float64
+    function obj(
+        x::Vector{Float64};
+    )::Float64
         # Rebuild waypoints
         wpts::Vector{Point{2,Float64}} = Point.(
             [
@@ -261,15 +268,14 @@ function optimize_waypoints(
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership
+        )
 
         score = critical_path(soln_proposed, vessel_weightings)
-        if any(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
-            # Penalise if any proposed waypoint is in an exclusion zone
-            score *= penalty
-        end
 
-        return score
+        # Penalise by an `exclusion_count` factor of `penalty`.
+        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
+        return score + score * exclusion_count
     end
 
     # Run Optim with simple gradient descent
@@ -279,10 +285,27 @@ function optimize_waypoints(
         show_trace=true
     )
 
+    problem_bbox = get_bbox_bounds([
+        exclusions_mothership,
+        exclusions_tender,
+        problem.targets.points.geometry
+    ])
+    # Ensure bounds are within lat/lon limits
+    lons = clamp.(problem_bbox[1:2], -180.0, 180.0)
+    lats = clamp.(problem_bbox[3:4], -90.0, 90.0)
+
+    m = length(x0) ÷ 2
+    lb::Vector{Float64} = repeat([lons[1], lats[1]] .- box_buffer, m)
+    ub::Vector{Float64} = repeat([lons[2], lats[2]] .+ box_buffer, m)
+
     result = optimize(
         obj,
+        lb,
+        ub,
         x0,
-        GradientDescent(),
+        Fminbox(
+            descent_function,
+        ),
         opt_options
     )
 
@@ -299,10 +322,15 @@ function optimize_waypoints(
     soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
 
     # Regenerate tender sorties
-    clust_seq::Vector{Int64} = last_ms_route.cluster_sequence.id[2:end-1]
-    pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(x_best[2:2:end-1], x_best[3:2:end-1])
+    ms_route_opt::MothershipSolution = soln_opt.mothership_routes[end]
+    waypoints_opt = ms_route_opt.route.nodes[2:end-1]
+    pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(
+        waypoints_opt[1:2:end],
+        waypoints_opt[2:2:end]
+    )
+    cluster_seq::Vector{Int64} = ms_route_opt.cluster_sequence.id[2:end-1]
     soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
-        soln_opt.cluster_sets[end],
+        soln_opt.cluster_sets[end][cluster_seq],
         pairs,
         Ref(n_tenders),
         Ref(t_cap),
@@ -335,8 +363,9 @@ function rebuild_solution_with_waypoints(
     exclusions_mothership::POLY_VEC
 )::MSTSolution
     # Update the waypoints in the mothership route
+    adjusted_waypoints = adjust_waypoint.(waypoints_proposed, Ref(exclusions_mothership))
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
-        waypoints_proposed, exclusions_mothership
+        adjusted_waypoints, exclusions_mothership
     )
     n = length(dist_vector_proposed)
     # Ensure the distance matrix is square and matches the number of waypoints
@@ -344,7 +373,7 @@ function rebuild_solution_with_waypoints(
     diag_idxs = CartesianIndex.(1:n, 2:n+1)
     dist_matrix_proposed[diag_idxs] .= dist_vector_proposed
     ms_route_new::Route = Route(
-        waypoints_proposed,
+        adjusted_waypoints,
         dist_matrix_proposed,
         vcat(line_strings_proposed...)
     )
@@ -356,7 +385,7 @@ function rebuild_solution_with_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, waypoints_proposed)
+    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -402,7 +431,7 @@ function generate_tender_sorties(
     # mask which tenders need updating
     mask = (starts_ex .!= starts_new) .|| (finishes_ex .!= finishes_new)
 
-    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, length(sorties[mask]))
+    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, sum(mask))
     for (i, s) in enumerate(sorties[mask])
         new_routes = Vector{Route}(undef, length(s))
         for (j, r) in enumerate(s)
