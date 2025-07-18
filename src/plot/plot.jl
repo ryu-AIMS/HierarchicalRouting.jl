@@ -476,7 +476,7 @@ end
         problem::Problem,
         soln::MSTSolution;
         cluster_radius::Float64=0.0,
-        show_mothership_exclusions::Bool=false,
+        show_mothership_exclusions::Bool=true,
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
@@ -506,7 +506,7 @@ function solution(
     problem::Problem,
     soln::MSTSolution;
     cluster_radius::Float64=0.0,
-    show_mothership_exclusions::Bool=false,
+    show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
