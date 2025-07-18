@@ -530,8 +530,10 @@ function solution(
     clusters!(
         ax,
         soln.cluster_sets[end];
-        labels=true,
-        cluster_radius
+        cluster_radius=cluster_radius,
+        nodes=true,
+        centers=false,
+        labels=true
     )
 
     return fig
