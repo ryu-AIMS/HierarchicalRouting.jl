@@ -480,7 +480,16 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-        fig_size=(750, 880)
+    )::Figure
+    solution(
+        problem::Problem,
+        soln_a::MSTSolution,
+        soln_b::MSTSolution;
+        cluster_radius::Float64=0.0,
+        show_mothership_exclusions::Bool=true,
+        show_tenders_exclusions::Bool=true,
+        show_mothership::Bool=true,
+        show_tenders::Bool=true,
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -492,12 +501,13 @@ Create a plot of the full routing solution, including:
 # Arguments
 - `problem`: The hierarchical routing problem instance.
 - `soln`: The full solution to the problem.
+- `soln_a`: The first solution to compare.
+- `soln_b`: The second solution to compare.
 - `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
 - `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
-- `fig_size`: Size of the figure.
 
 # Returns
 - `fig`: The created Figure object containing the plot.
