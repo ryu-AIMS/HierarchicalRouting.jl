@@ -686,123 +686,25 @@ function nearest_neighbour(
 end
 
 """
-    two_opt(
-        ms_soln_current::MothershipSolution,
-        exclusions_mothership::POLY_VEC,
-        exclusions_tender::POLY_VEC,
-    )::MothershipSolution
-    two_opt(
-        ms_soln_current::MothershipSolution,
-        exclusions_mothership::POLY_VEC,
-        exclusions_tender::POLY_VEC,
-        cluster_seq_idx::Int64
-    )::MothershipSolution
-    two_opt(
-        tender_soln_current::TenderSolution,
-        exclusions_tender::POLY_VEC,
-    )::TenderSolution
-
-Apply the 2-opt heuristic to improve current routes by uncrossing crossed links between
-waypoints for the whole route or between current location and depot.
-
-# Arguments
-- `ms_soln_current`: Current MothershipSolution to improve.
-- `tender_soln_current`: Current TenderSolution to improve.
-- `exclusions_mothership`: Exclusion zone polygons for mothership.
-- `exclusions_tender`: Exclusion zone polygons for tenders.
-- `cluster_seq_idx`: Index denoting the mothership position by cluster sequence index.
-
-# Returns
-MothershipSolution object containing:
-    - `cluster_sequence`: DataFrame of cluster centroids in sequence (containing id, lon, lat).
-    - `route`: Route object containing waypoints, distance matrix, and line strings.
-        - `nodes`: Vector of Point{2, Float64} waypoints.
-        - `dist_matrix`: Distance matrix between centroids.
-        - `line_strings`: Vector of LineString objects for each path.
+Core two-opt optimization function that can be used by all solution types.
 """
-function two_opt(
-    ms_soln_current::MothershipSolution,
-    exclusions_mothership::POLY_VEC,
-    exclusions_tender::POLY_VEC,
-)::MothershipSolution
-
-    cluster_centroids = ms_soln_current.cluster_sequence
-    dist_matrix = ms_soln_current.route.dist_matrix
-
-    # If depot is last row, remove
-    if cluster_centroids.id[1] == cluster_centroids.id[end]
-        cluster_centroids = cluster_centroids[1:end-1, :]
-    end
-
-    # Initialize route as ordered waypoints
-    best_route = cluster_centroids.id .+ 1
-    best_distance = return_route_distance(best_route, dist_matrix)
+function optimize_route_two_opt(
+    route::Vector{Int},
+    dist_matrix::Matrix,
+    distance_fn::Function;
+    start_idx::Int=1,
+    end_idx::Int=length(route)
+)::Vector{Int}
+    best_route = copy(route)
+    best_distance = distance_fn(best_route, dist_matrix)
     improved = true
 
     while improved
         improved = false
-        for j in 1:(length(best_route)-1)
-            for i in (j+1):length(best_route)
+        for j in start_idx:(end_idx-1)
+            for i in (j+1):end_idx
                 new_route = two_opt_swap(best_route, j, i)
-                new_distance = return_route_distance(new_route, dist_matrix)
-
-                if new_distance < best_distance
-                    best_route = new_route
-                    best_distance = new_distance
-                    improved = true
-                end
-            end
-        end
-    end
-
-    # Re-orient route to start from and end at the depot, and adjust to zero-based indexing
-    best_route = orient_route(best_route)
-    push!(best_route, best_route[1])
-    best_route .-= 1
-
-    ordered_nodes = cluster_centroids[[findfirst(==(id), cluster_centroids.id) for id in best_route], :]
-    exclusions_all = vcat(exclusions_mothership, exclusions_tender)
-    waypoints = get_waypoints(ordered_nodes, exclusions_all)
-
-    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
-        waypoints.waypoint,
-        exclusions_mothership
-    )
-
-    path = vcat(waypoint_path_vector...)
-
-    return MothershipSolution(
-        cluster_sequence=ordered_nodes,
-        route=Route(waypoints.waypoint, dist_matrix, path)
-    )
-end
-function two_opt(
-    ms_soln_current::MothershipSolution,
-    exclusions_mothership::POLY_VEC,
-    exclusions_tender::POLY_VEC,
-    cluster_seq_idx::Int64
-)::MothershipSolution
-    # TODO: only apply to the route between the current cluster and the depot
-    # TODO: Then concatenate the new route with the existing route
-    cluster_centroids = ms_soln_current.cluster_sequence
-    dist_matrix = ms_soln_current.route.dist_matrix
-
-    # If depot is last row, remove
-    if cluster_centroids.id[1] == cluster_centroids.id[end]
-        cluster_centroids = cluster_centroids[1:end-1, :]
-    end
-
-    # Initialize route as ordered waypoints
-    best_route = cluster_centroids.id .+ 1
-    best_distance = return_route_distance(best_route, dist_matrix)
-    improved = true
-
-    while improved
-        improved = false
-        for j in cluster_seq_idx:(length(best_route)-1)
-            for i in (j+1):length(best_route)
-                new_route = two_opt_swap(best_route, j, i)
-                new_distance = return_route_distance(new_route, dist_matrix)
+                new_distance = distance_fn(new_route, dist_matrix)
 
                 if new_distance < best_distance
                     best_route = new_route
@@ -814,26 +716,53 @@ function two_opt(
         end
     end
 
+    return best_route
+end
+
+"""
+Process optimized route for mothership solutions.
+"""
+function process_mothership_route(
+    optimized_route::Vector{Int},
+    cluster_centroids::DataFrame,
+    dist_matrix::Matrix,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
+    existing_waypoints::Union{Vector,Nothing}=nothing,
+    cluster_seq_idx::Union{Int,Nothing}=nothing
+)::MothershipSolution
     # Re-orient route to start from and end at the depot, and adjust to zero-based indexing
-    best_route = orient_route(best_route)
-    push!(best_route, best_route[1])
-    best_route .-= 1
-    best_route = orient_route(
-        best_route,
-        ms_soln_current.cluster_sequence.id[1:cluster_seq_idx]
-    )
+    processed_route = orient_route(optimized_route)
+    push!(processed_route, processed_route[1])
+    processed_route .-= 1
+
+    # Handle partial route optimization
+    if cluster_seq_idx !== nothing
+        processed_route = orient_route(
+            processed_route,
+            cluster_centroids.id[1:cluster_seq_idx]
+        )
+    end
+
     ordered_nodes = cluster_centroids[
-        [findfirst(==(id), cluster_centroids.id) for id in best_route], :
+        [findfirst(==(id), cluster_centroids.id) for id in processed_route], :
     ]
+
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
     waypoints = get_waypoints(ordered_nodes, exclusions_all)
-    updated_waypoints = vcat(
-        ms_soln_current.route.nodes[1:2*cluster_seq_idx-1],
-        waypoints.waypoint[2*cluster_seq_idx:end]
-    )
+
+    # Handle waypoint merging for partial optimization
+    final_waypoints = if existing_waypoints !== nothing && cluster_seq_idx !== nothing
+        vcat(
+            existing_waypoints[1:2*cluster_seq_idx-1],
+            waypoints.waypoint[2*cluster_seq_idx:end]
+        )
+    else
+        waypoints.waypoint
+    end
 
     _, waypoint_path_vector = get_feasible_vector(
-        updated_waypoints,
+        final_waypoints,
         exclusions_mothership
     )
 
@@ -841,9 +770,108 @@ function two_opt(
 
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
-        route=Route(updated_waypoints, dist_matrix, path)
+        route=Route(final_waypoints, dist_matrix, path)
     )
 end
+
+"""
+    two_opt(
+        ms_soln_current::MothershipSolution,
+        exclusions_mothership::Vector{IGeometry{wkbPolygon}},
+        exclusions_tender::Vector{IGeometry{wkbPolygon}},
+    )::MothershipSolution
+
+Apply the 2-opt heuristic to improve current routes by uncrossing crossed links between
+waypoints for the whole route.
+"""
+function two_opt(
+    ms_soln_current::MothershipSolution,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
+)::MothershipSolution
+    cluster_centroids = ms_soln_current.cluster_sequence
+    dist_matrix = ms_soln_current.route.dist_matrix
+
+    # If depot is last row, remove
+    if cluster_centroids.id[1] == cluster_centroids.id[end]
+        cluster_centroids = cluster_centroids[1:end-1, :]
+    end
+
+    # Initialize route as ordered waypoints
+    initial_route = cluster_centroids.id .+ 1
+
+    # Optimize the entire route
+    optimized_route = optimize_route_two_opt(
+        initial_route,
+        dist_matrix,
+        return_route_distance
+    )
+
+    return process_mothership_route(
+        optimized_route,
+        cluster_centroids,
+        dist_matrix,
+        exclusions_mothership,
+        exclusions_tender
+    )
+end
+
+"""
+    two_opt(
+        ms_soln_current::MothershipSolution,
+        exclusions_mothership::Vector{IGeometry{wkbPolygon}},
+        exclusions_tender::Vector{IGeometry{wkbPolygon}},
+        cluster_seq_idx::Int64
+    )::MothershipSolution
+
+Apply the 2-opt heuristic to improve current routes by uncrossing crossed links between
+waypoints from the current cluster position to the depot.
+"""
+function two_opt(
+    ms_soln_current::MothershipSolution,
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC,
+    cluster_seq_idx::Int64
+)::MothershipSolution
+    cluster_centroids = ms_soln_current.cluster_sequence
+    dist_matrix = ms_soln_current.route.dist_matrix
+
+    # If depot is last row, remove
+    if cluster_centroids.id[1] == cluster_centroids.id[end]
+        cluster_centroids = cluster_centroids[1:end-1, :]
+    end
+
+    # Initialize route as ordered waypoints
+    initial_route = cluster_centroids.id .+ 1
+
+    # Optimize only from cluster_seq_idx to the end
+    optimized_route = optimize_route_two_opt(
+        initial_route,
+        dist_matrix,
+        return_route_distance;
+        start_idx=cluster_seq_idx,
+        end_idx=length(initial_route)
+    )
+
+    return process_mothership_route(
+        optimized_route,
+        cluster_centroids,
+        dist_matrix,
+        exclusions_mothership,
+        exclusions_tender,
+        ms_soln_current.route.nodes,
+        cluster_seq_idx
+    )
+end
+
+"""
+    two_opt(
+        tender_soln_current::TenderSolution,
+        exclusions_tender::DataFrame,
+    )::TenderSolution
+
+Apply the 2-opt heuristic to improve current tender sortie routes.
+"""
 function two_opt(
     tender_soln_current::TenderSolution,
     exclusions_tender::POLY_VEC,
@@ -861,35 +889,26 @@ function two_opt(
             continue
         end
 
-        seq_best = collect(1:n)
-        dist_best = tender_sortie_dist(seq_best, sortie.dist_matrix)
-        improved = true
+        initial_sequence = collect(1:n)
 
-        while improved
-            improved = false
-            for j in 2:(n-2)
-                for i in (j+1):(n-1)
-                    seq_proposed = two_opt_swap(seq_best, j, i)
-                    dist_proposed = tender_sortie_dist(seq_proposed, sortie.dist_matrix)
-                    if dist_proposed < dist_best
-                        seq_best, dist_best = seq_proposed, dist_proposed
-                        improved = true
-                    end
-                end
-            end
-        end
+        # Optimize sequence, but don't modify start (index 1) and finish (index n)
+        optimized_sequence = optimize_route_two_opt(
+            initial_sequence,
+            sortie.dist_matrix,
+            tender_sortie_dist;
+            start_idx=2,
+            end_idx=n - 1
+        )
 
-        # build new sortie ordering, ignoring start and finish
-        nodes_new = nodes[seq_best[2:end-1]]
-        dist_matrix_new = sortie.dist_matrix[seq_best, seq_best]
+        # Build new sortie ordering, ignoring start and finish
+        nodes_new = nodes[optimized_sequence[2:end-1]]
+        dist_matrix_new = sortie.dist_matrix[optimized_sequence, optimized_sequence]
 
-        # recompute feasible path through exclusions
-        new_path = vcat(get_feasible_vector(nodes[seq_best], exclusions_tender)[2]...)
+        # Recompute feasible path through exclusions
+        new_path = vcat(get_feasible_vector(nodes[optimized_sequence], exclusions_tender)[2]...)
 
         sorties_new[idx] = Route(nodes_new, dist_matrix_new, new_path)
     end
-
-    #? recompute or delete distance matrix for all TenderSolution with new routes
 
     return TenderSolution(
         tender_soln_current.id,
