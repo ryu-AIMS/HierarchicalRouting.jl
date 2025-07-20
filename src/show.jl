@@ -89,3 +89,51 @@ function Base.show(io::IO, mime::MIME"text/plain", soln::MSTSolution)
 
     Base.show(io, mime, soln.mothership_routes[end])
 end
+
+function Base.show(io::IO, mime::MIME"text/plain", routes::Vector{Route})
+    header = "$(length(routes)) Routes"
+    println(
+        io,
+        """
+        $header
+        $("="^length(header))
+        """
+    )
+
+    for (i, r) in enumerate(routes)
+        waypoints = r.nodes
+
+        println(
+            io,
+            """
+            Route $i
+
+            Start: $(waypoints[1])
+            """)
+
+        println(io, "Path:")
+
+        # Get output of linestrings exactly as how it would normally be shown in the REPL
+        io_capture = IOBuffer()
+        show(
+            IOContext(io_capture, :color => true, :limit => true),
+            MIME("text/plain"),
+            GI.coordinates.(r.line_strings)
+        )
+        println(String(take!(io_capture)))
+        print("\n")
+
+        if length(waypoints) > 1
+            println(
+                io,
+                """
+                End: $(waypoints[2])
+                """
+            )
+        else
+            println("No ending waypoint")
+        end
+
+        println("------\n")
+    end
+end
