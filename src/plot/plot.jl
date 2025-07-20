@@ -708,6 +708,25 @@ function solution_disturbances(
     return fig
 end
 
+function annotate_cost!(
+    ax::Axis,
+    cost::Float64;
+    position::Tuple{Float64,Float64}=(0.95, 0.02),
+    fontsize::Int=14,
+    color::Symbol=:black
+)
+    cost_km = cost / 1000  # Convert cost to km
+    text!(
+        ax,
+        position...,
+        text="Critical path: $(round(cost_km, digits=2)) km",
+        align=(:right, :bottom),
+        space=:relative,
+        fontsize=fontsize,
+        color=color
+    )
+end
+
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     # Create custom colormap, skipping the first two colors (yellow and black)
     max_id = maximum(ids)
