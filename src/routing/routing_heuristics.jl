@@ -464,14 +464,14 @@ function generate_tender_sorties(
     tenders_new = Vector{TenderSolution}(undef, n)
 
     for j in js
-        tenders = tenders_old[j]
+        tender_old = tenders_old[j]
         start_new, finish_new = starts_new[j], finishes_new[j]
 
-        if tenders.start != start_new || tenders.finish != finish_new
+        if tender_old.start != start_new || tender_old.finish != finish_new
             # Rebuild the sorties with new start/finish points
-            updated_sorties = Vector{Route}(undef, length(tenders.sorties))
+            updated_sorties = Vector{Route}(undef, length(tender_old.sorties))
 
-            for (j, route) in enumerate(tenders.sorties)
+            for (j, route) in enumerate(tender_old.sorties)
                 seq = [start_new, route.nodes..., finish_new]
                 dists, legs = get_feasible_vector(seq, exclusions)
 
@@ -480,14 +480,14 @@ function generate_tender_sorties(
             end
 
             tenders_new[j] = TenderSolution(
-                tenders.id,
+                tender_old.id,
                 start_new,
                 finish_new,
                 updated_sorties,
-                tenders.dist_matrix
+                tender_old.dist_matrix
             )
         else
-            tenders_new[j] = tenders
+            tenders_new[j] = tender_old
         end
     end
 
