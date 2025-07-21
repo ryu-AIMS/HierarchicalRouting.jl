@@ -70,7 +70,6 @@ function Base.show(io::IO, mime::MIME"text/plain", tenders::Vector{TenderSolutio
 
     for tender in tenders
         show(io, mime, tender)
-        print(io, "\n")
     end
 end
 
