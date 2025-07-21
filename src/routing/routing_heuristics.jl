@@ -453,75 +453,45 @@ function generate_tender_sorties(
     exclusions::POLY_VEC
 )::Vector{TenderSolution}
     # Update the tender solutions with the new waypoints
-    tender_soln_ex = soln.tenders[end]
+    tenders_old = soln.tenders[end]
+    n = length(tenders_old)
+    @assert length(tmp_wpts) == 2n + 2 "expected 2 points per tender plus depot start/end"
 
-    ids = getfield.(tender_soln_ex, :id)
-    starts_ex = getfield.(tender_soln_ex, :start)
-    finishes_ex = getfield.(tender_soln_ex, :finish)
-    sorties = getfield.(tender_soln_ex, :sorties)
-    dist_mats = getfield.(tender_soln_ex, :dist_matrix)
-
-    js = 1:length(tender_soln_ex)
-
+    js = 1:n
     starts_new = tmp_wpts[2 .* js]
     finishes_new = tmp_wpts[2 .* js.+1]
 
-    # mask which tenders need updating
-    mask = (starts_ex .!= starts_new) .|| (finishes_ex .!= finishes_new)
+    tenders_new = Vector{TenderSolution}(undef, n)
 
-    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, sum(mask))
-    for (i, s) in enumerate(sorties[mask])
-        new_routes = Vector{Route}(undef, length(s))
-        for (j, r) in enumerate(s)
-            line_strings_updated = deepcopy(r.line_strings)
-            # Recalculate line strings from waypoint to first node and last node to finish
-            if r.line_strings[1].points[1] != starts_new[i] # start changes
-                continue_from = findfirst(
-                    ==(r.nodes[1]),
-                    first.(getproperty.(line_strings_updated, :points))
-                )
+    for j in js
+        tenders = tenders_old[j]
+        start_new, finish_new = starts_new[j], finishes_new[j]
 
-                # re-calc linestrings for the first segment: start to first node
-                new_segment_flattened = [LineString{2,Float64}(
-                    [starts_new[i], r.nodes[1]]
-                )]
-                line_strings_updated = [
-                    new_segment_flattened;
-                    line_strings_updated[continue_from:end]
-                ]
+        if tenders.start != start_new || tenders.finish != finish_new
+            # Rebuild the sorties with new start/finish points
+            updated_sorties = Vector{Route}(undef, length(tenders.sorties))
+
+            for (j, route) in enumerate(tenders.sorties)
+                seq = [start_new, route.nodes..., finish_new]
+                dists, legs = get_feasible_vector(seq, exclusions)
+
+                # TODO: use `dists` to update r.dist_matrix to match new legs
+                updated_sorties[j] = Route(route.nodes, route.dist_matrix, vcat(legs...))
             end
-            if r.line_strings[end].points[end] != finishes_new[i] # finish changes
-                keep_until = findlast(
-                    ==(r.nodes[end]),
-                    last.(getproperty.(line_strings_updated, :points))
-                )
-                # re-calc linestrings for the last segment: last node to finish
-                new_segment_flattened = [LineString{2,Float64}(
-                    [r.nodes[end], finishes_new[i]]
-                )]
-                line_strings_updated = [
-                    line_strings_updated[1:keep_until];
-                    new_segment_flattened
-                ]
-            end
-            new_routes[j] = Route(
-                r.nodes,
-                r.dist_matrix,
-                line_strings_updated
+
+            tenders_new[j] = TenderSolution(
+                tenders.id,
+                start_new,
+                finish_new,
+                updated_sorties,
+                tenders.dist_matrix
             )
+        else
+            tenders_new[j] = tenders
         end
-        sorties_new[i] = new_routes
     end
 
-    tender_soln_new = copy(tender_soln_ex)
-    tender_soln_new[mask] = TenderSolution.(
-        ids[mask],
-        starts_new[mask],
-        finishes_new[mask],
-        sorties_new,
-        dist_mats[mask]
-    )
-    return tender_soln_new
+    return tenders_new
 end
 
 """
