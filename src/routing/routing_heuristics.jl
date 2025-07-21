@@ -301,7 +301,7 @@ function optimize_waypoints(
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership, exclusions_tender)
 
         # score = critical_path(soln_proposed, vessel_weightings)
         score = critical_distance_path(soln_proposed, vessel_weightings)
@@ -351,7 +351,7 @@ function optimize_waypoints(
     ])
 
     # Rebuild solution with the optimal waypoints
-    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
+    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership, exclusions_tender)
 
     # Regenerate tender sorties
     ms_route_opt::MothershipSolution = soln_opt.mothership_routes[end]
@@ -376,7 +376,8 @@ end
     rebuild_solution_with_waypoints(
         solution_ex::MSTSolution,
         waypoints_proposed::Vector{Point{2,Float64}},
-        exclusions_mothership::POLY_VEC
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC
     )::MSTSolution
 
 Rebuild full `MSTSolution` with updated waypoints and other attributes.
@@ -385,6 +386,7 @@ Rebuild full `MSTSolution` with updated waypoints and other attributes.
 - `solution_ex`: The existing MSTSolution to be updated.
 - `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
 - `exclusions_mothership`: Exclusion zone polygons for the mothership.
+- `exclusions_tender`: Exclusion zone polygons for the tenders.
 
 # Returns
 A new MSTSolution with the updated mothership route and tender sorties.
@@ -392,7 +394,8 @@ A new MSTSolution with the updated mothership route and tender sorties.
 function rebuild_solution_with_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
-    exclusions_mothership::POLY_VEC
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC
 )::MSTSolution
     # Update the waypoints in the mothership route
     adjusted_waypoints = adjust_waypoint.(waypoints_proposed, Ref(exclusions_mothership))
