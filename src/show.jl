@@ -26,14 +26,13 @@ end
 
 function Base.show(io::IO, mime::MIME"text/plain", c::Cluster)
     pts = length(c.nodes)
-    print(io, "Cluster(id=$(c.id), centroid=$(round.(c.centroid; digits=4)), points=$pts)")
+    println(io, "Cluster(id=$(c.id), centroid=$(round.(c.centroid; digits=4)), points=$pts)")
 end
 function Base.show(io::IO, mime::MIME"text/plain", clusters::Vector{Cluster})
     n = length(clusters)
     println(io, "$n clusters:")
     for c in clusters
         show(io, mime, c)
-        print(io, "\n")
     end
 end
 
