@@ -467,28 +467,58 @@ function generate_tender_sorties(
         tender_old = tenders_old[j]
         start_new, finish_new = starts_new[j], finishes_new[j]
 
-        if tender_old.start != start_new || tender_old.finish != finish_new
-            # Rebuild the sorties with new start/finish points
-            updated_sorties = Vector{Route}(undef, length(tender_old.sorties))
+        if tender_old.start == start_new && tender_old.finish == finish_new
+            tenders_new[j] = tender_old
+            continue
+        end
 
-            for (j, route) in enumerate(tender_old.sorties)
-                seq = [start_new, route.nodes..., finish_new]
-                dists, legs = get_feasible_vector(seq, exclusions)
+        # Rebuild the sorties with new start/finish points
+        updated_sorties = Vector{Route}(undef, length(tender_old.sorties))
 
-                # TODO: use `dists` to update r.dist_matrix to match new legs
-                updated_sorties[j] = Route(route.nodes, route.dist_matrix, vcat(legs...))
+        for (j, route) in enumerate(tender_old.sorties)
+            updated_linestrings = Vector{LineString{2,Float64}}()
+
+            if tender_old.start != start_new
+                leg_to_update = [start_new, route.nodes[1]]
+
+                old_leg = linestring_segment_to_keep(
+                    :from,
+                    route.nodes[1],
+                    route.line_strings,
+                )
+
+                new_leg = get_feasible_vector(leg_to_update, exclusions)[2]
+                updated_linestrings = vcat(new_leg..., old_leg...)
             end
 
-            tenders_new[j] = TenderSolution(
-                tender_old.id,
-                start_new,
-                finish_new,
-                updated_sorties,
-                tender_old.dist_matrix
+            if tender_old.finish != finish_new
+                leg_to_update = [route.nodes[end], finish_new]
+
+                old_leg = linestring_segment_to_keep(
+                    :to,
+                    route.nodes[end],
+                    route.line_strings,
+                )
+
+                new_leg = get_feasible_vector(leg_to_update, exclusions)[2]
+                updated_linestrings = vcat(old_leg..., new_leg...)
+            end
+
+            # TODO: use `dists` to update r.dist_matrix to match new legs
+            updated_sorties[j] = Route(
+                route.nodes,
+                route.dist_matrix,
+                updated_linestrings
             )
-        else
-            tenders_new[j] = tender_old
         end
+
+        tenders_new[j] = TenderSolution(
+            tender_old.id,
+            start_new,
+            finish_new,
+            updated_sorties,
+            tender_old.dist_matrix
+        )
     end
 
     return tenders_new
