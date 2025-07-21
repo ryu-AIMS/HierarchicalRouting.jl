@@ -420,7 +420,7 @@ function rebuild_solution_with_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints)
+    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints, exclusions_tender)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -433,7 +433,8 @@ end
 """
     generate_tender_sorties(
         soln::MSTSolution,
-        tmp_wpts::Vector{Point{2,Float64}}
+        tmp_wpts::Vector{Point{2,Float64}},
+        exclusions::POLY_VEC
     )::Vector{TenderSolution}
 
 Generate tender sorties based on the updated waypoints, including all updated attributes.
@@ -441,13 +442,15 @@ Generate tender sorties based on the updated waypoints, including all updated at
 # Arguments
 - `soln`: The existing MSTSolution containing tenders.
 - `tmp_wpts`: Vector of temporary waypoints to update the tender sorties.
+- `exclusions`: Exclusion zone polygons for tenders.
 
 # Returns
 Updated TenderSolution objects with new waypoints.
 """
 function generate_tender_sorties(
     soln::MSTSolution,
-    tmp_wpts::Vector{Point{2,Float64}}
+    tmp_wpts::Vector{Point{2,Float64}},
+    exclusions::POLY_VEC
 )::Vector{TenderSolution}
     # Update the tender solutions with the new waypoints
     tender_soln_ex = soln.tenders[end]
