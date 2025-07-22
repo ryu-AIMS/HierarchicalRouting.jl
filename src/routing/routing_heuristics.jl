@@ -308,7 +308,7 @@ function optimize_waypoints(
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
         if any(has_bad_waypoint)
-            naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end]))
+            naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
             return naive_score + naive_score * exclusion_count
         end
 
