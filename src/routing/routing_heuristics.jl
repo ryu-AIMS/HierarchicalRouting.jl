@@ -323,10 +323,19 @@ function optimize_waypoints(
         score = critical_distance_path(soln_proposed, vessel_weightings)
 
         # Penalise by an `exclusion_count` factor of `penalty`.
-        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
-        return score + score * exclusion_count
-    end
+        actual_score = score + score * exclusion_count
 
+        if actual_score < best_score[]
+            best_soln[] = soln_proposed
+            best_score[] = actual_score
+            best_count[] = 0
+        else
+            # For debugging and tracking
+            best_count[] = best_count[] + 1
+        end
+
+        return actual_score
+    end
 
     # Run Optim with the provided optimization method.
     opt_options = Optim.Options(
@@ -359,31 +368,8 @@ function optimize_waypoints(
     @info "Gradient status:" Optim.g_converged(result)
     # @info "Gradient trace:" Optim.g_norm_trace(result)
 
-    x_best_flat = Optim.minimizer(result)
-    x_best::Vector{Point{2,Float64}} = Point.([
-        last_ms_route.route.nodes[1],  # first waypoint (depot)
-        tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
-        last_ms_route.route.nodes[end]  # last waypoint (depot)
-    ])
-
     # Rebuild solution with the optimal waypoints
-    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership, exclusions_tender)
-
-    # Regenerate tender sorties
-    ms_route_opt::MothershipSolution = soln_opt.mothership_routes[end]
-    waypoints_opt = ms_route_opt.route.nodes[2:end-1]
-    pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(
-        waypoints_opt[1:2:end],
-        waypoints_opt[2:2:end]
-    )
-    cluster_seq::Vector{Int64} = ms_route_opt.cluster_sequence.id[2:end-1]
-    soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
-        soln_opt.cluster_sets[end][cluster_seq],
-        pairs,
-        Ref(n_tenders),
-        Ref(t_cap),
-        Ref(exclusions_tender)
-    )
+    soln_opt::MSTSolution = best_soln[]
 
     return soln_opt
 end
