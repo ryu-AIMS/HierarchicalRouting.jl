@@ -102,7 +102,7 @@ function Base.show(io::IO, mime::MIME"text/plain", routes::Vector{Route})
         println(io, "Route $i")
         show(io, mime, r)
 
-        println("\n------\n")
+        println("------")
     end
 end
 
