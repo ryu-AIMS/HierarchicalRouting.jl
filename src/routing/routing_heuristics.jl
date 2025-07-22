@@ -289,19 +289,35 @@ function optimize_waypoints(
     waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
+    best_soln = Ref{MSTSolution}(soln)
+    best_score = Ref(Inf)
+    best_count = Ref(0)
+
     # Objective from x -> critical_path
     function obj(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts::Vector{Point{2,Float64}} = Point.(
-            [
+        wpts::Vector{Point{2,Float64}} = Point.([
             last_ms_route.route.nodes[1],  # first waypoint (depot)
             tuple.(x[1:2:end], x[2:2:end])...,
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership, exclusions_tender)
+        # Exit early here if any waypoints are outside exclusion zones
+        has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
+        exclusion_count = count(has_bad_waypoint)
+        if any(has_bad_waypoint)
+            naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end]))
+            return naive_score + naive_score * exclusion_count
+        end
+
+        soln_proposed = rebuild_solution_with_waypoints(
+            best_soln[],
+            wpts,
+            exclusions_mothership,
+            exclusions_tender
+        )
 
         # score = critical_path(soln_proposed, vessel_weightings)
         score = critical_distance_path(soln_proposed, vessel_weightings)
