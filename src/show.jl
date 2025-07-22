@@ -26,14 +26,13 @@ end
 
 function Base.show(io::IO, mime::MIME"text/plain", c::Cluster)
     pts = length(c.nodes)
-    print(io, "Cluster(id=$(c.id), centroid=$(round.(c.centroid; digits=4)), points=$pts)")
+    println(io, "Cluster(id=$(c.id), centroid=$(round.(c.centroid; digits=4)), points=$pts)")
 end
 function Base.show(io::IO, mime::MIME"text/plain", clusters::Vector{Cluster})
     n = length(clusters)
     println(io, "$n clusters:")
     for c in clusters
         show(io, mime, c)
-        print(io, "\n")
     end
 end
 
@@ -70,7 +69,6 @@ function Base.show(io::IO, mime::MIME"text/plain", tenders::Vector{TenderSolutio
 
     for tender in tenders
         show(io, mime, tender)
-        print(io, "\n")
     end
 end
 
@@ -88,4 +86,42 @@ function Base.show(io::IO, mime::MIME"text/plain", soln::MSTSolution)
     )
 
     Base.show(io, mime, soln.mothership_routes[end])
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", routes::Vector{Route})
+    header = "$(length(routes)) Routes"
+    println(
+        io,
+        """
+        $header
+        $("="^length(header))
+        """
+    )
+
+    for (i, r) in enumerate(routes)
+        println(io, "Route $i")
+        show(io, mime, r)
+
+        println("------")
+    end
+end
+
+function Base.show(io::IO, mime::MIME"text/plain", route::Route)
+
+    waypoints = route.nodes
+
+    for (i, w) in enumerate(waypoints)
+        println("Deployment Location $i: $w")
+    end
+
+    println(io, "Route to/from deployment locations:")
+
+    # Get output of linestrings exactly as how it would normally be shown in the REPL
+    io_capture = IOBuffer()
+    show(
+        IOContext(io_capture, :color => true, :limit => true),
+        MIME("text/plain"),
+        GI.coordinates.(route.line_strings)
+    )
+    println(String(take!(io_capture)))
 end

@@ -99,7 +99,7 @@ end
     )::Float64
 
 Compute the cost of a sortie, which starts and ends at given points, but does not return to
-    start.
+start.
 
 # Arguments
 - `sortie`: Route object containing nodes and distance matrix.
@@ -127,7 +127,7 @@ end
 
 Compute the cost of the mothership route between clusters, not including across each cluster.
 Optionally, the number of clusters can be specified to limit the calculation to the first
-    `num_clusters` clusters.
+`num_clusters` clusters.
 
 # Arguments
 - `route`: Full mothership route between waypoints.
