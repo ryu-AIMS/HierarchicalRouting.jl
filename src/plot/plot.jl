@@ -7,7 +7,8 @@ using ..HierarchicalRouting:
     TenderSolution,
     MSTSolution,
     Route,
-    generate_letter_id
+    generate_letter_id,
+    critical_path
 
 using DataFrames
 using Rasters
@@ -544,10 +545,19 @@ function solution(
     clusters!(
         ax,
         soln.cluster_sets[end];
-        cluster_radius=cluster_radius,
-        nodes=true,
-        centers=false,
-        labels=true
+        labels=true,
+        cluster_radius
+    )
+
+    # Annotate critical path cost
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_cost = critical_path(soln, vessel_weightings)
+    annotate_cost!(
+        ax,
+        critical_path_cost;
+        position=(0.95, 0.02),
+        fontsize=14,
+        color=:black
     )
 
     return fig
