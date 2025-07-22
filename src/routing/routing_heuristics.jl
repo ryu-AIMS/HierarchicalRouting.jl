@@ -322,19 +322,19 @@ function optimize_waypoints(
         # score = critical_path(soln_proposed, vessel_weightings)
         score = critical_distance_path(soln_proposed, vessel_weightings)
 
-        # Penalise by an `exclusion_count` factor of `penalty`.
-        actual_score = score + score * exclusion_count
+        # Penalize by an `exclusion_count` factor of `penalty`.
+        penalized_score = score + score * exclusion_count
 
-        if actual_score < best_score[]
+        if penalized_score < best_score[]
             best_soln[] = soln_proposed
-            best_score[] = actual_score
+            best_score[] = penalized_score
             best_count[] = 0
         else
             # For debugging and tracking
-            best_count[] = best_count[] + 1
+            best_count[] += 1
         end
 
-        return actual_score
+        return penalized_score
     end
 
     # Run Optim with the provided optimization method.
