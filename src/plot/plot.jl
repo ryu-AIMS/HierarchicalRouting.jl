@@ -614,6 +614,15 @@ function solution(
         )
     end
 
+    # Annotate costs
+    annotate_cost!.(
+        [ax1, ax2],
+        [critical_path(soln_a), critical_path(soln_b)];
+        position=(0.95, 0.02),
+        fontsize=14,
+        color=:black
+    )
+
     return fig
 end
 
