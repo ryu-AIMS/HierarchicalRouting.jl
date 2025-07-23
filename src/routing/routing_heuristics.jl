@@ -317,8 +317,7 @@ function optimize_waypoints(
             exclusions_tender
         )
 
-        # score = critical_path(soln_proposed, vessel_weightings)
-        score = critical_distance_path(soln_proposed, vessel_weightings)
+        score = critical_path(soln_proposed, vessel_weightings)
 
         # Penalize by an `exclusion_count` factor of `penalty`.
         penalized_score = score + score * exclusion_count
