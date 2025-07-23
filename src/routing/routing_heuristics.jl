@@ -366,10 +366,7 @@ function optimize_waypoints(
     @info "Gradient status:" Optim.g_converged(result)
     # @info "Gradient trace:" Optim.g_norm_trace(result)
 
-    # Rebuild solution with the optimal waypoints
-    soln_opt::MSTSolution = best_soln[]
-
-    return soln_opt
+    return best_soln[]
 end
 
 """
@@ -590,8 +587,6 @@ function generate_tender_sorties(
 
         # Rebuild the sorties with new start/finish points
         sorties_old = tender_old.sorties
-        sorties_new = Vector{Route}(undef, length(sorties_old))
-
         sorties_new = rebuild_sortie.(
             sorties_old,
             Ref(start_new),
