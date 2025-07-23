@@ -481,39 +481,41 @@ function generate_tender_sorties(
         sorties_new = Vector{Route}(undef, length(sorties_old))
 
         for (r, route) in enumerate(sorties_old)
-            updated_linestrings = Vector{LineString{2,Float64}}()
-
+            # Update head/tail of the route based on _has_moved flags
+            segment_to_keep = route.line_strings
+            head, tail = LineString{2,Float64}[], LineString{2,Float64}[]
+            # Keep the segments of the line strings that contain matching start/end points
             if sortie_start_has_moved
-                leg_to_update = [start_new, route.nodes[1]]
+                target_point = route.nodes[1]
+                leg_to_update = [start_new, target_point]
+                section = :from
 
-                old_leg = linestring_segment_to_keep(
-                    :from,
-                    route.nodes[1],
-                    route.line_strings,
+                segment_to_keep = linestring_segment_to_keep(
+                    section,
+                    target_point,
+                    segment_to_keep
                 )
-
-                new_leg = get_feasible_vector(leg_to_update, exclusions)[2]
-                updated_linestrings = vcat(new_leg..., old_leg...)
+                _, head = get_feasible_vector([start_new, target_point], exclusions)
+                segment_to_keep = vcat(head..., segment_to_keep...)
             end
 
             if sortie_end_has_moved
-                leg_to_update = [route.nodes[end], finish_new]
+                target_point = route.nodes[end]
+                leg_to_update = [target_point, finish_new]
+                section = :to
 
-                old_leg = linestring_segment_to_keep(
-                    :to,
-                    route.nodes[end],
-                    route.line_strings,
+                segment_to_keep = linestring_segment_to_keep(
+                    section,
+                    target_point,
+                    segment_to_keep
                 )
-
-                new_leg = get_feasible_vector(leg_to_update, exclusions)[2]
-                updated_linestrings = vcat(old_leg..., new_leg...)
+                _, tail = get_feasible_vector([route.nodes[end], finish_new], exclusions)
+                segment_to_keep = vcat(segment_to_keep..., tail...)
             end
-
-            # TODO: use `dists` to update r.dist_matrix to match new legs
             sorties_new[r] = Route(
                 route.nodes,
                 route.dist_matrix,
-                updated_linestrings
+                segment_to_keep
             )
         end
 
@@ -522,7 +524,7 @@ function generate_tender_sorties(
             start_new,
             finish_new,
             sorties_new,
-            tender_old.dist_matrix
+            tender_old.dist_matrix #! dist_matrix is not updated here
         )
     end
 
