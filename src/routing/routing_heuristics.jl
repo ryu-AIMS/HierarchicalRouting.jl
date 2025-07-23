@@ -477,9 +477,10 @@ function generate_tender_sorties(
         end
 
         # Rebuild the sorties with new start/finish points
-        updated_sorties = Vector{Route}(undef, length(tender_old.sorties))
+        sorties_old = tender_old.sorties
+        sorties_new = Vector{Route}(undef, length(sorties_old))
 
-        for (k, route) in enumerate(tender_old.sorties)
+        for (r, route) in enumerate(sorties_old)
             updated_linestrings = Vector{LineString{2,Float64}}()
 
             if sortie_start_has_moved
@@ -509,7 +510,7 @@ function generate_tender_sorties(
             end
 
             # TODO: use `dists` to update r.dist_matrix to match new legs
-            updated_sorties[k] = Route(
+            sorties_new[r] = Route(
                 route.nodes,
                 route.dist_matrix,
                 updated_linestrings
@@ -520,7 +521,7 @@ function generate_tender_sorties(
             tender_old.id,
             start_new,
             finish_new,
-            updated_sorties,
+            sorties_new,
             tender_old.dist_matrix
         )
     end
