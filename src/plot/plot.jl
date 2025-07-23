@@ -579,10 +579,10 @@ function solution(
 
     # Exclusions
     if show_mothership_exclusions
-        exclusions!.([ax1, ax2], problem.mothership.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.mothership.exclusion); labels=false)
     end
     if show_tenders_exclusions
-        exclusions!.([ax1, ax2], problem.tenders.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.tenders.exclusion); labels=false)
     end
 
     # Clusters
