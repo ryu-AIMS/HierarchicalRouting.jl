@@ -467,7 +467,11 @@ function generate_tender_sorties(
         tender_old = tenders_old[j]
         start_new, finish_new = starts_new[j], finishes_new[j]
 
-        if tender_old.start == start_new && tender_old.finish == finish_new
+        sortie_start_has_moved = tender_old.start != start_new
+        sortie_end_has_moved = tender_old.finish != finish_new
+
+        # If neither start nor finish has moved, keep the old tender solution and continue
+        if !sortie_start_has_moved && !sortie_end_has_moved
             tenders_new[j] = tender_old
             continue
         end
@@ -478,7 +482,7 @@ function generate_tender_sorties(
         for (k, route) in enumerate(tender_old.sorties)
             updated_linestrings = Vector{LineString{2,Float64}}()
 
-            if tender_old.start != start_new
+            if sortie_start_has_moved
                 leg_to_update = [start_new, route.nodes[1]]
 
                 old_leg = linestring_segment_to_keep(
@@ -491,7 +495,7 @@ function generate_tender_sorties(
                 updated_linestrings = vcat(new_leg..., old_leg...)
             end
 
-            if tender_old.finish != finish_new
+            if sortie_end_has_moved
                 leg_to_update = [route.nodes[end], finish_new]
 
                 old_leg = linestring_segment_to_keep(
