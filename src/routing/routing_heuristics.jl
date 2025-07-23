@@ -277,8 +277,6 @@ function optimize_waypoints(
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
-    n_tenders::Int8 = problem.tenders.number
-    t_cap::Int16 = problem.tenders.capacity
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting, problem.tenders.weighting
     )
