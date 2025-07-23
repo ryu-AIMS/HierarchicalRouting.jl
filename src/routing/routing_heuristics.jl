@@ -431,6 +431,118 @@ function rebuild_solution_with_waypoints(
 end
 
 """
+    rebuild_sortie(
+        route::Route,
+        start_new::Point{2,Float64},
+        finish_new::Point{2,Float64},
+        exclusions::POLY_VEC,
+        sortie_start_has_moved,
+        sortie_end_has_moved
+    )::Route
+
+Rebuild a sortie with updated start and finish points, adjusting the start and/or finish
+segments of the line strings, ensuring feasibility by avoiding exclusion zones.
+
+# Arguments
+- `route`: The **existing** route to be updated.
+- `start_new`: The new start point for the sortie.
+- `finish_new`: The new finish point for the sortie.
+- `exclusions`: Exclusion zone polygons for the sortie.
+- `sortie_start_has_moved`: Boolean indicating if the start point has moved.
+- `sortie_end_has_moved`: Boolean indicating if the finish point has moved.
+
+# Returns
+- A new Route object with updated nodes, distance matrix, and line strings.
+"""
+function rebuild_sortie(
+    route::Route,
+    start_new::Point{2,Float64},
+    finish_new::Point{2,Float64},
+    exclusions::POLY_VEC,
+    sortie_start_has_moved,
+    sortie_end_has_moved,
+)::Route
+    segment_to_keep = route.line_strings
+    # Keep the segments of the line strings that contain matching start/end points
+    if sortie_start_has_moved
+        segment_to_keep = update_segment(
+            segment_to_keep,
+            :from,
+            start_new,
+            route.nodes[1],
+            exclusions
+        )
+    end
+    if sortie_end_has_moved
+        segment_to_keep = update_segment(
+            segment_to_keep,
+            :to,
+            route.nodes[end],
+            finish_new,
+            exclusions
+        )
+    end
+    return Route(route.nodes, route.dist_matrix, segment_to_keep)
+end
+
+"""
+    update_segment(
+        segment::Vector{LineString{2,Float64}},
+        section::Symbol,
+        point_from::Point{2,Float64},
+        point_to::Point{2,Float64},
+        exclusions::POLY_VEC
+    )::Vector{LineString{2,Float64}}
+
+Update the segment of line strings based on the specified section and points.
+
+# Arguments
+- `segment`: Vector of line strings to be updated.
+- `section`: Symbol indicating whether to update from the start (`:from`) or to the end
+    (`:to`).
+- `point_from`: The start point to update linestring from.
+- `point_to`: The end point to update linestring to.
+- `exclusions`: Exclusion zone polygons for tenders to avoid.
+
+# Returns
+- A vector of updated segment of line strings between given points `point_from` - `point_to`
+    while avoiding exclusion zones.
+"""
+function update_segment(
+    segment::Vector{LineString{2,Float64}},
+    section::Symbol,
+    point_from::Point{2,Float64},
+    point_to::Point{2,Float64},
+    exclusions::POLY_VEC
+)::Vector{LineString{2,Float64}}
+    remaining_segment = LineString{2,Float64}[]
+    if section == :from
+        remaining_segment = linestring_segment_to_keep(
+            section,
+            point_to,
+            segment
+        )
+    elseif section == :to
+        remaining_segment = linestring_segment_to_keep(
+            section,
+            point_from,
+            segment
+        )
+    else
+        error("Invalid section: $section. Use `:from` or `:to`")
+    end
+    leg_to_update = [point_from, point_to]
+
+    _, leg = get_feasible_vector(leg_to_update, exclusions)
+
+    if section == :from
+        return vcat(leg..., remaining_segment...)
+    elseif section == :to
+        return vcat(remaining_segment..., leg...)
+    end
+end
+
+"""
     generate_tender_sorties(
         soln::MSTSolution,
         tmp_wpts::Vector{Point{2,Float64}},
@@ -480,44 +592,14 @@ function generate_tender_sorties(
         sorties_old = tender_old.sorties
         sorties_new = Vector{Route}(undef, length(sorties_old))
 
-        for (r, route) in enumerate(sorties_old)
-            # Update head/tail of the route based on _has_moved flags
-            segment_to_keep = route.line_strings
-            head, tail = LineString{2,Float64}[], LineString{2,Float64}[]
-            # Keep the segments of the line strings that contain matching start/end points
-            if sortie_start_has_moved
-                target_point = route.nodes[1]
-                leg_to_update = [start_new, target_point]
-                section = :from
-
-                segment_to_keep = linestring_segment_to_keep(
-                    section,
-                    target_point,
-                    segment_to_keep
-                )
-                _, head = get_feasible_vector([start_new, target_point], exclusions)
-                segment_to_keep = vcat(head..., segment_to_keep...)
-            end
-
-            if sortie_end_has_moved
-                target_point = route.nodes[end]
-                leg_to_update = [target_point, finish_new]
-                section = :to
-
-                segment_to_keep = linestring_segment_to_keep(
-                    section,
-                    target_point,
-                    segment_to_keep
-                )
-                _, tail = get_feasible_vector([route.nodes[end], finish_new], exclusions)
-                segment_to_keep = vcat(segment_to_keep..., tail...)
-            end
-            sorties_new[r] = Route(
-                route.nodes,
-                route.dist_matrix,
-                segment_to_keep
-            )
-        end
+        sorties_new = rebuild_sortie.(
+            sorties_old,
+            Ref(start_new),
+            Ref(finish_new),
+            Ref(exclusions),
+            Ref(sortie_start_has_moved),
+            Ref(sortie_end_has_moved)
+        )
 
         tenders_new[j] = TenderSolution(
             tender_old.id,
