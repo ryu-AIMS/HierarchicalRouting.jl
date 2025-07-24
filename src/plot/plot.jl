@@ -487,7 +487,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Figure
+    )::Tuple{Figure,Axis}
     solution(
         problem::Problem,
         soln_a::MSTSolution,
@@ -497,7 +497,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Figure
+    )::Tuple{Figure,Tuple{Axis,Axis}}
 
 Create a plot of the full routing solution, including:
 - exclusion zones for the **mothership** and **tenders**,
@@ -518,6 +518,7 @@ Create a plot of the full routing solution, including:
 
 # Returns
 - `fig`: The created Figure object containing the plot.
+- `ax`: The Axis object containing the plot.
 """
 function solution(
     problem::Problem,
@@ -527,7 +528,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Figure
+)::Tuple{Figure,Axis}
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -574,7 +575,7 @@ function solution(
 
     highlight_critical_path!(ax, soln, vessel_weightings)
 
-    return fig
+    return fig, ax
 end
 function solution(
     problem::Problem,
@@ -585,7 +586,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Figure
+)::Tuple{Figure,NTuple{2,Axis}}
     fig = Figure(size=(1350, 750))  ## 2 fig plot
     ax1, ax2 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
@@ -652,7 +653,7 @@ function solution(
         metric="critical_distance_path()\ntotal dist"
     )
 
-    return fig
+    return fig, (ax1, ax2)
 end
 
 """
@@ -665,7 +666,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Figure
+    )::Tuple{Figure,NTuple{3,Axis}}
 
 Create a plot of the solution at each progressive disturbance event, including:
 - exclusion zones for the **mothership** and **tenders**,
@@ -688,6 +689,7 @@ Create a plot of the solution at each progressive disturbance event, including:
 
 # Returns
 - `fig`: The created Figure object containing the plot.
+- `ax1, ax2, ax3`: Axis objects for each disturbance event.
 """
 function solution_disturbances(
     problem::Problem,
@@ -698,7 +700,7 @@ function solution_disturbances(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Figure
+)::Tuple{Figure,NTuple{3,Axis}}
     #! NOTE: This function assumes 2 disturbance events.
     #TODO: Generalize to any number of disturbance events.
     fig = Figure(size=(1650, 600))  ## 3 fig plot
@@ -753,7 +755,7 @@ function solution_disturbances(
         )
     end
 
-    return fig
+    return fig, (ax1, ax2, ax3)
 end
 
 function annotate_cost!(
