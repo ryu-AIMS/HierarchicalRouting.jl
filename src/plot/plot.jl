@@ -614,10 +614,13 @@ function solution(
         )
     end
 
-    # Annotate costs
+    # Annotate critical path costs
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_cost_a = critical_path(soln_a, vessel_weightings)
+    critical_path_cost_b = critical_path(soln_b, vessel_weightings)
     annotate_cost!.(
         [ax1, ax2],
-        [critical_path(soln_a), critical_path(soln_b)];
+        [critical_path_cost_a, critical_path_cost_b];
         position=(0.95, 0.02),
         fontsize=14,
         color=:black
