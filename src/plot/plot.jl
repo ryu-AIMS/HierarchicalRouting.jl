@@ -858,7 +858,7 @@ function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.
     colormap = distinguishable_colors(max_id + 2)[3:end]
     return colormap
 end
-function create_colormap(ids::UnitRange{Int64})
+function create_colormap(ids::UnitRange{Int64})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     return create_colormap(collect(ids))
 end
 
