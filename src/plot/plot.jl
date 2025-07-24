@@ -364,7 +364,7 @@ function route!(
 
     # Mark waypoints with 'x'
     if markers
-        scatter!(waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
+        scatter!(ax, waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
         # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
     end
 
@@ -485,7 +485,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Figure
+    )::Tuple{Figure,Axis}
     solution(
         problem::Problem,
         soln_a::MSTSolution,
@@ -495,7 +495,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Figure
+    )::Tuple{Figure,Tuple{Axis,Axis}}
 
 Create a plot of the full routing solution, including:
 - exclusion zones for the **mothership** and **tenders**,
@@ -516,6 +516,7 @@ Create a plot of the full routing solution, including:
 
 # Returns
 - `fig`: The created Figure object containing the plot.
+- `ax`: The Axis object containing the plot.
 """
 function solution(
     problem::Problem,
@@ -525,7 +526,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Figure
+)::Tuple{Figure,Axis}
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -560,18 +561,18 @@ function solution(
         color=:black
     )
 
-    return fig
+    return fig, ax
 end
 function solution(
     problem::Problem,
     soln_a::MSTSolution,
     soln_b::MSTSolution;
     cluster_radius::Float64=0.0,
-    show_mothership_exclusions::Bool=false,
+    show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Figure
+)::Tuple{Figure,NTuple{2,Axis}}
     fig = Figure(size=(1350, 750))  ## 2 fig plot
     ax1, ax2 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
@@ -579,10 +580,10 @@ function solution(
 
     # Exclusions
     if show_mothership_exclusions
-        exclusions!.([ax1, ax2], problem.mothership.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.mothership.exclusion); labels=false)
     end
     if show_tenders_exclusions
-        exclusions!.([ax1, ax2], problem.tenders.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.tenders.exclusion); labels=false)
     end
 
     # Clusters
@@ -614,7 +615,19 @@ function solution(
         )
     end
 
-    return fig
+    # Annotate critical path costs
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_cost_a = critical_path(soln_a, vessel_weightings)
+    critical_path_cost_b = critical_path(soln_b, vessel_weightings)
+    annotate_cost!.(
+        [ax1, ax2],
+        [critical_path_cost_a, critical_path_cost_b];
+        position=(0.95, 0.02),
+        fontsize=14,
+        color=:black
+    )
+
+    return fig, (ax1, ax2)
 end
 
 """
@@ -627,7 +640,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Figure
+    )::Tuple{Figure,NTuple{3,Axis}}
 
 Create a plot of the solution at each progressive disturbance event, including:
 - exclusion zones for the **mothership** and **tenders**,
@@ -650,6 +663,7 @@ Create a plot of the solution at each progressive disturbance event, including:
 
 # Returns
 - `fig`: The created Figure object containing the plot.
+- `ax1, ax2, ax3`: Axis objects for each disturbance event.
 """
 function solution_disturbances(
     problem::Problem,
@@ -660,7 +674,7 @@ function solution_disturbances(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Figure
+)::Tuple{Figure,NTuple{3,Axis}}
     #! NOTE: This function assumes 2 disturbance events.
     #TODO: Generalize to any number of disturbance events.
     fig = Figure(size=(1650, 600))  ## 3 fig plot
@@ -715,7 +729,7 @@ function solution_disturbances(
         )
     end
 
-    return fig
+    return fig, (ax1, ax2, ax3)
 end
 
 function annotate_cost!(
@@ -724,7 +738,8 @@ function annotate_cost!(
     position::Tuple{Float64,Float64}=(0.95, 0.02),
     fontsize::Int=14,
     color::Symbol=:black
-)
+)::Axis
+    # Annotate the cost of the critical path on the plot
     cost_km = cost / 1000  # Convert cost to km
     text!(
         ax,
@@ -735,6 +750,7 @@ function annotate_cost!(
         fontsize=fontsize,
         color=color
     )
+    return ax
 end
 
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
@@ -743,7 +759,7 @@ function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.
     colormap = distinguishable_colors(max_id + 2)[3:end]
     return colormap
 end
-function create_colormap(ids::UnitRange{Int64})
+function create_colormap(ids::UnitRange{Int64})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     return create_colormap(collect(ids))
 end
 
