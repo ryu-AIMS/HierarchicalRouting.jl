@@ -726,7 +726,8 @@ function annotate_cost!(
     position::Tuple{Float64,Float64}=(0.95, 0.02),
     fontsize::Int=14,
     color::Symbol=:black
-)
+)::Axis
+    # Annotate the cost of the critical path on the plot
     cost_km = cost / 1000  # Convert cost to km
     text!(
         ax,
@@ -737,6 +738,7 @@ function annotate_cost!(
         fontsize=fontsize,
         color=color
     )
+    return ax
 end
 
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
