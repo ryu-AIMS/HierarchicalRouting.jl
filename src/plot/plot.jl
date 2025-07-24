@@ -567,7 +567,7 @@ function solution(
     soln_a::MSTSolution,
     soln_b::MSTSolution;
     cluster_radius::Float64=0.0,
-    show_mothership_exclusions::Bool=false,
+    show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
@@ -579,10 +579,10 @@ function solution(
 
     # Exclusions
     if show_mothership_exclusions
-        exclusions!.([ax1, ax2], problem.mothership.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.mothership.exclusion); labels=false)
     end
     if show_tenders_exclusions
-        exclusions!.([ax1, ax2], problem.tenders.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.tenders.exclusion); labels=false)
     end
 
     # Clusters
@@ -613,6 +613,18 @@ function solution(
             color=:black
         )
     end
+
+    # Annotate critical path costs
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_cost_a = critical_path(soln_a, vessel_weightings)
+    critical_path_cost_b = critical_path(soln_b, vessel_weightings)
+    annotate_cost!.(
+        [ax1, ax2],
+        [critical_path_cost_a, critical_path_cost_b];
+        position=(0.95, 0.02),
+        fontsize=14,
+        color=:black
+    )
 
     return fig
 end
