@@ -457,7 +457,7 @@ function rebuild_sortie(
     segment_to_keep = route.line_strings
     # Keep the segments of the line strings that contain matching start/end points
     if sortie_start_has_moved
-        segment_to_keep = update_segment(
+        segment_dist, segment_to_keep = update_segment(
             segment_to_keep,
             :from,
             start_new,
@@ -466,7 +466,7 @@ function rebuild_sortie(
         )
     end
     if sortie_end_has_moved
-        segment_to_keep = update_segment(
+        segment_dist, segment_to_keep = update_segment(
             segment_to_keep,
             :to,
             route.nodes[end],
@@ -484,7 +484,7 @@ end
         point_from::Point{2,Float64},
         point_to::Point{2,Float64},
         exclusions::POLY_VEC
-    )::Vector{LineString{2,Float64}}
+    )::Tuple{Float64,Vector{LineString{2,Float64}}}
 
 Update the segment of line strings based on the specified section and points.
 
@@ -497,8 +497,9 @@ Update the segment of line strings based on the specified section and points.
 - `exclusions`: Exclusion zone polygons for tenders to avoid.
 
 # Returns
-- A vector of updated segment of line strings between given points `point_from` - `point_to`
-    while avoiding exclusion zones.
+- A tuple containing:
+  - the total segment distance, and
+  - a vector of updated line strings.
 """
 function update_segment(
     segment::Vector{LineString{2,Float64}},
@@ -506,7 +507,7 @@ function update_segment(
     point_from::Point{2,Float64},
     point_to::Point{2,Float64},
     exclusions::POLY_VEC
-)::Vector{LineString{2,Float64}}
+)::Tuple{Float64,Vector{LineString{2,Float64}}}
     remaining_segment = LineString{2,Float64}[]
     if section == :from
         remaining_segment = linestring_segment_to_keep(
@@ -525,12 +526,12 @@ function update_segment(
     end
     leg_to_update = [point_from, point_to]
 
-    _, leg = get_feasible_vector(leg_to_update, exclusions)
+    dist, leg = get_feasible_vector(leg_to_update, exclusions)
 
     if section == :from
-        return vcat(leg..., remaining_segment...)
+        return (sum(dist), vcat(leg..., remaining_segment...))
     elseif section == :to
-        return vcat(remaining_segment..., leg...)
+        return (sum(dist), vcat(remaining_segment..., leg...))
     end
 end
 
