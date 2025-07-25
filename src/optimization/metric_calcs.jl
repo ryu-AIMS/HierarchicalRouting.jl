@@ -64,31 +64,9 @@ Compute the cost of each sortie in a cluster.
 The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
-    #TODO: update to use dist_matrix (stored)
-
-    # Get nodes in each sortie
-    sortie_nodes::Vector{Vector{Point{2,Float64}}} = getproperty.(tenders.sorties, :nodes)
-
-    # Distance from start pt to first node
-    sortie_dist::Vector{Float64} = haversine.(
-        Ref(tenders.start),
-        getindex.(sortie_nodes, 1)
-    )
-
-    # Distance between nodes in each sortie
-    sortie_dist .+= [
-        length(sortie) > 1 ?
-        sum(haversine.(sortie[1:end-1], sortie[2:end])) :
-        0.0
-        for sortie in sortie_nodes
-    ]
-
-    # Distance from last node to finish pt
-    sortie_dist .+= haversine.(
-        last.(sortie_nodes),
-        Ref(tenders.finish)
-    )
-    return sortie_dist
+    tender_matrices = getfield.(tenders.sorties, :dist_matrix)
+    sortie_dists = sum.(get_superdiag_vals.(tender_matrices))
+    return sortie_dists
 end
 
 """
