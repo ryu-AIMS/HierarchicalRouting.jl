@@ -150,10 +150,11 @@ Compute the cost of the mothership within each cluster, not including between cl
 - `route`: Full mothership route between waypoints.
 
 # Returns
-- The (haversine) mothership distance within each cluster.
+- The mothership distance within each cluster.
 """
 function mothership_dist_within_clusts(route::Route)::Vector{Float64}
-    return haversine.(route.nodes[2:2:end-1], route.nodes[3:2:end])
+    full_route = get_superdiag_vals(route.dist_matrix)
+    return full_route[2:2:end]
 end
 
 """
