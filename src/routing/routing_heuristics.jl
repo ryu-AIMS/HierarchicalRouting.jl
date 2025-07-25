@@ -394,11 +394,7 @@ function rebuild_solution_with_waypoints(
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
         adjusted_waypoints, exclusions_mothership
     )
-    n = length(dist_vector_proposed)
-    # Ensure the distance matrix is square and matches the number of waypoints
-    dist_matrix_proposed = zeros(Float64, n + 1, n + 1)
-    diag_idxs = CartesianIndex.(1:n, 2:n+1)
-    dist_matrix_proposed[diag_idxs] .= dist_vector_proposed
+    dist_matrix_proposed = make_superdiag_matrix(dist_vector_proposed)
     ms_route_new::Route = Route(
         adjusted_waypoints,
         dist_matrix_proposed,
