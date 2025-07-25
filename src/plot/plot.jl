@@ -8,7 +8,9 @@ using ..HierarchicalRouting:
     MSTSolution,
     Route,
     generate_letter_id,
-    critical_path
+    critical_path,
+    tender_clust_dist,
+    mothership_dist_within_clusts
 
 using DataFrames
 using Rasters
