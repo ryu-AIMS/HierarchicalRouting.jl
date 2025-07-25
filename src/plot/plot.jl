@@ -776,6 +776,78 @@ function annotate_cost!(
     return ax
 end
 
+function highlight_critical_path!(
+    ax::Axis,
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0);
+    color=:red,
+    linewidth=4
+)
+    # Unpack
+    tenders = soln.tenders[end]
+    ms_route = soln.mothership_routes[end].route
+    num_clusters = length(tenders)
+
+    # Within clusters
+    clust_sorties = tender_clust_dist.(tenders)
+    clust_sorties = map(x -> isempty(x) ? [0.0] : x, clust_sorties)
+    longest_sortie_cost = maximum.(clust_sorties) .* vessel_weightings[2]
+    ms_within = mothership_dist_within_clusts(ms_route)[1:num_clusters]
+    mothership_sub_cost = vessel_weightings[1] .* ms_within
+
+    # For each cluster, identify critical path
+    for j in 1:num_clusters
+        if longest_sortie_cost[j] ≥ mothership_sub_cost[j]
+            # Draw the longest tender sortie
+            routes = tenders[j].sorties
+            idx = argmax(tender_clust_dist(tenders[j]))
+            route!(ax, routes[idx]; color=color)
+        else
+            # Draw the mothership route
+            start_point = ms_route.nodes[2j]
+            end_point = ms_route.nodes[2j+1]
+            start_segment = findfirst(
+                ==(start_point),
+                getindex.(getfield.(ms_route.line_strings, :points), 1)
+            )
+            end_segment = findfirst(
+                ==(end_point),
+                getindex.(getfield.(ms_route.line_strings, :points), 2)
+            )
+
+            lines!.(
+                Ref(ax),
+                ms_route.line_strings[start_segment:end_segment];
+                color=color,
+                linewidth=linewidth
+            )
+        end
+    end
+
+    # Highlight mothership segments between clusters
+    start_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[1:2:end-1]
+    end_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[2:2:end]
+
+    start_segment = findfirst.(
+        .==(start_segment_points),
+        Ref(getindex.(getfield.(ms_route.line_strings, :points), 1))
+    )
+    end_segment = findfirst.(
+        .==(end_segment_points),
+        Ref(getindex.(getfield.(ms_route.line_strings, :points), 2))
+    )
+    segments = [ms_route.line_strings[i:j] for (i, j) in zip(start_segment, end_segment)]
+
+    lines!.(
+        Ref(ax),
+        segments;
+        color=color,
+        linewidth=linewidth
+    )
+
+    return nothing
+end
+
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     # Create custom colormap, skipping the first two colors (yellow and black)
     max_id = maximum(ids)
