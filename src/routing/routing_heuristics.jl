@@ -1018,9 +1018,11 @@ function two_opt(
         dist_matrix_new = sortie.dist_matrix[optimized_sequence, optimized_sequence]
 
         # Recompute feasible path through exclusions
-        new_path = vcat(get_feasible_vector(nodes[optimized_sequence], exclusions_tender)[2]...)
+        dist_vector, path_vector = get_feasible_vector(nodes[optimized_sequence], exclusions_tender)
+        new_path = vcat(path_vector...)
+        new_dist_matrix = make_superdiag_matrix(dist_vector)
 
-        sorties_new[idx] = Route(nodes_new, dist_matrix_new, new_path)
+        sorties_new[idx] = Route(nodes_new, new_dist_matrix, new_path)
     end
 
     return TenderSolution(
