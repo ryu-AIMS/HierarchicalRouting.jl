@@ -302,7 +302,7 @@ function optimize_waypoints(
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        # Exit early here if any waypoints are outside exclusion zones
+        # Exit early here if any waypoints are inside exclusion zones
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
         if any(has_bad_waypoint)
@@ -319,19 +319,15 @@ function optimize_waypoints(
 
         score = critical_path(soln_proposed, vessel_weightings)
 
-        # Penalize by an `exclusion_count` factor of `penalty`.
-        penalized_score = score + score * exclusion_count
-
-        if penalized_score < best_score[]
+        if score < best_score[]
             best_soln[] = soln_proposed
-            best_score[] = penalized_score
+            best_score[] = score
             best_count[] = 0
         else
             # For debugging and tracking
             best_count[] += 1
         end
-
-        return penalized_score
+        return score
     end
 
     # Run Optim with the provided optimization method.
