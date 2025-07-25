@@ -697,10 +697,11 @@ function nearest_neighbour(
         waypoints.waypoint, exclusions_mothership
     )
     path = vcat(waypoint_path_vector...)
+    waypoint_dist_matrix = make_superdiag_matrix(waypoint_dist_vector)
 
     return MothershipSolution(
         cluster_sequence=ordered_centroids,
-        route=Route(waypoints.waypoint, dist_matrix, path)
+        route=Route(waypoints.waypoint, waypoint_dist_matrix, path)
     )
 end
 function nearest_neighbour(
