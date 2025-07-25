@@ -277,8 +277,6 @@ function optimize_waypoints(
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
-    n_tenders::Int8 = problem.tenders.number
-    t_cap::Int16 = problem.tenders.capacity
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting, problem.tenders.weighting
     )
@@ -289,28 +287,48 @@ function optimize_waypoints(
     waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
+    best_soln = Ref{MSTSolution}(soln)
+    best_score = Ref(Inf)
+    best_count = Ref(0)
+
     # Objective from x -> critical_path
     function obj(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts::Vector{Point{2,Float64}} = Point.(
-            [
+        wpts::Vector{Point{2,Float64}} = Point.([
             last_ms_route.route.nodes[1],  # first waypoint (depot)
             tuple.(x[1:2:end], x[2:2:end])...,
             last_ms_route.route.nodes[end]  # last waypoint (depot)
         ])
 
-        soln_proposed = rebuild_solution_with_waypoints(soln, wpts, exclusions_mothership)
+        # Exit early here if any waypoints are inside exclusion zones
+        has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
+        exclusion_count = count(has_bad_waypoint)
+        if any(has_bad_waypoint)
+            naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
+            return naive_score + naive_score * exclusion_count
+        end
 
-        # score = critical_path(soln_proposed, vessel_weightings)
-        score = critical_distance_path(soln_proposed, vessel_weightings)
+        soln_proposed = rebuild_solution_with_waypoints(
+            best_soln[],
+            wpts,
+            exclusions_mothership,
+            exclusions_tender
+        )
 
-        # Penalise by an `exclusion_count` factor of `penalty`.
-        exclusion_count = sum(point_in_exclusion.(wpts, Ref(exclusions_mothership)))
-        return score + score * exclusion_count
+        score = critical_path(soln_proposed, vessel_weightings)
+
+        if score < best_score[]
+            best_soln[] = soln_proposed
+            best_score[] = score
+            best_count[] = 0
+        else
+            # For debugging and tracking
+            best_count[] += 1
+        end
+        return score
     end
-
 
     # Run Optim with the provided optimization method.
     opt_options = Optim.Options(
@@ -343,40 +361,15 @@ function optimize_waypoints(
     @info "Gradient status:" Optim.g_converged(result)
     # @info "Gradient trace:" Optim.g_norm_trace(result)
 
-    x_best_flat = Optim.minimizer(result)
-    x_best::Vector{Point{2,Float64}} = Point.([
-        last_ms_route.route.nodes[1],  # first waypoint (depot)
-        tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
-        last_ms_route.route.nodes[end]  # last waypoint (depot)
-    ])
-
-    # Rebuild solution with the optimal waypoints
-    soln_opt::MSTSolution = rebuild_solution_with_waypoints(soln, x_best, exclusions_mothership)
-
-    # Regenerate tender sorties
-    ms_route_opt::MothershipSolution = soln_opt.mothership_routes[end]
-    waypoints_opt = ms_route_opt.route.nodes[2:end-1]
-    pairs::Vector{NTuple{2,Point{2,Float64}}} = tuple.(
-        waypoints_opt[1:2:end],
-        waypoints_opt[2:2:end]
-    )
-    cluster_seq::Vector{Int64} = ms_route_opt.cluster_sequence.id[2:end-1]
-    soln_opt.tenders[end] = tender_sequential_nearest_neighbour.(
-        soln_opt.cluster_sets[end][cluster_seq],
-        pairs,
-        Ref(n_tenders),
-        Ref(t_cap),
-        Ref(exclusions_tender)
-    )
-
-    return soln_opt
+    return best_soln[]
 end
 
 """
     rebuild_solution_with_waypoints(
         solution_ex::MSTSolution,
         waypoints_proposed::Vector{Point{2,Float64}},
-        exclusions_mothership::POLY_VEC
+        exclusions_mothership::POLY_VEC,
+        exclusions_tender::POLY_VEC
     )::MSTSolution
 
 Rebuild full `MSTSolution` with updated waypoints and other attributes.
@@ -385,6 +378,7 @@ Rebuild full `MSTSolution` with updated waypoints and other attributes.
 - `solution_ex`: The existing MSTSolution to be updated.
 - `waypoints_proposed`: Vector of proposed waypoints to update the mothership route.
 - `exclusions_mothership`: Exclusion zone polygons for the mothership.
+- `exclusions_tender`: Exclusion zone polygons for the tenders.
 
 # Returns
 A new MSTSolution with the updated mothership route and tender sorties.
@@ -392,7 +386,8 @@ A new MSTSolution with the updated mothership route and tender sorties.
 function rebuild_solution_with_waypoints(
     solution_ex::MSTSolution,
     waypoints_proposed::Vector{Point{2,Float64}},
-    exclusions_mothership::POLY_VEC
+    exclusions_mothership::POLY_VEC,
+    exclusions_tender::POLY_VEC
 )::MSTSolution
     # Update the waypoints in the mothership route
     adjusted_waypoints = adjust_waypoint.(waypoints_proposed, Ref(exclusions_mothership))
@@ -417,7 +412,7 @@ function rebuild_solution_with_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints)
+    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints, exclusions_tender)
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -428,9 +423,122 @@ function rebuild_solution_with_waypoints(
 end
 
 """
+    rebuild_sortie(
+        route::Route,
+        start_new::Point{2,Float64},
+        finish_new::Point{2,Float64},
+        exclusions::POLY_VEC,
+        sortie_start_has_moved,
+        sortie_end_has_moved
+    )::Route
+
+Rebuild a sortie with updated start and finish points, adjusting the start and/or finish
+segments of the line strings, ensuring feasibility by avoiding exclusion zones.
+
+# Arguments
+- `route`: The **existing** route to be updated.
+- `start_new`: The new start point for the sortie.
+- `finish_new`: The new finish point for the sortie.
+- `exclusions`: Exclusion zone polygons for the sortie.
+- `sortie_start_has_moved`: Boolean indicating if the start point has moved.
+- `sortie_end_has_moved`: Boolean indicating if the finish point has moved.
+
+# Returns
+- A new Route object with updated nodes, distance matrix, and line strings.
+"""
+function rebuild_sortie(
+    route::Route,
+    start_new::Point{2,Float64},
+    finish_new::Point{2,Float64},
+    exclusions::POLY_VEC,
+    sortie_start_has_moved,
+    sortie_end_has_moved,
+)::Route
+    segment_to_keep = route.line_strings
+    # Keep the segments of the line strings that contain matching start/end points
+    if sortie_start_has_moved
+        segment_to_keep = update_segment(
+            segment_to_keep,
+            :from,
+            start_new,
+            route.nodes[1],
+            exclusions
+        )
+    end
+    if sortie_end_has_moved
+        segment_to_keep = update_segment(
+            segment_to_keep,
+            :to,
+            route.nodes[end],
+            finish_new,
+            exclusions
+        )
+    end
+    return Route(route.nodes, route.dist_matrix, segment_to_keep)
+end
+
+"""
+    update_segment(
+        segment::Vector{LineString{2,Float64}},
+        section::Symbol,
+        point_from::Point{2,Float64},
+        point_to::Point{2,Float64},
+        exclusions::POLY_VEC
+    )::Vector{LineString{2,Float64}}
+
+Update the segment of line strings based on the specified section and points.
+
+# Arguments
+- `segment`: Vector of line strings to be updated.
+- `section`: Symbol indicating whether to update from the start (`:from`) or to the end
+    (`:to`).
+- `point_from`: The start point to update linestring from.
+- `point_to`: The end point to update linestring to.
+- `exclusions`: Exclusion zone polygons for tenders to avoid.
+
+# Returns
+- A vector of updated segment of line strings between given points `point_from` - `point_to`
+    while avoiding exclusion zones.
+"""
+function update_segment(
+    segment::Vector{LineString{2,Float64}},
+    section::Symbol,
+    point_from::Point{2,Float64},
+    point_to::Point{2,Float64},
+    exclusions::POLY_VEC
+)::Vector{LineString{2,Float64}}
+    remaining_segment = LineString{2,Float64}[]
+    if section == :from
+        remaining_segment = linestring_segment_to_keep(
+            section,
+            point_to,
+            segment
+        )
+    elseif section == :to
+        remaining_segment = linestring_segment_to_keep(
+            section,
+            point_from,
+            segment
+        )
+    else
+        error("Invalid section: $section. Use `:from` or `:to`")
+    end
+    leg_to_update = [point_from, point_to]
+
+    _, leg = get_feasible_vector(leg_to_update, exclusions)
+
+    if section == :from
+        return vcat(leg..., remaining_segment...)
+    elseif section == :to
+        return vcat(remaining_segment..., leg...)
+    end
+end
+
+"""
     generate_tender_sorties(
         soln::MSTSolution,
-        tmp_wpts::Vector{Point{2,Float64}}
+        tmp_wpts::Vector{Point{2,Float64}},
+        exclusions::POLY_VEC
     )::Vector{TenderSolution}
 
 Generate tender sorties based on the updated waypoints, including all updated attributes.
@@ -438,84 +546,61 @@ Generate tender sorties based on the updated waypoints, including all updated at
 # Arguments
 - `soln`: The existing MSTSolution containing tenders.
 - `tmp_wpts`: Vector of temporary waypoints to update the tender sorties.
+- `exclusions`: Exclusion zone polygons for tenders.
 
 # Returns
 Updated TenderSolution objects with new waypoints.
 """
 function generate_tender_sorties(
     soln::MSTSolution,
-    tmp_wpts::Vector{Point{2,Float64}}
+    tmp_wpts::Vector{Point{2,Float64}},
+    exclusions::POLY_VEC
 )::Vector{TenderSolution}
     # Update the tender solutions with the new waypoints
-    tender_soln_ex = soln.tenders[end]
+    tenders_old = soln.tenders[end]
+    n = length(tenders_old)
+    @assert length(tmp_wpts) == 2n + 2 "expected 2 points per tender plus depot start/end"
 
-    ids = getfield.(tender_soln_ex, :id)
-    starts_ex = getfield.(tender_soln_ex, :start)
-    finishes_ex = getfield.(tender_soln_ex, :finish)
-    sorties = getfield.(tender_soln_ex, :sorties)
-    dist_mats = getfield.(tender_soln_ex, :dist_matrix)
-
-    js = 1:length(tender_soln_ex)
-
+    js = 1:n
     starts_new = tmp_wpts[2 .* js]
     finishes_new = tmp_wpts[2 .* js.+1]
 
-    # mask which tenders need updating
-    mask = (starts_ex .!= starts_new) .|| (finishes_ex .!= finishes_new)
+    tenders_new = Vector{TenderSolution}(undef, n)
 
-    sorties_new::Vector{Vector{Route}} = Vector{Vector{Route}}(undef, sum(mask))
-    for (i, s) in enumerate(sorties[mask])
-        new_routes = Vector{Route}(undef, length(s))
-        for (j, r) in enumerate(s)
-            line_strings_updated = deepcopy(r.line_strings)
-            # Recalculate line strings from waypoint to first node and last node to finish
-            if r.line_strings[1].points[1] != starts_new[i] # start changes
-                continue_from = findfirst(
-                    ==(r.nodes[1]),
-                    first.(getproperty.(line_strings_updated, :points))
-                )
+    for j in js
+        tender_old = tenders_old[j]
+        start_new, finish_new = starts_new[j], finishes_new[j]
 
-                # re-calc linestrings for the first segment: start to first node
-                new_segment_flattened = [LineString{2,Float64}(
-                    [starts_new[i], r.nodes[1]]
-                )]
-                line_strings_updated = [
-                    new_segment_flattened;
-                    line_strings_updated[continue_from:end]
-                ]
-            end
-            if r.line_strings[end].points[end] != finishes_new[i] # finish changes
-                keep_until = findlast(
-                    ==(r.nodes[end]),
-                    last.(getproperty.(line_strings_updated, :points))
-                )
-                # re-calc linestrings for the last segment: last node to finish
-                new_segment_flattened = [LineString{2,Float64}(
-                    [r.nodes[end], finishes_new[i]]
-                )]
-                line_strings_updated = [
-                    line_strings_updated[1:keep_until];
-                    new_segment_flattened
-                ]
-            end
-            new_routes[j] = Route(
-                r.nodes,
-                r.dist_matrix,
-                line_strings_updated
-            )
+        sortie_start_has_moved = tender_old.start != start_new
+        sortie_end_has_moved = tender_old.finish != finish_new
+
+        # If neither start nor finish has moved, keep the old tender solution and continue
+        if !sortie_start_has_moved && !sortie_end_has_moved
+            tenders_new[j] = tender_old
+            continue
         end
-        sorties_new[i] = new_routes
+
+        # Rebuild the sorties with new start/finish points
+        sorties_old = tender_old.sorties
+        sorties_new = rebuild_sortie.(
+            sorties_old,
+            Ref(start_new),
+            Ref(finish_new),
+            Ref(exclusions),
+            Ref(sortie_start_has_moved),
+            Ref(sortie_end_has_moved)
+        )
+
+        tenders_new[j] = TenderSolution(
+            tender_old.id,
+            start_new,
+            finish_new,
+            sorties_new,
+            tender_old.dist_matrix #! dist_matrix is not updated here
+        )
     end
 
-    tender_soln_new = copy(tender_soln_ex)
-    tender_soln_new[mask] = TenderSolution.(
-        ids[mask],
-        starts_new[mask],
-        finishes_new[mask],
-        sorties_new,
-        dist_mats[mask]
-    )
-    return tender_soln_new
+    return tenders_new
 end
 
 """
