@@ -873,16 +873,17 @@ function process_mothership_route(
         waypoints.waypoint
     end
 
-    _, waypoint_path_vector = get_feasible_vector(
+    waypoint_dist_vec, waypoint_path_vector = get_feasible_vector(
         final_waypoints,
         exclusions_mothership
     )
 
     path = vcat(waypoint_path_vector...)
+    updated_dist_matrix = make_superdiag_matrix(waypoint_dist_vec)
 
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
-        route=Route(final_waypoints, dist_matrix, path)
+        route=Route(final_waypoints, updated_dist_matrix, path)
     )
 end
 
