@@ -133,15 +133,12 @@ Optionally, the number of clusters can be specified to limit the calculation to 
 - `route`: Full mothership route between waypoints.
 
 # Returns
-- The sum of (haversine) mothership distances between clusters.
+- The sum of mothership distances between clusters.
 """
 function mothership_dist_between_clusts(route::Route, num_clusters::Int=0)::Float64
-    start_segment_points::Vector{Point{2,Float64}} = route.nodes[1:2:end-1]
-    end_segment_points::Vector{Point{2,Float64}} = route.nodes[2:2:end]
-
-    n = iszero(num_clusters) ? length(start_segment_points) : num_clusters
-
-    return sum(haversine.(start_segment_points[1:n], end_segment_points[1:n]))
+    full_route = get_superdiag_vals(route.dist_matrix)
+    n = iszero(num_clusters) ? length(full_route) : 2 * num_clusters + 1
+    return sum(full_route[1:2:n])
 end
 
 """
