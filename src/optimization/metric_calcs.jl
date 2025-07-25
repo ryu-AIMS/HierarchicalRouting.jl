@@ -152,9 +152,10 @@ Compute the cost of the mothership within each cluster, not including between cl
 # Returns
 - The mothership distance within each cluster.
 """
-function mothership_dist_within_clusts(route::Route)::Vector{Float64}
+function mothership_dist_within_clusts(route::Route, num_clusters::Int=0)::Vector{Float64}
     full_route = get_superdiag_vals(route.dist_matrix)
-    return full_route[2:2:end]
+    n = iszero(num_clusters) ? length(full_route) : 2 * num_clusters + 1
+    return full_route[2:2:n]
 end
 
 """
