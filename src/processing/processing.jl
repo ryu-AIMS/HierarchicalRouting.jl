@@ -101,3 +101,30 @@ function linestring_segment_to_keep(
         error("Invalid section specified. Use `:from` or `:to`")
     end
 end
+
+"""
+    make_superdiag_matrix(v::Vector{Float64})::Matrix{Float64}
+
+Make a square distance matrix from a vector of distances. The matrix will have zeros on the
+diagonal and distance values on the first superdiagonal.
+- Superdiagonal is the first diagonal above the main diagonal.
+- **NOTE**: The distance matrix is filled with **Inf** other than the diagonal and superdiagonal.
+
+"""
+function make_superdiag_matrix(v::Vector{Float64})::Matrix{Float64}
+    n = length(v) + 1
+    M = fill(Inf, n, n)
+    M[CartesianIndex.(1:n, 1:n)] .= 0.0
+    M[CartesianIndex.(1:n-1, 2:n)] = v
+    return M
+end
+
+"""
+    get_superdiag_vals(M::Matrix{Float64})::Vector{Float64}
+
+Return the values from the first superdiagonal of a square matrix.
+- Superdiagonal is the first diagonal above the main diagonal.
+"""
+function get_superdiag_vals(M::Matrix{Float64})::Vector{Float64}
+    return [M[i, i+1] for i in 1:(size(M, 1)-1)]
+end
