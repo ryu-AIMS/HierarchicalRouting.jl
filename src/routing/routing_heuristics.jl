@@ -770,25 +770,19 @@ function nearest_neighbour(
         ex_ms_route.cluster_sequence[1:cluster_seq_idx, :],
         sequenced_remaining_centroids
     )
-    ordered_clusters = sort(cluster_sequence[1:end-1, :], :id)
-    ordered_nodes = Point{2,Float64}.(ordered_clusters.lon, ordered_clusters.lat)
-    updated_full_dist_matrix = get_feasible_matrix(
-        ordered_nodes,
-        exclusions_mothership
-    )[1]
-
-    # Calc feasible path between waypoints.
-    _, waypoint_path_vector = get_feasible_vector(
-        waypoints.waypoint, exclusions_mothership
-    )
     ex_path = ex_ms_route.route.line_strings[
         1:findfirst(
         x -> x == ex_ms_route.route.nodes[2*cluster_seq_idx-1],
         getindex.(getproperty.(ex_ms_route.route.line_strings, :points), 2)
+    )]
+
+    # Calc feasible path between waypoints.
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
+        waypoints.waypoint, exclusions_mothership
     )
-    ]
     new_path = vcat(waypoint_path_vector...)
     full_path = vcat(ex_path, new_path...)
+    waypoint_dist_matrix = make_superdiag_matrix(waypoint_dist_vector)
 
     return MothershipSolution(
         cluster_sequence=cluster_sequence,
@@ -797,7 +791,7 @@ function nearest_neighbour(
                 ex_ms_route.route.nodes[1:2*cluster_seq_idx-2],
                 waypoints.waypoint
             ),
-            updated_full_dist_matrix,
+            waypoint_dist_matrix,
             full_path
         )
     )
