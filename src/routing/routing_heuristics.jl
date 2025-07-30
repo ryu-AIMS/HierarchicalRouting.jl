@@ -450,7 +450,9 @@ function rebuild_sortie(
     sortie_end_has_moved,
 )::Route
     segment_to_keep = route.line_strings
-    updated_dist_matrix = copy(route.dist_matrix)
+    updated_dist_matrix = typeof(route.dist_matrix) == Vector{Float64} ?
+                          copy(route.dist_matrix) :
+                          get_superdiag_vals(route.dist_matrix)
     # Keep the segments of the line strings that contain matching start/end points
     if sortie_start_has_moved
         segment_dist, segment_to_keep = update_segment(
