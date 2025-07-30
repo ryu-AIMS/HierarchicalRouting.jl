@@ -394,10 +394,9 @@ function rebuild_solution_with_waypoints(
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
         adjusted_waypoints, exclusions_mothership
     )
-    dist_matrix_proposed = make_superdiag_matrix(dist_vector_proposed)
     ms_route_new::Route = Route(
         adjusted_waypoints,
-        dist_matrix_proposed,
+        dist_vector_proposed,
         vcat(line_strings_proposed...)
     )
 
@@ -451,7 +450,9 @@ function rebuild_sortie(
     sortie_end_has_moved,
 )::Route
     segment_to_keep = route.line_strings
-    updated_dist_matrix = copy(route.dist_matrix)
+    updated_dist_matrix = typeof(route.dist_matrix) == Vector{Float64} ?
+                          copy(route.dist_matrix) :
+                          get_superdiag_vals(route.dist_matrix)
     # Keep the segments of the line strings that contain matching start/end points
     if sortie_start_has_moved
         segment_dist, segment_to_keep = update_segment(
@@ -461,7 +462,7 @@ function rebuild_sortie(
             route.nodes[1],
             exclusions
         )
-        updated_dist_matrix[1, 2] = updated_dist_matrix[2, 1] = segment_dist
+        updated_dist_matrix[1] = segment_dist
     end
     if sortie_end_has_moved
         segment_dist, segment_to_keep = update_segment(
@@ -471,7 +472,7 @@ function rebuild_sortie(
             finish_new,
             exclusions
         )
-        updated_dist_matrix[end-1, end] = updated_dist_matrix[end, end-1] = segment_dist
+        updated_dist_matrix[end] = segment_dist
     end
     return Route(route.nodes, updated_dist_matrix, segment_to_keep)
 end
