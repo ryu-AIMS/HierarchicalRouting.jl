@@ -800,7 +800,7 @@ Core two-opt optimization function that can be used by all solution types.
 """
 function optimize_route_two_opt(
     route::Vector{Int},
-    dist_matrix::Matrix,
+    dist_matrix::AbstractArray{Float64},
     distance_fn::Function;
     start_idx::Int=1,
     end_idx::Int=length(route)
@@ -835,7 +835,6 @@ Process optimized route for mothership solutions.
 function process_mothership_route(
     optimized_route::Vector{Int},
     cluster_centroids::DataFrame,
-    dist_matrix::Matrix,
     exclusions_mothership::POLY_VEC,
     exclusions_tender::POLY_VEC,
     existing_waypoints::Union{Vector,Nothing}=nothing,
@@ -877,11 +876,10 @@ function process_mothership_route(
     )
 
     path = vcat(waypoint_path_vector...)
-    updated_dist_matrix = make_superdiag_matrix(waypoint_dist_vec)
 
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
-        route=Route(final_waypoints, updated_dist_matrix, path)
+        route=Route(final_waypoints, waypoint_dist_vec, path)
     )
 end
 
@@ -901,7 +899,7 @@ function two_opt(
     exclusions_tender::POLY_VEC,
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_matrix = ms_soln_current.route.dist_matrix
+    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -914,14 +912,13 @@ function two_opt(
     # Optimize the entire route
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_matrix,
+        dist_vector,
         return_route_distance
     )
 
     return process_mothership_route(
         optimized_route,
         cluster_centroids,
-        dist_matrix,
         exclusions_mothership,
         exclusions_tender
     )
@@ -945,7 +942,7 @@ function two_opt(
     cluster_seq_idx::Int64
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_matrix = ms_soln_current.route.dist_matrix
+    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -958,7 +955,7 @@ function two_opt(
     # Optimize only from cluster_seq_idx to the end
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_matrix,
+        dist_vector,
         return_route_distance;
         start_idx=cluster_seq_idx,
         end_idx=length(initial_route)
@@ -967,7 +964,6 @@ function two_opt(
     return process_mothership_route(
         optimized_route,
         cluster_centroids,
-        dist_matrix,
         exclusions_mothership,
         exclusions_tender,
         ms_soln_current.route.nodes,
