@@ -987,14 +987,20 @@ function two_opt(
     sorties_new = Vector{Route}(undef, length(sorties_current))
 
     for (idx, sortie) in enumerate(sorties_current)
-        nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
-        n = length(nodes)
-
-        if n ≤ 3
+        if length(sortie.nodes) ≤ 1
             # If there is only 1 node between start and finish, no change is possible
-            sorties_new[idx] = sortie
+            # update to distance vector
+            dist_vector = get_superdiag_vals(sortie.dist_matrix)
+            sorties_new[idx] = Route(
+                sortie.nodes,
+                dist_vector,
+                vcat(sortie.line_strings...)
+            )
             continue
         end
+
+        nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
+        n = length(nodes)
 
         initial_sequence = collect(1:n)
 
@@ -1009,14 +1015,15 @@ function two_opt(
 
         # Build new sortie ordering, ignoring start and finish
         nodes_new = nodes[optimized_sequence[2:end-1]]
-        dist_matrix_new = sortie.dist_matrix[optimized_sequence, optimized_sequence]
 
         # Recompute feasible path through exclusions
-        dist_vector, path_vector = get_feasible_vector(nodes[optimized_sequence], exclusions_tender)
+        dist_vector, path_vector = get_feasible_vector(
+            nodes[optimized_sequence],
+            exclusions_tender
+        )
         new_path = vcat(path_vector...)
-        new_dist_matrix = make_superdiag_matrix(dist_vector)
 
-        sorties_new[idx] = Route(nodes_new, new_dist_matrix, new_path)
+        sorties_new[idx] = Route(nodes_new, dist_vector, new_path)
     end
 
     return TenderSolution(
