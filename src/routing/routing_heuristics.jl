@@ -3,7 +3,7 @@ using Optim
 
 struct Route
     nodes::Vector{Point{2,Float64}}
-    dist_matrix::Matrix{Float64}
+    dist_matrix::AbstractArray{Float64}
     line_strings::Vector{LineString{2,Float64}}
 end
 
