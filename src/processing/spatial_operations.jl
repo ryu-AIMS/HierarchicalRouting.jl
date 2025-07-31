@@ -1,31 +1,34 @@
 
 """
     filter_and_simplify_exclusions!(
-        exclusions::DataFrame;
-        min_area::Float64=3E-5,
-        simplify_tol::Float64=1E-3
-    )::DataFrame
+        exclusion_geometries::POLY_VEC;
+        min_area::Float64=1E-5,
+        simplify_tol::Float64=5E-4
+    )::POLY_VEC
 
 Remove small polygons and simplify geometry based on tolerance values.
 
 # Arguments
-- `exclusions`: The DataFrame containing exclusion zones.
+- `exclusion_geometries`: A vector of polygon geometries to filter and simplify.
 - `min_area`: The minimum area for exclusion polygons.
 - `simplify_tol`: The tolerance value for simplifying the exclusion polygons, \n
     i.e., larger tol = more aggressive simplification.
 """
 function filter_and_simplify_exclusions!(
-    exclusions::DataFrame;
+    exclusion_geometries::POLY_VEC;
     min_area::Float64=1E-5,
-    simplify_tol::Float64=1E-3
-)::DataFrame
-    exclusions.geometry .= AG.simplify.(exclusions.geometry, simplify_tol)
-    filter!(row -> AG.geomarea(row.geometry) >= min_area, exclusions)
-    return exclusions
+    simplify_tol::Float64=5E-4
+)::POLY_VEC
+    exclusion_geometries .= AG.simplify.(exclusion_geometries, simplify_tol)
+    filter!(geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom), exclusion_geometries)
+    return exclusion_geometries
 end
 
 """
-    buffer_exclusions!(exclusions::DataFrame; buffer_dist::Float64=0.0)::DataFrame
+    buffer_exclusions!(
+        exclusion_geometries::POLY_VEC;
+        buffer_dist::Float64=0.0
+    )::POLY_VEC
 
 Buffer exclusion zones by a specified distance.
 
@@ -33,9 +36,12 @@ Buffer exclusion zones by a specified distance.
 - `exclusions`: The DataFrame containing exclusion zones.
 - `buffer_dist`: The buffer distance.
 """
-function buffer_exclusions!(exclusions::DataFrame; buffer_dist::Float64=0.0)::DataFrame
-    exclusions.geometry .= AG.buffer.(exclusions.geometry, buffer_dist)
-    return exclusions
+function buffer_exclusions!(
+    exclusion_geometries::POLY_VEC;
+    buffer_dist::Float64=0.0
+)::POLY_VEC
+    exclusion_geometries .= AG.buffer.(exclusion_geometries, buffer_dist)
+    return exclusion_geometries
 end
 
 """
