@@ -1,19 +1,17 @@
 
 """
-    return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
+    return_route_distance(_, dist_matrix::Matrix{Float64})::Float64
 
 Calculate the total distance of a route starting from index 1, and returning to index 1.
 
 # Arguments
-- `route`: Vector of cluster indices.
 - `dist_matrix`: Distance matrix between clusters.
 
 # Returns
 Total distance of the return route.
 """
-function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
-    return sum(getindex.(Ref(dist_matrix), route[1:end-1], route[2:end])) +
-           dist_matrix[route[end], route[1]]  # Return to start
+function return_route_distance(_, dist_vector::Vector{Float64})::Float64
+    return sum(dist_vector)
 end
 
 """
