@@ -8,7 +8,9 @@ using ..HierarchicalRouting:
     MSTSolution,
     Route,
     generate_letter_id,
-    critical_path
+    critical_path,
+    tender_clust_dist,
+    mothership_dist_within_clusts
 
 using DataFrames
 using Rasters
@@ -551,14 +553,26 @@ function solution(
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
-    critical_path_cost = critical_path(soln, vessel_weightings)
+    critical_path_dist = critical_path(soln, vessel_weightings)
+    total_dist = critical_distance_path(soln, vessel_weightings)
+
     annotate_cost!(
         ax,
-        critical_path_cost;
-        position=(0.95, 0.02),
+        critical_path_dist;
+        position=(0.95, 0.07),
         fontsize=14,
         color=:black
     )
+    annotate_cost!(
+        ax,
+        total_dist;
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="critical_distance_path()\ntotal dist"
+    )
+
+    highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
 end
@@ -567,7 +581,7 @@ function solution(
     soln_a::MSTSolution,
     soln_b::MSTSolution;
     cluster_radius::Float64=0.0,
-    show_mothership_exclusions::Bool=false,
+    show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
@@ -579,10 +593,10 @@ function solution(
 
     # Exclusions
     if show_mothership_exclusions
-        exclusions!.([ax1, ax2], problem.mothership.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.mothership.exclusion); labels=false)
     end
     if show_tenders_exclusions
-        exclusions!.([ax1, ax2], problem.tenders.exclusion; labels=false)
+        exclusions!.([ax1, ax2], Ref(problem.tenders.exclusion); labels=false)
     end
 
     # Clusters
@@ -613,6 +627,30 @@ function solution(
             color=:black
         )
     end
+
+    # Annotate critical path costs
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_dist_a = critical_path(soln_a, vessel_weightings)
+    critical_path_dist_b = critical_path(soln_b, vessel_weightings)
+    total_dist_a = critical_distance_path(soln_a, vessel_weightings)
+    total_dist_b = critical_distance_path(soln_b, vessel_weightings)
+
+    annotate_cost!.(
+        [ax1, ax2],
+        [critical_path_dist_a, critical_path_dist_b];
+        position=(0.95, 0.07),
+        fontsize=14,
+        color=:black
+    )
+
+    annotate_cost!.(
+        [ax1, ax2],
+        [total_dist_a, total_dist_b];
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="critical_distance_path()\ntotal dist"
+    )
 
     return fig
 end
@@ -723,18 +761,93 @@ function annotate_cost!(
     cost::Float64;
     position::Tuple{Float64,Float64}=(0.95, 0.02),
     fontsize::Int=14,
-    color::Symbol=:black
-)
+    color::Symbol=:black,
+    metric::String="Critical path"
+)::Axis
+    # Annotate the cost of the critical path on the plot
     cost_km = cost / 1000  # Convert cost to km
     text!(
         ax,
         position...,
-        text="Critical path: $(round(cost_km, digits=2)) km",
+        text="$metric: $(round(cost_km, digits=2)) km",
         align=(:right, :bottom),
         space=:relative,
         fontsize=fontsize,
         color=color
     )
+    return ax
+end
+
+function highlight_critical_path!(
+    ax::Axis,
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0);
+    color=:red,
+    linewidth=4
+)
+    # Unpack
+    tenders = soln.tenders[end]
+    ms_route = soln.mothership_routes[end].route
+    num_clusters = length(tenders)
+
+    # Within clusters
+    clust_sorties = tender_clust_dist.(tenders)
+    clust_sorties = map(x -> isempty(x) ? [0.0] : x, clust_sorties)
+    longest_sortie_cost = maximum.(clust_sorties) .* vessel_weightings[2]
+    ms_within = mothership_dist_within_clusts(ms_route)[1:num_clusters]
+    mothership_sub_cost = vessel_weightings[1] .* ms_within
+
+    # For each cluster, identify critical path
+    for j in 1:num_clusters
+        if longest_sortie_cost[j] ≥ mothership_sub_cost[j]
+            # Draw the longest tender sortie
+            routes = tenders[j].sorties
+            idx = argmax(tender_clust_dist(tenders[j]))
+            route!(ax, routes[idx]; color=color)
+        else
+            # Draw the mothership route
+            start_point = ms_route.nodes[2j]
+            end_point = ms_route.nodes[2j+1]
+            start_segment = findfirst(
+                ==(start_point),
+                getindex.(getfield.(ms_route.line_strings, :points), 1)
+            )
+            end_segment = findfirst(
+                ==(end_point),
+                getindex.(getfield.(ms_route.line_strings, :points), 2)
+            )
+
+            lines!.(
+                Ref(ax),
+                ms_route.line_strings[start_segment:end_segment];
+                color=color,
+                linewidth=linewidth
+            )
+        end
+    end
+
+    # Highlight mothership segments between clusters
+    start_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[1:2:end-1]
+    end_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[2:2:end]
+
+    start_segment = findfirst.(
+        .==(start_segment_points),
+        Ref(getindex.(getfield.(ms_route.line_strings, :points), 1))
+    )
+    end_segment = findfirst.(
+        .==(end_segment_points),
+        Ref(getindex.(getfield.(ms_route.line_strings, :points), 2))
+    )
+    segments = [ms_route.line_strings[i:j] for (i, j) in zip(start_segment, end_segment)]
+
+    lines!.(
+        Ref(ax),
+        segments;
+        color=color,
+        linewidth=linewidth
+    )
+
+    return nothing
 end
 
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
