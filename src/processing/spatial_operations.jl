@@ -129,11 +129,11 @@ function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
         end
     end
 
-    # Remove duplicate unionized geometries
-    unique_geometries = unique(geometries[.!AG.isempty.(geometries)])
+    filtered = unique(geometries[.!AG.isempty.(geometries)])
+    empty!(geometries)
+    append!(geometries, filtered)
 
-    # Return the unique geometries as a POLY_VEC
-    return unique_geometries
+    return geometries
 end
 function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     geometries = exclusions.geometry
