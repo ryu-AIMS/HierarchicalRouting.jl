@@ -572,6 +572,8 @@ function solution(
         metric="critical_distance_path()\ntotal dist"
     )
 
+    highlight_critical_path!(ax, soln, vessel_weightings)
+
     return fig
 end
 function solution(
