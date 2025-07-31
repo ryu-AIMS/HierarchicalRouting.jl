@@ -69,15 +69,16 @@ function linestring_to_polygon(
 end
 
 """
+    unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
     unionize_overlaps(exclusions::DataFrame)::DataFrame
 
 Unionize overlapping exclusion zones.
 
 # Arguments
+- `geometries`: A vector of geometries (polygons) to unionize.
 - `exclusions`: DataFrame containing exclusion zones.
 """
-function unionize_overlaps!(exclusions::DataFrame)::DataFrame
-    geometries = exclusions.geometry
+function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
     n = length(geometries)
 
     for i in 1:n
@@ -124,6 +125,13 @@ function unionize_overlaps!(exclusions::DataFrame)::DataFrame
 
     # Remove duplicate unionized geometries
     unique_geometries = unique(geometries[.!AG.isempty.(geometries)])
+
+    # Return the unique geometries as a POLY_VEC
+    return unique_geometries
+end
+function unionize_overlaps!(exclusions::DataFrame)::DataFrame
+    geometries = exclusions.geometry
+    unique_geometries = unionize_overlaps!(geometries)
 
     empty!(exclusions)
     append!(exclusions, [(geometry=geom,) for geom in unique_geometries])
