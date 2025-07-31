@@ -65,7 +65,7 @@ The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
     tender_matrices = getfield.(tenders.sorties, :dist_matrix)
-    sortie_dists = sum.(get_superdiag_vals.(tender_matrices))
+    sortie_dists = sum.(tender_matrices)
     return sortie_dists
 end
 
@@ -114,7 +114,7 @@ Optionally, the number of clusters can be specified to limit the calculation to 
 - The sum of mothership distances between clusters.
 """
 function mothership_dist_between_clusts(route::Route, num_clusters::Int=0)::Float64
-    full_route = get_superdiag_vals(route.dist_matrix)
+    full_route = route.dist_matrix
     n = iszero(num_clusters) ? length(full_route) : 2 * num_clusters + 1
     return sum(full_route[1:2:n])
 end
@@ -131,7 +131,7 @@ Compute the cost of the mothership within each cluster, not including between cl
 - The mothership distance within each cluster.
 """
 function mothership_dist_within_clusts(route::Route, num_clusters::Int=0)::Vector{Float64}
-    full_route = get_superdiag_vals(route.dist_matrix)
+    full_route = route.dist_matrix
     n = iszero(num_clusters) ? length(full_route) : 2 * num_clusters + 1
     return full_route[2:2:n]
 end
