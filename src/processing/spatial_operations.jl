@@ -5,6 +5,11 @@
         min_area::Float64=1E-5,
         simplify_tol::Float64=5E-4
     )::POLY_VEC
+    filter_and_simplify_exclusions(
+        exclusion_geometries::POLY_VEC;
+        min_area::Float64=1E-5,
+        simplify_tol::Float64=5E-4
+    )::POLY_VEC
 
 Remove small polygons and simplify geometry based on tolerance values.
 
@@ -23,9 +28,22 @@ function filter_and_simplify_exclusions!(
     filter!(geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom), exclusion_geometries)
     return exclusion_geometries
 end
+function filter_and_simplify_exclusions(
+    exclusion_geometries::POLY_VEC;
+    min_area::Float64=1E-5,
+    simplify_tol::Float64=5E-4
+)::POLY_VEC
+    copy_vec = copy(exclusion_geometries)
+    filter_and_simplify_exclusions!(copy_vec; min_area=min_area, simplify_tol=simplify_tol)
+    return copy_vec
+end
 
 """
     buffer_exclusions!(
+        exclusion_geometries::POLY_VEC;
+        buffer_dist::Float64=0.0
+    )::POLY_VEC
+    buffer_exclusions(
         exclusion_geometries::POLY_VEC;
         buffer_dist::Float64=0.0
     )::POLY_VEC
@@ -42,6 +60,14 @@ function buffer_exclusions!(
 )::POLY_VEC
     exclusion_geometries .= AG.buffer.(exclusion_geometries, buffer_dist)
     return exclusion_geometries
+end
+function buffer_exclusions(
+    exclusion_geometries::POLY_VEC;
+    buffer_dist::Float64=0.0
+)::POLY_VEC
+    copy_vec = copy(exclusion_geometries)
+    buffer_exclusions!(copy_vec; buffer_dist=buffer_dist)
+    return copy_vec
 end
 
 """
@@ -76,7 +102,8 @@ end
 
 """
     unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
-    unionize_overlaps(exclusions::DataFrame)::DataFrame
+    unionize_overlaps(geometries::POLY_VEC)::POLY_VEC
+    unionize_overlaps!(exclusions::DataFrame)::DataFrame
 
 Unionize overlapping exclusion zones.
 
@@ -134,6 +161,11 @@ function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
     append!(geometries, filtered)
 
     return geometries
+end
+function unionize_overlaps(geometries::POLY_VEC)::POLY_VEC
+    geoms_copy = copy(geometries)
+    unionize_overlaps!(geoms_copy)
+    return geoms_copy
 end
 function unionize_overlaps!(exclusions::DataFrame)::DataFrame
     geometries = exclusions.geometry
