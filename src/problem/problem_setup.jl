@@ -176,6 +176,14 @@ function load_problem(
         min_area=1E-5
     )
 
+    # Ensure mothership is excluded from tender zones by combining and merging exclusions
+    exclusions_all::POLY_VEC = vcat(
+        ms_exclusions.geometry,
+        t_exclusions.geometry)
+    unionize_overlaps!(exclusions_all)
+    ms_exclusions::DataFrame = DataFrame(geometry=exclusions_all)
+    unionize_overlaps!(ms_exclusions.geometry)
+
     mothership = Vessel(
         exclusion=ms_exclusions,
         weighting=weight_ms
