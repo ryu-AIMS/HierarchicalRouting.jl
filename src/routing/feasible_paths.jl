@@ -254,10 +254,13 @@ function shortest_feasible_path(
             #? Connect initial point to all visible vertices on final polygon?
         end
 
+        # Reuseable cache for mask to avoid repeated allocations
+        visibility_mask = falses(length(poly_vertices))
+
         # For each polygon vertex, add edges to all visible vertices
         for i in poly_vertices
             # Check visibility of all polygon vertices from the current vertex `i`
-            visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+            visibility_mask .= is_visible.(Ref(i), poly_vertices, Ref(exclusions))
             vis_pts_from_i = poly_vertices[visibility_mask]
             n_vis_pts_from_i = length(vis_pts_from_i)
 
@@ -498,10 +501,13 @@ function build_graph(
     # 1. A polygon is provided, AND
     # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
     if !is_visible(initial_point, final_point, final_polygon)
+        # Cache to reuse for masking visible vertices
+        visibility_mask = falses(length(final_poly_verts))
+
         # Add edges connecting any visible polygon vertices to other polyogn vertices
         for i in final_poly_verts
-            visibility_mask = (final_poly_verts .!= i) .&
-                              is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
+            visibility_mask .= (final_poly_verts .!= i) .&
+                               is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
 
             visible_points = final_poly_verts[visibility_mask]
 
