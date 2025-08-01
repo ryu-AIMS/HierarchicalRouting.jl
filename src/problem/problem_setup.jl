@@ -172,8 +172,7 @@ function load_problem(
     # Prepare mothership exclusions
     prepare_exclusion_geoms!(
         ms_exclusions.geometry;
-        buffer_dist=1E-4,
-        min_area=1E-5
+        buffer_dist=1E-4
     )
 
     # Ensure mothership is excluded from tender zones by combining and merging exclusions
