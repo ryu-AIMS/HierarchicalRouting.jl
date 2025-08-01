@@ -334,6 +334,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count[] += 1
         end
+
         return score
     end
 
@@ -343,7 +344,7 @@ function optimize_waypoints(
         f_reltol=cost_tol,
         g_abstol=gradient_tol,
         show_trace=true,
-        allow_f_increases=false,  # allow or disallow function value to increase
+        allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
 
@@ -473,6 +474,7 @@ function rebuild_sortie(
         )
         updated_dist_matrix[1] = segment_dist
     end
+
     if sortie_end_has_moved
         segment_dist, segment_to_keep = update_segment(
             segment_to_keep,
@@ -483,6 +485,7 @@ function rebuild_sortie(
         )
         updated_dist_matrix[end] = segment_dist
     end
+
     return Route(route.nodes, updated_dist_matrix, segment_to_keep)
 end
 
