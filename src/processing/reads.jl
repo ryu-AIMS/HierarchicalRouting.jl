@@ -93,6 +93,11 @@ function read_and_polygonize_exclusions(
     file_name::String,
     output_dir::String="",
 )::DataFrame
+    # ensure output directory exists
+    if !isempty(output_dir)
+        mkpath(output_dir)
+    end
+
     exclusion_gpkg_path::String = joinpath(output_dir, "$(file_name).gpkg")
     # TODO: Generalize for all available environmental constraints
     # TODO: Generalize for ms and tender vessels
