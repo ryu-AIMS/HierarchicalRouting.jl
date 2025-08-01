@@ -287,6 +287,13 @@ function optimize_waypoints(
     waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
+    # Initialize variables for objective function
+    wpts_length::Int64 = length(waypoints_initial) + 2 # +2 for depot start/end points
+    wpts::Vector{Point{2,Float64}} = Vector{Point{2,Float64}}(undef, wpts_length)
+    has_bad_waypoint::BitVector = falses(wpts_length)
+    exclusion_count::Int64 = 0
+    score::Float64 = 0.0
+
     best_soln = Ref{MSTSolution}(soln)
     best_score = Ref(Inf)
     best_count = Ref(0)
@@ -296,7 +303,7 @@ function optimize_waypoints(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts::Vector{Point{2,Float64}} = Point.([
+        wpts = Point.([
             last_ms_route.route.nodes[1],  # first waypoint (depot)
             tuple.(x[1:2:end], x[2:2:end])...,
             last_ms_route.route.nodes[end]  # last waypoint (depot)
