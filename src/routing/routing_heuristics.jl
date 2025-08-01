@@ -303,7 +303,7 @@ function optimize_waypoints(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts = Point.([
+        wpts .= Point.([
             last_ms_route.route.nodes[1],  # first waypoint (depot)
             tuple.(x[1:2:end], x[2:2:end])...,
             last_ms_route.route.nodes[end]  # last waypoint (depot)
