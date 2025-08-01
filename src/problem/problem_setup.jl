@@ -136,7 +136,7 @@ function load_problem(
         if !isempty(output_dir)
             mkpath(output_dir)
         end
-        ms_exclusion_zones_df = read_and_polygonize_exclusions(
+        ms_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
             subset,
@@ -151,7 +151,7 @@ function load_problem(
             output_dir,
         )
     else
-        ms_exclusion_zones_df = read_and_polygonize_exclusions(
+        ms_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
             subset,
@@ -162,17 +162,18 @@ function load_problem(
             subset,
         )
     end
-    ms_exclusions::DataFrame = ms_exclusion_zones_df |> filter_and_simplify_exclusions! |>
-                               buffer_exclusions! |> unionize_overlaps! |> filter_and_simplify_exclusions!
-
-    filter_and_simplify_exclusions!(t_exclusions, min_area=1E-7, simplify_tol=5E-4)
-    buffer_exclusions!(t_exclusions, buffer_dist=0.0)
-    unionize_overlaps!(t_exclusions)
-    #? Redundant 2nd call to simplify_exclusions!()
-    filter_and_simplify_exclusions!(t_exclusions, min_area=1E-7, simplify_tol=5E-4)
+    # Prepare tender exclusions
+    prepare_exclusion_geoms!(t_exclusions.geometry; min_area=1E-7)
     t_exclusions = adjust_exclusions(
         targets.points.geometry,
         t_exclusions
+    )
+
+    # Prepare mothership exclusions
+    prepare_exclusion_geoms!(
+        ms_exclusions.geometry;
+        buffer_dist=1E-4,
+        min_area=1E-5
     )
 
     mothership = Vessel(
@@ -187,6 +188,38 @@ function load_problem(
     )
 
     return Problem(depot, targets, mothership, tenders)
+end
+
+function prepare_exclusion_geoms!(
+    geoms::POLY_VEC;
+    buffer_dist::Float64=0.0,
+    min_area::Float64=1E-5,
+    simplify_tol::Float64=5E-4
+)::POLY_VEC
+    filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
+    buffer_exclusions!(geoms; buffer_dist=buffer_dist)
+    unionize_overlaps!(geoms)
+
+    # Re-filter and de-duplicate after operations to ensure no overlaps
+    filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
+    unionize_overlaps!(geoms)
+
+    return geoms
+end
+function prepare_exclusion_geoms(
+    geoms::POLY_VEC;
+    buffer_dist::Float64=0.0,
+    min_area::Float64=1E-5,
+    simplify_tol::Float64=5E-4
+)::POLY_VEC
+    temp = copy(geoms)
+    prepare_exclusion_geoms!(
+        temp;
+        buffer_dist=buffer_dist,
+        min_area=min_area,
+        simplify_tol=simplify_tol
+    )
+    return temp
 end
 
 """
