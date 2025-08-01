@@ -1,6 +1,8 @@
 
 using Optim
 
+const VALID_SECTIONS::Vector{Symbol} = [:from, :to]
+
 struct Route
     nodes::Vector{Point{2,Float64}}
     dist_matrix::AbstractArray{Float64}
@@ -521,26 +523,25 @@ function update_segment(
     point_to::Point{2,Float64},
     exclusions::POLY_VEC
 )::Tuple{Float64,Vector{LineString{2,Float64}}}
-    remaining_segment = LineString{2,Float64}[]
-    if section == :from
-        remaining_segment = linestring_segment_to_keep(
-            section,
-            point_to,
-            segment
-        )
-    elseif section == :to
-        remaining_segment = linestring_segment_to_keep(
-            section,
-            point_from,
-            segment
-        )
-    else
-        error("Invalid section: $section. Use `:from` or `:to`")
+
+    if section ∉ VALID_SECTIONS
+        throw(ArgumentError("Invalid section: $section. Use one of $VALID_SECTIONS"))
     end
+
+    if section == :from
+        target_point = point_to
+    elseif section == :to
+        target_point = point_from
+    end
+
+    remaining_segment::Vector{LineString{2,Float64}} = linestring_segment_to_keep(
+        section,
+        target_point,
+        segment
+    )
+
     leg_to_update = [point_from, point_to]
-
     dist, leg = get_feasible_vector(leg_to_update, exclusions)
-
     if section == :from
         return (sum(dist), vcat(leg..., remaining_segment...))
     elseif section == :to
@@ -595,9 +596,8 @@ function generate_tender_sorties(
         end
 
         # Rebuild the sorties with new start/finish points
-        sorties_old = tender_old.sorties
         sorties_new = rebuild_sortie.(
-            sorties_old,
+            tender_old.sorties,
             Ref(start_new),
             Ref(finish_new),
             Ref(exclusions),
