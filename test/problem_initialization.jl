@@ -5,9 +5,7 @@
         _bathy_path = "data/test_bathy.tif"
         _wave_disturbance_path = "data/test_env_disturbances.geojson"
 
-        using GeometryBasics
-
-        depot = GeometryBasics.Point{2,Float64}(146.175, -16.84)
+        depot = (146.175, -16.84)
         draft_ms = Float64(-10.0)
         draft_t = Float64(-5.0)
         weight_ms = Float16(5.0)
