@@ -26,13 +26,13 @@ using GLMakie, GeoMakie
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure,Axis}
+    )::Figure
     clusters(
         cluster_sequence::DataFrame;
         cluster_radius::Union{Float64, Int64}=0,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure,Axis}
+    )::Figure
 
 Create a plot of nodes by cluster.
 
@@ -45,7 +45,7 @@ Create a plot of nodes by cluster.
 - `labels`: Plot cluster labels flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure object.
 """
 function clusters(
     clusters::Vector{Cluster};
@@ -53,7 +53,7 @@ function clusters(
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -66,14 +66,14 @@ function clusters(
         labels
     )
 
-    return fig, ax
+    return fig
 end
 function clusters(
     cluster_sequence::DataFrame;
     cluster_radius::Union{Float64,Int64}=0,
     centers::Bool=false,
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -85,7 +85,7 @@ function clusters(
         labels
     )
 
-    return fig, ax
+    return fig
 end
 
 function _calc_radius_offset(radius::Float64)::Union{Tuple,Nothing}
@@ -226,7 +226,7 @@ end
     exclusions(
         exclusions::DataFrame;
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of exclusion zones.
 
@@ -235,18 +235,18 @@ Create a plot of exclusion zones.
 - `labels`: Plot exclusion zones flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure and Axis objects.
 """
 function exclusions(
     exclusions::DataFrame;
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     exclusions!(ax, exclusions, labels=labels)
 
-    return fig, ax
+    return fig
 end
 """
     exclusions!(
@@ -291,7 +291,7 @@ end
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of LineStrings for mothership route.
 
@@ -302,20 +302,20 @@ Create a plot of LineStrings for mothership route.
 - `color`: LineString color.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure object.
 """
 function route(
     route::Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     route!(ax, route, markers=markers, labels=labels, color=color)
 
-    return fig, ax
+    return fig
 end
 """
     route!(
@@ -420,7 +420,7 @@ end
 """
     tenders(
         tender_soln::Vector{TenderSolution}
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of tender routes within each cluster.
 
@@ -428,17 +428,17 @@ Create a plot of tender routes within each cluster.
 - `tender_soln::Vector{TenderSolution}`: Tender solutions.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure object.
 """
 function tenders(
     tender_soln::Vector{TenderSolution}
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     tenders!(ax, tender_soln)
 
-    return fig, ax
+    return fig
 end
 
 """
@@ -487,7 +487,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Tuple{Figure,Axis}
+    )::Figure
     solution(
         problem::Problem,
         soln_a::MSTSolution,
@@ -497,7 +497,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Tuple{Figure,Tuple{Axis,Axis}}
+    )::Figure
 
 Create a plot of the full routing solution, including:
 - exclusion zones for the **mothership** and **tenders**,
@@ -518,7 +518,6 @@ Create a plot of the full routing solution, including:
 
 # Returns
 - `fig`: The created Figure object containing the plot.
-- `ax`: The Axis object containing the plot.
 """
 function solution(
     problem::Problem,
@@ -528,7 +527,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -575,7 +574,7 @@ function solution(
 
     highlight_critical_path!(ax, soln, vessel_weightings)
 
-    return fig, ax
+    return fig
 end
 function solution(
     problem::Problem,
@@ -586,7 +585,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Tuple{Figure,NTuple{2,Axis}}
+)::Figure
     fig = Figure(size=(1350, 750))  ## 2 fig plot
     ax1, ax2 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
@@ -653,7 +652,7 @@ function solution(
         metric="critical_distance_path()\ntotal dist"
     )
 
-    return fig, (ax1, ax2)
+    return fig
 end
 
 """
@@ -666,7 +665,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-    )::Tuple{Figure,NTuple{3,Axis}}
+    )::Figure
 
 Create a plot of the solution at each progressive disturbance event, including:
 - exclusion zones for the **mothership** and **tenders**,
@@ -689,7 +688,6 @@ Create a plot of the solution at each progressive disturbance event, including:
 
 # Returns
 - `fig`: The created Figure object containing the plot.
-- `ax1, ax2, ax3`: Axis objects for each disturbance event.
 """
 function solution_disturbances(
     problem::Problem,
@@ -700,7 +698,7 @@ function solution_disturbances(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-)::Tuple{Figure,NTuple{3,Axis}}
+)::Figure
     #! NOTE: This function assumes 2 disturbance events.
     #TODO: Generalize to any number of disturbance events.
     fig = Figure(size=(1650, 600))  ## 3 fig plot
@@ -755,7 +753,7 @@ function solution_disturbances(
         )
     end
 
-    return fig, (ax1, ax2, ax3)
+    return fig
 end
 
 function annotate_cost!(
