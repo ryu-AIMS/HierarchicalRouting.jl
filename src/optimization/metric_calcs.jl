@@ -168,7 +168,7 @@ function critical_path(
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
     mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
-    mothership_sub_clust_cost = vessel_weightings[1] * sum(mothership_within_clusts)
+    mothership_sub_clust_cost = vessel_weightings[1] * mothership_within_clusts
 
     cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
     cluster_cost_total = sum(cluster_cost_each)
