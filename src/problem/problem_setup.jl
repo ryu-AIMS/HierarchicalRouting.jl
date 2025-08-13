@@ -133,9 +133,6 @@ function load_problem(
 
     # Process exclusions
     if !(debug_mode)
-        if !isempty(output_dir)
-            mkpath(output_dir)
-        end
         ms_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
