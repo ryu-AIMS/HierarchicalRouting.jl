@@ -350,11 +350,11 @@ function optimize_mothership_route(
 
     # Nearest Neighbour to generate initial mothership route & matrix
     ms_soln_NN::MothershipSolution = nearest_neighbour(
+        ms_route,
         remaining_clusters_df,
         problem.mothership.exclusion.geometry,
         problem.tenders.exclusion.geometry,
         start_point,
-        ms_route,
         cluster_seq_idx
     )
 
