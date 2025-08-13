@@ -9,6 +9,7 @@ using ..HierarchicalRouting:
     Route,
     generate_letter_id,
     critical_path,
+    critical_distance_path,
     tender_clust_dist,
     mothership_dist_within_clusts
 
