@@ -1,34 +1,4 @@
 @testset "Ensure route consistency" begin
-    _target_scenario_path = "data/test_target_locations.geojson"
-    _subset_path = "data/test_target_area.gpkg"
-    _bathy_path = "data/test_bathy.tif"
-    _wave_disturbance_path = "data/test_env_disturbances.geojson"
-
-    depot = (146.175, -16.84)
-    draft_ms = Float64(-10.0)
-    draft_t = Float64(-5.0)
-    weight_ms = Float16(5.0)
-    weight_t = Float16(2.0)
-    n_tenders = Int8(3)
-    t_cap = Int16(2)
-
-    problem = HierarchicalRouting.load_problem(
-        _target_scenario_path,
-        _subset_path,
-        _bathy_path,
-        _wave_disturbance_path,
-        depot,
-        draft_ms,
-        draft_t,
-        weight_ms,
-        weight_t,
-        n_tenders,
-        t_cap;
-        debug_mode=true
-    )
-
-    test_solution = initial_solution(problem; k=8)
-
     # Helpers
     ## Grab the start/end point of the first/last LineString in a Route
     first_pt(r::HierarchicalRouting.Route) = r.line_strings[1].points[1]
@@ -43,8 +13,8 @@
     )
 
     # Variables
-    tenders = test_solution.tenders[end]
-    ms_route = test_solution.mothership_routes[end].route
+    tenders = TEST_SOLUTION.tenders[end]
+    ms_route = TEST_SOLUTION.mothership_routes[end].route
     ms_route_nodes = ms_route.nodes
     ms_line_string_pts = unique(vcat(getfield.(ms_route.line_strings, :points)...))
 
