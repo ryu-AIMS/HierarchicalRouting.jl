@@ -1,6 +1,8 @@
 
 using Optim
 
+const VALID_SECTIONS::Vector{Symbol} = [:from, :to]
+
 struct Route
     nodes::Vector{Point{2,Float64}}
     dist_matrix::AbstractArray{Float64}
@@ -287,6 +289,13 @@ function optimize_waypoints(
     waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
+    # Initialize variables for objective function
+    wpts_length::Int64 = length(waypoints_initial) + 2 # +2 for depot start/end points
+    wpts::Vector{Point{2,Float64}} = Vector{Point{2,Float64}}(undef, wpts_length)
+    has_bad_waypoint::BitVector = falses(wpts_length)
+    exclusion_count::Int64 = 0
+    score::Float64 = 0.0
+
     best_soln = Ref{MSTSolution}(soln)
     best_score = Ref(Inf)
     best_count = Ref(0)
@@ -296,7 +305,7 @@ function optimize_waypoints(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts::Vector{Point{2,Float64}} = Point.([
+        wpts .= Point.([
             last_ms_route.route.nodes[1],  # first waypoint (depot)
             tuple.(x[1:2:end], x[2:2:end])...,
             last_ms_route.route.nodes[end]  # last waypoint (depot)
@@ -305,7 +314,7 @@ function optimize_waypoints(
         # Exit early here if any waypoints are inside exclusion zones
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
-        if any(has_bad_waypoint)
+        if exclusion_count > 0
             naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
             return naive_score + naive_score * exclusion_count
         end
@@ -327,6 +336,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count[] += 1
         end
+
         return score
     end
 
@@ -336,7 +346,7 @@ function optimize_waypoints(
         f_reltol=cost_tol,
         g_abstol=gradient_tol,
         show_trace=true,
-        allow_f_increases=false,  # allow or disallow function value to increase
+        allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
 
@@ -389,13 +399,11 @@ function rebuild_solution_with_waypoints(
     exclusions_mothership::POLY_VEC,
     exclusions_tender::POLY_VEC
 )::MSTSolution
-    # Update the waypoints in the mothership route
-    adjusted_waypoints = adjust_waypoint.(waypoints_proposed, Ref(exclusions_mothership))
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
-        adjusted_waypoints, exclusions_mothership
+        waypoints_proposed, exclusions_mothership
     )
     ms_route_new::Route = Route(
-        adjusted_waypoints,
+        waypoints_proposed,
         dist_vector_proposed,
         vcat(line_strings_proposed...)
     )
@@ -407,7 +415,11 @@ function rebuild_solution_with_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints, exclusions_tender)
+    tender_soln_new = generate_tender_sorties(
+        solution_ex,
+        waypoints_proposed,
+        exclusions_tender
+    )
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -450,7 +462,10 @@ function rebuild_sortie(
     sortie_end_has_moved,
 )::Route
     segment_to_keep = route.line_strings
-    updated_dist_matrix = copy(route.dist_matrix)
+    updated_dist_matrix = typeof(route.dist_matrix) == Vector{Float64} ?
+                          route.dist_matrix :
+                          get_superdiag_vals(route.dist_matrix)
+
     # Keep the segments of the line strings that contain matching start/end points
     if sortie_start_has_moved
         segment_dist, segment_to_keep = update_segment(
@@ -462,6 +477,7 @@ function rebuild_sortie(
         )
         updated_dist_matrix[1] = segment_dist
     end
+
     if sortie_end_has_moved
         segment_dist, segment_to_keep = update_segment(
             segment_to_keep,
@@ -472,6 +488,7 @@ function rebuild_sortie(
         )
         updated_dist_matrix[end] = segment_dist
     end
+
     return Route(route.nodes, updated_dist_matrix, segment_to_keep)
 end
 
@@ -506,26 +523,25 @@ function update_segment(
     point_to::Point{2,Float64},
     exclusions::POLY_VEC
 )::Tuple{Float64,Vector{LineString{2,Float64}}}
-    remaining_segment = LineString{2,Float64}[]
-    if section == :from
-        remaining_segment = linestring_segment_to_keep(
-            section,
-            point_to,
-            segment
-        )
-    elseif section == :to
-        remaining_segment = linestring_segment_to_keep(
-            section,
-            point_from,
-            segment
-        )
-    else
-        error("Invalid section: $section. Use `:from` or `:to`")
+
+    if section ∉ VALID_SECTIONS
+        throw(ArgumentError("Invalid section: $section. Use one of $VALID_SECTIONS"))
     end
+
+    if section == :from
+        target_point = point_to
+    elseif section == :to
+        target_point = point_from
+    end
+
+    remaining_segment::Vector{LineString{2,Float64}} = linestring_segment_to_keep(
+        section,
+        target_point,
+        segment
+    )
+
     leg_to_update = [point_from, point_to]
-
     dist, leg = get_feasible_vector(leg_to_update, exclusions)
-
     if section == :from
         return (sum(dist), vcat(leg..., remaining_segment...))
     elseif section == :to
@@ -580,9 +596,8 @@ function generate_tender_sorties(
         end
 
         # Rebuild the sorties with new start/finish points
-        sorties_old = tender_old.sorties
         sorties_new = rebuild_sortie.(
-            sorties_old,
+            tender_old.sorties,
             Ref(start_new),
             Ref(finish_new),
             Ref(exclusions),
