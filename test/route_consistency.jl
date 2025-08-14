@@ -27,10 +27,12 @@ end
     @test all(ms_route_nodes .∈ Ref(ms_line_string_pts))
 
     ## 2 All tender sortie linestrings start in the same place for each cluster
-    @test all(length(unique(first_pt.(ts.sorties))) == 1 for ts in tenders)
+    sortie_start_points = [first_pt.(ts.sorties) for ts in tenders]
+    @test all(length.(unique.(sortie_start_points)) .== 1)
 
     ## 3 All tender sortie linestrings end in the same place for each cluster
-    @test all(length(unique(last_pt.(ts.sorties))) == 1 for ts in tenders)
+    sortie_end_points = [last_pt.(ts.sorties) for ts in tenders]
+    @test all(length.(unique.(sortie_end_points)) .== 1)
 
     ## 4 All tender start points coincide with mothership nodes
     @test all(uniform_start.(tenders, Ref(ms_route_nodes)))
