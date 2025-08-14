@@ -99,7 +99,7 @@ end
     )::Float64
 
 Compute the cost of a sortie, which starts and ends at given points, but does not return to
-    start.
+start.
 
 # Arguments
 - `sortie`: Route object containing nodes and distance matrix.
@@ -127,7 +127,7 @@ end
 
 Compute the cost of the mothership route between clusters, not including across each cluster.
 Optionally, the number of clusters can be specified to limit the calculation to the first
-    `num_clusters` clusters.
+`num_clusters` clusters.
 
 # Arguments
 - `route`: Full mothership route between waypoints.
@@ -192,6 +192,27 @@ function critical_path(
 
     cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
     cluster_cost_total = sum(cluster_cost_each)
+
+    # Between clusters
+    tow_cost = vessel_weightings[1] *
+               mothership_dist_between_clusts(soln.mothership_routes[end].route, num_clusters)
+
+    return cluster_cost_total + tow_cost
+end
+
+function critical_distance_path(
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+)::Float64
+    num_clusters = length(soln.tenders[end])
+    # Within clusters
+    cluster_sorties = tender_clust_dist.(soln.tenders[end])
+    cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
+    total_sortie_cost = sum.(cluster_sorties) .* vessel_weightings[2]
+    mothership_sub_clust_cost = vessel_weightings[1] *
+                                mothership_dist_within_clusts(soln.mothership_routes[end].route)[1:num_clusters]
+
+    cluster_cost_total = sum(vcat(total_sortie_cost, mothership_sub_clust_cost))
 
     # Between clusters
     tow_cost = vessel_weightings[1] *
