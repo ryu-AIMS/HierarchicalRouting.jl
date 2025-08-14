@@ -3,12 +3,11 @@ if !@isdefined(TEST_PROBLEM) || !@isdefined(TEST_SOLUTION)
 end
 
 @testset "Ensure route consistency" begin
-    # Helpers
-    ## Grab the start/end point of the first/last LineString in a Route
+    # Grab the start/end point of the first/last LineString in a Route
     first_pt(r::HierarchicalRouting.Route) = r.line_strings[1].points[1]
     last_pt(r::HierarchicalRouting.Route) = r.line_strings[end].points[end]
 
-    ## Check if all tender sorties start/end at the same point
+    # Check that the first/last point of each sortie is a point on the mothership route
     uniform_start(ts::HierarchicalRouting.TenderSolution, ms_nodes) = all(
         first_pt.(ts.sorties) .∈ Ref(ms_nodes)
     )
@@ -16,27 +15,25 @@ end
         last_pt.(ts.sorties) .∈ Ref(ms_nodes)
     )
 
-    # Variables
     tenders = TEST_SOLUTION.tenders[end]
     ms_route = TEST_SOLUTION.mothership_routes[end].route
     ms_route_nodes = ms_route.nodes
     ms_line_string_pts = unique(vcat(getfield.(ms_route.line_strings, :points)...))
 
-    # Tests
-    ## 1 All mothership route nodes are covered in linestrings
+    # All mothership route nodes are visited by linestring points
     @test all(ms_route_nodes .∈ Ref(ms_line_string_pts))
 
-    ## 2 All tender sortie linestrings start in the same place for each cluster
+    # Tender sorties start at the same point for each sortie within each cluster
     sortie_start_points = [first_pt.(ts.sorties) for ts in tenders]
     @test all(length.(unique.(sortie_start_points)) .== 1)
 
-    ## 3 All tender sortie linestrings end in the same place for each cluster
+    # Tender sorties end at the same point for each sortie within each cluster
     sortie_end_points = [last_pt.(ts.sorties) for ts in tenders]
     @test all(length.(unique.(sortie_end_points)) .== 1)
 
-    ## 4 All tender start points coincide with mothership nodes
+    # All tender sorties start at a point on the mothership route
     @test all(uniform_start.(tenders, Ref(ms_route_nodes)))
 
-    ## 5 All tender end points coincide with mothership nodes
+    # All tender sorties end at a point on the mothership route
     @test all(uniform_end.(tenders, Ref(ms_route_nodes)))
 end
