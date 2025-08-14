@@ -927,7 +927,7 @@ function two_opt(
     optimized_route = optimize_route_two_opt(
         initial_route,
         dist_vector,
-        return_route_distance
+        route_distance
     )
 
     return process_mothership_route(
@@ -970,7 +970,7 @@ function two_opt(
     optimized_route = optimize_route_two_opt(
         initial_route,
         dist_vector,
-        return_route_distance;
+        route_distance;
         start_idx=cluster_seq_idx,
         end_idx=length(initial_route)
     )

@@ -1,16 +1,19 @@
 
 """
-    return_route_distance(_, dist_matrix::Matrix{Float64})::Float64
+    route_distance(_, dist_vector::Vector{Float64})::Float64
 
-Calculate the total distance of a route starting from index 1, and returning to index 1.
+Calculate the total distance of a route, given a vector of distances, starting and ending at
+the same point.
 
 # Arguments
-- `dist_matrix`: Distance matrix between clusters.
+- `_`: Unused. Kept to maintain compatibility when this function is passed as an argument to
+other functions.
+- `dist_vector`: Vector of distances between consecutive points in the route.
 
 # Returns
 Total distance of the return route.
 """
-function return_route_distance(_, dist_vector::Vector{Float64})::Float64
+function route_distance(_, dist_vector::Vector{Float64})::Float64
     return sum(dist_vector)
 end
 
