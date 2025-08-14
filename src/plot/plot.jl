@@ -9,6 +9,7 @@ using ..HierarchicalRouting:
     Route,
     generate_letter_id,
     critical_path,
+    critical_distance_path,
     tender_clust_dist,
     mothership_dist_within_clusts
 
@@ -26,13 +27,13 @@ using GLMakie, GeoMakie
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure,Axis}
+    )::Figure
     clusters(
         cluster_sequence::DataFrame;
         cluster_radius::Union{Float64, Int64}=0,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure,Axis}
+    )::Figure
 
 Create a plot of nodes by cluster.
 
@@ -45,7 +46,7 @@ Create a plot of nodes by cluster.
 - `labels`: Plot cluster labels flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure object.
 """
 function clusters(
     clusters::Vector{Cluster};
@@ -53,7 +54,7 @@ function clusters(
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -66,14 +67,14 @@ function clusters(
         labels
     )
 
-    return fig, ax
+    return fig
 end
 function clusters(
     cluster_sequence::DataFrame;
     cluster_radius::Union{Float64,Int64}=0,
     centers::Bool=false,
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
@@ -85,7 +86,7 @@ function clusters(
         labels
     )
 
-    return fig, ax
+    return fig
 end
 
 function _calc_radius_offset(radius::Float64)::Union{Tuple,Nothing}
@@ -226,7 +227,7 @@ end
     exclusions(
         exclusions::DataFrame;
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of exclusion zones.
 
@@ -235,18 +236,18 @@ Create a plot of exclusion zones.
 - `labels`: Plot exclusion zones flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure and Axis objects.
 """
 function exclusions(
     exclusions::DataFrame;
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     exclusions!(ax, exclusions, labels=labels)
 
-    return fig, ax
+    return fig
 end
 """
     exclusions!(
@@ -291,7 +292,7 @@ end
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of LineStrings for mothership route.
 
@@ -302,20 +303,20 @@ Create a plot of LineStrings for mothership route.
 - `color`: LineString color.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure object.
 """
 function route(
     route::Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     route!(ax, route, markers=markers, labels=labels, color=color)
 
-    return fig, ax
+    return fig
 end
 """
     route!(
@@ -366,7 +367,7 @@ function route!(
 
     # Mark waypoints with 'x'
     if markers
-        scatter!(waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
+        scatter!(ax, waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
         # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
     end
 
@@ -420,7 +421,7 @@ end
 """
     tenders(
         tender_soln::Vector{TenderSolution}
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of tender routes within each cluster.
 
@@ -428,17 +429,17 @@ Create a plot of tender routes within each cluster.
 - `tender_soln::Vector{TenderSolution}`: Tender solutions.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+- `fig`: Figure object.
 """
 function tenders(
     tender_soln::Vector{TenderSolution}
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     tenders!(ax, tender_soln)
 
-    return fig, ax
+    return fig
 end
 
 """
@@ -856,7 +857,7 @@ function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.
     colormap = distinguishable_colors(max_id + 2)[3:end]
     return colormap
 end
-function create_colormap(ids::UnitRange{Int64})
+function create_colormap(ids::UnitRange{Int64})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     return create_colormap(collect(ids))
 end
 
