@@ -1,3 +1,7 @@
+if !@isdefined(TEST_PROBLEM) || !@isdefined(TEST_SOLUTION)
+    const (TEST_PROBLEM, TEST_SOLUTION) = initialize_instances()
+end
+
 @testset "Ensure route consistency" begin
     # Helpers
     ## Grab the start/end point of the first/last LineString in a Route
