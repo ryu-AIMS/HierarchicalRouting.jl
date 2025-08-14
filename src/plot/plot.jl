@@ -46,7 +46,7 @@ Create a plot of nodes by cluster.
 - `labels`: Plot cluster labels flag.
 
 # Returns
-- `fig`: Figure object.
+The created Figure object containing the plot.
 """
 function clusters(
     clusters::Vector{Cluster};
@@ -236,7 +236,7 @@ Create a plot of exclusion zones.
 - `labels`: Plot exclusion zones flag.
 
 # Returns
-- `fig`: Figure and Axis objects.
+The created Figure object containing the plot.
 """
 function exclusions(
     exclusions::DataFrame;
@@ -303,7 +303,7 @@ Create a plot of LineStrings for mothership route.
 - `color`: LineString color.
 
 # Returns
-- `fig`: Figure object.
+The created Figure object containing the plot.
 """
 function route(
     route::Route;
@@ -429,7 +429,7 @@ Create a plot of tender routes within each cluster.
 - `tender_soln::Vector{TenderSolution}`: Tender solutions.
 
 # Returns
-- `fig`: Figure object.
+The created Figure object containing the plot.
 """
 function tenders(
     tender_soln::Vector{TenderSolution}
@@ -518,7 +518,7 @@ Create a plot of the full routing solution, including:
 - `show_tenders`: Whether to show **tender** routes.
 
 # Returns
-- `fig`: The created Figure object containing the plot.
+The created Figure object containing the plot.
 """
 function solution(
     problem::Problem,
@@ -688,7 +688,7 @@ Create a plot of the solution at each progressive disturbance event, including:
 - `show_tenders`: Whether to show **tender** routes.
 
 # Returns
-- `fig`: The created Figure object containing the plot.
+The created Figure object containing the plot.
 """
 function solution_disturbances(
     problem::Problem,
