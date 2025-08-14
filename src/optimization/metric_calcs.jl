@@ -62,8 +62,8 @@ Compute the cost of each sortie in a cluster.
 The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
-    tender_dist_vectors = getfield.(tenders.sorties, :dist_matrix)
-    sortie_dists = sum.(tender_dist_vectors)
+    tender_dist_vectors::Vector{Vector{Float64}} = getfield.(tenders.sorties, :dist_matrix)
+    sortie_dists::Vector{Float64} = sum.(tender_dist_vectors)
     return sortie_dists
 end
 
