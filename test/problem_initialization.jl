@@ -1,3 +1,7 @@
+if !@isdefined(TEST_PROBLEM)
+    const TEST_PROBLEM, _ = initialize_instances()
+end
+
 @testset "Initialize problem" begin
     @testset "Initialize with geojson file" begin
         @test TEST_PROBLEM isa HierarchicalRouting.Problem
