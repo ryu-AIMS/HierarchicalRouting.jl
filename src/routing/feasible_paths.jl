@@ -72,7 +72,7 @@ function get_feasible_vector(
     nodes::Vector{Point{2,Float64}}, exclusions::POLY_VEC
 )::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
     n_points = length(nodes) - 1
-    dist_vector = zeros(n_points)
+    dist_vector = fill(Inf, n_points)
     path_vector = fill(Vector{LineString{2,Float64}}(), n_points)
 
     for point_i_idx in 1:n_points
@@ -80,13 +80,11 @@ function get_feasible_vector(
         if nodes[point_i_idx] != nodes[point_i_idx+1]
             # TODO: Process elsewhere
             # Check if any of the points are within an exclusion zone
-            if !any(point_in_exclusion.(point_nodes, [exclusions]))
+            if !any(point_in_exclusion.(point_nodes, Ref(exclusions)))
                 dist_vector[point_i_idx], path_vector[point_i_idx] =
                     shortest_feasible_path(
                         point_nodes[1], point_nodes[2], exclusions
                     )
-            else
-                dist_vector[point_i_idx] = Inf
             end
         end
     end
@@ -256,10 +254,13 @@ function shortest_feasible_path(
             #? Connect initial point to all visible vertices on final polygon?
         end
 
+        # Reuseable cache for mask to avoid repeated allocations
+        visibility_mask = falses(length(poly_vertices))
+
         # For each polygon vertex, add edges to all visible vertices
         for i in poly_vertices
             # Check visibility of all polygon vertices from the current vertex `i`
-            visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+            visibility_mask .= is_visible.(Ref(i), poly_vertices, Ref(exclusions))
             vis_pts_from_i = poly_vertices[visibility_mask]
             n_vis_pts_from_i = length(vis_pts_from_i)
 
@@ -388,9 +389,6 @@ function build_network!(
         return nothing
     end
 
-    # Mark current point as visited
-    # push!(visited, current_point)
-
     candidates, next_exclusion_idxs = find_widest_points(
         current_point,
         final_point,
@@ -503,10 +501,13 @@ function build_graph(
     # 1. A polygon is provided, AND
     # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
     if !is_visible(initial_point, final_point, final_polygon)
+        # Cache to reuse for masking visible vertices
+        visibility_mask = falses(length(final_poly_verts))
+
         # Add edges connecting any visible polygon vertices to other polyogn vertices
         for i in final_poly_verts
-            visibility_mask = (final_poly_verts .!= i) .&
-                              is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
+            visibility_mask .= (final_poly_verts .!= i) .&
+                               is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
 
             visible_points = final_poly_verts[visibility_mask]
 
