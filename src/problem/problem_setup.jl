@@ -271,6 +271,47 @@ function get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
 end
 
 """
+    get_bbox_bounds(geoms::Vector{AG.IGeometry{AG.wkbPolygon}})::NTuple{4,Float64}
+    get_bbox_bounds(geoms::Vector{Point{2,Float64}})::NTuple{4,Float64}
+    get_bbox_bounds(geoms::Vector{Vector})::NTuple{4,Float64}
+
+Retrieves the bounding box bounds from the given geometries.
+
+# Arguments
+- `geoms`: A vector of geometries, which can be polygons, points, or vectors.
+
+# Returns
+A tuple containing the bounding box coordinates:
+- min_x,
+- max_x,
+- min_y,
+- max_y.
+"""
+function get_bbox_bounds(geoms::Vector{AG.IGeometry{AG.wkbPolygon}})::NTuple{4,Float64}
+    min_x = minimum(getfield.(AG.envelope.(geoms), 1))
+    max_x = maximum(getfield.(AG.envelope.(geoms), 2))
+    min_y = minimum(getfield.(AG.envelope.(geoms), 3))
+    max_y = maximum(getfield.(AG.envelope.(geoms), 4))
+    return (min_x, max_x, min_y, max_y)
+end
+function get_bbox_bounds(geoms::Vector{Point{2,Float64}})::NTuple{4,Float64}
+    min_x = minimum(getindex.(geoms, 1))
+    max_x = maximum(getindex.(geoms, 1))
+    min_y = minimum(getindex.(geoms, 2))
+    max_y = maximum(getindex.(geoms, 2))
+    return (min_x, max_x, min_y, max_y)
+end
+function get_bbox_bounds(geoms::Vector{Vector})::NTuple{4,Float64}
+    bboxes = get_bbox_bounds.(geoms)
+
+    min_x = minimum(getindex.(bboxes, 1))
+    max_x = maximum(getindex.(bboxes, 2))
+    min_y = minimum(getindex.(bboxes, 3))
+    max_y = maximum(getindex.(bboxes, 4))
+    return (min_x, max_x, min_y, max_y)
+end
+
+"""
     filter_within_bbox(
         gdf::DataFrame,
         bbox_bounds::NTuple{4,Float64}

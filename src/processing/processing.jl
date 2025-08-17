@@ -62,3 +62,52 @@ function create_disturbance_data_dataframe(
     disturbance_values = get_disturbance_value.(nodes, Ref(disturbance_data))
     return DataFrame(node=nodes, disturbance_value=disturbance_values)
 end
+
+"""
+    linestring_segment_to_keep(
+        section::Symbol,
+        point::Point{2,Float64},
+        line_strings::Vector{LineString{2,Float64}},
+    )::Vector{LineString{2,Float64}}
+
+Return the segment of line strings that contains the specified point, either from the start
+or to the end of the line strings.
+
+# Arguments
+- `section`: A symbol indicating whether to keep the segment from the start (`:from`) or to the end (`:to`).
+- `point`: The point to check against the line strings.
+- `line_strings`: A vector of line strings to search through.
+
+# Returns
+- A vector of line strings that contain the specified point in the specified section.
+"""
+function linestring_segment_to_keep(
+    section::Symbol,
+    point::Point{2,Float64},
+    line_strings::Vector{LineString{2,Float64}},
+)::Vector{LineString{2,Float64}}
+    linestring_points = getfield.(line_strings, :points)
+    if section == :from
+        start_seg_points = getindex.(linestring_points, 1)
+        leg_start_idx = findfirst(==(point), start_seg_points)
+        segment = line_strings[leg_start_idx:end]
+        return segment
+    elseif section == :to
+        end_seg_points = getindex.(linestring_points, 2)
+        leg_end_idx = findfirst(==(point), end_seg_points)
+        segment = line_strings[1:leg_end_idx]
+        return segment
+    else
+        error("Invalid section specified. Use `:from` or `:to`")
+    end
+end
+
+"""
+    get_superdiag_vals(M::Matrix{Float64})::Vector{Float64}
+
+Return the values from the first superdiagonal of a square matrix.
+Note: The superdiagonal is the first diagonal above the main diagonal.
+"""
+function get_superdiag_vals(M::Matrix{Float64})::Vector{Float64}
+    return [M[i, i+1] for i in 1:(size(M, 1)-1)]
+end
