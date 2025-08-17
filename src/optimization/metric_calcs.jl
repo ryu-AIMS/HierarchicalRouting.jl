@@ -1,19 +1,20 @@
 
 """
-    return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
+    route_distance(_, dist_vector::Vector{Float64})::Float64
 
-Calculate the total distance of a route starting from index 1, and returning to index 1.
+Calculate the total distance of a route, given a vector of distances, starting and ending at
+the same point.
 
 # Arguments
-- `route`: Vector of cluster indices.
-- `dist_matrix`: Distance matrix between clusters.
+- `_`: Unused. Kept to maintain compatibility when this function is passed as an argument to
+`optimize_route_two_opt`.
+- `dist_vector`: Vector of distances between consecutive points in the route.
 
 # Returns
 Total distance of the return route.
 """
-function return_route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
-    return sum(getindex.(Ref(dist_matrix), route[1:end-1], route[2:end])) +
-           dist_matrix[route[end], route[1]]  # Return to start
+function route_distance(_, dist_vector::Vector{Float64})::Float64
+    return sum(dist_vector)
 end
 
 """
@@ -64,31 +65,9 @@ Compute the cost of each sortie in a cluster.
 The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
-    #TODO: update to use dist_matrix (stored)
-
-    # Get nodes in each sortie
-    sortie_nodes::Vector{Vector{Point{2,Float64}}} = getproperty.(tenders.sorties, :nodes)
-
-    # Distance from start pt to first node
-    sortie_dist::Vector{Float64} = haversine.(
-        Ref(tenders.start),
-        getindex.(sortie_nodes, 1)
-    )
-
-    # Distance between nodes in each sortie
-    sortie_dist .+= [
-        length(sortie) > 1 ?
-        sum(haversine.(sortie[1:end-1], sortie[2:end])) :
-        0.0
-        for sortie in sortie_nodes
-    ]
-
-    # Distance from last node to finish pt
-    sortie_dist .+= haversine.(
-        last.(sortie_nodes),
-        Ref(tenders.finish)
-    )
-    return sortie_dist
+    tender_dist_vectors::Vector{Vector{Float64}} = getfield.(tenders.sorties, :dist_matrix)
+    sortie_dists::Vector{Float64} = sum.(tender_dist_vectors)
+    return sortie_dists
 end
 
 """
@@ -133,15 +112,12 @@ Optionally, the number of clusters can be specified to limit the calculation to 
 - `route`: Full mothership route between waypoints.
 
 # Returns
-- The sum of (haversine) mothership distances between clusters.
+- The sum of mothership distances between clusters.
 """
 function mothership_dist_between_clusts(route::Route, num_clusters::Int=0)::Float64
-    start_segment_points::Vector{Point{2,Float64}} = route.nodes[1:2:end-1]
-    end_segment_points::Vector{Point{2,Float64}} = route.nodes[2:2:end]
-
-    n = iszero(num_clusters) ? length(start_segment_points) : num_clusters
-
-    return sum(haversine.(start_segment_points[1:n], end_segment_points[1:n]))
+    full_route = route.dist_matrix
+    n = iszero(num_clusters) ? length(full_route) : 2 * num_clusters + 1
+    return sum(full_route[1:2:n])
 end
 
 """
@@ -153,10 +129,12 @@ Compute the cost of the mothership within each cluster, not including between cl
 - `route`: Full mothership route between waypoints.
 
 # Returns
-- The (haversine) mothership distance within each cluster.
+- The mothership distance within each cluster.
 """
-function mothership_dist_within_clusts(route::Route)::Vector{Float64}
-    return haversine.(route.nodes[2:2:end-1], route.nodes[3:2:end])
+function mothership_dist_within_clusts(route::Route, num_clusters::Int=0)::Vector{Float64}
+    full_route = route.dist_matrix
+    n = iszero(num_clusters) ? length(full_route) : 2 * num_clusters + 1
+    return full_route[2:2:n]
 end
 
 """
@@ -182,20 +160,22 @@ function critical_path(
     soln::MSTSolution,
     vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Float64
-    num_clusters = length(soln.tenders[end])
+    tenders = soln.tenders[end]
+    ms_route = soln.mothership_routes[end].route
+    num_clusters = length(tenders)
+
     # Within clusters
-    cluster_sorties = tender_clust_dist.(soln.tenders[end])
+    cluster_sorties = tender_clust_dist.(tenders)
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
-    mothership_sub_clust_cost = vessel_weightings[1] *
-                                mothership_dist_within_clusts(soln.mothership_routes[end].route)[1:num_clusters]
+    mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
+    mothership_sub_clust_cost = vessel_weightings[1] * mothership_within_clusts
 
     cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
     cluster_cost_total = sum(cluster_cost_each)
 
     # Between clusters
-    tow_cost = vessel_weightings[1] *
-               mothership_dist_between_clusts(soln.mothership_routes[end].route, num_clusters)
+    tow_cost = vessel_weightings[1] * mothership_dist_between_clusts(ms_route, num_clusters)
 
     return cluster_cost_total + tow_cost
 end
@@ -204,19 +184,21 @@ function critical_distance_path(
     soln::MSTSolution,
     vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Float64
-    num_clusters = length(soln.tenders[end])
+    tenders = soln.tenders[end]
+    ms_route = soln.mothership_routes[end].route
+    num_clusters = length(tenders)
+
     # Within clusters
-    cluster_sorties = tender_clust_dist.(soln.tenders[end])
+    cluster_sorties = tender_clust_dist.(tenders)
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     total_sortie_cost = sum.(cluster_sorties) .* vessel_weightings[2]
-    mothership_sub_clust_cost = vessel_weightings[1] *
-                                mothership_dist_within_clusts(soln.mothership_routes[end].route)[1:num_clusters]
+    mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
+    mothership_sub_clust_cost = vessel_weightings[1] * mothership_within_clusts
 
     cluster_cost_total = sum(vcat(total_sortie_cost, mothership_sub_clust_cost))
 
     # Between clusters
-    tow_cost = vessel_weightings[1] *
-               mothership_dist_between_clusts(soln.mothership_routes[end].route, num_clusters)
+    tow_cost = vessel_weightings[1] * mothership_dist_between_clusts(ms_route, num_clusters)
 
     return cluster_cost_total + tow_cost
 end

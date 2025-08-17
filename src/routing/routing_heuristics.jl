@@ -1,9 +1,11 @@
 
 using Optim
 
+const VALID_SECTIONS::Vector{Symbol} = [:from, :to]
+
 struct Route
     nodes::Vector{Point{2,Float64}}
-    dist_matrix::Matrix{Float64}
+    dist_matrix::AbstractArray{Float64}
     line_strings::Vector{LineString{2,Float64}}
 end
 
@@ -287,6 +289,13 @@ function optimize_waypoints(
     waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
     x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
 
+    # Initialize variables for objective function
+    wpts_length::Int64 = length(waypoints_initial) + 2 # +2 for depot start/end points
+    wpts::Vector{Point{2,Float64}} = Vector{Point{2,Float64}}(undef, wpts_length)
+    has_bad_waypoint::BitVector = falses(wpts_length)
+    exclusion_count::Int64 = 0
+    score::Float64 = 0.0
+
     best_soln = Ref{MSTSolution}(soln)
     best_score = Ref(Inf)
     best_count = Ref(0)
@@ -296,7 +305,7 @@ function optimize_waypoints(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts::Vector{Point{2,Float64}} = Point.([
+        wpts .= Point.([
             last_ms_route.route.nodes[1],  # first waypoint (depot)
             tuple.(x[1:2:end], x[2:2:end])...,
             last_ms_route.route.nodes[end]  # last waypoint (depot)
@@ -305,7 +314,7 @@ function optimize_waypoints(
         # Exit early here if any waypoints are inside exclusion zones
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
-        if any(has_bad_waypoint)
+        if exclusion_count > 0
             naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
             return naive_score + naive_score * exclusion_count
         end
@@ -327,6 +336,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count[] += 1
         end
+
         return score
     end
 
@@ -336,7 +346,7 @@ function optimize_waypoints(
         f_reltol=cost_tol,
         g_abstol=gradient_tol,
         show_trace=true,
-        allow_f_increases=false,  # allow or disallow function value to increase
+        allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
 
@@ -389,19 +399,12 @@ function rebuild_solution_with_waypoints(
     exclusions_mothership::POLY_VEC,
     exclusions_tender::POLY_VEC
 )::MSTSolution
-    # Update the waypoints in the mothership route
-    adjusted_waypoints = adjust_waypoint.(waypoints_proposed, Ref(exclusions_mothership))
     dist_vector_proposed, line_strings_proposed = get_feasible_vector(
-        adjusted_waypoints, exclusions_mothership
+        waypoints_proposed, exclusions_mothership
     )
-    n = length(dist_vector_proposed)
-    # Ensure the distance matrix is square and matches the number of waypoints
-    dist_matrix_proposed = zeros(Float64, n + 1, n + 1)
-    diag_idxs = CartesianIndex.(1:n, 2:n+1)
-    dist_matrix_proposed[diag_idxs] .= dist_vector_proposed
     ms_route_new::Route = Route(
-        adjusted_waypoints,
-        dist_matrix_proposed,
+        waypoints_proposed,
+        dist_vector_proposed,
         vcat(line_strings_proposed...)
     )
 
@@ -412,7 +415,11 @@ function rebuild_solution_with_waypoints(
     )
 
     # Update the tender solutions with the new waypoints
-    tender_soln_new = generate_tender_sorties(solution_ex, adjusted_waypoints, exclusions_tender)
+    tender_soln_new = generate_tender_sorties(
+        solution_ex,
+        waypoints_proposed,
+        exclusions_tender
+    )
 
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
@@ -455,26 +462,34 @@ function rebuild_sortie(
     sortie_end_has_moved,
 )::Route
     segment_to_keep = route.line_strings
+    updated_dist_matrix = typeof(route.dist_matrix) == Vector{Float64} ?
+                          route.dist_matrix :
+                          get_superdiag_vals(route.dist_matrix)
+
     # Keep the segments of the line strings that contain matching start/end points
     if sortie_start_has_moved
-        segment_to_keep = update_segment(
+        segment_dist, segment_to_keep = update_segment(
             segment_to_keep,
             :from,
             start_new,
             route.nodes[1],
             exclusions
         )
+        updated_dist_matrix[1] = segment_dist
     end
+
     if sortie_end_has_moved
-        segment_to_keep = update_segment(
+        segment_dist, segment_to_keep = update_segment(
             segment_to_keep,
             :to,
             route.nodes[end],
             finish_new,
             exclusions
         )
+        updated_dist_matrix[end] = segment_dist
     end
-    return Route(route.nodes, route.dist_matrix, segment_to_keep)
+
+    return Route(route.nodes, updated_dist_matrix, segment_to_keep)
 end
 
 """
@@ -484,7 +499,7 @@ end
         point_from::Point{2,Float64},
         point_to::Point{2,Float64},
         exclusions::POLY_VEC
-    )::Vector{LineString{2,Float64}}
+    )::Tuple{Float64,Vector{LineString{2,Float64}}}
 
 Update the segment of line strings based on the specified section and points.
 
@@ -497,8 +512,9 @@ Update the segment of line strings based on the specified section and points.
 - `exclusions`: Exclusion zone polygons for tenders to avoid.
 
 # Returns
-- A vector of updated segment of line strings between given points `point_from` - `point_to`
-    while avoiding exclusion zones.
+- A tuple containing:
+  - the total segment distance, and
+  - a vector of updated line strings.
 """
 function update_segment(
     segment::Vector{LineString{2,Float64}},
@@ -506,31 +522,30 @@ function update_segment(
     point_from::Point{2,Float64},
     point_to::Point{2,Float64},
     exclusions::POLY_VEC
-)::Vector{LineString{2,Float64}}
-    remaining_segment = LineString{2,Float64}[]
-    if section == :from
-        remaining_segment = linestring_segment_to_keep(
-            section,
-            point_to,
-            segment
-        )
-    elseif section == :to
-        remaining_segment = linestring_segment_to_keep(
-            section,
-            point_from,
-            segment
-        )
-    else
-        error("Invalid section: $section. Use `:from` or `:to`")
+)::Tuple{Float64,Vector{LineString{2,Float64}}}
+
+    if section ∉ VALID_SECTIONS
+        throw(ArgumentError("Invalid section: $section. Use one of $VALID_SECTIONS"))
     end
-    leg_to_update = [point_from, point_to]
-
-    _, leg = get_feasible_vector(leg_to_update, exclusions)
 
     if section == :from
-        return vcat(leg..., remaining_segment...)
+        target_point = point_to
     elseif section == :to
-        return vcat(remaining_segment..., leg...)
+        target_point = point_from
+    end
+
+    remaining_segment::Vector{LineString{2,Float64}} = linestring_segment_to_keep(
+        section,
+        target_point,
+        segment
+    )
+
+    leg_to_update = [point_from, point_to]
+    dist, leg = get_feasible_vector(leg_to_update, exclusions)
+    if section == :from
+        return (sum(dist), vcat(leg..., remaining_segment...))
+    elseif section == :to
+        return (sum(dist), vcat(remaining_segment..., leg...))
     end
 end
 
@@ -581,9 +596,8 @@ function generate_tender_sorties(
         end
 
         # Rebuild the sorties with new start/finish points
-        sorties_old = tender_old.sorties
         sorties_new = rebuild_sortie.(
-            sorties_old,
+            tender_old.sorties,
             Ref(start_new),
             Ref(finish_new),
             Ref(exclusions),
@@ -700,7 +714,7 @@ function nearest_neighbour(
 
     return MothershipSolution(
         cluster_sequence=ordered_centroids,
-        route=Route(waypoints.waypoint, dist_matrix, path)
+        route=Route(waypoints.waypoint, waypoint_dist_vector, path)
     )
 end
 function nearest_neighbour(
@@ -769,23 +783,16 @@ function nearest_neighbour(
         ex_ms_route.cluster_sequence[1:cluster_seq_idx, :],
         sequenced_remaining_centroids
     )
-    ordered_clusters = sort(cluster_sequence[1:end-1, :], :id)
-    ordered_nodes = Point{2,Float64}.(ordered_clusters.lon, ordered_clusters.lat)
-    updated_full_dist_matrix = get_feasible_matrix(
-        ordered_nodes,
-        exclusions_mothership
-    )[1]
-
-    # Calc feasible path between waypoints.
-    _, waypoint_path_vector = get_feasible_vector(
-        waypoints.waypoint, exclusions_mothership
-    )
     ex_path = ex_ms_route.route.line_strings[
         1:findfirst(
         x -> x == ex_ms_route.route.nodes[2*cluster_seq_idx-1],
         getindex.(getproperty.(ex_ms_route.route.line_strings, :points), 2)
+    )]
+
+    # Calc feasible path between waypoints.
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
+        waypoints.waypoint, exclusions_mothership
     )
-    ]
     new_path = vcat(waypoint_path_vector...)
     full_path = vcat(ex_path, new_path...)
 
@@ -796,7 +803,7 @@ function nearest_neighbour(
                 ex_ms_route.route.nodes[1:2*cluster_seq_idx-2],
                 waypoints.waypoint
             ),
-            updated_full_dist_matrix,
+            waypoint_dist_vector,
             full_path
         )
     )
@@ -807,7 +814,7 @@ Core two-opt optimization function that can be used by all solution types.
 """
 function optimize_route_two_opt(
     route::Vector{Int},
-    dist_matrix::Matrix,
+    dist_matrix::AbstractArray{Float64},
     distance_fn::Function;
     start_idx::Int=1,
     end_idx::Int=length(route)
@@ -842,7 +849,6 @@ Process optimized route for mothership solutions.
 function process_mothership_route(
     optimized_route::Vector{Int},
     cluster_centroids::DataFrame,
-    dist_matrix::Matrix,
     exclusions_mothership::POLY_VEC,
     exclusions_tender::POLY_VEC,
     existing_waypoints::Union{Vector,Nothing}=nothing,
@@ -878,7 +884,7 @@ function process_mothership_route(
         waypoints.waypoint
     end
 
-    _, waypoint_path_vector = get_feasible_vector(
+    waypoint_dist_vec, waypoint_path_vector = get_feasible_vector(
         final_waypoints,
         exclusions_mothership
     )
@@ -887,7 +893,7 @@ function process_mothership_route(
 
     return MothershipSolution(
         cluster_sequence=ordered_nodes,
-        route=Route(final_waypoints, dist_matrix, path)
+        route=Route(final_waypoints, waypoint_dist_vec, path)
     )
 end
 
@@ -907,7 +913,7 @@ function two_opt(
     exclusions_tender::POLY_VEC,
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_matrix = ms_soln_current.route.dist_matrix
+    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -920,14 +926,13 @@ function two_opt(
     # Optimize the entire route
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_matrix,
-        return_route_distance
+        dist_vector,
+        route_distance
     )
 
     return process_mothership_route(
         optimized_route,
         cluster_centroids,
-        dist_matrix,
         exclusions_mothership,
         exclusions_tender
     )
@@ -951,7 +956,7 @@ function two_opt(
     cluster_seq_idx::Int64
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_matrix = ms_soln_current.route.dist_matrix
+    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -964,8 +969,8 @@ function two_opt(
     # Optimize only from cluster_seq_idx to the end
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_matrix,
-        return_route_distance;
+        dist_vector,
+        route_distance;
         start_idx=cluster_seq_idx,
         end_idx=length(initial_route)
     )
@@ -973,7 +978,6 @@ function two_opt(
     return process_mothership_route(
         optimized_route,
         cluster_centroids,
-        dist_matrix,
         exclusions_mothership,
         exclusions_tender,
         ms_soln_current.route.nodes,
@@ -997,14 +1001,20 @@ function two_opt(
     sorties_new = Vector{Route}(undef, length(sorties_current))
 
     for (idx, sortie) in enumerate(sorties_current)
-        nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
-        n = length(nodes)
-
-        if n ≤ 3
+        if length(sortie.nodes) ≤ 1
             # If there is only 1 node between start and finish, no change is possible
-            sorties_new[idx] = sortie
+            # update to distance vector
+            dist_vector = get_superdiag_vals(sortie.dist_matrix)
+            sorties_new[idx] = Route(
+                sortie.nodes,
+                dist_vector,
+                vcat(sortie.line_strings...)
+            )
             continue
         end
+
+        nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
+        n = length(nodes)
 
         initial_sequence = collect(1:n)
 
@@ -1019,12 +1029,15 @@ function two_opt(
 
         # Build new sortie ordering, ignoring start and finish
         nodes_new = nodes[optimized_sequence[2:end-1]]
-        dist_matrix_new = sortie.dist_matrix[optimized_sequence, optimized_sequence]
 
         # Recompute feasible path through exclusions
-        new_path = vcat(get_feasible_vector(nodes[optimized_sequence], exclusions_tender)[2]...)
+        dist_vector, path_vector = get_feasible_vector(
+            nodes[optimized_sequence],
+            exclusions_tender
+        )
+        new_path = vcat(path_vector...)
 
-        sorties_new[idx] = Route(nodes_new, dist_matrix_new, new_path)
+        sorties_new[idx] = Route(nodes_new, dist_vector, new_path)
     end
 
     return TenderSolution(
