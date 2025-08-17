@@ -7,7 +7,7 @@ the same point.
 
 # Arguments
 - `_`: Unused. Kept to maintain compatibility when this function is passed as an argument to
-other functions.
+`optimize_route_two_opt`.
 - `dist_vector`: Vector of distances between consecutive points in the route.
 
 # Returns
