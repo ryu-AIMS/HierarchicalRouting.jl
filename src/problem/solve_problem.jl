@@ -2,17 +2,21 @@
 """
     initial_solution(
         problem::Problem;
-        disturbance_clusters::Set{Int64}=Set{Int64}()
+        disturbance_clusters::Set{Int64}=Set{Int64}(),
+        waypoint_optim_flag::Bool=true,
     )::MSTSolution
 
-Generate a solution to the problem for:
-- the mothership by using the nearest neighbour heuristic to generate an initial solution,
-    and then improving using the 2-opt heuristic, and
+Generate an initial solution to the problem for:
+- the mothership by using the nearest neighbour heuristic
+and then improving using the 2-opt heuristic, and
 -  for tenders using the sequential nearest neighbour heuristic.
+Optionally, optimize waypoints using gradient descent.
 
 # Arguments
 - `problem`: Problem instance to solve
+- `k`: Number of clusters to generate
 - `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
+- `waypoint_optim_flag`: Flag to indicate whether to optimize the waypoints of the solution.
 
 # Returns
 Best total MSTSolution found
@@ -20,7 +24,8 @@ Best total MSTSolution found
 function initial_solution(
     problem::Problem;
     k::Int=1,
-    disturbance_clusters::Set{Int64}=Set{Int64}()
+    disturbance_clusters::Set{Int64}=Set{Int64}(),
+    waypoint_optim_flag::Bool=true,
 )::MSTSolution
     n_events = length(disturbance_clusters) + 1
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
@@ -115,9 +120,13 @@ function initial_solution(
     end
 
     solution_init::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
-    solution_opt::MSTSolution = optimize_waypoints(solution_init, problem)
 
-    return solution_opt
+    if waypoint_optim_flag
+        @info "Optimizing waypoints using gradient descent"
+        return optimize_waypoints(solution_init, problem)
+    else
+        return solution_init
+    end
 end
 
 """
@@ -126,13 +135,16 @@ end
         k::Int=1,
         disturbance_clusters::Set{Int64}=Set{Int64}()
         seed::Union{Nothing,Int64}=nothing,
-        rng::AbstractRNG=Random.GLOBAL_RNG
+        rng::AbstractRNG=Random.GLOBAL_RNG,
+        waypoint_optim_flag::Bool=true,
     )::MSTSolution
 
 Generate a solution to the problem for:
 - the mothership by using the nearest neighbour heuristic to generate an initial solution,
     and then improving using the 2-opt heuristic, and
 -  for tenders using the sequential nearest neighbour heuristic.
+Optimize solution using simulated annealing.
+Optionally, optimize waypoints using gradient descent.
 
 # Arguments
 - `problem`: Problem instance to solve
@@ -140,6 +152,7 @@ Generate a solution to the problem for:
 - `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 - `seed`: Optional seed for random number generation
 - `rng`: AbstractRNG for random number generation
+- `waypoint_optim_flag`: Flag to enable/disable waypoint optimization
 
 # Returns
 Best total MSTSolution found
@@ -149,7 +162,8 @@ function solve(
     k::Int=1,
     disturbance_clusters::Set{Int64}=Set{Int64}(),
     seed::Union{Nothing,Int64}=nothing,
-    rng::AbstractRNG=Random.GLOBAL_RNG
+    rng::AbstractRNG=Random.GLOBAL_RNG,
+    waypoint_optim_flag::Bool=true,
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
@@ -282,10 +296,14 @@ function solve(
         tender_soln_sets[disturbance_cluster_idx] = optimized_current_solution.tenders[1]
     end
 
-    solution_init::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
-    solution_opt::MSTSolution = optimize_waypoints(solution_init, problem)
+    solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
 
-    return solution_opt
+    if waypoint_optim_flag
+        @info "Optimizing waypoints using gradient descent"
+        return optimize_waypoints(solution, problem)
+    else
+        return solution
+    end
 end
 
 """
