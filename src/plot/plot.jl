@@ -573,7 +573,7 @@ function solution(
         metric="critical_distance_path()\ntotal dist"
     )
 
-    highlight_critical_path!(ax, soln, vessel_weightings)
+    # highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
 end
@@ -868,6 +868,40 @@ function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
         float(base_color.b)
     )
     return ColorTypes.HSV(base_color_float64).h
+end
+
+# Debug plots
+
+"""
+    debug_waypoints(problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}}; title="")
+    debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+
+Plots the exclusion zones alongside indicative waypoints.
+
+# Example
+```julia
+import HierarchicalRouting as HR
+
+x = Problem(...)
+x = [some waypoints in long/lat sequence...]
+HR.Plot.debug_waypoints(problem, x)
+```
+"""
+function debug_waypoints(
+    problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}};
+    title=""
+)
+    fig = Figure(size=(750, 880))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    exclusions!(ax, problem.mothership.exclusion; labels=false)
+    exclusions!(ax, problem.tenders.exclusion; labels=false)
+    scatter!(wpts)
+    ax.title = title
+
+    return fig
+end
+function debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+    return debug_waypoints(problem, Point.(wpts[1:2:end], wpts[2:2:end]); title=title)
 end
 
 export clusters, clusters!, exclusions, exclusions!, route, route!, tenders, tenders!
