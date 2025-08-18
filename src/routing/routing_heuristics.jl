@@ -271,7 +271,9 @@ Updated mothership and tender solution with optimized waypoint positions and reg
 function optimize_waypoints(
     soln::MSTSolution,
     problem::Problem;
-    opt_method=GradientDescent(),
+    opt_method=GradientDescent(
+    # alphaguess=Optim.LineSearches.InitialConstantChange()
+    ),
     cost_tol::Float64=0.0,
     gradient_tol::Float64=3e4,
     iterations::Int64=10,
@@ -315,8 +317,17 @@ function optimize_waypoints(
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
         if exclusion_count > 0
-            naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
-            return naive_score + naive_score * exclusion_count
+            soln_proposed = rebuild_solution_with_waypoints(
+                best_soln[],
+                wpts,
+                exclusions_mothership,
+                exclusions_tender
+            )
+
+            naive_score = critical_path(soln_proposed, vessel_weightings)
+            return naive_score * (exclusion_count + 1)^2
+            # naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
+            # return naive_score + naive_score * (exclusion_count + 1)^2
         end
 
         soln_proposed = rebuild_solution_with_waypoints(
@@ -327,6 +338,7 @@ function optimize_waypoints(
         )
 
         score = critical_path(soln_proposed, vessel_weightings)
+        # Main.@infiltrate isinf(score)
 
         if score < best_score[]
             best_soln[] = soln_proposed
@@ -336,6 +348,12 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count[] += 1
         end
+
+        if !isnothing(Plot.current_axis())
+            Plot.empty!(Plot.current_axis())
+        end
+        display(Plot.debug_waypoints(problem, wpts; title="Score: $(score) | Iter: $(best_count[])"))
+        # display(Plot.solution(problem, soln_proposed))
 
         return score
     end
