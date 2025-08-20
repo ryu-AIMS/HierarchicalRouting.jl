@@ -317,17 +317,8 @@ function optimize_waypoints(
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
         if exclusion_count > 0
-            soln_proposed = rebuild_solution_with_waypoints(
-                best_soln[],
-                wpts,
-                exclusions_mothership,
-                exclusions_tender
-            )
-
-            naive_score = critical_path(soln_proposed, vessel_weightings)
+            naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
             return naive_score * (exclusion_count + 1)^2
-            # naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
-            # return naive_score + naive_score * (exclusion_count + 1)^2
         end
 
         soln_proposed = rebuild_solution_with_waypoints(
