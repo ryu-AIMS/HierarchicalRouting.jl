@@ -294,6 +294,9 @@ function optimize_waypoints(
     # Initialize variables for objective function
     wpts_length::Int64 = length(waypoints_initial) + 2 # +2 for depot start/end points
     wpts::Vector{Point{2,Float64}} = Vector{Point{2,Float64}}(undef, wpts_length)
+    wpts[1] = last_ms_route.route.nodes[1] # Depot start fixed
+    wpts[end] = last_ms_route.route.nodes[end] # Depot end fixed
+
     has_bad_waypoint::BitVector = falses(wpts_length)
     exclusion_count::Int64 = 0
     score::Float64 = 0.0
@@ -307,11 +310,9 @@ function optimize_waypoints(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts .= Point.([
-            last_ms_route.route.nodes[1],  # first waypoint (depot)
-            tuple.(x[1:2:end], x[2:2:end])...,
-            last_ms_route.route.nodes[end]  # last waypoint (depot)
-        ])
+        @inbounds for i in 1:length(waypoints_initial)
+            wpts[i+1] = Point(x[2i-1], x[2i])
+        end
 
         # Exit early here if any waypoints are inside exclusion zones
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
