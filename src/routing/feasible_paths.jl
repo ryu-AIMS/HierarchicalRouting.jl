@@ -90,7 +90,7 @@ function get_feasible_vector(
             dist_vector[point_i_idx] = 0.0
         end
     end
-
+    @assert !any(isinf.(dist_vector)) "Feasible distances contain infinite values"
     return dist_vector, path_vector
 end
 

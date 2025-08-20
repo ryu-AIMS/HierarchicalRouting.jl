@@ -176,8 +176,10 @@ function critical_path(
 
     # Between clusters
     tow_cost = vessel_weightings[1] * mothership_dist_between_clusts(ms_route, num_clusters)
-
-    return cluster_cost_total + tow_cost
+    total_critical_path = cluster_cost_total + tow_cost
+    @assert !isinf(total_critical_path) "Critical path cost is infinite, " *
+                                        "indicating a solution with a bad waypoint"
+    return total_critical_path
 end
 
 function critical_distance_path(

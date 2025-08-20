@@ -329,7 +329,7 @@ function optimize_waypoints(
         )
 
         score = critical_path(soln_proposed, vessel_weightings)
-        # Main.@infiltrate isinf(score)
+        @assert !isinf(score) "Critical path cost is infinite, indicating a bad waypoint!"
 
         if score < best_score[]
             best_soln[] = soln_proposed
