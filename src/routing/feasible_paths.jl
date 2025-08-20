@@ -86,6 +86,8 @@ function get_feasible_vector(
                         point_nodes[1], point_nodes[2], exclusions
                     )
             end
+        else
+            dist_vector[point_i_idx] = 0.0
         end
     end
 
