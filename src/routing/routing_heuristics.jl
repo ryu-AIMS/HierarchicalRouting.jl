@@ -334,7 +334,7 @@ function optimize_waypoints(
         @assert !isinf(score) "Critical path cost is infinite, indicating a bad waypoint!"
 
         if score < best_score[]
-            best_soln[] = soln_proposed
+            best_soln[] = deepcopy(soln_proposed)
             best_score[] = score
             best_count[] = 0
         else
