@@ -305,6 +305,7 @@ function optimize_waypoints(
     best_soln::MSTSolution = soln
     best_score::Float64 = critical_path(soln, vessel_weightings)
     best_count::Int64 = 0
+    soln_proposed::MSTSolution = soln
 
     # Objective from x -> critical_path
     function obj(
