@@ -363,8 +363,8 @@ function optimize_waypoints(
     )
 
     # Each waypoint is bounded to its surrounding area (in decimal degrees)
-    lb = x0 .- 0.05
-    ub = x0 .+ 0.05
+    lb = x0 .- 0.025
+    ub = x0 .+ 0.025
 
     result = optimize(
         obj,
