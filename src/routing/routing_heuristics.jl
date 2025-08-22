@@ -271,12 +271,10 @@ Updated mothership and tender solution with optimized waypoint positions and reg
 function optimize_waypoints(
     soln_ex::MSTSolution,
     problem::Problem;
-    opt_method=GradientDescent(
-    # alphaguess=Optim.LineSearches.InitialConstantChange()
-    ),
+    opt_method=SAMIN(ns=1), # Fminbox(GradientDescent()),
     cost_tol::Float64=0.0,
     gradient_tol::Float64=3e4,
-    iterations::Int64=10,
+    iterations::Int64=100,
     time_limit::Float64=60.0
 )::MSTSolution
     soln = deepcopy(soln_ex)
@@ -358,6 +356,7 @@ function optimize_waypoints(
         f_reltol=cost_tol,
         g_abstol=gradient_tol,
         show_trace=true,
+        show_every=10,
         allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
@@ -371,7 +370,7 @@ function optimize_waypoints(
         lb,
         ub,
         x0,
-        Fminbox(opt_method),
+        opt_method,
         opt_options
     )
 
