@@ -302,9 +302,9 @@ function optimize_waypoints(
     exclusion_count::Int64 = 0
     score::Float64 = 0.0
 
-    best_soln = Ref{MSTSolution}(soln)
-    best_score = Ref(Inf)
-    best_count = Ref(0)
+    best_soln::MSTSolution = soln
+    best_score::Float64 = critical_path(soln, vessel_weightings)
+    best_count::Int64 = 0
 
     # Objective from x -> critical_path
     function obj(
@@ -324,7 +324,7 @@ function optimize_waypoints(
         end
 
         soln_proposed = rebuild_solution_with_waypoints(
-            best_soln[],
+            soln,
             wpts,
             exclusions_mothership,
             exclusions_tender
@@ -333,19 +333,19 @@ function optimize_waypoints(
         score = critical_path(soln_proposed, vessel_weightings)
         @assert !isinf(score) "Critical path cost is infinite, indicating a bad waypoint!"
 
-        if score < best_score[]
-            best_soln[] = deepcopy(soln_proposed)
-            best_score[] = score
-            best_count[] = 0
+        if score < best_score
+            best_soln = deepcopy(soln_proposed)
+            best_score = score
+            best_count = 0
         else
             # For debugging and tracking
-            best_count[] += 1
+            best_count += 1
         end
 
         if !isnothing(Plot.current_axis())
             Plot.empty!(Plot.current_axis())
         end
-        display(Plot.debug_waypoints(problem, wpts; title="Score: $(score) | Iter: $(best_count[])"))
+        display(Plot.debug_waypoints(problem, wpts; title="Score: $(score) | Iter: $(best_count)"))
         # display(Plot.solution(problem, soln_proposed))
 
         return score
@@ -382,7 +382,7 @@ function optimize_waypoints(
     @info "Gradient status:" Optim.g_converged(result)
     # @info "Gradient trace:" Optim.g_norm_trace(result)
 
-    return best_soln[]
+    return best_soln
 end
 
 """
