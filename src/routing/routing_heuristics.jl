@@ -474,7 +474,7 @@ function rebuild_sortie(
 )::Route
     segment_to_keep = route.line_strings
     updated_dist_matrix = typeof(route.dist_matrix) == Vector{Float64} ?
-                          route.dist_matrix :
+                          copy(route.dist_matrix) :
                           get_superdiag_vals(route.dist_matrix)
 
     # Keep the segments of the line strings that contain matching start/end points
