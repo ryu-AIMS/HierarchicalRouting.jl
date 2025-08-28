@@ -616,16 +616,66 @@ function generate_tender_sorties(
             Ref(sortie_end_has_moved)
         )
 
+        # Update the distance matrix for tenders based on new sorties
+        dist_matrix_new = update_tender_distance_matrix(
+            tender_old.sorties,
+            sorties_new,
+            tender_old.dist_matrix,
+        )
+
         tenders_new[j] = TenderSolution(
             tender_old.id,
             start_new,
             finish_new,
             sorties_new,
-            tender_old.dist_matrix #! dist_matrix is not updated here
+            dist_matrix_new
         )
     end
 
     return tenders_new
+end
+
+"""
+    update_tender_distance_matrix(
+        sorties_old::Vector{Route},
+        sorties_new::Vector{Route},
+        dist_matrix::Matrix{Float64},
+    )::Matrix{Float64}
+
+Update the distance matrix for tenders in a cluster based on new sortie distances.
+Use old sorties to find corresponding distances.
+
+# Arguments
+- `sorties_old`: Vector of old Route objects.
+- `sorties_new`: Vector of new Route objects.
+- `dist_matrix`: Distance matrix to update.
+
+# Returns
+Updated distance matrix.
+"""
+function update_tender_distance_matrix(
+    sorties_old::Vector{Route},
+    sorties_new::Vector{Route},
+    dist_matrix::Matrix{Float64},
+)::Matrix{Float64}
+    old_sortie_matrix_dists::Vector{Float64} = vcat(getfield.(sorties_old, :dist_matrix)...)
+    new_sortie_matrix_dists::Vector{Float64} = vcat(getfield.(sorties_new, :dist_matrix)...)
+
+    #! Not a bulletproof way to find/update, as distance value may not be unique
+    coord_pairs = findall.(.==(old_sortie_matrix_dists), Ref(dist_matrix))
+    @assert all(length.(coord_pairs) .== 2)
+
+    coords_below_diag = getindex.(coord_pairs, 1)
+    coords_above_diag = getindex.(coord_pairs, 2)
+    @assert all(
+        getfield.(coords_below_diag, :I) .== reverse.(getfield.(coords_above_diag, :I))
+    )
+
+    dist_matrix_new = copy(dist_matrix)
+    dist_matrix_new[coords_below_diag] .= new_sortie_matrix_dists
+    dist_matrix_new[coords_above_diag] .= new_sortie_matrix_dists
+
+    return dist_matrix_new
 end
 
 """
