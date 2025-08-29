@@ -269,7 +269,7 @@ zones.
 Updated mothership and tender solution with optimized waypoint positions and regenerated tender sorties
 """
 function optimize_waypoints(
-    soln_ex::MSTSolution,
+    soln::MSTSolution,
     problem::Problem;
     opt_method=SAMIN(ns=1), # Fminbox(GradientDescent()),
     cost_tol::Float64=0.0,
@@ -277,7 +277,6 @@ function optimize_waypoints(
     iterations::Int64=100,
     time_limit::Float64=60.0
 )::MSTSolution
-    soln = deepcopy(soln_ex)
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
     vessel_weightings::NTuple{2,AbstractFloat} = (
