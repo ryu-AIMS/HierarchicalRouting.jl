@@ -332,7 +332,7 @@ function optimize_waypoints(
         @assert !isinf(score) "Critical path cost is infinite, indicating a bad waypoint!"
 
         if score < best_score
-            best_soln = deepcopy(soln_proposed)
+            best_soln = soln_proposed
             best_score = score
             best_count = 0
         else
@@ -413,7 +413,7 @@ function rebuild_solution_with_waypoints(
         waypoints_proposed, exclusions_mothership
     )
     ms_route_new::Route = Route(
-        waypoints_proposed,
+        copy(waypoints_proposed),
         dist_vector_proposed,
         vcat(line_strings_proposed...)
     )
