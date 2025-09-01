@@ -500,10 +500,8 @@ function build_graph(
         haversine.(points_from, points_to)
     )
 
-    # Only add polygon edges and extra visible connections if:
-    # 1. A polygon is provided, AND
-    # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
-    if !is_visible(initial_point, final_point, final_polygon)
+    # Only add polygon edges and extra visible connections if final_point is not in network
+    if final_point ∉ points_to
         # Cache to reuse for masking visible vertices
         visibility_mask = falses(length(final_poly_verts))
 
