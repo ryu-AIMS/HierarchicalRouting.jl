@@ -667,17 +667,19 @@ function update_tender_distance_matrix(
     new_sortie_matrix_dists::Vector{Float64} = vcat(getfield.(sorties_new, :dist_matrix)...)
 
     #! Not a bulletproof way to find/update, as distance value may not be unique
-    coord_pairs = findall.(.==(old_sortie_matrix_dists), Ref(dist_matrix))
+    coord_pairs::Vector{Vector{CartesianIndex{2}}} = findall.(
+        .==(old_sortie_matrix_dists), Ref(dist_matrix)
+    )
     !all(length.(coord_pairs) .== 2) && throw(DimensionMismatch(
         "Expected 2 coordinates per old sortie distance"
     ))
 
-    coords_below_diag = getindex.(coord_pairs, 1)
-    coords_above_diag = getindex.(coord_pairs, 2)
+    coords_below_diag::Vector{CartesianIndex{2}} = getindex.(coord_pairs, 1)
+    coords_above_diag::Vector{CartesianIndex{2}} = getindex.(coord_pairs, 2)
     !all(getfield.(coords_below_diag, :I) .== reverse.(getfield.(coords_above_diag, :I))) &&
         throw(ErrorException("Expected symmetric coordinates for old sortie distances"))
 
-    dist_matrix_new = copy(dist_matrix)
+    dist_matrix_new::Matrix{Float64} = copy(dist_matrix)
     dist_matrix_new[coords_below_diag] .= new_sortie_matrix_dists
     dist_matrix_new[coords_above_diag] .= new_sortie_matrix_dists
 
