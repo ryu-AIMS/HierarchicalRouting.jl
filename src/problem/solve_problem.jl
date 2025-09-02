@@ -285,8 +285,8 @@ function solve(
         # Improve the current solution using the optimization function
         optimized_current_solution, _ = improve_solution(
             MSTSolution([clusters], [ms_route], [current_tender_soln]),
-            problem.mothership.exclusion,
-            problem.tenders.exclusion,
+            problem.mothership.exclusion.geometry,
+            problem.tenders.exclusion.geometry,
             disturbance_cluster_idx, next_disturbance_cluster_idx
         )
 

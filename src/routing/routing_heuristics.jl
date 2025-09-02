@@ -813,7 +813,7 @@ function nearest_neighbour(
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids::Vector{Point{2,Float64}} = adjust_waypoint.(
         Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
-        Ref(exclusions_mothership.geometry)
+        Ref(exclusions_mothership)
     )
     cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
     cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
@@ -821,7 +821,7 @@ function nearest_neighbour(
     # Create distance matrix between start, end, and feasible cluster centroids
     dist_matrix = get_feasible_matrix(
         vcat([current_point], feasible_centroids),
-        exclusions_mothership.geometry
+        exclusions_mothership
     )[1]
     centroid_matrix = dist_matrix[3:end, 3:end]
     current_dist_vector = dist_matrix[1, 3:end]
