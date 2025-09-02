@@ -648,7 +648,7 @@ end
     )::Matrix{Float64}
 
 Update the distance matrix for tenders in a cluster based on new sortie distances.
-Use old sorties to find corresponding distances.
+Use old sorties to find corresponding distances, then update the matrix with new values.
 
 # Arguments
 - `sorties_old`: Vector of old Route objects.
@@ -666,24 +666,39 @@ function update_tender_distance_matrix(
     old_sortie_matrix_dists::Vector{Float64} = vcat(getfield.(sorties_old, :dist_matrix)...)
     new_sortie_matrix_dists::Vector{Float64} = vcat(getfield.(sorties_new, :dist_matrix)...)
 
-    #! Not a bulletproof way to find/update, as distance value may not be unique
-    coord_pairs::Vector{Vector{CartesianIndex{2}}} = findall.(
-        .==(old_sortie_matrix_dists), Ref(dist_matrix)
+    # Find coordinates of distances to update in dist_matrix
+    coords_below_diag::Vector{CartesianIndex{2}} = coords_for_value.(
+        Ref(dist_matrix), old_sortie_matrix_dists
     )
-    !all(length.(coord_pairs) .== 2) && throw(DimensionMismatch(
-        "Expected 2 coordinates per old sortie distance"
-    ))
 
-    coords_below_diag::Vector{CartesianIndex{2}} = getindex.(coord_pairs, 1)
-    coords_above_diag::Vector{CartesianIndex{2}} = getindex.(coord_pairs, 2)
-    !all(getfield.(coords_below_diag, :I) .== reverse.(getfield.(coords_above_diag, :I))) &&
-        throw(ErrorException("Expected symmetric coordinates for old sortie distances"))
+    swap_ij(I::CartesianIndex{2}) = CartesianIndex(I[2], I[1])
+    coords_above_diag::Vector{CartesianIndex{2}} = swap_ij.(coords_below_diag)
 
+    # Update the distance matrix with new values
     dist_matrix_new::Matrix{Float64} = copy(dist_matrix)
     dist_matrix_new[coords_below_diag] .= new_sortie_matrix_dists
     dist_matrix_new[coords_above_diag] .= new_sortie_matrix_dists
 
     return dist_matrix_new
+end
+
+"""
+    Get coordinates of closest value in the distance matrix to a given specific value.
+"""
+function coords_for_value(
+    dist_matrix::Matrix{Float64},
+    dist_val::Float64,
+)::CartesianIndex{2}
+    I = findall(x -> isapprox(x, dist_val), dist_matrix)
+    isempty(I) && throw(ArgumentError("No coords found for value $dist_val"))
+
+    #! Not a bulletproof way to find/update, as distance value may not be unique
+    (length(I) > 2) && @warn "Multiple coords found for $dist_val in dist_matrix... " *
+                             "choosing closest match"
+
+    # Choose dist_matrix value CLOSEST to dist_val
+    best = argmin(abs.(dist_matrix[I] .- dist_val))
+    return I[best]
 end
 
 """
