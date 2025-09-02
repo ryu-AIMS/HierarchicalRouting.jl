@@ -459,12 +459,15 @@ function improve_solution(
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
     cluster_seq_ids::Vector{Int64} = current_mothership_route.cluster_sequence.id
-    clust_seq_current::Vector{Int64} = cluster_seq_ids[current_cluster_idx+1:next_cluster_idx+1]
+    final_cluster_idx = next_cluster_idx == length(cluster_seq_ids) - 1 ?
+                        next_cluster_idx - 1 :
+                        next_cluster_idx
+    clust_seq_current::Vector{Int64} = cluster_seq_ids[current_cluster_idx+1:final_cluster_idx+1]
     current_clusters::Vector{Cluster} = initial_solution.cluster_sets[end][clust_seq_current]
     sort!(current_clusters, by=c -> c.id)
 
     current_tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
-    current_tender_routes::Vector{TenderSolution} = current_tender_set[current_cluster_idx:next_cluster_idx]
+    current_tender_routes::Vector{TenderSolution} = current_tender_set[current_cluster_idx:final_cluster_idx]
 
     current_solution = MSTSolution(
         [current_clusters],
