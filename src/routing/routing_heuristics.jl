@@ -670,7 +670,6 @@ function update_tender_distance_matrix(
     coords_below_diag::Vector{CartesianIndex{2}} = coords_for_value.(
         Ref(dist_matrix), old_sortie_matrix_dists
     )
-    @assert all(length.(coord_pairs) .== 2) "Each distance should appear exactly twice in symmetric matrix"
 
     swap_ij(I::CartesianIndex{2}) = CartesianIndex(I[2], I[1])
     coords_above_diag::Vector{CartesianIndex{2}} = swap_ij.(coords_below_diag)
