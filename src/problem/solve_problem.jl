@@ -175,6 +175,7 @@ function solve(
     ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
     tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
 
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(problem; k)
@@ -208,7 +209,7 @@ function solve(
         MSTSolution([clusters], [ms_route], [initial_tenders]),
         problem.mothership.exclusion.geometry,
         problem.tenders.exclusion.geometry,
-        1, next_cluster_idx
+        1, next_cluster_idx, vessel_weightings
     )
 
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
@@ -287,7 +288,8 @@ function solve(
             MSTSolution([clusters], [ms_route], [current_tender_soln]),
             problem.mothership.exclusion.geometry,
             problem.tenders.exclusion.geometry,
-            disturbance_cluster_idx, next_disturbance_cluster_idx
+            disturbance_cluster_idx, next_disturbance_cluster_idx,
+            vessel_weightings
         )
 
         # Update with improved solution to the current cluster set and tender solutions
@@ -392,7 +394,8 @@ end
         exclusions_mothership::POLY_VEC,
         exclusions_tender::POLY_VEC,
         current_cluster_idx::Int=1,
-        next_cluster_idx::Int=length(initial_solution.cluster_sets[end]);
+        next_cluster_idx::Int=length(initial_solution.cluster_sets[end]),
+        vessel_weightings::NTuple{2,AbstractFloat};
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         perturb_function::Function=perturb_swap_solution,
@@ -400,7 +403,6 @@ end
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
         static_limit::Int=20,
-        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
     )::Tuple{MSTSolution,Float64}
     improve_solution(
         init_solution::MSTSolution,
@@ -412,7 +414,6 @@ end
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
         static_limit::Int=20,
-        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
     )
 
 Improve the solution using the optimization function `opt_function` with the objective
@@ -443,7 +444,8 @@ function improve_solution(
     exclusions_mothership::POLY_VEC,
     exclusions_tender::POLY_VEC,
     current_cluster_idx::Int,
-    next_cluster_idx::Int;
+    next_cluster_idx::Int,
+    vessel_weightings::NTuple{2,AbstractFloat};
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     perturb_function::Function=perturb_swap_solution,
@@ -451,7 +453,6 @@ function improve_solution(
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
     static_limit::Int=20,
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )::Tuple{MSTSolution,Float64}
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
@@ -494,8 +495,11 @@ function improve_solution(
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
     static_limit::Int=20,
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
 )
+    vessel_weightings::NTuple{2,AbstractFloat} = (
+        problem.mothership.weighting,
+        problem.tenders.weighting
+    )
     current_cluster_idx::Int64 = 1
     next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
 
@@ -504,14 +508,14 @@ function improve_solution(
         problem.mothership.exclusion.geometry,
         problem.tenders.exclusion.geometry,
         current_cluster_idx,
-        next_cluster_idx;
+        next_cluster_idx,
+        vessel_weightings;
         opt_function,
         objective_function,
         perturb_function,
         max_iterations,
         temp_init,
         cooling_rate,
-        static_limit,
-        vessel_weightings
+        static_limit
     )
 end
