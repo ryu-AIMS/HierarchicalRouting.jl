@@ -393,8 +393,8 @@ end
         initial_solution::MSTSolution,
         exclusions_mothership::POLY_VEC,
         exclusions_tender::POLY_VEC,
-        current_cluster_idx::Int=1,
-        next_cluster_idx::Int=length(initial_solution.cluster_sets[end]),
+        current_cluster_idx::Int,
+        next_cluster_idx::Int,
         vessel_weightings::NTuple{2,AbstractFloat};
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
