@@ -460,12 +460,23 @@ function improve_solution(
     final_cluster_idx = next_cluster_idx == length(cluster_seq_ids) - 1 ?
                         next_cluster_idx - 1 :
                         next_cluster_idx
-    clust_seq_current::Vector{Int64} = cluster_seq_ids[current_cluster_idx+1:final_cluster_idx+1]
-    current_clusters::Vector{Cluster} = initial_solution.cluster_sets[end][clust_seq_current]
+
+    clust_seq_current::Vector{Int64} = cluster_seq_ids[
+        current_cluster_idx+1:final_cluster_idx+1
+    ]
+    clust_seq_noncurrent::Vector{Int64} = setdiff(cluster_seq_ids, clust_seq_current)
+    filter!(!=(0), clust_seq_noncurrent)
+
+    cluster_set::Vector{Cluster} = initial_solution.cluster_sets[end]
+    current_clusters::Vector{Cluster} = cluster_set[clust_seq_current]
     sort!(current_clusters, by=c -> c.id)
 
-    current_tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
-    current_tender_routes::Vector{TenderSolution} = current_tender_set[current_cluster_idx:final_cluster_idx]
+    tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
+    current_tender_routes::Vector{TenderSolution} = tender_set[current_cluster_idx:final_cluster_idx]
+    noncurrent_tender_routes::Vector{TenderSolution} = setdiff(
+        tender_set,
+        current_tender_routes
+    )
 
     current_solution = MSTSolution(
         [current_clusters],
@@ -473,7 +484,7 @@ function improve_solution(
         [current_tender_routes]
     )
 
-    soln_best, z_best = opt_function(
+    soln_best_partial, z_best = opt_function(
         current_solution,
         objective_function,
         perturb_function,
@@ -484,6 +495,23 @@ function improve_solution(
         cooling_rate,
         static_limit;
         vessel_weightings
+    )
+
+    merged_clusters = vcat(
+        cluster_set[clust_seq_noncurrent],
+        soln_best_partial.cluster_sets[1]
+    )
+    sort!(merged_clusters, by=c -> c.id)
+
+    merged_tenders = vcat(soln_best_partial.tenders[1], noncurrent_tender_routes)
+    sort!(merged_tenders, by=t -> t.id)
+    interior_ids = @view cluster_seq_ids[2:end-1]
+    ordered_tenders = merged_tenders[interior_ids]
+
+    soln_best = MSTSolution(
+        [merged_clusters],
+        [soln_best_partial.mothership_routes[1]],
+        [ordered_tenders]
     )
 
     return soln_best, z_best
