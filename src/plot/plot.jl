@@ -211,7 +211,7 @@ function clusters!(
                 ax,
                 center_lon,
                 center_lat,
-                text=generate_letter_id(seq - 1),
+                text=generate_letter_id(seq),
                 font="bold",
                 fontsize=24,
                 align=(:center, :center),
