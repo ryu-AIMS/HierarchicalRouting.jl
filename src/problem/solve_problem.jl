@@ -212,25 +212,25 @@ function solve(
         1, next_cluster_idx, vessel_weightings
     )
 
-    disturbance_index_count = 1
+    disturb_idx = 1
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
-    cluster_sets[disturbance_index_count] = optimized_initial.cluster_sets[1]
-    ms_soln_sets[disturbance_index_count] = optimized_initial.mothership_routes[1]
-    tender_soln_sets[disturbance_index_count] = optimized_initial.tenders[1]
+    cluster_sets[disturb_idx] = optimized_initial.cluster_sets[1]
+    ms_soln_sets[disturb_idx] = optimized_initial.mothership_routes[1]
+    tender_soln_sets[disturb_idx] = optimized_initial.tenders[1]
 
     # Iterate through each disturbance event and update solution
-    for disturbance_cluster_idx ∈ ordered_disturbances
-        @info "Disturbance event #$disturbance_index_count at " *
-              "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
-              "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
+    for disturb_clust_idx ∈ ordered_disturbances
+        @info "Disturbance event #$disturb_idx at " *
+              "$(ms_route.route.nodes[2*disturb_clust_idx-1]) before " *
+              "$(disturb_clust_idx)th cluster_id=$(clust_seq[disturb_clust_idx])"
         # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = sort!(
             vcat(
-                clusters[clust_seq][1:disturbance_cluster_idx-1],
+                clusters[clust_seq][1:disturb_clust_idx-1],
                 disturb_clusters(
-                    clusters[clust_seq][disturbance_cluster_idx:end],
+                    clusters[clust_seq][disturb_clust_idx:end],
                     problem.targets.disturbance_gdf,
-                    ms_route.route.nodes[2*disturbance_cluster_idx-1],
+                    ms_route.route.nodes[2*disturb_clust_idx-1],
                     problem.tenders.exclusion.geometry,
                     total_tender_capacity
                 )
@@ -238,7 +238,7 @@ function solve(
         )
 
         # removed_nodes = setdiff(
-        #     vcat([c.nodes for c in cluster_sets[disturbance_index_count]]...),
+        #     vcat([c.nodes for c in cluster_sets[disturb_idx]]...),
         #     vcat([c.nodes for c in clusters]...)
         # )
         # if !isempty(removed_nodes)
@@ -251,9 +251,9 @@ function solve(
         ms_route = optimize_mothership_route(
             problem,
             cluster_centroids_df,
-            disturbance_cluster_idx,
+            disturb_clust_idx,
             ms_route,
-            getfield.(clusters[clust_seq][1:disturbance_cluster_idx-1], :id)
+            getfield.(clusters[clust_seq][1:disturb_clust_idx-1], :id)
         )
         clust_seq = filter(
             i -> i != 0 && i <= length(clusters),
@@ -265,8 +265,8 @@ function solve(
 
         # Generate tender solutions for the current disturbance cluster
         for j in 1:length(clust_seq)
-            if j < disturbance_cluster_idx
-                current_tender_soln[j] = tender_soln_sets[disturbance_index_count][j]
+            if j < disturb_clust_idx
+                current_tender_soln[j] = tender_soln_sets[disturb_idx][j]
             else
                 current_tender_soln[j] = tender_sequential_nearest_neighbour(
                     clusters[clust_seq][j],
@@ -278,8 +278,8 @@ function solve(
             end
         end
 
-        next_disturbance_cluster_idx = disturbance_cluster_idx <= length(ordered_disturbances) ?
-                                       ordered_disturbances[disturbance_cluster_idx] :
+        next_disturbance_cluster_idx = disturb_clust_idx <= length(ordered_disturbances) ?
+                                       ordered_disturbances[disturb_clust_idx] :
                                        length(clusters) + 1
 
         # Improve the current solution using the optimization function
@@ -287,15 +287,15 @@ function solve(
             MSTSolution([clusters], [ms_route], [current_tender_soln]),
             problem.mothership.exclusion.geometry,
             problem.tenders.exclusion.geometry,
-            disturbance_cluster_idx, next_disturbance_cluster_idx,
+            disturb_clust_idx, next_disturbance_cluster_idx,
             vessel_weightings
         )
-        disturbance_index_count += 1
+        disturb_idx += 1
 
         # Update with improved solution to the current cluster set and tender solutions
-        cluster_sets[disturbance_index_count] = optimized_current_solution.cluster_sets[1]
-        ms_soln_sets[disturbance_index_count] = optimized_current_solution.mothership_routes[1]
-        tender_soln_sets[disturbance_index_count] = optimized_current_solution.tenders[1]
+        cluster_sets[disturb_idx] = optimized_current_solution.cluster_sets[1]
+        ms_soln_sets[disturb_idx] = optimized_current_solution.mothership_routes[1]
+        tender_soln_sets[disturb_idx] = optimized_current_solution.tenders[1]
     end
 
     solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
