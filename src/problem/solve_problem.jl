@@ -261,9 +261,7 @@ function solve(
             ms_route.cluster_sequence.id
         )
 
-        # Update cluster sets, mothership solution, and tender solutions
-        cluster_sets[disturbance_index_count+1] = clusters
-        ms_soln_sets[disturbance_index_count+1] = ms_route
+        # Update tender solutions
         current_tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
 
         # Generate tender solutions for the current disturbance cluster
