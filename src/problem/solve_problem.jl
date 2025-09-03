@@ -212,15 +212,14 @@ function solve(
         1, next_cluster_idx, vessel_weightings
     )
 
+    disturbance_index_count = 1
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
-    cluster_sets[1] = optimized_initial.cluster_sets[1]
-    ms_soln_sets[1] = optimized_initial.mothership_routes[1]
-    tender_soln_sets[1] = optimized_initial.tenders[1]
+    cluster_sets[disturbance_index_count] = optimized_initial.cluster_sets[1]
+    ms_soln_sets[disturbance_index_count] = optimized_initial.mothership_routes[1]
+    tender_soln_sets[disturbance_index_count] = optimized_initial.tenders[1]
 
     # Iterate through each disturbance event and update solution
-    disturbance_index_count = 0
     for disturbance_cluster_idx ∈ ordered_disturbances
-        disturbance_index_count += 1
         @info "Disturbance event #$disturbance_index_count at " *
               "$(ms_route.route.nodes[2*disturbance_cluster_idx-1]) before " *
               "$(disturbance_cluster_idx)th cluster_id=$(clust_seq[disturbance_cluster_idx])"
@@ -291,11 +290,12 @@ function solve(
             disturbance_cluster_idx, next_disturbance_cluster_idx,
             vessel_weightings
         )
+        disturbance_index_count += 1
 
         # Update with improved solution to the current cluster set and tender solutions
-        cluster_sets[disturbance_index_count+1] = optimized_current_solution.cluster_sets[1]
-        ms_soln_sets[disturbance_index_count+1] = optimized_current_solution.mothership_routes[1]
-        tender_soln_sets[disturbance_index_count+1] = optimized_current_solution.tenders[1]
+        cluster_sets[disturbance_index_count] = optimized_current_solution.cluster_sets[1]
+        ms_soln_sets[disturbance_index_count] = optimized_current_solution.mothership_routes[1]
+        tender_soln_sets[disturbance_index_count] = optimized_current_solution.tenders[1]
     end
 
     solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
