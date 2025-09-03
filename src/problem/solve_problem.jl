@@ -220,9 +220,11 @@ function solve(
 
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
+        cluster_id = clust_seq[disturb_clust_idx]
+        cluster_letter = generate_letter_id(cluster_id)
         @info "Disturbance event #$disturb_idx at " *
               "$(ms_route.route.nodes[2*disturb_clust_idx-1]) before " *
-              "$(disturb_clust_idx)th cluster_id=$(clust_seq[disturb_clust_idx])"
+              "$(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)"
         # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = sort!(
             vcat(
