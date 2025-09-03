@@ -237,14 +237,14 @@ function solve(
             ), by=x -> x.id
         )
 
-        # removed_nodes = setdiff(
-        #     vcat([c.nodes for c in cluster_sets[disturb_idx]]...),
-        #     vcat([c.nodes for c in clusters]...)
-        # )
-        # if !isempty(removed_nodes)
-        #     @info "Removed nodes due to disturbance event (since previous cluster):\n" *
-        #           "\t$(join(removed_nodes, "\n\t"))"
-        # end
+        removed_nodes = setdiff(
+            vcat([c.nodes for c in cluster_sets[disturb_idx]]...),
+            vcat([c.nodes for c in clusters]...)
+        )
+        if !isempty(removed_nodes)
+            @info "Removed nodes due to disturbance event (since previous cluster):\n" *
+                  "\t$(join(removed_nodes, "\n\t"))"
+        end
         # Re-generate the cluster centroids to route mothership
         cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
