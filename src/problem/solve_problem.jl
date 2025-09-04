@@ -150,7 +150,7 @@ function solve(
     # Route the mothership using nearest neighbour and 2-opt
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
     clust_seq::Vector{Int64} = filter(
-        i -> i != 0 && i <= length(clusters),
+        c -> c != 0 && c <= length(clusters),
         ms_route.cluster_sequence.id
     )
 
@@ -187,7 +187,7 @@ function solve(
     # Keep local working copies in sync with what we just stored
     clusters = optimized_initial.cluster_sets[1]
     ms_route = optimized_initial.mothership_routes[1]
-    clust_seq = filter(i -> i != 0 && i <= length(clusters), ms_route.cluster_sequence.id)
+    clust_seq = filter(c -> c != 0 && c <= length(clusters), ms_route.cluster_sequence.id)
 
     # Simulate disturbance events
     _apply_disturbance_events!(
@@ -338,7 +338,10 @@ function _apply_disturbance_events!(
             ms_route = optimized_current_solution.mothership_routes[1]
             current_tender_soln = optimized_current_solution.tenders[1]
             # Update clust_seq in case that it has changed post-improvement
-            clust_seq = filter(i -> i != 0 && i <= length(clusters), ms_route.cluster_sequence.id)
+            clust_seq = filter(
+                c -> c != 0 && c <= length(clusters),
+                ms_route.cluster_sequence.id
+            )
         end
 
         # Increment event index and update solution sets
