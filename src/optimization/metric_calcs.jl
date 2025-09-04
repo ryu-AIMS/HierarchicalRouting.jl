@@ -177,6 +177,15 @@ function critical_path(
 
     # Within clusters
     cluster_sorties = tender_clust_dist.(tenders)
+
+    # Ensure that all sortie distance matrices appear in the tender distance matrices
+    !all(map((u, v) -> all(u .∈ Ref(v)),
+        [vcat(getfield.(t.sorties, :dist_matrix)...) for t in tenders],
+        getfield.(tenders, :dist_matrix)
+    )) && throw(ArgumentError(
+        "Not all sortie distance matrices appear in the tender distance matrices."
+    ))
+
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
     mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
