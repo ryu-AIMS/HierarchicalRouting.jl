@@ -72,7 +72,7 @@ function get_feasible_vector(
     nodes::Vector{Point{2,Float64}}, exclusions::POLY_VEC
 )::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
     n_points = length(nodes) - 1
-    dist_vector = fill(Inf, n_points)
+    dist_vector = zeros(Float64, n_points)
     path_vector = fill(Vector{LineString{2,Float64}}(), n_points)
 
     for point_i_idx in 1:n_points
@@ -85,9 +85,9 @@ function get_feasible_vector(
                     shortest_feasible_path(
                         point_nodes[1], point_nodes[2], exclusions
                     )
+            else
+                dist_vector[point_i_idx] = Inf
             end
-        else
-            dist_vector[point_i_idx] = 0.0
         end
     end
     @assert !any(isinf.(dist_vector)) "Feasible distances contain infinite values"
