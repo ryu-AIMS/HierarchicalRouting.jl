@@ -27,7 +27,8 @@ function initial_solution(
     disturbance_clusters::Set{Int64}=Set{Int64}(),
     waypoint_optim_method=nothing,
 )::MSTSolution
-    n_events = length(disturbance_clusters) + 1
+    ordered_disturbances = sort(unique(disturbance_clusters))
+    n_events = length(ordered_disturbances) + 1
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
     ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
     tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
