@@ -2,8 +2,11 @@
 """
     initial_solution(
         problem::Problem;
+        k::Int=1,
         disturbance_clusters::Set{Int64}=Set{Int64}(),
-        waypoint_optim_method::=nothing,
+        waypoint_optim_method=nothing,
+        seed::Union{Nothing,Int64}=nothing,
+        rng::AbstractRNG=Random.GLOBAL_RNG,
     )::MSTSolution
 
 Generate an initial solution to the problem for:
@@ -17,6 +20,8 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `k`: Number of clusters to generate
 - `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 - `waypoint_optim_method`: Function to use in waypoint optimization.
+- `seed`: Optional seed for random number generation
+- `rng`: Random number generator
 
 # Returns
 Best total MSTSolution found
@@ -26,7 +31,13 @@ function initial_solution(
     k::Int=1,
     disturbance_clusters::Set{Int64}=Set{Int64}(),
     waypoint_optim_method=nothing,
+    seed::Union{Nothing,Int64}=nothing,
+    rng::AbstractRNG=Random.GLOBAL_RNG,
 )::MSTSolution
+    if !isnothing(seed)
+        Random.seed!(rng, seed)
+    end
+
     ordered_disturbances = sort(unique(disturbance_clusters))
     n_events = length(ordered_disturbances) + 1
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
@@ -151,7 +162,7 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 - `seed`: Optional seed for random number generation
 - `rng`: AbstractRNG for random number generation
-- `waypoint_optim_flag`: Flag to enable/disable waypoint optimization
+- `waypoint_optim_method`: Function to use in waypoint optimization.
 
 # Returns
 Best total MSTSolution found
