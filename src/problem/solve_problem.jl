@@ -35,14 +35,12 @@ function initial_solution(
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
     # Load problem data
-    clusters::Vector{Cluster} = cluster_problem(
-        problem; k
-    )
+    clusters::Vector{Cluster} = cluster_problem(problem; k)
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
     clust_seq::Vector{Int64} = filter(
-        i -> i != 0 && i <= length(clusters),
+        c -> c != 0 && c <= length(clusters),
         ms_route.cluster_sequence.id
     )
     initial_tenders = [
@@ -213,8 +211,8 @@ function solve(
         1, next_cluster_idx, vessel_weightings
     )
 
-    disturb_idx = 1
     # Apply the optimized initial solution to the first set of clusters pre-disturbance
+    disturb_idx = 1
     cluster_sets[disturb_idx] = optimized_initial.cluster_sets[1]
     ms_soln_sets[disturb_idx] = optimized_initial.mothership_routes[1]
     tender_soln_sets[disturb_idx] = optimized_initial.tenders[1]
