@@ -689,7 +689,7 @@ function coords_for_value(
     dist_matrix::Matrix{Float64},
     dist_val::Float64,
 )::CartesianIndex{2}
-    I = findall(x -> isapprox(x, dist_val), dist_matrix)
+    I = findall(≈(dist_val), dist_matrix)
     isempty(I) && throw(ArgumentError("No coords found for value $dist_val"))
 
     #! Not a bulletproof way to find/update, as distance value may not be unique
