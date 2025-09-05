@@ -632,8 +632,8 @@ function simulated_annealing(
         obj_current = obj_best
         static_ctr = 0
 
-        @info "\n\tCluster\t\t$(cluster_set[clust_idx].id)\n\t" *
-              "Iteration \tBest Value \t\tTemp\n\t0\t\t$obj_best\t$temp"
+        @info """\n\tCluster\t\t$(cluster_set[clust_idx].id)\n\tIteration \tBest Value \
+        \t\tTemp\n\t0\t\t$obj_best\t$temp"""
 
         for iteration in 1:max_iterations
             if !cross_cluster_flag
@@ -677,8 +677,8 @@ function simulated_annealing(
             end
 
             if static_ctr >= static_limit
-                @info "$iteration\t\t$obj_best\t$temp\n\t" *
-                      "Early exit at iteration $iteration due to stagnation."
+                @info """$iteration\t\t$obj_best\t$temp\n\t \
+                Early exit at iteration $iteration due to stagnation."""
                 break
             end
         end

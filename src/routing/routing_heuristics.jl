@@ -693,8 +693,8 @@ function coords_for_value(
     isempty(I) && throw(ArgumentError("No coords found for value $dist_val"))
 
     #! Not a bulletproof way to find/update, as distance value may not be unique
-    (length(I) > 2) && @warn "Multiple coords found for $dist_val in dist_matrix... " *
-                             "choosing closest match"
+    (length(I) > 2) && @warn """Multiple coords found for $dist_val in dist_matrix... \
+    choosing closest match"""
 
     # Choose dist_matrix value CLOSEST to dist_val
     best = argmin(abs.(dist_matrix[I] .- dist_val))
