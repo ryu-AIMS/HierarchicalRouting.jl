@@ -488,7 +488,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-        highlight_critical_path::Bool=false,
+        highlight_critical_path_flag::Bool=false,
     )::Figure
     solution(
         problem::Problem,
@@ -517,7 +517,7 @@ Create a plot of the full routing solution, including:
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
-- `highlight_critical_path`: Whether to highlight the critical path (in red).
+- `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the plot.
 
 # Returns
 The created Figure object containing the plot.
@@ -530,7 +530,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
-    highlight_critical_path::Bool=false,
+    highlight_critical_path_flag::Bool=false,
 )::Figure
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
@@ -576,7 +576,7 @@ function solution(
         metric="critical_distance_path()\ntotal dist"
     )
 
-    highlight_critical_path && highlight_critical_path!(ax, soln, vessel_weightings)
+    highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
 end
