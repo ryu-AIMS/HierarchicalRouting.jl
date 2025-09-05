@@ -316,8 +316,9 @@ function shortest_feasible_path(
 
     # Use A* algorithm to find shortest path
     path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
-    @assert !iszero(length(path)) "No path ($initial_point -> $final_point) because " *
-                                  "network/graph incomplete"
+    iszero(length(path)) && throw(ErrorException(
+        "No path ($initial_point -> $final_point) because network/graph incomplete"
+    ))
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
     linestring_path::Vector{LineString} = [

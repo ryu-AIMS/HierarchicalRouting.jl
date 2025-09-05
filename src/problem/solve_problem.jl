@@ -250,7 +250,9 @@ function _apply_disturbance_events!(
     do_improve::Bool=false,
     vessel_weightings::Union{Nothing,NTuple{2,AbstractFloat}}=nothing,
 )::Nothing
-    @assert !do_improve || vessel_weightings !== nothing "vessel_weightings must be provided when do_improve=true"
+    (do_improve && vessel_weightings === nothing) && throw(
+        ArgumentError("`vessel_weightings` must be provided when `do_improve=true`")
+    )
     disturb_idx = 1
 
     # Iterate through each disturbance event and update solution
