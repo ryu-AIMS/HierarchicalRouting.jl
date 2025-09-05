@@ -329,7 +329,9 @@ function optimize_waypoints(
         )
 
         score = critical_path(soln_proposed, vessel_weightings)
-        @assert !isinf(score) "Critical path cost is infinite, indicating a bad waypoint!"
+        isinf(score) && throw(DomainError(score,
+            "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
+        ))
 
         if score < best_score
             best_soln = soln_proposed
@@ -584,7 +586,9 @@ function generate_tender_sorties(
     # Update the tender solutions with the new waypoints
     tenders_old = soln.tenders[end]
     n = length(tenders_old)
-    @assert length(tmp_wpts) == 2n + 2 "expected 2 points per tender plus depot start/end"
+    length(tmp_wpts) != (2n + 2) && throw(DimensionMismatch(
+        "Expected 2 points per tender plus depot start/end"
+    ))
 
     js = 1:n
     starts_new = tmp_wpts[2 .* js]
@@ -662,13 +666,14 @@ function update_tender_distance_matrix(
 
     #! Not a bulletproof way to find/update, as distance value may not be unique
     coord_pairs = findall.(.==(old_sortie_matrix_dists), Ref(dist_matrix))
-    @assert all(length.(coord_pairs) .== 2)
+    !all(length.(coord_pairs) .== 2) && throw(DimensionMismatch(
+        "Expected 2 coordinates per old sortie distance"
+    ))
 
     coords_below_diag = getindex.(coord_pairs, 1)
     coords_above_diag = getindex.(coord_pairs, 2)
-    @assert all(
-        getfield.(coords_below_diag, :I) .== reverse.(getfield.(coords_above_diag, :I))
-    )
+    !all(getfield.(coords_below_diag, :I) .== reverse.(getfield.(coords_above_diag, :I))) &&
+        throw(ErrorException("Expected symmetric coordinates for old sortie distances"))
 
     dist_matrix_new = copy(dist_matrix)
     dist_matrix_new[coords_below_diag] .= new_sortie_matrix_dists

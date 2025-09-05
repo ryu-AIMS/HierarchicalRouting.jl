@@ -90,7 +90,8 @@ function get_feasible_vector(
             end
         end
     end
-    @assert !any(isinf.(dist_vector)) "Feasible distances contain infinite values"
+    any(isinf.(dist_vector)) && throw(DomainError(dist_vector[findall(isinf, dist_vector)],
+        "Distance vector contains Inf values, indicating a waypoint in an exclusion zone."))
     return dist_vector, path_vector
 end
 
