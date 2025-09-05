@@ -101,13 +101,3 @@ function linestring_segment_to_keep(
         error("Invalid section specified. Use `:from` or `:to`")
     end
 end
-
-"""
-    get_superdiag_vals(M::Matrix{Float64})::Vector{Float64}
-
-Return the values from the first superdiagonal of a square matrix.
-Note: The superdiagonal is the first diagonal above the main diagonal.
-"""
-function get_superdiag_vals(M::Matrix{Float64})::Vector{Float64}
-    return [M[i, i+1] for i in 1:(size(M, 1)-1)]
-end

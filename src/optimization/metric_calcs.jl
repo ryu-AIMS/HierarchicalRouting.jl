@@ -18,6 +18,20 @@ function route_distance(_, dist_vector::Vector{Float64})::Float64
 end
 
 """
+    get_distance_vector(dist_matrix::Matrix{Float64})::Vector{Float64}
+    get_distance_vector(dist_vector::Vector{Float64})::Vector{Float64}
+
+Get a vector of distances between consecutive points in a route, given either a distance
+matrix or a distance vector.
+"""
+function get_distance_vector(dist_matrix::Matrix{Float64})::Vector{Float64}
+    return [dist_matrix[i, i+1] for i in 1:(size(dist_matrix, 1)-1)]
+end
+function get_distance_vector(dist_vector::Vector{Float64})::Vector{Float64}
+    return copy(dist_vector)
+end
+
+"""
     sortie_dist(
         sortie::Vector{Vector{Int64}},
         dist_matrix::Matrix{Float64}

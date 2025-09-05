@@ -476,9 +476,7 @@ function rebuild_sortie(
     sortie_end_has_moved,
 )::Route
     segment_to_keep = route.line_strings
-    updated_dist_matrix = typeof(route.dist_matrix) == Vector{Float64} ?
-                          copy(route.dist_matrix) :
-                          get_superdiag_vals(route.dist_matrix)
+    updated_dist_matrix::Vector{Float64} = get_distance_vector(route.dist_matrix)
 
     # Keep the segments of the line strings that contain matching start/end points
     if sortie_start_has_moved
@@ -1088,9 +1086,7 @@ function two_opt(
         if length(sortie.nodes) ≤ 1
             # If there is only 1 node between start and finish, no change is possible
             # update to distance vector
-            dist_vector = typeof(sortie.dist_matrix) == Matrix{Float64} ?
-                          get_superdiag_vals(sortie.dist_matrix) :
-                          sortie.dist_matrix
+            dist_vector::Vector{Float64} = get_distance_vector(sortie.dist_matrix)
             sorties_new[idx] = Route(
                 sortie.nodes,
                 dist_vector,
