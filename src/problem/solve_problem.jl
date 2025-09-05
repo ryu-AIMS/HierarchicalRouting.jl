@@ -13,7 +13,7 @@ Generate an initial solution to the problem for:
 - the mothership by using the nearest neighbour heuristic
 and then improving using the 2-opt heuristic, and
 -  for tenders using the sequential nearest neighbour heuristic.
-Optionally, optimize waypoints using a set or provided optimization method.
+Optionally, optimize waypoints using a provided optimization method.
 
 # Arguments
 - `problem`: Problem instance to solve
