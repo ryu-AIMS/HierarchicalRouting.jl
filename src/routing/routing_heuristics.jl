@@ -344,12 +344,6 @@ function optimize_waypoints(
             best_count += 1
         end
 
-        if !isnothing(Plot.current_axis())
-            Plot.empty!(Plot.current_axis())
-        end
-        display(Plot.debug_waypoints(problem, wpts; title="Score: $(score) | Iter: $(best_count)"))
-        # display(Plot.solution(problem, soln_proposed))
-
         return score
     end
 
