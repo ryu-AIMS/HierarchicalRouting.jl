@@ -239,11 +239,11 @@ end
 """
     optimize_waypoints(
         soln::MSTSolution,
-        problem::Problem;
-        opt_method=GradientDescent(),
+        problem::Problem,
+        opt_method;
         cost_tol::Float64=0.0,
-        gradient_tol::Float64=3e5,
-        iterations::Int64=10,
+        gradient_tol::Float64=3e4,
+        iterations::Int64=100,
         time_limit::Float64=60.0
     )::MSTSolution
 
@@ -258,20 +258,22 @@ zones.
 # Arguments
 - `soln::MSTSolution`: Current mothership and tender solution.
 - `problem::Problem`: Definition of problem context (vessel specs and exclusion zones)
-- `opt_method`: Optimization algorithm (default: GradientDescent())
-- `cost_tol`: Relative cost function tolerance. Stop optimization if function falls below this value.
-- `gradient_tol::Float64`: Gradient norm convergence tolerance. \
-                           Stop optimization when gradient norm falls below this value
+- `opt_method`: Optimization algorithm used to improve waypoint positions.
+- `cost_tol`: Relative cost function tolerance. Stop optimization if function falls below
+this value.
+- `gradient_tol::Float64`: Gradient norm convergence tolerance. Stop optimization when
+gradient norm falls below this value
 - `iterations::Int64`: Maximum number of optimization iterations
 - `time_limit::Float64`: Soft limit on the time spent optimizing
 
 # Returns
-Updated mothership and tender solution with optimized waypoint positions and regenerated tender sorties
+Updated mothership and tender solution with optimized waypoint positions and regenerated
+tender sorties
 """
 function optimize_waypoints(
     soln::MSTSolution,
-    problem::Problem;
-    opt_method=SAMIN(ns=1), # Fminbox(GradientDescent()),
+    problem::Problem,
+    opt_method;
     cost_tol::Float64=0.0,
     gradient_tol::Float64=3e4,
     iterations::Int64=100,
