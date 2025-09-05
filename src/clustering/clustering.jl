@@ -64,7 +64,6 @@ function generate_letter_id(c::Cluster)
     return generate_letter_id(c.id)
 end
 
-
 """
     generate_cluster_df(
         clusters::Vector{Cluster},
