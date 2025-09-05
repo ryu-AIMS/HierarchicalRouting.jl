@@ -178,10 +178,10 @@ function critical_path(
     # Within clusters
     cluster_sorties = tender_clust_dist.(tenders)
 
-    # Ensure that all sortie distance matrices appear in the tender distance matrices
-    !all(map((u, v) -> all(u .∈ Ref(v)),
+    # Ensure that all (approx) sortie distance values appear in tender distance matrices
+    !all(map((u, v) -> all(x -> any(x .≈ v), u),
         [vcat(getfield.(t.sorties, :dist_matrix)...) for t in tenders],
-        getfield.(tenders, :dist_matrix)
+        vec.(getfield.(tenders, :dist_matrix))
     )) && throw(ArgumentError(
         "Not all sortie distance matrices appear in the tender distance matrices."
     ))
