@@ -259,10 +259,9 @@ function _apply_disturbance_events!(
     for disturb_clust_idx ∈ ordered_disturbances
         cluster_id = clust_seq[disturb_clust_idx]
         cluster_letter = generate_letter_id(cluster_id)
-        @info """Disturbance event #$disturb_idx at \
-        $(ms_route.route.nodes[2*disturb_clust_idx-1]) before \
-        $(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)
-        """
+        @info """Disturbance event #$disturb_idx at
+        \t$(ms_route.route.nodes[2*disturb_clust_idx-1])
+        \tbefore $(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)"""
 
         # Update clusters based on the impact of disturbance event on future points/clusters
         clusters = vcat(
@@ -282,7 +281,7 @@ function _apply_disturbance_events!(
             vcat([c.nodes for c in clusters]...)
         )
         if !isempty(removed_nodes)
-            @info """Removed nodes due to disturbance event (since previous cluster):\n \
+            @info """Removed nodes due to disturbance event (since previous cluster):
             \t$(join(removed_nodes, "\n\t"))"""
         end
 
