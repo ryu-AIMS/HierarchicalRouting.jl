@@ -1002,8 +1002,8 @@ function two_opt(
     tender_soln_current::TenderSolution,
     exclusions_tender::POLY_VEC,
 )::TenderSolution
-    sorties_current = tender_soln_current.sorties
-    sorties_new = Vector{Route}(undef, length(sorties_current))
+    sorties_current::Vector{Route} = tender_soln_current.sorties
+    sorties_new::Vector{Route} = Vector{Route}(undef, length(sorties_current))
 
     for (idx, sortie) in enumerate(sorties_current)
         if length(sortie.nodes) ≤ 1
@@ -1020,7 +1020,6 @@ function two_opt(
 
         nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
         n = length(nodes)
-
         initial_sequence = collect(1:n)
 
         # Optimize sequence, but don't modify start (index 1) and finish (index n)
