@@ -211,9 +211,9 @@ function critical_path(
     return total_critical_path
 end
 
-function critical_distance_path(
+function total_distance(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    vessel_weightings::NTuple{2,AbstractFloat}
 )::Float64
     tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
