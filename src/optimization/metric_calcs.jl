@@ -169,6 +169,10 @@ end
         soln::MSTSolution,
         vessel_weightings::NTuple{2,AbstractFloat}
     )::Float64
+    critical_path(
+        soln::MSTSolution,
+        problem::Problem,
+    )::Float64
 
 Compute the critical path cost of the solution.
 This is the longest path for a return trip, quantified as the sum of:
@@ -179,6 +183,7 @@ This is the longest path for a return trip, quantified as the sum of:
 # Arguments
 - `soln`: The solution to evaluate.
 - `vessel_weightings`: The weightings for mothership and sortie costs.
+- `problem`: The problem instance containing vessel weightings.
 
 # Returns
 The total (critical path) cost of the solution.
@@ -209,6 +214,12 @@ function critical_path(
         "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
     ))
     return total_critical_path
+end
+function critical_path(
+    soln::MSTSolution,
+    problem::Problem,
+)::Float64
+    return critical_path(soln, (problem.mothership.weighting, problem.tenders.weighting))
 end
 
 function total_distance(
