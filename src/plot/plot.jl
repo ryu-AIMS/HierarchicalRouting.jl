@@ -575,6 +575,18 @@ function solution(
         color=:black,
         metric="total_distance()\ntotal dist"
     )
+    text!(
+        ax,
+        (0.02, 0.01)...,
+        text="""Vessel weightings:
+        (mothership, tenders)
+        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        align=(:left, :bottom),
+        space=:relative,
+        fontsize=14,
+        color=:black
+    )
+
 
     highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
 
