@@ -19,7 +19,6 @@ struct TenderSolution
     start::Point{2,Float64}
     finish::Point{2,Float64}
     sorties::Vector{Route}
-    dist_matrix::Matrix{Float64}
 end
 function TenderSolution(t::TenderSolution, sorties::Vector{Route})
     return TenderSolution(
@@ -27,7 +26,6 @@ function TenderSolution(t::TenderSolution, sorties::Vector{Route})
         t.start,
         t.finish,
         sorties,
-        t.dist_matrix
     )
 end
 
@@ -613,84 +611,15 @@ function generate_tender_sorties(
             Ref(sortie_end_has_moved)
         )
 
-        # Update the distance matrix for tenders based on new sorties
-        dist_matrix_new = update_tender_distance_matrix(
-            tender_old.sorties,
-            sorties_new,
-            tender_old.dist_matrix,
-        )
-
         tenders_new[j] = TenderSolution(
             tender_old.id,
             start_new,
             finish_new,
             sorties_new,
-            dist_matrix_new
         )
     end
 
     return tenders_new
-end
-
-"""
-    update_tender_distance_matrix(
-        sorties_old::Vector{Route},
-        sorties_new::Vector{Route},
-        dist_matrix::Matrix{Float64},
-    )::Matrix{Float64}
-
-Update the distance matrix for tenders in a cluster based on new sortie distances.
-Use old sorties to find corresponding distances, then update the matrix with new values.
-
-# Arguments
-- `sorties_old`: Vector of old Route objects.
-- `sorties_new`: Vector of new Route objects.
-- `dist_matrix`: Distance matrix to update.
-
-# Returns
-Updated distance matrix.
-"""
-function update_tender_distance_matrix(
-    sorties_old::Vector{Route},
-    sorties_new::Vector{Route},
-    dist_matrix::Matrix{Float64},
-)::Matrix{Float64}
-    old_sortie_matrix_dists::Vector{Float64} = vcat(getfield.(sorties_old, :dist_matrix)...)
-    new_sortie_matrix_dists::Vector{Float64} = vcat(getfield.(sorties_new, :dist_matrix)...)
-
-    # Find coordinates of distances to update in dist_matrix
-    coords_below_diag::Vector{CartesianIndex{2}} = coords_for_value.(
-        Ref(dist_matrix), old_sortie_matrix_dists
-    )
-
-    swap_ij(I::CartesianIndex{2}) = CartesianIndex(I[2], I[1])
-    coords_above_diag::Vector{CartesianIndex{2}} = swap_ij.(coords_below_diag)
-
-    # Update the distance matrix with new values
-    dist_matrix_new::Matrix{Float64} = copy(dist_matrix)
-    dist_matrix_new[coords_below_diag] .= new_sortie_matrix_dists
-    dist_matrix_new[coords_above_diag] .= new_sortie_matrix_dists
-
-    return dist_matrix_new
-end
-
-"""
-    Get coordinates of closest value in the distance matrix to a given specific value.
-"""
-function coords_for_value(
-    dist_matrix::Matrix{Float64},
-    dist_val::Float64,
-)::CartesianIndex{2}
-    I = findall(≈(dist_val), dist_matrix)
-    isempty(I) && throw(ArgumentError("No coords found for value $dist_val"))
-
-    #! Not a bulletproof way to find/update, as distance value may not be unique
-    (length(I) > 2) && @warn """Multiple coords found for $dist_val in dist_matrix... \
-    choosing closest match"""
-
-    # Choose dist_matrix value CLOSEST to dist_val
-    best = argmin(abs.(dist_matrix[I] .- dist_val))
-    return I[best]
 end
 
 """
@@ -1121,7 +1050,6 @@ function two_opt(
         tender_soln_current.start,
         tender_soln_current.finish,
         sorties_new,
-        tender_soln_current.dist_matrix,
     )
 end
 
@@ -1229,7 +1157,6 @@ function tender_sequential_nearest_neighbour(
 
             current_node = tour_lengths[t] == 0 ? 1 : tender_tours[t][tour_lengths[t]]
 
-            #? Will this change the original matrix?
             distances = dist_matrix[current_node, 1:n_nodes]
             distances[visited] .= Inf
             nearest_idx = argmin(distances)
@@ -1275,7 +1202,6 @@ function tender_sequential_nearest_neighbour(
         waypoints[1],
         waypoints[2],
         routes,
-        dist_matrix
     )
     improved_sortie = two_opt(
         initial_sortie,

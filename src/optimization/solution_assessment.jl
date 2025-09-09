@@ -451,7 +451,6 @@ function insert_unallocated_node(
             tenders[cluster_seq_idx].start,
             tenders[cluster_seq_idx].finish,
             updated_sorties,
-            tenders[cluster_seq_idx].dist_matrix #! recompute or un-used??
         )
 
         #! update min_tender_sorties
