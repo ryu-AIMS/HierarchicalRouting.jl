@@ -489,6 +489,7 @@ end
         show_mothership::Bool=true,
         show_tenders::Bool=true,
         highlight_critical_path_flag::Bool=false,
+        title::String=""
     )::Figure
     solution(
         problem::Problem,
@@ -499,6 +500,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
+        title::NTuple{2,String}=("Solution A", "Solution B")
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -518,6 +520,7 @@ Create a plot of the full routing solution, including:
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
 - `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the plot.
+- `title`: Title for the plot, or titles for the two subplots when comparing solutions.
 
 # Returns
 The created Figure object containing the plot.
@@ -531,9 +534,11 @@ function solution(
     show_mothership::Bool=true,
     show_tenders::Bool=true,
     highlight_critical_path_flag::Bool=false,
+    title::String="",
 )::Figure
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax.title = title
 
     # Exclusions
     show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
@@ -601,11 +606,14 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    title::NTuple{2,String}=("Solution A", "Solution B")
 )::Figure
     fig = Figure(size=(1350, 750))  ## 2 fig plot
     ax1, ax2 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
         Axis(fig[1, 2], xlabel="Longitude")
+    ax1.title = title[1]
+    ax2.title = title[2]
 
     # Exclusions
     if show_mothership_exclusions
