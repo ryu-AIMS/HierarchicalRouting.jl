@@ -797,7 +797,7 @@ end
 function highlight_critical_path!(
     ax::Axis,
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0);
+    vessel_weightings::NTuple{2,AbstractFloat};
     color=:red,
     linewidth=4
 )

@@ -579,7 +579,7 @@ end
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
         static_limit::Int=150;
-        vessel_weightings::NTuple{2, AbstractFloat}=(1.0, 1.0),
+        vessel_weightings::NTuple{2, AbstractFloat},
         cross_cluster_flag::Bool=false,
     )
 
@@ -597,7 +597,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
     Default = 0.95 = 95%.
 - `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
 - `vessel_weightings`: Tuple of weightings (mothership, tenders) to apply to vessel
-    distances to generate costs for the objective function. Default = (1.0, 1.0).
+    distances to generate costs for the objective function.
 - `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
     considered. Default = false.
 
@@ -615,7 +615,7 @@ function simulated_annealing(
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
     static_limit::Int=150;
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0),
+    vessel_weightings::NTuple{2,AbstractFloat},
     cross_cluster_flag::Bool=false,
 )::Tuple{MSTSolution,Float64}
     # Initialize best solution as initial
