@@ -350,8 +350,8 @@ function optimize_waypoints(
         iterations=iterations,
         f_reltol=cost_tol,
         g_abstol=gradient_tol,
-        show_trace=true,
-        show_every=10,
+        # show_trace=true, show_every=10,
+        store_trace=true,
         allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
@@ -376,6 +376,10 @@ function optimize_waypoints(
     @info "Function status:" Optim.f_converged(result)
     @info "Gradient status:" Optim.g_converged(result)
     # @info "Gradient trace:" Optim.g_norm_trace(result)
+
+    result_trace = Optim.trace(result)
+    fig = Plot.trace(result_trace, opt_method)
+    display(fig)
 
     return best_soln
 end

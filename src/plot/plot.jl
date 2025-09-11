@@ -780,6 +780,55 @@ function solution_disturbances(
     return fig
 end
 
+function trace(
+    iters::Vector{Int},
+    fvals::Vector{Float64},
+    times::Vector{Float64},
+    opt_method=nothing
+)::Figure
+    fig = Figure()
+    ax = Axis(fig[1, 1], xlabel="iteration", ylabel="f(x)",
+        xgridvisible=false
+    )
+    if opt_method !== nothing
+        nt = opt_method.nt
+        rt = opt_method.rt
+        ns = opt_method.ns
+
+        text!(ax, 0.02, 0.02,
+            text="nt=$(nt), rt=$(rt), ns=$(ns)",
+            align=(:left, :bottom),
+            space=:relative,
+            fontsize=14,
+            color=:black
+        )
+    end
+
+    lines!(ax, iters, fvals)
+    axt = Axis(fig[1, 1];
+        xaxisposition=:top, yaxisposition=:right, xlabel="time (s)",
+        xgridvisible=true,
+        yticklabelsvisible=false, yticksvisible=false, ygridvisible=false,
+        backgroundcolor=:transparent
+    )
+
+    # Align vertical axes
+    linkyaxes!(ax, axt)
+    # Independent horizontal scale
+    xlims!(axt, extrema(times)...)
+    return fig
+end
+function trace(
+    tr,
+    opt_method=nothing
+)::Figure
+    iters = getfield.(tr, :iteration)
+    fvals = getfield.(tr, :value)
+    times = getindex.(getfield.(tr, :metadata), Ref("time"))
+
+    return trace(iters, fvals, times, opt_method)
+end
+
 function annotate_cost!(
     ax::Axis,
     cost::Float64;
