@@ -944,6 +944,18 @@ end
 
 # Debug plots
 
+const PALETTE = RGBAf.(Makie.wong_colors())
+const POINT_COLORS = Dict{Int,RGBAf}()
+
+idx_color(i::Int) =
+    get!(POINT_COLORS, i) do
+        PALETTE[mod1(i, length(PALETTE))]   # cycle if ids exceed palette length
+    end
+
+function scatter_by_id!(ax, pts; ids=eachindex(pts), kwargs...)
+    scatter!(ax, pts; color=[idx_color(i) for i in ids], kwargs...)
+end
+
 """
     debug_waypoints(problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}}; title="")
     debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
