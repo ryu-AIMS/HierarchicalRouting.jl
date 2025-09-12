@@ -689,6 +689,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
+        highlight_critical_path_flag::Bool=false,
     )::Figure
 
 Create a plot of the solution at each progressive disturbance event, including:
@@ -709,6 +710,8 @@ Create a plot of the solution at each progressive disturbance event, including:
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
+- `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the final
+plot.
 
 # Returns
 The created Figure object containing the plot.
@@ -722,6 +725,7 @@ function solution_disturbances(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
 )::Figure
     #! NOTE: This function assumes 2 disturbance events.
     #TODO: Generalize to any number of disturbance events.
@@ -776,6 +780,8 @@ function solution_disturbances(
             color=:black
         )
     end
+    highlight_critical_path_flag &&
+        highlight_critical_path!(ax3, solution_disturbed, problem)
 
     return fig
 end
