@@ -592,7 +592,6 @@ function solution(
         color=:black
     )
 
-
     highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
