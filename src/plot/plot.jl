@@ -979,7 +979,7 @@ function debug_waypoints(
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
     exclusions!(ax, problem.mothership.exclusion; labels=false)
     exclusions!(ax, problem.tenders.exclusion; labels=false)
-    scatter!(wpts)
+    scatter!(ax, wpts, color=[idx_color(i) for i in eachindex(wpts)])
     ax.title = title
 
     return fig
