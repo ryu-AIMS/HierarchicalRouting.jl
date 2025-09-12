@@ -371,12 +371,16 @@ function optimize_waypoints(
 
     @info "Type:" summary(result)
     @info "Minimum value:" minimum(result)
-    @info "Convergence status:" Optim.converged(result)
-    @info "X status:" Optim.x_converged(result)
-    @info "Function status:" Optim.f_converged(result)
-    @info "Gradient status:" Optim.g_converged(result)
-    # @info "Gradient trace:" Optim.g_norm_trace(result)
-
+    if Optim.converged(result)
+        @info "Converged at: "
+        Optim.x_converged(result) && @info "x"
+        Optim.f_converged(result) && @info "f(x)"
+        Optim.g_converged(result) && @info "∇f(x)"
+        @info "\nConverged after $(Optim.iterations(result)) iterations"
+    else
+        @info "Did not converge after $(Optim.iterations(result)) iterations"
+    end
+    @info "Best critical path score found: $best_score"
     result_trace = Optim.trace(result)
     fig = Plot.trace(result_trace, opt_method)
     display(fig)
