@@ -873,6 +873,16 @@ function highlight_critical_path!(
 
     return nothing
 end
+function highlight_critical_path!(
+    ax::Axis,
+    soln::MSTSolution,
+    problem::Problem;
+    color=:red,
+    linewidth=4
+)
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    return highlight_critical_path!(ax, soln, vessel_weightings; color, linewidth)
+end
 
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
     # Create custom colormap, skipping the first two colors (yellow and black)
