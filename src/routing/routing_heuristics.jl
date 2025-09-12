@@ -430,8 +430,8 @@ function rebuild_solution_with_waypoints(
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
         solution_ex.cluster_sets,
-        [ms_soln_new],
-        [tender_soln_new]
+        [solution_ex.mothership_routes[1:end-1]; ms_soln_new],
+        [solution_ex.tenders[1:end-1]; [tender_soln_new]]
     )
 end
 
