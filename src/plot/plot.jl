@@ -752,7 +752,7 @@ function solution_disturbances(
     # Tender sorties/routes
     if show_tenders
         ordered_disturbances = sort(unique(disturbance_clusters))
-        route!.(
+        tenders!.(
             [ax1, ax2, ax3],
             [
                 solution_disturbed.tenders[1][1:ordered_disturbances[1]-1],
