@@ -304,6 +304,8 @@ function optimize_waypoints(
     best_count::Int64 = 0
     soln_proposed::MSTSolution = soln
 
+    fig_wpts = Plot.debug_waypoints(problem, last_ms_route.route.nodes)
+
     # Objective from x -> critical_path
     function obj(
         x::Vector{Float64};
@@ -341,6 +343,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count += 1
         end
+        Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
 
         return score
     end
@@ -381,6 +384,9 @@ function optimize_waypoints(
         @info "Did not converge after $(Optim.iterations(result)) iterations"
     end
     @info "Best critical path score found: $best_score"
+
+    Plot.route!(fig_wpts.current_axis[], best_soln.mothership_routes[end], color=:black)
+    display(fig_wpts)
     result_trace = Optim.trace(result)
     fig = Plot.trace(result_trace, opt_method)
     display(fig)
