@@ -274,7 +274,7 @@ function optimize_waypoints(
     opt_method;
     cost_tol::Float64=0.0,
     gradient_tol::Float64=3e4,
-    iterations::Int64=100,
+    iterations::Int64=typemax(Int64),
     time_limit::Float64=60.0
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
