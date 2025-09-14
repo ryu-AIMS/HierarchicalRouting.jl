@@ -787,28 +787,21 @@ function trace(
     opt_method=nothing
 )::Figure
     fig = Figure()
-    ax = Axis(fig[1, 1], xlabel="iteration", ylabel="f(x)",
+    ax = Axis(fig[1, 1];
+        xlabel="iteration", ylabel="f(x)",
+        yscale=Makie.log10,                 # set log scale
         xgridvisible=false
     )
     if opt_method !== nothing
-        nt = opt_method.nt
-        rt = opt_method.rt
-        ns = opt_method.ns
-
-        text!(ax, 0.02, 0.02,
-            text="nt=$(nt), rt=$(rt), ns=$(ns)",
-            align=(:left, :bottom),
-            space=:relative,
-            fontsize=14,
-            color=:black
-        )
+        ax.title = "Optimization Trace: nt=$(opt_method.nt), rt=$(opt_method.rt), ns=$(opt_method.ns)"
     end
+    lines!(ax, iters, max.(fvals, eps(Float64)))   # avoid 0 on a log scale
 
-    lines!(ax, iters, fvals)
     axt = Axis(fig[1, 1];
         xaxisposition=:top, yaxisposition=:right, xlabel="time (s)",
-        xgridvisible=true,
-        yticklabelsvisible=false, yticksvisible=false, ygridvisible=false,
+        yscale=Makie.log10,                 # match log scale
+        yticklabelsvisible=false, yticksvisible=false,
+        ygridvisible=false, xgridvisible=false,
         backgroundcolor=:transparent
     )
 
