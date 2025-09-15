@@ -264,7 +264,7 @@ function _apply_disturbance_events!(
         \tbefore $(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)"""
 
         # Update clusters based on the impact of disturbance event on future points/clusters
-        clusters = vcat(
+        clusters::Vector{Cluster} = vcat(
             clusters[clust_seq][1:disturb_clust_idx-1],
             disturb_clusters(
                 clusters[clust_seq][disturb_clust_idx:end],
@@ -289,7 +289,7 @@ function _apply_disturbance_events!(
         cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
         # Re-route mothership (respecting pre-existing portion as fixed)
-        ms_route = optimize_mothership_route(
+        ms_route::MothershipSolution = optimize_mothership_route(
             problem,
             cluster_centroids_df,
             disturb_clust_idx,
