@@ -250,7 +250,7 @@ function _apply_disturbance_events!(
     do_improve::Bool=false,
     vessel_weightings::Union{Nothing,NTuple{2,AbstractFloat}}=nothing,
 )::Nothing
-    (do_improve && vessel_weightings === nothing) && throw(
+    (do_improve && isnothing(vessel_weightings)) && throw(
         ArgumentError("`vessel_weightings` must be provided when `do_improve=true`")
     )
     disturb_idx = 1
