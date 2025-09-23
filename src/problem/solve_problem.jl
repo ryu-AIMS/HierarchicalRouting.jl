@@ -157,6 +157,7 @@ function solve(
         problem,
         total_tender_capacity;
         do_improve,
+        waypoint_optim_method
     )
 
     if !isnothing(waypoint_optim_method)
@@ -178,6 +179,7 @@ end
         problem::Problem,
         total_tender_capacity::Int;
         do_improve::Bool=false,
+        waypoint_optim_method=nothing,
     )::MSTSolution
 
 Simulates and applies disturbance events to the solution.
@@ -196,6 +198,7 @@ function _apply_disturbance_events!(
     problem::Problem,
     total_tender_capacity::Int;
     do_improve::Bool=false,
+    waypoint_optim_method=nothing,
 )::MSTSolution
     disturb_idx = 1
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
