@@ -980,7 +980,12 @@ function two_opt(
     cluster_seq_idx::Int64
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
+
+    ordered_centroids = sort(cluster_centroids[1:end-1, :], :id)  # drop last row
+    centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
+    push!(centroid_nodes, first(centroid_nodes))  # return to depot
+
+    dist_matrix::Matrix{Float64} = get_feasible_matrix(centroid_nodes, exclusions_mothership)[1]
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -993,7 +998,7 @@ function two_opt(
     # Optimize only from cluster_seq_idx to the end
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_vector,
+        dist_matrix,
         route_distance;
         start_idx=cluster_seq_idx,
         end_idx=length(initial_route)
