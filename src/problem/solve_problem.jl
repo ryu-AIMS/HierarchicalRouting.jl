@@ -201,7 +201,6 @@ function solve(
         problem,
         total_tender_capacity,
         do_improve=true,
-        vessel_weightings=vessel_weightings
     )
 
     solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
@@ -227,14 +226,13 @@ end
         problem::Problem,
         total_tender_capacity::Int;
         do_improve::Bool=false,
-        vessel_weightings::Union{Nothing,NTuple{2,AbstractFloat}}=nothing,
     )::Nothing
 
 Simulates and applies disturbance events to the solution.
 Shared disturbance-handling loop used by `initial_solution` and `solve`.
 Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each disturbance event.
 - If `do_improve=true`, additionally runs `improve_solution(...)` at each disturbance, using
-  `vessel_weightings` (required when `do_improve=true`).
+  vessel_weightings derived from the `problem` instance.
 - Assumes index 1 (pre-disturbance state) has already been written into the *_sets vectors.
 """
 function _apply_disturbance_events!(
@@ -248,11 +246,7 @@ function _apply_disturbance_events!(
     problem::Problem,
     total_tender_capacity::Int;
     do_improve::Bool=false,
-    vessel_weightings::Union{Nothing,NTuple{2,AbstractFloat}}=nothing,
 )::Nothing
-    (do_improve && isnothing(vessel_weightings)) && throw(
-        ArgumentError("`vessel_weightings` must be provided when `do_improve=true`")
-    )
     disturb_idx = 1
 
     # Iterate through each disturbance event and update solution
@@ -326,6 +320,7 @@ function _apply_disturbance_events!(
                 ordered_disturbances[disturb_clust_idx] :
                 length(clusters) + 1
 
+            vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
 
             optimized_current_solution, _ = improve_solution(
                 MSTSolution([clusters], [ms_route], [current_tender_soln]),
