@@ -72,7 +72,7 @@ function initial_solution(
     tender_soln_sets[disturb_idx] = initial_tenders
 
     # Simulate disturbances
-    _apply_disturbance_events!(
+    solution_init::MSTSolution = _apply_disturbance_events(
         cluster_sets,
         ms_soln_sets,
         tender_soln_sets,
@@ -84,8 +84,6 @@ function initial_solution(
         total_tender_capacity,
         do_improve=false
     )
-
-    solution_init::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
 
     if !isnothing(waypoint_optim_method)
         @info "Optimizing waypoints using $(waypoint_optim_method)"
@@ -190,7 +188,7 @@ function solve(
     clust_seq = filter(c -> c != 0 && c <= length(clusters), ms_route.cluster_sequence.id)
 
     # Simulate disturbance events
-    _apply_disturbance_events!(
+    solution::MSTSolution = _apply_disturbance_events(
         cluster_sets,
         ms_soln_sets,
         tender_soln_sets,
@@ -203,8 +201,6 @@ function solve(
         do_improve=true,
     )
 
-    solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
-
     if !isnothing(waypoint_optim_method)
         @info "Optimizing waypoints using $(waypoint_optim_method)"
         return optimize_waypoints(solution, problem, waypoint_optim_method)
@@ -215,7 +211,7 @@ end
 
 
 """
-    _apply_disturbance_events!(
+    _apply_disturbance_events(
         cluster_sets::Vector{Vector{Cluster}},
         ms_soln_sets::Vector{MothershipSolution},
         tender_soln_sets::Vector{Vector{TenderSolution}},
@@ -226,7 +222,7 @@ end
         problem::Problem,
         total_tender_capacity::Int;
         do_improve::Bool=false,
-    )::Nothing
+    )::MSTSolution
 
 Simulates and applies disturbance events to the solution.
 Shared disturbance-handling loop used by `initial_solution` and `solve`.
@@ -235,7 +231,7 @@ Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each distu
   vessel_weightings derived from the `problem` instance.
 - Assumes index 1 (pre-disturbance state) has already been written into the *_sets vectors.
 """
-function _apply_disturbance_events!(
+function _apply_disturbance_events(
     cluster_sets::Vector{Vector{Cluster}},
     ms_soln_sets::Vector{MothershipSolution},
     tender_soln_sets::Vector{Vector{TenderSolution}},
@@ -246,7 +242,7 @@ function _apply_disturbance_events!(
     problem::Problem,
     total_tender_capacity::Int;
     do_improve::Bool=false,
-)::Nothing
+)::MSTSolution
     disturb_idx = 1
 
     # Iterate through each disturbance event and update solution
@@ -348,7 +344,9 @@ function _apply_disturbance_events!(
         tender_soln_sets[disturb_idx] = current_tender_soln
     end
 
-    return nothing
+    solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+
+    return solution
 end
 
 """
