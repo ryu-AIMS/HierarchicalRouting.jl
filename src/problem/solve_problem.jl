@@ -117,7 +117,6 @@ function solve(
         for j in 1:length(clust_seq)
     ]
 
-    disturb_idx = 1
     if do_improve
         @info "Improving initial solution using simulated annealing"
         # Optimize the initial tenders solution up to the first disturbance
@@ -143,6 +142,7 @@ function solve(
     end
 
     # Apply solution to the first set of clusters pre-disturbance
+    disturb_idx = 1
     cluster_sets[disturb_idx] = clusters
     ms_soln_sets[disturb_idx] = ms_route
     tender_soln_sets[disturb_idx] = initial_tenders
