@@ -148,12 +148,10 @@ function solve(
     tender_soln_sets[disturb_idx] = initial_tenders
 
     # Simulate disturbance events
-    solution::MSTSolution = _apply_disturbance_events(
+    solution::MSTSolution = _apply_disturbance_events!(
         cluster_sets,
         ms_soln_sets,
         tender_soln_sets,
-        clusters,
-        ms_route,
         clust_seq,
         ordered_disturbances,
         problem,
@@ -171,12 +169,10 @@ end
 
 
 """
-    _apply_disturbance_events(
+    _apply_disturbance_events!(
         cluster_sets::Vector{Vector{Cluster}},
         ms_soln_sets::Vector{MothershipSolution},
         tender_soln_sets::Vector{Vector{TenderSolution}},
-        clusters::Vector{Cluster},
-        ms_route::MothershipSolution,
         clust_seq::Vector{Int64},
         ordered_disturbances::Vector{Int64},
         problem::Problem,
@@ -191,12 +187,10 @@ Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each distu
   vessel_weightings derived from the `problem` instance.
 - Assumes index 1 (pre-disturbance state) has already been written into the *_sets vectors.
 """
-function _apply_disturbance_events(
+function _apply_disturbance_events!(
     cluster_sets::Vector{Vector{Cluster}},
     ms_soln_sets::Vector{MothershipSolution},
     tender_soln_sets::Vector{Vector{TenderSolution}},
-    clusters::Vector{Cluster},
-    ms_route::MothershipSolution,
     clust_seq::Vector{Int64},
     ordered_disturbances::Vector{Int64},
     problem::Problem,
@@ -204,6 +198,8 @@ function _apply_disturbance_events(
     do_improve::Bool=false,
 )::MSTSolution
     disturb_idx = 1
+    clusters::Vector{Cluster} = cluster_sets[disturb_idx]
+    ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
 
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
@@ -214,7 +210,7 @@ function _apply_disturbance_events(
         \tbefore $(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)"""
 
         # Update clusters based on the impact of disturbance event on future points/clusters
-        clusters::Vector{Cluster} = vcat(
+        clusters = vcat(
             clusters[clust_seq][1:disturb_clust_idx-1],
             disturb_clusters(
                 clusters[clust_seq][disturb_clust_idx:end],
@@ -239,7 +235,7 @@ function _apply_disturbance_events(
         cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
         # Re-route mothership (respecting pre-existing portion as fixed)
-        ms_route::MothershipSolution = optimize_mothership_route(
+        ms_route = optimize_mothership_route(
             problem,
             cluster_centroids_df,
             disturb_clust_idx,
