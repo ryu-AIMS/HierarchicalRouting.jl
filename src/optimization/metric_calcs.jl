@@ -32,7 +32,8 @@ end
 Get a vector of distances between consecutive points in a route, given either a distance
 matrix or a distance vector.
 
-If a distance matrix is provided, the method returns the superdiagonal: the first diagonal above the main diagonal.
+If a distance matrix is provided, the method returns the superdiagonal: the first diagonal
+above the main diagonal.
 """
 function get_distance_vector(dist_matrix::Matrix{Float64})::Vector{Float64}
     return [dist_matrix[i, i+1] for i in 1:(size(dist_matrix, 1)-1)]
