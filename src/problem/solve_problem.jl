@@ -160,11 +160,6 @@ function solve(
         waypoint_optim_method
     )
 
-    if !isnothing(waypoint_optim_method)
-        @info "Optimizing waypoints using $(waypoint_optim_method)"
-        return optimize_waypoints(solution, problem, waypoint_optim_method)
-    end
-
     return solution
 end
 
@@ -204,6 +199,20 @@ function _apply_disturbance_events!(
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
     solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+
+    # Optimize initial waypoints
+    if !isnothing(waypoint_optim_method)
+        @info "Optimizing pre-disturbed waypoint subset using $(waypoint_optim_method)"
+
+        solution = optimize_waypoints(
+            MSTSolution([clusters], [ms_route], [tender_soln_sets[disturb_idx]]),
+            problem,
+            waypoint_optim_method
+        )
+        clusters = solution.cluster_sets[disturb_idx]
+        ms_route = solution.mothership_routes[disturb_idx]
+        tender_soln_sets[disturb_idx] = solution.tenders[disturb_idx]
+    end
 
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
