@@ -241,22 +241,38 @@ end
         opt_method;
         cost_tol::Float64=0.0,
         gradient_tol::Float64=3e4,
-        iterations::Int64=100,
-        time_limit::Float64=60.0
+        iterations::Int64=typemax(Int64),
+        time_limit::Float64=200.0,
+    )::MSTSolution
+    optimize_waypoints(
+        soln::MSTSolution,
+        problem::Problem,
+        opt_method,
+        candidate_wpt_idxs::Union{AbstractVector{<:Integer},AbstractUnitRange{<:Integer}};
+        cost_tol::Float64=0.0,
+        gradient_tol::Float64=3e4,
+        iterations::Int64=typemax(Int64),
+        time_limit::Float64=200.0,
     )::MSTSolution
 
-Optimize waypoint positions in the final mothership route using gradient-based optimization
+Optimize waypoint positions in the final mothership route using `opt_method` provided
 to minimize the critical path time while avoiding exclusion zones.
 
-This function takes the waypoints from the last mothership route (excluding depot start/end
-points) and optimizes their positions within a constrained search space. The optimization
+This function optimizes the waypoints from the last mothership route (excluding depot start/
+end points)by perturbing their positions within a constrained search space. The optimization
 minimizes the critical path score while penalizing waypoints that fall within exclusion
 zones.
+
+Disturbance scenarios can be handled by optimizing only a subset of waypoints corresponding
+to clusters affected by disturbances. `candidate_wpt_idxs` specifies the indices of
+waypoints to optimize, allowing for partial optimization of the route.
 
 # Arguments
 - `soln::MSTSolution`: Current mothership and tender solution.
 - `problem::Problem`: Definition of problem context (vessel specs and exclusion zones)
 - `opt_method`: Optimization algorithm used to improve waypoint positions.
+- `candidate_wpt_idxs`: Indices of waypoints to optimize. If not provided, all interior
+(non-depot) waypoints will be optimized.
 - `cost_tol`: Relative cost function tolerance. Stop optimization if function falls below
 this value.
 - `gradient_tol::Float64`: Gradient norm convergence tolerance. Stop optimization when
