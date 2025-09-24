@@ -183,6 +183,9 @@ Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each distu
 - If `do_improve=true`, additionally runs `improve_solution(...)` at each disturbance, using
   vessel_weightings derived from the `problem` instance.
 - Assumes index 1 (pre-disturbance state) has already been written into the *_sets vectors.
+- `waypoint_optim_method` can be provided to optimize waypoints between disturbance events.
+    - NB: Currently, partial optimization perturbs ALL future/unvisited waypoints, rather than
+    just those appearing in `candidate_wpt_idxs` and/or between disturbance events.
 """
 function _apply_disturbance_events!(
     cluster_sets::Vector{Vector{Cluster}},
