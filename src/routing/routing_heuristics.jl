@@ -277,6 +277,33 @@ function optimize_waypoints(
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
 )::MSTSolution
+    # Optimize all interior waypoints by default
+    n_nodes = length(soln.mothership_routes[end].route.nodes)
+    n_nodes <= 0 && return soln
+
+    # Candidate waypoint indices to optimize (excluding depot start/end)
+    candidate_wpt_idxs = 2:n_nodes-1
+
+    # Pass to partial-optimization overload with all interior indices
+    return optimize_waypoints(
+        soln, problem, opt_method,
+        candidate_wpt_idxs;
+        cost_tol=cost_tol,
+        gradient_tol=gradient_tol,
+        iterations=iterations,
+        time_limit=time_limit,
+    )
+end
+function optimize_waypoints(
+    soln::MSTSolution,
+    problem::Problem,
+    opt_method,
+    candidate_wpt_idxs::Union{AbstractVector{<:Integer},AbstractUnitRange{<:Integer}};
+    cost_tol::Float64=0.0,
+    gradient_tol::Float64=3e4,
+    iterations::Int64=typemax(Int64),
+    time_limit::Float64=200.0,
+)::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
     vessel_weightings::NTuple{2,AbstractFloat} = (
@@ -286,18 +313,24 @@ function optimize_waypoints(
     last_ms_route = soln.mothership_routes[end]
 
     # Flatten initial waypoints
-    waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
-    x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
+    waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes
+    n_wpts::Int64 = length(waypoints_initial)
+    free_idxs::Vector{Int} = sort!(unique!(collect(candidate_wpt_idxs)))
 
-    # Initialize variables for objective function
-    wpts_length::Int64 = length(waypoints_initial) + 2 # +2 for depot start/end points
-    wpts::Vector{Point{2,Float64}} = Vector{Point{2,Float64}}(undef, wpts_length)
-    wpts[1] = last_ms_route.route.nodes[1] # Depot start fixed
-    wpts[end] = last_ms_route.route.nodes[end] # Depot end fixed
+    isempty(free_idxs) && return soln
+    @assert all(1 .<= free_idxs .<= n_wpts) "Free waypoint indices must be within 1:$n_wpts"
 
-    has_bad_waypoint::BitVector = falses(wpts_length)
-    exclusion_count::Int64 = 0
-    score::Float64 = 0.0
+    """
+    Pack waypoints into optimization vector x, and unpack back into waypoints
+    """
+    @inline function pack_x(pts::Vector{Point{2,Float64}}, idxs::Vector{Int})::Vector{Float64}
+        x = Vector{Float64}(undef, 2 * length(idxs))
+        @inbounds for (j, i) in enumerate(idxs)
+            x[2j-1] = pts[i][1]
+            x[2j] = pts[i][2]
+        end
+        return x
+    end
 
     best_soln::MSTSolution = soln
     best_score::Float64 = critical_path(soln, vessel_weightings)
@@ -311,8 +344,8 @@ function optimize_waypoints(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        @inbounds for i in 1:length(waypoints_initial)
-            wpts[i+1] = Point(x[2i-1], x[2i])
+        @inbounds for (j, i) in enumerate(free_idxs)
+            wpts[i] = Point(x[2j-1], x[2j])
         end
 
         # Exit early here if any waypoints are inside exclusion zones
@@ -358,6 +391,10 @@ function optimize_waypoints(
         allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
+
+    # Waypoints to optimize, formatted for Optim
+    wpts = waypoints_initial
+    x0 = pack_x(wpts, free_idxs)
 
     # Each waypoint is bounded to its surrounding area (in decimal degrees)
     lb = x0 .- 0.025
