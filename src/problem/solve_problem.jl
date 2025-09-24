@@ -268,6 +268,9 @@ function _apply_disturbance_events!(
             end
         end
 
+        # Increment event index
+        disturb_idx += 1
+
         # Solution improvement step (used by `solve`, not by `initial_solution`)
         if do_improve
             next_disturbance_cluster_idx =
@@ -296,8 +299,7 @@ function _apply_disturbance_events!(
             )
         end
 
-        # Increment event index and update solution sets
-        disturb_idx += 1
+        # Update solution sets
         cluster_sets[disturb_idx] = clusters
         ms_soln_sets[disturb_idx] = ms_route
         tender_soln_sets[disturb_idx] = current_tender_soln
