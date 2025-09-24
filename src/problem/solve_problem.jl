@@ -203,6 +203,7 @@ function _apply_disturbance_events!(
     disturb_idx = 1
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
+    solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
 
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
@@ -305,7 +306,9 @@ function _apply_disturbance_events!(
         tender_soln_sets[disturb_idx] = current_tender_soln
     end
 
-    solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    if !isempty(ordered_disturbances)
+        solution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    end
 
     return solution
 end
