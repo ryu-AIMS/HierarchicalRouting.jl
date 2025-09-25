@@ -786,6 +786,38 @@ function solution_disturbances(
     highlight_critical_path_flag &&
         highlight_critical_path!(ax3, solution_disturbed, problem)
 
+    # Annotate critical path cost
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_dist = critical_path(solution_disturbed, vessel_weightings)
+    total_dist = total_distance(solution_disturbed, vessel_weightings)
+
+    annotate_cost!(
+        ax3,
+        critical_path_dist;
+        position=(0.95, 0.07),
+        fontsize=14,
+        color=:black
+    )
+    annotate_cost!(
+        ax3,
+        total_dist;
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="total_distance()\ntotal dist"
+    )
+    text!(
+        ax3,
+        (0.02, 0.01)...,
+        text="""Vessel weightings:
+        (mothership, tenders)
+        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        align=(:left, :bottom),
+        space=:relative,
+        fontsize=14,
+        color=:black
+    )
+
     return fig
 end
 
