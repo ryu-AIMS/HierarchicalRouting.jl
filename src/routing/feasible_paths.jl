@@ -207,7 +207,8 @@ start pt and any other intersecting polygons.
 function shortest_feasible_path(
     initial_point::Point{2,Float64},
     final_point::Point{2,Float64},
-    exclusions::POLY_VEC,
+    exclusions::POLY_VEC;
+    _tried_reverse::Bool=false
 )::Tuple{Float64,Vector{LineString{2,Float64}}}
     final_exclusion_idx = point_in_convexhull(final_point, exclusions)
     initial_exclusion_idx = point_in_convexhull(initial_point, exclusions)
@@ -316,9 +317,21 @@ function shortest_feasible_path(
 
     # Use A* algorithm to find shortest path
     path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
-    iszero(length(path)) && throw(ErrorException(
-        "No path ($initial_point -> $final_point) because network/graph incomplete"
-    ))
+    if iszero(length(path)) && !_tried_reverse
+        dist_rev, segs_rev = shortest_feasible_path(
+            final_point,
+            initial_point,
+            exclusions;
+            _tried_reverse=true
+        )
+        # Flip segments original forward direction (and order)
+        segs_fwd = reverse([LineString([last(ls), first(ls)]) for ls in getfield.(segs_rev, :points)])
+        return dist_rev, segs_fwd
+    elseif iszero(length(path))
+        throw(ErrorException(
+            "No path ($initial_point -> $final_point) because network/graph incomplete"
+        ))
+    end
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
     linestring_path::Vector{LineString} = [
