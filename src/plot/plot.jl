@@ -500,7 +500,8 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-        title::NTuple{2,String}=("Solution A", "Solution B")
+        highlight_critical_path_flag::Bool=false,
+        title::NTuple{2,String}=("Solution A", "Solution B"),
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -605,6 +606,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
     title::NTuple{2,String}=("Solution A", "Solution B")
 )::Figure
     fig = Figure(size=(1350, 750))  ## 2 fig plot
@@ -651,8 +653,14 @@ function solution(
         )
     end
 
-    # Annotate critical path costs
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    highlight_critical_path_flag && highlight_critical_path!.(
+        [ax1, ax2],
+        [soln_a, soln_b],
+        Ref(vessel_weightings)
+    )
+
+    # Annotate critical path costs
     critical_path_dist_a = critical_path(soln_a, vessel_weightings)
     critical_path_dist_b = critical_path(soln_b, vessel_weightings)
     total_dist_a = total_distance(soln_a, vessel_weightings)
