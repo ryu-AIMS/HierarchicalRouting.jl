@@ -753,8 +753,8 @@ function solution_disturbances(
     # Clusters
     clusters!.(
         [ax1, ax2, ax3],
-        [solution_disturbed.cluster_sets[end], solution_disturbed.cluster_sets[end], solution_disturbed.cluster_sets[end]];
-        cluster_radius=cluster_radius,
+        solution_disturbed.cluster_sets;
+        cluster_radius,
         nodes=true,
         centers=false,
         labels=true,
@@ -778,11 +778,7 @@ function solution_disturbances(
     if show_mothership
         route!.(
             [ax1, ax2, ax3],
-            [
-                solution_disturbed.mothership_routes[1].route,
-                solution_disturbed.mothership_routes[2].route,
-                solution_disturbed.mothership_routes[3].route
-            ];
+            getfield.(solution_disturbed.mothership_routes, :route);
             labels=true,
             color=:black
         )
