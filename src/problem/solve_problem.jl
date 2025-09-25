@@ -212,8 +212,8 @@ function _apply_disturbance_events!(
             problem,
             waypoint_optim_method
         )
-        clusters = solution.cluster_sets[disturb_idx]
-        ms_route = solution.mothership_routes[disturb_idx]
+        clusters = cluster_sets[disturb_idx] = solution.cluster_sets[disturb_idx]
+        ms_route = ms_soln_sets[disturb_idx] = solution.mothership_routes[disturb_idx]
         tender_soln_sets[disturb_idx] = solution.tenders[disturb_idx]
     end
 
