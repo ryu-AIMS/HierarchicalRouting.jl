@@ -417,6 +417,21 @@ function optimize_waypoints(
     lb = x0 .- 0.025
     ub = x0 .+ 0.025
 
+    # Ensure bounds are within lat/lon limits
+    (lon_min, lon_max, lat_min, lat_max) = get_bbox_bounds([
+        exclusions_mothership,
+        exclusions_tender,
+        problem.targets.points.geometry
+    ])
+
+    # Bound longitude and latitude to the problem bounding box
+    for i in 1:2:length(x0)
+        lb[i] = max(lb[i], lon_min)
+        ub[i] = min(ub[i], lon_max)
+        lb[i+1] = max(lb[i+1], lat_min)
+        ub[i+1] = min(ub[i+1], lat_max)
+    end
+
     result = optimize(
         obj,
         lb,
