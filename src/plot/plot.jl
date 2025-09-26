@@ -536,9 +536,10 @@ function solution(
     highlight_critical_path_flag::Bool=false,
     title::String="",
 )::Figure
-    fig = Figure(size=(750, 880))
+    fig = Figure(size=(700, 875))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
     ax.title = title
+    ax.titlesize = 18
 
     # Exclusions
     show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
