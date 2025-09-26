@@ -286,6 +286,51 @@ function exclusions!(
 end
 
 """
+    problem(
+        problem::Problem;
+        labels::Bool=false
+    )::Figure
+
+Create a plot of the problem instance, including:
+- exclusion zones for both **mothership** and **tenders**,
+- target points (black crosses), and
+- depot (red star).
+
+# Arguments
+- `problem`: The hierarchical routing problem instance.
+- `labels`: Plot exclusion zones flag.
+
+# Returns
+The Figure containing the plot.
+"""
+function problem(
+    problem::Problem;
+    labels::Bool=false,
+    title::String="Problem Instance"
+)::Figure
+    fig = Figure(size=(700, 875))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax.title = title
+    ax.titlesize = 18
+
+    # Exclusions
+    exclusions!(ax, problem.mothership.exclusion; labels)
+    exclusions!(ax, problem.tenders.exclusion; labels)
+
+    # Depot
+    scatter!(ax, problem.depot, color=:red, markersize=20, marker=:star5, label="Depot")
+
+    # Target points
+    target_points = problem.targets.points.geometry
+    scatter!(ax, target_points, color=:black, markersize=10, marker=:x, label="Targets")
+
+    # Legend
+    axislegend(ax; position=(1, 0.8))
+
+    return fig
+end
+
+"""
     route(
         route::Route;
         markers::Bool=false,
