@@ -1023,7 +1023,7 @@ idx_color(i::Int) =
         PALETTE[mod1(i, length(PALETTE))]   # cycle if ids exceed palette length
     end
 
-function scatter_by_id!(ax, pts; ids=eachindex(pts), kwargs...)
+function scatter_by_id!(ax, pts::Vector{Point{2,Float64}}; ids=eachindex(pts), kwargs...)
     scatter!(ax, pts; color=[idx_color(i) for i in ids], kwargs...)
 end
 

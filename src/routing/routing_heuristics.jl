@@ -365,8 +365,8 @@ function optimize_waypoints(
         end
 
         # Exit early here if any waypoints are inside exclusion zones
-        has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
-        exclusion_count = count(has_bad_waypoint)
+        has_bad_waypoint::Vector{Bool} = point_in_exclusion.(wpts, Ref(exclusions_mothership))
+        exclusion_count::Int = count(has_bad_waypoint)
         if exclusion_count > 0
             naive_score = maximum(vessel_weightings) *
                           sum(haversine.(wpts[1:end-1], wpts[2:end]))
@@ -380,7 +380,7 @@ function optimize_waypoints(
             exclusions_tender
         )
 
-        score = critical_path(soln_proposed, vessel_weightings)
+        score::Float64 = critical_path(soln_proposed, vessel_weightings)
         isinf(score) && throw(DomainError(score,
             "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
         ))
@@ -410,12 +410,12 @@ function optimize_waypoints(
     )
 
     # Waypoints to optimize, formatted for Optim
-    wpts = waypoints_initial
-    x0 = pack_x(wpts, free_idxs)
+    wpts::Vector{Point{2,Float64}} = waypoints_initial
+    x0::Vector{Float64} = pack_x(wpts, free_idxs)
 
     # Each waypoint is bounded to its surrounding area (in decimal degrees)
-    lb = x0 .- 0.025
-    ub = x0 .+ 0.025
+    lb::Vector{Float64} = x0 .- 0.025
+    ub::Vector{Float64} = x0 .+ 0.025
 
     # Ensure bounds are within lat/lon limits
     (lon_min, lon_max, lat_min, lat_max) = get_bbox_bounds([
@@ -634,7 +634,9 @@ function update_segment(
     )
 
     leg_to_update = [point_from, point_to]
-    dist, leg = get_feasible_vector(leg_to_update, exclusions)
+    dist::Vector{Float64}, leg::Vector{Vector{LineString{2,Float64}}} = get_feasible_vector(
+        leg_to_update, exclusions
+    )
     if section == :from
         return (sum(dist), vcat(leg..., remaining_segment...))
     elseif section == :to
