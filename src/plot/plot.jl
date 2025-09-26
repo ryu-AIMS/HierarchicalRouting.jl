@@ -9,7 +9,6 @@ using ..HierarchicalRouting:
     Route,
     generate_letter_id,
     critical_path,
-    total_distance,
     tender_clust_dist,
     mothership_dist_within_clusts
 
@@ -564,22 +563,13 @@ function solution(
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     critical_path_dist = critical_path(soln, vessel_weightings)
-    total_dist = total_distance(soln, vessel_weightings)
 
     annotate_cost!(
         ax,
         critical_path_dist;
-        position=(0.95, 0.07),
-        fontsize=14,
-        color=:black
-    )
-    annotate_cost!(
-        ax,
-        total_dist;
         position=(0.95, 0.01),
         fontsize=14,
-        color=:black,
-        metric="total_distance()\ntotal dist"
+        color=:black
     )
     text!(
         ax,
@@ -663,24 +653,13 @@ function solution(
     # Annotate critical path costs
     critical_path_dist_a = critical_path(soln_a, vessel_weightings)
     critical_path_dist_b = critical_path(soln_b, vessel_weightings)
-    total_dist_a = total_distance(soln_a, vessel_weightings)
-    total_dist_b = total_distance(soln_b, vessel_weightings)
 
     annotate_cost!.(
         [ax1, ax2],
         [critical_path_dist_a, critical_path_dist_b];
-        position=(0.95, 0.07),
-        fontsize=14,
-        color=:black
-    )
-
-    annotate_cost!.(
-        [ax1, ax2],
-        [total_dist_a, total_dist_b];
         position=(0.95, 0.01),
         fontsize=14,
-        color=:black,
-        metric="total_distance()\ntotal dist"
+        color=:black
     )
 
     return fig
@@ -789,7 +768,6 @@ function solution_disturbances(
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     critical_path_dist = critical_path(solution_disturbed, vessel_weightings)
-    total_dist = total_distance(solution_disturbed, vessel_weightings)
 
     annotate_cost!(
         ax3,
@@ -797,14 +775,6 @@ function solution_disturbances(
         position=(0.95, 0.07),
         fontsize=14,
         color=:black
-    )
-    annotate_cost!(
-        ax3,
-        total_dist;
-        position=(0.95, 0.01),
-        fontsize=14,
-        color=:black,
-        metric="total_distance()\ntotal dist"
     )
     text!(
         ax3,
