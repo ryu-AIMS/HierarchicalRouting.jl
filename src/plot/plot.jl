@@ -268,13 +268,23 @@ Plot exclusion zones.
 function exclusions!(
     ax::Axis,
     exclusions::DataFrame;
-    labels::Bool=false
+    labels::Bool=false,
+    exclusion_type::String=""
 )::Axis
+    add_label = !isempty(exclusion_type)
+    label_str = add_label ? "$exclusion_type Exclusion Zone" : nothing
+    label_added = false
+
     for (i, zone) in enumerate(eachrow(exclusions))
         polygon = zone[:geometry]
         for ring in GeoInterface.coordinates(polygon)
             xs, ys = [coord[1] for coord in ring], [coord[2] for coord in ring]
-            poly!(ax, xs, ys, color=(:gray, 0.5), strokecolor=:black)#, label = "Exclusion Zone")
+            if add_label && !label_added
+                poly!(ax, xs, ys; color=(:gray, 0.5), strokecolor=:black, label=label_str)
+                label_added = true
+            else
+                poly!(ax, xs, ys; color=(:gray, 0.5), strokecolor=:black)
+            end
 
             if labels
                 centroid_x, centroid_y = mean(xs), mean(ys)
@@ -314,8 +324,8 @@ function problem(
     ax.titlesize = 18
 
     # Exclusions
-    exclusions!(ax, problem.mothership.exclusion; labels)
-    exclusions!(ax, problem.tenders.exclusion; labels)
+    exclusions!(ax, problem.mothership.exclusion; labels, exclusion_type="Mothership")
+    exclusions!(ax, problem.tenders.exclusion; labels, exclusion_type="Tender")
 
     # Depot
     scatter!(ax, problem.depot, color=:red, markersize=20, marker=:star5, label="Depot")
