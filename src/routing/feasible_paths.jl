@@ -158,10 +158,10 @@ Check if a point is within an exclusion zone.
 - `true` if point is within an exclusion zone, `false` otherwise.
 """
 function point_in_exclusion(point::Point{2,Float64}, exclusion::IGeometry{wkbPolygon})::Bool
-    return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
+    return any(AG.contains(exclusion, AG.createpoint(point.data)))
 end
 function point_in_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Bool
-    return any(AG.contains.(exclusions, Ref(AG.createpoint(point[1], point[2]))))
+    return any(AG.contains.(exclusions, Ref(AG.createpoint(point.data))))
 end
 
 """
@@ -177,7 +177,7 @@ Return the index of the exclusion zone that contains the point.
 - Index of the first exclusion zone that contains the point, or 0 if not found.
 """
 function containing_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Int
-    point_ag = AG.createpoint(point[1], point[2])
+    point_ag = AG.createpoint(point.data)
     exclusion_idx = findfirst(AG.contains.(exclusions, Ref(point_ag)))
     return isnothing(exclusion_idx) ? 0 : exclusion_idx
 end
@@ -357,7 +357,7 @@ Check if a point is within a convex hull of exclusion zones.
 - Index of exclusion zone if point is within a convex hull, 0 otherwise.
 """
 function point_in_convexhull(point::Point{2,Float64}, exclusions::POLY_VEC)
-    point_ag = AG.createpoint(point[1], point[2])
+    point_ag::AG.IGeometry{wkbPoint} = AG.createpoint(point.data)
     convex_exclusions_ag = AG.convexhull.(exclusions)
 
     point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [point_ag])
