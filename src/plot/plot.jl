@@ -1045,7 +1045,7 @@ HR.Plot.debug_waypoints(problem, x)
 function debug_waypoints(
     problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}};
     title=""
-)
+)::Figure
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
     exclusions!(ax, problem.mothership.exclusion; labels=false)
@@ -1055,7 +1055,7 @@ function debug_waypoints(
 
     return fig
 end
-function debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+function debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")::Figure
     return debug_waypoints(problem, Point.(wpts[1:2:end], wpts[2:2:end]); title=title)
 end
 
