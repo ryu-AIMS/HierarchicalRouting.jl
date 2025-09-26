@@ -431,8 +431,8 @@ function route!(
 
         # If line_string is a single LineString, iterate over its points directly.
         points = hasproperty(line_string, :points) ?
-                 [Point(p[1], p[2]) for p in line_string.points] :
-                 [Point(p[1], p[2]) for l in line_string for p in l.points]
+                 [Point{2,Float64}(p[1], p[2]) for p in line_string.points] :
+                 [Point{2,Float64}(p[1], p[2]) for l in line_string for p in l.points]
         line_width = line_color == :black ? 3 : 2
         lines!(ax, points, color=line_color, linewidth=line_width)
     end

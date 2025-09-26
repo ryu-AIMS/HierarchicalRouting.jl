@@ -122,7 +122,7 @@ function load_problem(
         suitable_targets_subset
     )
     coords::Vector{Point{2,Float64}} = [
-        Point(
+        Point{2,Float64}(
             suitable_targets_subset.dims[1][idx[1]],
             suitable_targets_subset.dims[2][idx[2]]
         )

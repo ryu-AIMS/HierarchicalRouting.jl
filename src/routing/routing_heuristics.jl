@@ -94,7 +94,7 @@ function adjust_waypoint(
     # iterate safely within all vertices on the exterior ring to populate pts
     @inbounds for i in 1:n_points
         pt = AG.getpoint(exterior_ring, i - 1) # 0-based indexing
-        boundary_points[i] = Point(pt[1], pt[2])
+        boundary_points[i] = Point{2,Float64}(pt[1], pt[2])
     end
 
     valid_boundary_points = Point{2,Float64}[]
@@ -361,7 +361,7 @@ function optimize_waypoints(
     )::Float64
         # Rebuild waypoints
         @inbounds for (j, i) in enumerate(free_idxs)
-            wpts[i] = Point(x[2j-1], x[2j])
+            wpts[i] = Point{2,Float64}(x[2j-1], x[2j])
         end
 
         # Exit early here if any waypoints are inside exclusion zones

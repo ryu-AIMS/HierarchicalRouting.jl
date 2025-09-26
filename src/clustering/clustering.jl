@@ -667,7 +667,7 @@ function compute_cluster_mapping(
         idxs = findall(==(id_new), ids)
         xs = getindex.(coords[idxs], 1)
         ys = getindex.(coords[idxs], 2)
-        new_centroids[id_new] = Point(mean(xs), mean(ys))
+        new_centroids[id_new] = Point{2,Float64}(mean(xs), mean(ys))
     end
 
     # Match new centroids to previous centroids using Hungarian one-to-one assignment
