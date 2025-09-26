@@ -213,7 +213,7 @@ function _apply_disturbance_events!(
 
     # Optimize initial waypoints
     if !isnothing(waypoint_optim_method)
-        @info "Optimizing pre-disturbed waypoint subset using $(waypoint_optim_method)"
+        @info "Optimizing full waypoint subset using $(waypoint_optim_method)"
 
         solution = optimize_waypoints(
             MSTSolution([clusters], [ms_route], [tender_soln_sets[disturb_idx]]),
