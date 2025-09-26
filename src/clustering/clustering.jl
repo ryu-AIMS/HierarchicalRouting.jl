@@ -319,7 +319,7 @@ function disturb_remaining_clusters(
 
     # Create k_d clusters to create disturbance on subset
     k_d_lower = k + 1
-    k_d_upper = n_sites
+    k_d_upper = max(Int(ceil(n_sites / 2)), k_d_lower)
     k_d = rand(k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
