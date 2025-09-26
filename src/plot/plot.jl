@@ -574,9 +574,10 @@ function solution(
     text!(
         ax,
         (0.02, 0.01)...,
-        text="""Vessel weightings:
+        text="""Vessel speeds (kts):
         (mothership, tenders)
-        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        ($(round(1.94384/vessel_weightings[1], digits=1)),\t\t\
+        $(round(1.94384/vessel_weightings[2], digits=1)))""",
         align=(:left, :bottom),
         space=:relative,
         fontsize=14,
