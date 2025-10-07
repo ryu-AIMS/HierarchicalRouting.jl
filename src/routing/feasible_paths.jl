@@ -358,7 +358,7 @@ Check if a point is within a convex hull of exclusion zones.
 """
 function point_in_convexhull(point::Point{2,Float64}, exclusions::POLY_VEC)
     point_ag::AG.IGeometry{wkbPoint} = AG.createpoint(point.data)
-    convex_exclusions_ag::POLY_VEC = AG.convexhull.(exclusions)
+    convex_exclusions_ag::POLY_VEC = [AG.convexhull(exclusion) for exclusion in exclusions]
 
     point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [point_ag])
 

@@ -72,7 +72,7 @@ function adjust_waypoint(
     exclusions::POLY_VEC,
 )::Point{2,Float64}
     waypoint_geom = AG.createpoint(waypoint.data)
-    convex_hulls::POLY_VEC = AG.convexhull.(exclusions)
+    convex_hulls::POLY_VEC = [AG.convexhull(exclusion) for exclusion in exclusions]
     containing_polygons::POLY_VEC = filter(
         hull -> AG.contains(hull, waypoint_geom),
         convex_hulls
