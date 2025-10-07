@@ -10,7 +10,8 @@ using ..HierarchicalRouting:
     generate_letter_id,
     critical_path,
     tender_clust_dist,
-    mothership_dist_within_clusts
+    mothership_dist_within_clusts,
+    Optim
 
 using DataFrames
 using Rasters
