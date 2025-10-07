@@ -874,6 +874,8 @@ function trace(
     )
     if opt_method isa Optim.SAMIN
         ax.title = "SAMIN Optimization Trace: nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
+    elseif opt_method isa Optim.ParticleSwarm
+        ax.title = "Particle Swarm Optimization Trace"
     end
     lines!(ax, iters, max.(fvals, eps(Float64)))   # avoid 0 on a log scale
 
