@@ -431,7 +431,13 @@ function optimize_waypoints(
         lb[i+1] = max(lb[i+1], lat_min)
         ub[i+1] = min(ub[i+1], lat_max)
     end
-
+    if opt_method isa Optim.ParticleSwarm
+        opt_method = Optim.ParticleSwarm(
+            lower=lb,
+            upper=ub,
+            n_particles=opt_method.n_particles,
+        )
+    end
     result = optimize(
         obj,
         lb,
