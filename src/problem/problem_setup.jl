@@ -161,9 +161,9 @@ function load_problem(
     end
     # Prepare tender exclusions
     prepare_exclusion_geoms!(t_exclusions.geometry; min_area=1E-7)
-    t_exclusions = adjust_exclusions(
+    t_exclusions.geometry = adjust_exclusions(
         targets.points.geometry,
-        t_exclusions
+        t_exclusions.geometry
     )
 
     # Prepare mothership exclusions
@@ -345,14 +345,28 @@ function filter_within_bbox(
     return filtered_gdf
 end
 
+"""
+    adjust_exclusions(
+        points::Vector{Point{2,Float64}},
+        geometries::POLY_VEC
+    )::POLY_VEC
+
+Adjust exclusion geometries to ensure that all points are outside the exclusion zones.
+
+# Arguments
+- `points`: A vector of points to check against the exclusion geometries.
+- `geometries`: A vector of exclusion geometries.
+
+# Returns
+The adjusted exclusion geometries.
+"""
 function adjust_exclusions(
     points::Vector{Point{2,Float64}},
-    exclusions::DataFrame
-)::DataFrame
-    exclusion_geometries = exclusions.geometry
-    poly_adjustment_mask = point_in_exclusion.(points, Ref(exclusion_geometries))
+    geometries::POLY_VEC
+)::POLY_VEC
+    poly_adjustment_mask = point_in_exclusion.(points, Ref(geometries))
     contained_points = points[poly_adjustment_mask]
-    containing_poly_ids = containing_exclusion.(contained_points, Ref(exclusion_geometries))
+    containing_poly_ids = containing_exclusion.(contained_points, Ref(geometries))
 
     # Dictionary to map exclusion polygons to contained points
     polygon_points_map = Dict{Int,Vector{Point{2,Float64}}}()
@@ -366,7 +380,7 @@ function adjust_exclusions(
     updated_vertices = Dict{Int,Vector{Tuple{Float64,Float64}}}()
     for (poly_id, points_to_insert) in polygon_points_map
         @info "Processing polygon ID: $poly_id"
-        polygon = exclusion_geometries[poly_id]
+        polygon = geometries[poly_id]
         polygon_points = AG.getgeom(polygon, 0)
         n_vertices = AG.ngeom(polygon_points)
         polygon_vertices = [AG.getpoint(polygon_points, i)[1:2] for i in 0:n_vertices-1]
@@ -402,8 +416,8 @@ function adjust_exclusions(
     end
 
     for i in keys(polygon_points_map)
-        exclusions.geometry[i] = AG.createpolygon(updated_vertices[i])
+        geometries[i] = AG.createpolygon(updated_vertices[i])
     end
 
-    return exclusions
+    return geometries
 end
