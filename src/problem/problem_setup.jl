@@ -200,7 +200,7 @@ end
 function prepare_exclusion_geoms!(
     geoms::POLY_VEC;
     buffer_dist::Float64=0.0,
-    min_area::Float64=1E-5,
+    min_area::Float64=3E-5,
     simplify_tol::Float64=5E-4
 )::POLY_VEC
     filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
