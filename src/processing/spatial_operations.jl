@@ -11,7 +11,8 @@
         simplify_tol::Float64=5E-4
     )::POLY_VEC
 
-Remove small polygons and simplify geometry based on tolerance values.
+Simplify polygon geometries based on tolerance values, whilst ensuring they remain polygons,
+then remove small and empty polygons.
 
 # Arguments
 - `exclusion_geometries`: A vector of polygon geometries to filter and simplify.
@@ -24,7 +25,10 @@ function filter_and_simplify_exclusions!(
     min_area::Float64=1E-5,
     simplify_tol::Float64=5E-4
 )::POLY_VEC
-    exclusion_geometries .= AG.simplify.(exclusion_geometries, simplify_tol)
+    exclusion_geometries = filter!(
+        geom -> (geom isa AG.IGeometry{AG.wkbPolygon}),
+        AG.simplify.(exclusion_geometries, simplify_tol)
+    )
     filter!(geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom), exclusion_geometries)
     return exclusion_geometries
 end
