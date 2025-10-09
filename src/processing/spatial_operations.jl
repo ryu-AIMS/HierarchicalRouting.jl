@@ -2,13 +2,13 @@
 """
     filter_and_simplify_exclusions!(
         exclusion_geometries::POLY_VEC;
-        min_area::Float64=1E-5,
-        simplify_tol::Float64=5E-4
+        min_area::Float64,
+        simplify_tol::Float64
     )::POLY_VEC
     filter_and_simplify_exclusions(
         exclusion_geometries::POLY_VEC;
-        min_area::Float64=1E-5,
-        simplify_tol::Float64=5E-4
+        min_area::Float64,
+        simplify_tol::Float64
     )::POLY_VEC
 
 Simplify polygon geometries based on tolerance values, whilst ensuring they remain polygons,
@@ -16,14 +16,14 @@ then remove small and empty polygons.
 
 # Arguments
 - `exclusion_geometries`: A vector of polygon geometries to filter and simplify.
-- `min_area`: The minimum area for exclusion polygons.
+- `min_area`: The minimum area (in square degrees) for exclusion polygons.
 - `simplify_tol`: The tolerance value for simplifying the exclusion polygons, \n
     i.e., larger tol = more aggressive simplification.
 """
 function filter_and_simplify_exclusions!(
     exclusion_geometries::POLY_VEC;
-    min_area::Float64=1E-5,
-    simplify_tol::Float64=5E-4
+    min_area::Float64,
+    simplify_tol::Float64
 )::POLY_VEC
     exclusion_geometries = filter!(
         geom -> (geom isa AG.IGeometry{AG.wkbPolygon}),
@@ -34,8 +34,8 @@ function filter_and_simplify_exclusions!(
 end
 function filter_and_simplify_exclusions(
     exclusion_geometries::POLY_VEC;
-    min_area::Float64=1E-5,
-    simplify_tol::Float64=5E-4
+    min_area::Float64,
+    simplify_tol::Float64
 )::POLY_VEC
     copy_vec = copy(exclusion_geometries)
     filter_and_simplify_exclusions!(copy_vec; min_area=min_area, simplify_tol=simplify_tol)
