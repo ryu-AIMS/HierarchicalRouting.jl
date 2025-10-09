@@ -108,6 +108,9 @@ function load_problem(
     n_tenders = Int8(n_tenders)
     t_cap = Int16(t_cap)
     subset = GDF.read(subset_path)
+    if "geom" ∉ names(subset) && "geometry" ∈ names(subset)
+        rename!(subset, "geometry" => "geom")
+    end
     subset_bbox = get_bbox_bounds_from_df(subset)
     target_gdf_subset = filter_within_bbox(GDF.read(target_path), subset_bbox)
 
