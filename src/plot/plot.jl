@@ -299,7 +299,8 @@ end
 """
     problem(
         problem::Problem;
-        labels::Bool=false
+        labels::Bool=false,
+        title::String="",
     )::Figure
 
 Create a plot of the problem instance, including:
@@ -310,6 +311,7 @@ Create a plot of the problem instance, including:
 # Arguments
 - `problem`: The hierarchical routing problem instance.
 - `labels`: Plot exclusion zones flag.
+- `title`: Title for the prolem instance plotted.
 
 # Returns
 The Figure containing the plot.
@@ -317,11 +319,11 @@ The Figure containing the plot.
 function problem(
     problem::Problem;
     labels::Bool=false,
-    title::String="Problem Instance"
+    title::String="",
 )::Figure
     fig = Figure(size=(700, 875))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
-    ax.title = title
+    ax.title = title * " Problem Instance"
     ax.titlesize = 18
 
     # Exclusions
@@ -545,7 +547,7 @@ end
         show_mothership::Bool=true,
         show_tenders::Bool=true,
         highlight_critical_path_flag::Bool=false,
-        title::String=""
+        title::String="",
     )::Figure
     solution(
         problem::Problem,
@@ -598,7 +600,7 @@ function solution(
 )::Figure
     fig = Figure(size=(700, 875))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
-    ax.title = title
+    ax.title = title * " Solution"
     ax.titlesize = 18
 
     if vessel_weightings == (0.0, 0.0)
