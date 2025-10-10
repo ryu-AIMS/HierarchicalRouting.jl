@@ -66,12 +66,16 @@ end
         vessel_draft::Float64,
         subset::DataFrame,
         file_name::String,
-        output_dir::String="",
+        output_dir::String="";
+        min_area::Float64=3E-5,
+        buffer_dist::Float64=0.0,
     )::DataFrame
     read_and_polygonize_exclusions(
         bathy_fullset_path::String,
         vessel_draft::Float64,
         subset::DataFrame,
+        min_area::Float64=3E-5,
+        buffer_dist::Float64=0.0,
     )::DataFrame
 
 Create exclusion zones from environmental constraints.
@@ -91,7 +95,9 @@ function read_and_polygonize_exclusions(
     vessel_draft::Float64,
     subset::DataFrame,
     file_name::String,
-    output_dir::String="",
+    output_dir::String="";
+    min_area::Float64=3E-5,
+    buffer_dist::Float64=0.0,
 )::DataFrame
     # ensure output directory exists
     if !isempty(output_dir)
@@ -126,9 +132,11 @@ function read_and_polygonize_exclusions(
         end
 
         exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
-        GDF.write(
-            exclusion_gpkg_path,
-            exclusion_zones_df;
+
+        prepare_exclusion_geoms!(
+            exclusion_zones_df.geometry;
+            min_area=min_area,
+            buffer_dist=buffer_dist
         )
     end
     return exclusion_zones_df
@@ -137,11 +145,20 @@ function read_and_polygonize_exclusions(
     bathy_fullset_path::String,
     vessel_draft::Float64,
     subset::DataFrame,
+    min_area::Float64=3E-5,
+    buffer_dist::Float64=0.0,
 )::DataFrame
     bathy_dataset::Raster = Raster(bathy_fullset_path; lazy=true)
     bathy_subset::Raster = read(Rasters.crop(bathy_dataset; to=subset.geom))
     exclusion_zones::Raster{Bool} = create_exclusion_zones(bathy_subset, vessel_draft)
-    return polygonize_binary(exclusion_zones)
+
+    exclusion_zones_df::DataFrame = polygonize_binary(exclusion_zones)
+    prepare_exclusion_geoms!(
+        exclusion_zones_df.geometry;
+        min_area=min_area,
+        buffer_dist=buffer_dist
+    )
+    return exclusion_zones_df
 end
 
 """

@@ -147,6 +147,7 @@ function load_problem(
             subset,
             "ms_exclusion",
             output_dir,
+            buffer_dist=1E-4,
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
@@ -154,6 +155,7 @@ function load_problem(
             subset,
             "t_exclusion",
             output_dir,
+            min_area=1E-7
         )
     else
         ms_exclusions = read_and_polygonize_exclusions(
@@ -167,26 +169,19 @@ function load_problem(
             subset,
         )
     end
-    # Prepare tender exclusions
-    prepare_exclusion_geoms!(t_exclusions.geometry; min_area=1E-7)
+
     t_exclusions.geometry = adjust_exclusions(
         targets.points.geometry,
         t_exclusions.geometry
-    )
-
-    # Prepare mothership exclusions
-    prepare_exclusion_geoms!(
-        ms_exclusions.geometry;
-        buffer_dist=1E-4
     )
 
     # Ensure mothership is excluded from tender zones by combining and merging exclusions
     exclusions_all::POLY_VEC = vcat(
         ms_exclusions.geometry,
         t_exclusions.geometry)
+
     unionize_overlaps!(exclusions_all)
     ms_exclusions::DataFrame = DataFrame(geometry=exclusions_all)
-    unionize_overlaps!(ms_exclusions.geometry)
 
     mothership = Vessel(
         exclusion=ms_exclusions,
@@ -204,8 +199,8 @@ end
 
 function prepare_exclusion_geoms!(
     geoms::POLY_VEC;
-    buffer_dist::Float64=0.0,
-    min_area::Float64=3E-5,
+    buffer_dist::Float64,
+    min_area::Float64,
     simplify_tol::Float64=5E-4
 )::POLY_VEC
     filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
