@@ -195,6 +195,17 @@ function load_problem(
         weighting=weight_t
     )
 
+    # Write exclusions to output directory
+    !(debug_mode) &&
+        write_exclusions(
+            ms_exclusions,
+            t_exclusions,
+            draft_ms,
+            draft_t,
+            subset_path,
+            output_dir
+        )
+
     return Problem(depot, targets, mothership, tenders)
 end
 
