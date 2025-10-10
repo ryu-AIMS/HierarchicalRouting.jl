@@ -141,11 +141,12 @@ function load_problem(
 
     # Process exclusions
     if !(debug_mode)
+        case_study_name = splitext(basename(subset_path))[1]
         ms_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
             subset,
-            "ms_exclusion",
+            "ms_exclusions_$(draft_ms)m_$(case_study_name)",
             output_dir,
             buffer_dist=1E-4,
         )
@@ -153,7 +154,7 @@ function load_problem(
             env_data_path,
             draft_t,
             subset,
-            "t_exclusion",
+            "t_exclusions_$(draft_t)m_$(case_study_name)",
             output_dir,
             min_area=1E-7
         )
