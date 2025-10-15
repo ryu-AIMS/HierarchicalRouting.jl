@@ -209,12 +209,12 @@ function load_problem(
     return Problem(depot, targets, mothership, tenders)
 end
 
-function prepare_exclusion_geoms!(
+function prepare_exclusion_geoms(
     geoms::POLY_VEC;
     buffer_dist::Float64,
     min_area::Float64,
     simplify_tol::Float64=5E-4
-)::POLY_VEC
+)::DataFrame
     geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
     buffer_exclusions!(geoms; buffer_dist=buffer_dist)
     unionize_overlaps!(geoms)
@@ -223,22 +223,7 @@ function prepare_exclusion_geoms!(
     geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
     unionize_overlaps!(geoms)
 
-    return geoms
-end
-function prepare_exclusion_geoms(
-    geoms::POLY_VEC;
-    buffer_dist::Float64=0.0,
-    min_area::Float64=1E-5,
-    simplify_tol::Float64=5E-4
-)::POLY_VEC
-    temp = copy(geoms)
-    prepare_exclusion_geoms!(
-        temp;
-        buffer_dist=buffer_dist,
-        min_area=min_area,
-        simplify_tol=simplify_tol
-    )
-    return temp
+    return DataFrame(geometry=geoms)
 end
 
 """

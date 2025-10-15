@@ -133,7 +133,7 @@ function read_and_polygonize_exclusions(
 
         exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
 
-        prepare_exclusion_geoms!(
+        exclusion_zones_df = prepare_exclusion_geoms(
             exclusion_zones_df.geometry;
             min_area=min_area,
             buffer_dist=buffer_dist
@@ -153,7 +153,7 @@ function read_and_polygonize_exclusions(
     exclusion_zones::Raster{Bool} = create_exclusion_zones(bathy_subset, vessel_draft)
 
     exclusion_zones_df::DataFrame = polygonize_binary(exclusion_zones)
-    prepare_exclusion_geoms!(
+    exclusion_zones_df = prepare_exclusion_geoms(
         exclusion_zones_df.geometry;
         min_area=min_area,
         buffer_dist=buffer_dist
