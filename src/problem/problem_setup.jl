@@ -286,7 +286,7 @@ function get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
 end
 
 """
-    get_bbox_bounds(geoms::Vector{AG.IGeometry{AG.wkbPolygon}})::NTuple{4,Float64}
+    get_bbox_bounds(geoms::Vector{IGeometry{wkbPolygon}})::NTuple{4,Float64}
     get_bbox_bounds(geoms::Vector{Point{2,Float64}})::NTuple{4,Float64}
     get_bbox_bounds(geoms::Vector{Vector})::NTuple{4,Float64}
 
@@ -302,7 +302,7 @@ A tuple containing the bounding box coordinates:
 - min_y,
 - max_y.
 """
-function get_bbox_bounds(geoms::Vector{AG.IGeometry{AG.wkbPolygon}})::NTuple{4,Float64}
+function get_bbox_bounds(geoms::Vector{IGeometry{wkbPolygon}})::NTuple{4,Float64}
     min_x = minimum(getfield.(AG.envelope.(geoms), 1))
     max_x = maximum(getfield.(AG.envelope.(geoms), 2))
     min_y = minimum(getfield.(AG.envelope.(geoms), 3))

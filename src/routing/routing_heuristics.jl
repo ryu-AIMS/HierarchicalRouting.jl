@@ -89,7 +89,7 @@ function adjust_waypoint(
     n_points::Int32 = AG.ngeom(exterior_ring)
 
     boundary_points = Vector{Point{2,Float64}}(undef, n_points)
-    pt = AG.creategeom(AG.wkbPoint)
+    pt = AG.creategeom(wkbPoint)
 
     # iterate safely within all vertices on the exterior ring to populate pts
     @inbounds for i in 1:n_points
