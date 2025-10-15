@@ -764,7 +764,7 @@ function solution_disturbances(
     solution_disturbed::MSTSolution,
     disturbance_clusters::Set{Int64};
     cluster_radius::Float64=0.0,
-    show_mothership_exclusions::Bool=false,
+    show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
@@ -819,8 +819,12 @@ function solution_disturbances(
             color=:black
         )
     end
-    highlight_critical_path_flag &&
+
+    if highlight_critical_path_flag
+        highlight_critical_path_partial!(ax1, solution_disturbed, problem, [1:ordered_disturbances[1]-1])
+        highlight_critical_path_partial!(ax2, solution_disturbed, problem, [1:ordered_disturbances[2]-1])
         highlight_critical_path!(ax3, solution_disturbed, problem)
+    end
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
@@ -912,85 +916,106 @@ function annotate_cost!(
     return ax
 end
 
-function highlight_critical_path!(
+"""
+    Core highlight critical path logic
+"""
+function _highlight_critical_core!(
     ax::Axis,
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat};
+    vessel_weightings::NTuple{2,AbstractFloat},
+    clust_range::Vector{Int};
     color=:red,
-    linewidth=4
-)
-    # Unpack
+    linewidth::Real=4,
+)::Nothing
     tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
-    num_clusters = length(tenders)
+    num_clusters = length(clust_range)
 
-    # Within clusters
     clust_sorties = tender_clust_dist.(tenders)
     clust_sorties = map(x -> isempty(x) ? [0.0] : x, clust_sorties)
     longest_sortie_cost = maximum.(clust_sorties) .* vessel_weightings[2]
     ms_within = mothership_dist_within_clusts(ms_route)[1:num_clusters]
     mothership_sub_cost = vessel_weightings[1] .* ms_within
 
-    # For each cluster, identify critical path
-    for j in 1:num_clusters
+    # Cache endpoints once
+    first_points = getindex.(getfield.(ms_route.line_strings, :points), 1)
+    second_points = getindex.(getfield.(ms_route.line_strings, :points), 2)
+
+    # Critical path WITHIN selected clusters
+    for j in clust_range
         if longest_sortie_cost[j] ≥ mothership_sub_cost[j]
-            # Draw the longest tender sortie
+            # Highlight longest tender sortie
             routes = tenders[j].sorties
+            isempty(routes) && continue
             idx = argmax(tender_clust_dist(tenders[j]))
             route!(ax, routes[idx]; color=color)
         else
-            # Draw the mothership route
+            # Highlight mothership route segment
             start_point = ms_route.nodes[2j]
             end_point = ms_route.nodes[2j+1]
-            start_segment = findfirst(
-                ==(start_point),
-                getindex.(getfield.(ms_route.line_strings, :points), 1)
-            )
-            end_segment = findfirst(
-                ==(end_point),
-                getindex.(getfield.(ms_route.line_strings, :points), 2)
-            )
+            start_segment = findfirst(==(start_point), first_points)
+            end_segment = findfirst(==(end_point), second_points)
 
-            lines!.(
-                Ref(ax),
-                ms_route.line_strings[start_segment:end_segment];
-                color=color,
-                linewidth=linewidth
-            )
+            segments_highlighted = ms_route.line_strings[start_segment:end_segment]
+            lines!.(Ref(ax), segments_highlighted; color, linewidth)
         end
     end
 
-    # Highlight mothership segments between clusters
-    start_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[1:2:end-1]
-    end_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[2:2:end]
+    # Critical path BETWEEN selected clusters, including depot links to first & last clusts
+    ks::Vector{Int} = [0; clust_range[1:end-1]; num_clusters]
+    start_pts::Vector{Point{2,Float64}} = [ms_route.nodes[2k+1] for k in ks]
+    end_pts::Vector{Point{2,Float64}} = [ms_route.nodes[2(k+1)] for k in ks]
 
-    start_segment = findfirst.(
-        .==(start_segment_points),
-        Ref(getindex.(getfield.(ms_route.line_strings, :points), 1))
-    )
-    end_segment = findfirst.(
-        .==(end_segment_points),
-        Ref(getindex.(getfield.(ms_route.line_strings, :points), 2))
-    )
-    segments = [ms_route.line_strings[i:j] for (i, j) in zip(start_segment, end_segment)]
+    start_idxs::Vector{Int} = findfirst.(.==(start_pts), Ref(first_points))
+    end_idxs::Vector{Int} = findfirst.(.==(end_pts), Ref(second_points))
 
-    lines!.(
-        Ref(ax),
-        segments;
-        color=color,
-        linewidth=linewidth
-    )
+    segments::Vector{Vector{LineString{2,Float64}}} = [ms_route.line_strings[i:j] for (i, j) in zip(start_idxs, end_idxs)]
 
-    return nothing
+    lines!.(Ref(ax), segments; color, linewidth)
+
+    return
 end
+
+function highlight_critical_path_partial!(
+    ax::Axis,
+    soln::MSTSolution,
+    problem::Problem,
+    clusters::AbstractVector{<:UnitRange{Int}};
+    color=:red,
+    linewidth::Real=4,
+)::Nothing
+    vessel_weightings::NTuple{2,AbstractFloat} =
+        (problem.mothership.weighting, problem.tenders.weighting)
+
+    clust_range::Vector{Int} = collect(clusters...)
+
+    _highlight_critical_core!(ax, soln, vessel_weightings, clust_range; color, linewidth)
+    return
+end
+
+function highlight_critical_path!(
+    ax::Axis,
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,AbstractFloat};
+    color=:red,
+    linewidth::Real=4,
+)::Nothing
+    clust_range::Vector{Int} = collect(1:length(soln.tenders[end]))
+    _highlight_critical_core!(ax, soln, vessel_weightings, clust_range; color, linewidth)
+    return
+end
+
 function highlight_critical_path!(
     ax::Axis,
     soln::MSTSolution,
     problem::Problem;
     color=:red,
-    linewidth=4
-)
-    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    linewidth::Real=4,
+)::Nothing
+    vessel_weightings::NTuple{2,AbstractFloat} = (
+        problem.mothership.weighting,
+        problem.tenders.weighting
+    )
     return highlight_critical_path!(ax, soln, vessel_weightings; color, linewidth)
 end
 
