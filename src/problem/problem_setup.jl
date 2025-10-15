@@ -215,12 +215,12 @@ function prepare_exclusion_geoms!(
     min_area::Float64,
     simplify_tol::Float64=5E-4
 )::POLY_VEC
-    filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
+    geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
     buffer_exclusions!(geoms; buffer_dist=buffer_dist)
     unionize_overlaps!(geoms)
 
     # Re-filter and de-duplicate after operations to ensure no overlaps
-    filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
+    geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
     unionize_overlaps!(geoms)
 
     return geoms

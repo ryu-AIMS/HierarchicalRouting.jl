@@ -1,12 +1,7 @@
 
 """
-    filter_and_simplify_exclusions!(
-        exclusion_geometries::POLY_VEC;
-        min_area::Float64,
-        simplify_tol::Float64
-    )::POLY_VEC
     filter_and_simplify_exclusions(
-        exclusion_geometries::POLY_VEC;
+        old_geoms::POLY_VEC;
         min_area::Float64,
         simplify_tol::Float64
     )::POLY_VEC
@@ -15,31 +10,41 @@ Simplify polygon geometries based on tolerance values, whilst ensuring they rema
 then remove small and empty polygons.
 
 # Arguments
-- `exclusion_geometries`: A vector of polygon geometries to filter and simplify.
+- `old_geoms`: A vector of polygon geometries to filter and simplify.
 - `min_area`: The minimum area (in square degrees) for exclusion polygons.
 - `simplify_tol`: The tolerance value for simplifying the exclusion polygons, \n
     i.e., larger tol = more aggressive simplification.
 """
-function filter_and_simplify_exclusions!(
-    exclusion_geometries::POLY_VEC;
-    min_area::Float64,
-    simplify_tol::Float64
-)::POLY_VEC
-    exclusion_geometries = filter!(
-        geom -> (geom isa AG.IGeometry{AG.wkbPolygon}),
-        AG.simplify.(exclusion_geometries, simplify_tol)
-    )
-    filter!(geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom), exclusion_geometries)
-    return exclusion_geometries
-end
 function filter_and_simplify_exclusions(
-    exclusion_geometries::POLY_VEC;
+    old_geoms::POLY_VEC;
     min_area::Float64,
     simplify_tol::Float64
 )::POLY_VEC
-    copy_vec = copy(exclusion_geometries)
-    filter_and_simplify_exclusions!(copy_vec; min_area=min_area, simplify_tol=simplify_tol)
-    return copy_vec
+    old_geoms .= AG.simplify.(old_geoms, simplify_tol)
+    explode_multipolygons!(old_geoms)
+    new_geoms = filter(geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom), old_geoms)
+    return new_geoms
+end
+
+"""
+    Explodes MultiPolygons in a vector of geometries to individual Polygons, ensuring the
+    resulting vector is a POLY_VEC.
+"""
+function explode_multipolygons!(geometries::Vector{<:IGeometry})::POLY_VEC
+    multi_poly_idxs = findall(==(IGeometry{wkbMultiPolygon}), typeof.(geometries))
+
+    for idx in multi_poly_idxs
+        multi_poly::IGeometry{wkbMultiPolygon} = geometries[idx]
+        n::Int = AG.ngeom(multi_poly)
+
+        tmp_vec::Vector{IGeometry{wkbPolygon}} = AG.getgeom.(Ref(multi_poly), 0:n-1)
+        append!(geometries, tmp_vec)
+    end
+
+    # Delete MultiPolygons after appending individual Polygons
+    deleteat!(geometries, multi_poly_idxs)
+
+    return POLY_VEC(geometries)
 end
 
 """
