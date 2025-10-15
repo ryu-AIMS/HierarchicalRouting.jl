@@ -127,6 +127,17 @@ Unionize overlapping exclusion zones.
 function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
     n = length(geometries)
 
+    # Local helper to fix invalid geometries
+    repair(g) =
+        try
+            AG.isvalid(g) ? g : AG.makevalid(g)
+        catch
+            AG.isvalid(g) ? g : AG.buffer(g, 0.0)  # fallback
+        end
+
+    # Pre-repair all geometries
+    geometries .= repair.(geometries)
+
     for i in 1:n
         geom1 = geometries[i]
 
@@ -148,7 +159,14 @@ function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
 
             if AG.overlaps(geom1, geom2)
                 @debug "Partial overlap: $i and $j"
-                union_geom = AG.union(geom1, geom2)
+                union_geom = try
+                    AG.union(geom1, geom2)
+                catch
+                    # Repair/buffer fallback if needed
+                    AG.union(AG.buffer(repair(geom1), 0.0), AG.buffer(repair(geom2), 0.0))
+                end
+                union_geom = repair(union_geom)
+
                 geometries[i] = union_geom
                 geometries[j] = union_geom
 
