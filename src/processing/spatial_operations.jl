@@ -20,9 +20,13 @@ function filter_and_simplify_exclusions(
     min_area::Float64,
     simplify_tol::Float64
 )::POLY_VEC
-    old_geoms .= AG.simplify.(old_geoms, simplify_tol)
-    explode_multipolygons!(old_geoms)
-    new_geoms = filter(geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom), old_geoms)
+    tmp_geoms::Vector{<:IGeometry} = AG.simplify.(old_geoms, simplify_tol)
+    explode_multipolygons!(tmp_geoms)
+
+    new_geoms::POLY_VEC = filter(
+        geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom),
+        tmp_geoms
+    )
     return new_geoms
 end
 
