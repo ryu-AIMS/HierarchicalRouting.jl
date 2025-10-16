@@ -927,7 +927,7 @@ function optimize_route_two_opt(
 
     while improved
         improved = false
-        for j in start_idx:(end_idx-1)
+        for j in start_idx+1:(end_idx-1)
             for i in (j+1):end_idx
                 new_route = two_opt_swap(best_route, j, i)
                 new_distance = distance_fn(new_route, dist_matrix)
