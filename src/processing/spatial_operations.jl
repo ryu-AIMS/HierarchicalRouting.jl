@@ -128,12 +128,22 @@ function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
     n = length(geometries)
 
     # Local helper to fix invalid geometries
-    repair(g) =
-        try
-            AG.isvalid(g) ? g : AG.makevalid(g)
-        catch
-            AG.isvalid(g) ? g : AG.buffer(g, 0.0)  # fallback
+    function repair(g::IGeometry)::IGeometry{wkbPolygon}
+        geom_type = typeof(g)
+
+        if geom_type == IGeometry{wkbLineString} || geom_type == IGeometry{AG.wkbLinearRing}
+            pts = [AG.getpoint(g, i) for i in 0:AG.ngeom(g)-1]
+
+            # Ensure closed loop
+            ((pts[1][1] != pts[end][1]) || (pts[1][2] != pts[end][2])) && push!(pts, pts[1])
+
+            xs::Vector{Float64} = getindex.(pts, 1)
+            ys::Vector{Float64} = getindex.(pts, 2)
+            g::IGeometry{wkbPolygon} = AG.createpolygon(xs, ys)
         end
+
+        return g
+    end
 
     # Pre-repair all geometries
     geometries .= repair.(geometries)
