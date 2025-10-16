@@ -160,7 +160,7 @@ function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
                     AG.union(geom1, geom2)
                 catch
                     # Repair/buffer fallback if needed
-                    AG.union(AG.buffer(repair(geom1), 0.0), AG.buffer(repair(geom2), 0.0))
+                    AG.union(AG.buffer(geom1, 0.0), AG.buffer(geom2, 0.0))
                 end
                 union_geom = repair(union_geom)
 
