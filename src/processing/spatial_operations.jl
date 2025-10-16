@@ -179,7 +179,7 @@ function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
                 geometries[j] = geom1
             elseif AG.contains(geom2, geom1)
                 @debug "Full overlap: $j contains $i"
-                geometries[i] = geom2
+                geom1 = geometries[i] = geom2
             end
         end
     end
