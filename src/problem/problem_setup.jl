@@ -181,7 +181,9 @@ function load_problem(
         ms_exclusions.geometry,
         t_exclusions.geometry)
 
-    unionize_overlaps!(exclusions_all)
+    while exclusions_all != unionize_overlaps(exclusions_all)
+        unionize_overlaps!(exclusions_all)
+    end
     ms_exclusions::DataFrame = DataFrame(geometry=exclusions_all)
 
     mothership = Vessel(
