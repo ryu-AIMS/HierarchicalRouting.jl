@@ -21,7 +21,7 @@ function filter_and_simplify_exclusions(
     simplify_tol::Float64
 )::POLY_VEC
     tmp_geoms::Vector{<:IGeometry} = AG.simplify.(old_geoms, simplify_tol)
-    explode_multipolygons!(tmp_geoms)
+    explode_multi_geoms!(tmp_geoms)
 
     new_geoms::POLY_VEC = filter(
         geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom),
@@ -31,18 +31,29 @@ function filter_and_simplify_exclusions(
 end
 
 """
-    Explodes MultiPolygons in a vector of geometries to individual Polygons, ensuring the
+    Explodes multi-geometries in a vector of geometries to individual Polygons, ensuring the
     resulting vector is a POLY_VEC.
 """
-function explode_multipolygons!(geometries::Vector{<:IGeometry})::POLY_VEC
-    multi_poly_idxs = findall(==(IGeometry{wkbMultiPolygon}), typeof.(geometries))
+function explode_multi_geoms!(geometries::Vector{<:IGeometry})::POLY_VEC
+    multi_poly::IGeometry = IGeometry()
+    n::Int = 0
+    tmp_geoms::Vector{IGeometry} = IGeometry[]
 
+    multi_poly_idxs = findall(AG.ngeom.(geometries) .> 1)
     for idx in multi_poly_idxs
-        multi_poly::IGeometry{wkbMultiPolygon} = geometries[idx]
-        n::Int = AG.ngeom(multi_poly)
+        multi_poly = geometries[idx]
+        n = AG.ngeom(multi_poly)
 
-        tmp_vec::Vector{IGeometry{wkbPolygon}} = AG.getgeom.(Ref(multi_poly), 0:n-1)
-        append!(geometries, tmp_vec)
+        tmp_geoms = AG.getgeom.(Ref(multi_poly), 0:n-1)
+        for g in tmp_geoms
+            if typeof(g) == IGeometry{wkbPolygon}
+                push!(geometries, g)
+            elseif typeof(g) == IGeometry{wkbLineString}
+                push!(geometries, linestring_to_polygon(g))
+            else
+                throw(ArgumentError("Unexected geometry type: $(typeof(g))"))
+            end
+        end
     end
 
     # Delete MultiPolygons after appending individual Polygons
