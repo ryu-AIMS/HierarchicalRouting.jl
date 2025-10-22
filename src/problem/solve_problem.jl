@@ -49,7 +49,7 @@ end
     solve(
         problem::Problem;
         k::Int=1,
-        disturbance_clusters::Set{Int64}=Set{Int64}()
+        disturbance_clusters::Set{Int64}=Set{Int64}(),
         seed::Union{Nothing,Int64}=nothing,
         rng::AbstractRNG=Random.GLOBAL_RNG,
         waypoint_optim_method=nothing,
