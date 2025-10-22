@@ -103,7 +103,7 @@ function read_and_polygonize_exclusions(
     if !isempty(output_dir)
         mkpath(output_dir)
     end
-
+    subset_name::String = split(file_name, "m_")[2]
     exclusion_gpkg_path::String = joinpath(output_dir, "$(file_name).gpkg")
     # TODO: Generalize for all available environmental constraints
     # TODO: Generalize for ms and tender vessels
@@ -118,7 +118,7 @@ function read_and_polygonize_exclusions(
         else
             # Load environmental constraints
             # Bathymetry
-            bathy_subset_path = joinpath(output_dir, "bathy_subset.tif")
+            bathy_subset_path = joinpath(output_dir, "bathy_subset_$(subset_name).tif")
             if isfile(bathy_subset_path)
                 bathy_subset = Raster(bathy_subset_path)
             else
