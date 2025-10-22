@@ -53,6 +53,8 @@ end
         seed::Union{Nothing,Int64}=nothing,
         rng::AbstractRNG=Random.GLOBAL_RNG,
         waypoint_optim_method=nothing,
+        do_improve::Bool=true,
+        time_limit::Float64=200.0
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -69,6 +71,8 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `seed`: Optional seed for random number generation
 - `rng`: AbstractRNG for random number generation
 - `waypoint_optim_method`: Function to use in waypoint optimization.
+- `do_improve`: Whether to improve the initial solution by optimization tender sorties
+- `time_limit`: Time limit for waypoint optimization
 
 # Returns
 Best total MSTSolution found
@@ -81,6 +85,7 @@ function solve(
     rng::AbstractRNG=Random.GLOBAL_RNG,
     waypoint_optim_method=nothing,
     do_improve::Bool=true,
+    time_limit::Float64=200.0
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
@@ -155,7 +160,8 @@ function solve(
         clust_seq,
         ordered_disturbances,
         problem,
-        total_tender_capacity;
+        total_tender_capacity,
+        time_limit;
         do_improve,
         waypoint_optim_method
     )
@@ -172,7 +178,8 @@ end
         clust_seq::Vector{Int64},
         ordered_disturbances::Vector{Int64},
         problem::Problem,
-        total_tender_capacity::Int;
+        total_tender_capacity::Int,
+        time_limit::Float64;
         do_improve::Bool=false,
         waypoint_optim_method=nothing,
     )::MSTSolution
@@ -194,7 +201,8 @@ function _apply_disturbance_events!(
     clust_seq::Vector{Int64},
     ordered_disturbances::Vector{Int64},
     problem::Problem,
-    total_tender_capacity::Int;
+    total_tender_capacity::Int,
+    time_limit::Float64;
     do_improve::Bool=false,
     waypoint_optim_method=nothing,
 )::MSTSolution
@@ -210,7 +218,8 @@ function _apply_disturbance_events!(
         solution = optimize_waypoints(
             MSTSolution([clusters], [ms_route], [tender_soln_sets[disturb_idx]]),
             problem,
-            waypoint_optim_method
+            waypoint_optim_method;
+            time_limit
         )
         clusters = cluster_sets[disturb_idx] = solution.cluster_sets[disturb_idx]
         ms_route = ms_soln_sets[disturb_idx] = solution.mothership_routes[disturb_idx]
@@ -297,7 +306,8 @@ function _apply_disturbance_events!(
                 MSTSolution([clusters], [ms_route], [current_tender_soln]),
                 problem,
                 waypoint_optim_method,
-                candidate_wpt_idxs
+                candidate_wpt_idxs;
+                time_limit
             )
 
             clusters = solution_tmp.cluster_sets[1]
