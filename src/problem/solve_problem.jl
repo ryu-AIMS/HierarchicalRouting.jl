@@ -72,7 +72,7 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `rng`: AbstractRNG for random number generation
 - `waypoint_optim_method`: Function to use in waypoint optimization.
 - `do_improve`: Whether to improve the initial solution by optimization tender sorties
-- `time_limit`: Time limit for waypoint optimization
+- `time_limit`: Time limit for waypoint optimization, in seconds
 
 # Returns
 Best total MSTSolution found
