@@ -441,6 +441,10 @@ function optimize_waypoints(
     Plot.route!(
         fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
     )
+    target_points = problem.targets.points.geometry
+    Plot.scatter!(
+        fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
+    )
     display(fig_wpts)
     result_trace = Optim.trace(result)
     fig = Plot.trace(result_trace, opt_method)
