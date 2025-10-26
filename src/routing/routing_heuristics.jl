@@ -438,7 +438,9 @@ function optimize_waypoints(
     end
     @info "Best critical path score found: $best_score"
 
-    Plot.route!(fig_wpts.current_axis[], best_soln.mothership_routes[end], color=:black)
+    Plot.route!(
+        fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
+    )
     display(fig_wpts)
     result_trace = Optim.trace(result)
     fig = Plot.trace(result_trace, opt_method)
