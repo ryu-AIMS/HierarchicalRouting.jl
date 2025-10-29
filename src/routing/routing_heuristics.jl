@@ -927,16 +927,16 @@ function optimize_route_two_opt(
 
     while improved
         improved = false
-        for j in start_idx:(end_idx-1)
-            for i in (j+1):end_idx
-                new_route = two_opt_swap(best_route, j, i)
+        for i in start_idx+1:(end_idx-1)
+            for j in (i+1):end_idx
+                new_route = two_opt_swap(best_route, i, j)
                 new_distance = distance_fn(new_route, dist_matrix)
 
                 if new_distance < best_distance
                     best_route = new_route
                     best_distance = new_distance
                     improved = true
-                    @debug "Improved by swapping $(j) and $(i)"
+                    @debug "Improved by swapping $(i) and $(j)"
                 end
             end
         end
