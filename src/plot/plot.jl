@@ -536,7 +536,8 @@ end
 """
     solution(
         problem::Problem,
-        soln::MSTSolution;
+        soln::MSTSolution,
+        vessel_weightings::NTuple{2,Float64}=(0.0, 0.0);
         cluster_radius::Float64=0.0,
         show_mothership_exclusions::Bool=true,
         show_tenders_exclusions::Bool=true,
@@ -569,6 +570,8 @@ Create a plot of the full routing solution, including:
 - `soln`: The full solution to the problem.
 - `soln_a`: The first solution to compare.
 - `soln_b`: The second solution to compare.
+- `vessel_weightings`: Tuple of vessel weightings for (mothership, tenders).
+If not explicitly provided, use problem weightings.
 - `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
 - `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
@@ -582,7 +585,8 @@ The created Figure object containing the plot.
 """
 function solution(
     problem::Problem,
-    soln::MSTSolution;
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,Float64}=(0.0, 0.0);
     cluster_radius::Float64=0.0,
     show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
@@ -595,6 +599,10 @@ function solution(
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
     ax.title = title
     ax.titlesize = 18
+
+    if vessel_weightings == (0.0, 0.0)
+        vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    end
 
     # Exclusions
     show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
@@ -617,7 +625,6 @@ function solution(
     )
 
     # Annotate critical path cost
-    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     critical_path_dist = critical_path(soln, vessel_weightings)
 
     annotate_cost!(
