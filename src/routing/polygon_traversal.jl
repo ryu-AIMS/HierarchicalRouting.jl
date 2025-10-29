@@ -303,7 +303,7 @@ function closest_crossed_polygon(
 end
 
 """
-    get_pts(intersections::IGeometry{AG.wkbPoint})::Vector{IGeometry{wkbPoint}}
+    get_pts(intersections::IGeometry{wkbPoint})::Vector{IGeometry{wkbPoint}}
     get_pts(intersections::IGeometry)
 
 Get the points from the intersection geometry.
@@ -314,10 +314,10 @@ Get the points from the intersection geometry.
 # Returns
 A vector of points from the intersection geometry.
 """
-function get_pts(intersections::IGeometry{AG.wkbPoint})::Vector{IGeometry{wkbPoint}}
+function get_pts(intersections::IGeometry{wkbPoint})::Vector{IGeometry{wkbPoint}}
     return [intersections]
 end
-function get_pts(intersections::AG.IGeometry)
+function get_pts(intersections::IGeometry)
     n = AG.ngeom(intersections)
     return AG.getgeom.(Ref(intersections), 0:n-1)
 end

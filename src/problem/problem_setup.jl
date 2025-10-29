@@ -108,6 +108,9 @@ function load_problem(
     n_tenders = Int8(n_tenders)
     t_cap = Int16(t_cap)
     subset = GDF.read(subset_path)
+    if "geom" ∉ names(subset) && "geometry" ∈ names(subset)
+        rename!(subset, "geometry" => "geom")
+    end
     subset_bbox = get_bbox_bounds_from_df(subset)
     target_gdf_subset = filter_within_bbox(GDF.read(target_path), subset_bbox)
 
@@ -129,23 +132,31 @@ function load_problem(
         for idx in indices
     ]
     disturbance_df = create_disturbance_data_dataframe(coords, disturbance_data_subset)
+
+    if length(targets_gdf.geometry) > 28
+        n = Int(floor(length(targets_gdf.geometry) / 28))
+        targets_gdf = targets_gdf[1:n:end, :]
+    end
     targets = Targets(targets_gdf, target_path, disturbance_df)
 
     # Process exclusions
     if !(debug_mode)
+        case_study_name = splitext(basename(subset_path))[1]
         ms_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
             subset,
-            "ms_exclusion",
+            "ms_exclusions_$(draft_ms)m_$(case_study_name)",
             output_dir,
+            buffer_dist=1E-4,
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_t,
             subset,
-            "t_exclusion",
+            "t_exclusions_$(draft_t)m_$(case_study_name)",
             output_dir,
+            min_area=1E-7
         )
     else
         ms_exclusions = read_and_polygonize_exclusions(
@@ -159,26 +170,21 @@ function load_problem(
             subset,
         )
     end
-    # Prepare tender exclusions
-    prepare_exclusion_geoms!(t_exclusions.geometry; min_area=1E-7)
-    t_exclusions = adjust_exclusions(
-        targets.points.geometry,
-        t_exclusions
-    )
 
-    # Prepare mothership exclusions
-    prepare_exclusion_geoms!(
-        ms_exclusions.geometry;
-        buffer_dist=1E-4
+    t_exclusions.geometry = adjust_exclusions(
+        targets.points.geometry,
+        t_exclusions.geometry
     )
 
     # Ensure mothership is excluded from tender zones by combining and merging exclusions
     exclusions_all::POLY_VEC = vcat(
         ms_exclusions.geometry,
         t_exclusions.geometry)
-    unionize_overlaps!(exclusions_all)
+
+    while exclusions_all != unionize_overlaps(exclusions_all)
+        unionize_overlaps!(exclusions_all)
+    end
     ms_exclusions::DataFrame = DataFrame(geometry=exclusions_all)
-    unionize_overlaps!(ms_exclusions.geometry)
 
     mothership = Vessel(
         exclusion=ms_exclusions,
@@ -191,39 +197,35 @@ function load_problem(
         weighting=weight_t
     )
 
+    # Write exclusions to output directory
+    !(debug_mode) &&
+        write_exclusions(
+            ms_exclusions,
+            t_exclusions,
+            draft_ms,
+            draft_t,
+            subset_path,
+            output_dir
+        )
+
     return Problem(depot, targets, mothership, tenders)
 end
 
-function prepare_exclusion_geoms!(
+function prepare_exclusion_geoms(
     geoms::POLY_VEC;
-    buffer_dist::Float64=0.0,
-    min_area::Float64=1E-5,
+    buffer_dist::Float64,
+    min_area::Float64,
     simplify_tol::Float64=5E-4
-)::POLY_VEC
-    filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
+)::DataFrame
+    geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
     buffer_exclusions!(geoms; buffer_dist=buffer_dist)
     unionize_overlaps!(geoms)
 
     # Re-filter and de-duplicate after operations to ensure no overlaps
-    filter_and_simplify_exclusions!(geoms; min_area=min_area, simplify_tol=simplify_tol)
+    geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
     unionize_overlaps!(geoms)
 
-    return geoms
-end
-function prepare_exclusion_geoms(
-    geoms::POLY_VEC;
-    buffer_dist::Float64=0.0,
-    min_area::Float64=1E-5,
-    simplify_tol::Float64=5E-4
-)::POLY_VEC
-    temp = copy(geoms)
-    prepare_exclusion_geoms!(
-        temp;
-        buffer_dist=buffer_dist,
-        min_area=min_area,
-        simplify_tol=simplify_tol
-    )
-    return temp
+    return DataFrame(geometry=geoms)
 end
 
 """
@@ -271,7 +273,7 @@ function get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
 end
 
 """
-    get_bbox_bounds(geoms::Vector{AG.IGeometry{AG.wkbPolygon}})::NTuple{4,Float64}
+    get_bbox_bounds(geoms::Vector{IGeometry{wkbPolygon}})::NTuple{4,Float64}
     get_bbox_bounds(geoms::Vector{Point{2,Float64}})::NTuple{4,Float64}
     get_bbox_bounds(geoms::Vector{Vector})::NTuple{4,Float64}
 
@@ -287,7 +289,7 @@ A tuple containing the bounding box coordinates:
 - min_y,
 - max_y.
 """
-function get_bbox_bounds(geoms::Vector{AG.IGeometry{AG.wkbPolygon}})::NTuple{4,Float64}
+function get_bbox_bounds(geoms::Vector{IGeometry{wkbPolygon}})::NTuple{4,Float64}
     min_x = minimum(getfield.(AG.envelope.(geoms), 1))
     max_x = maximum(getfield.(AG.envelope.(geoms), 2))
     min_y = minimum(getfield.(AG.envelope.(geoms), 3))
@@ -345,14 +347,28 @@ function filter_within_bbox(
     return filtered_gdf
 end
 
+"""
+    adjust_exclusions(
+        points::Vector{Point{2,Float64}},
+        geometries::POLY_VEC
+    )::POLY_VEC
+
+Adjust exclusion geometries to ensure that all points are outside the exclusion zones.
+
+# Arguments
+- `points`: A vector of points to check against the exclusion geometries.
+- `geometries`: A vector of exclusion geometries.
+
+# Returns
+The adjusted exclusion geometries.
+"""
 function adjust_exclusions(
     points::Vector{Point{2,Float64}},
-    exclusions::DataFrame
-)::DataFrame
-    exclusion_geometries = exclusions.geometry
-    poly_adjustment_mask = point_in_exclusion.(points, Ref(exclusion_geometries))
+    geometries::POLY_VEC
+)::POLY_VEC
+    poly_adjustment_mask = point_in_exclusion.(points, Ref(geometries))
     contained_points = points[poly_adjustment_mask]
-    containing_poly_ids = containing_exclusion.(contained_points, Ref(exclusion_geometries))
+    containing_poly_ids = containing_exclusion.(contained_points, Ref(geometries))
 
     # Dictionary to map exclusion polygons to contained points
     polygon_points_map = Dict{Int,Vector{Point{2,Float64}}}()
@@ -366,7 +382,7 @@ function adjust_exclusions(
     updated_vertices = Dict{Int,Vector{Tuple{Float64,Float64}}}()
     for (poly_id, points_to_insert) in polygon_points_map
         @info "Processing polygon ID: $poly_id"
-        polygon = exclusion_geometries[poly_id]
+        polygon = geometries[poly_id]
         polygon_points = AG.getgeom(polygon, 0)
         n_vertices = AG.ngeom(polygon_points)
         polygon_vertices = [AG.getpoint(polygon_points, i)[1:2] for i in 0:n_vertices-1]
@@ -402,8 +418,8 @@ function adjust_exclusions(
     end
 
     for i in keys(polygon_points_map)
-        exclusions.geometry[i] = AG.createpolygon(updated_vertices[i])
+        geometries[i] = AG.createpolygon(updated_vertices[i])
     end
 
-    return exclusions
+    return geometries
 end

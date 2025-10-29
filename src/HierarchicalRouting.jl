@@ -9,7 +9,7 @@ using Rasters
 using DataFrames
 
 import ArchGDAL as AG
-import ArchGDAL: IGeometry, wkbPolygon, wkbLineString, wkbPoint, wkbMultiLineString
+import ArchGDAL: IGeometry, wkbPolygon, wkbLineString, wkbPoint, wkbMultiPolygon
 import GeoInterface as GI
 import GeometryOps as GO
 import GeoDataFrames as GDF

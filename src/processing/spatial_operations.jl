@@ -1,41 +1,65 @@
 
 """
-    filter_and_simplify_exclusions!(
-        exclusion_geometries::POLY_VEC;
-        min_area::Float64=1E-5,
-        simplify_tol::Float64=5E-4
-    )::POLY_VEC
     filter_and_simplify_exclusions(
-        exclusion_geometries::POLY_VEC;
-        min_area::Float64=1E-5,
-        simplify_tol::Float64=5E-4
+        old_geoms::POLY_VEC;
+        min_area::Float64,
+        simplify_tol::Float64
     )::POLY_VEC
 
-Remove small polygons and simplify geometry based on tolerance values.
+Simplify polygon geometries based on tolerance values, whilst ensuring they remain polygons,
+then remove small and empty polygons.
 
 # Arguments
-- `exclusion_geometries`: A vector of polygon geometries to filter and simplify.
-- `min_area`: The minimum area for exclusion polygons.
+- `old_geoms`: A vector of polygon geometries to filter and simplify.
+- `min_area`: The minimum area (in square degrees) for exclusion polygons.
 - `simplify_tol`: The tolerance value for simplifying the exclusion polygons, \n
     i.e., larger tol = more aggressive simplification.
 """
-function filter_and_simplify_exclusions!(
-    exclusion_geometries::POLY_VEC;
-    min_area::Float64=1E-5,
-    simplify_tol::Float64=5E-4
-)::POLY_VEC
-    exclusion_geometries .= AG.simplify.(exclusion_geometries, simplify_tol)
-    filter!(geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom), exclusion_geometries)
-    return exclusion_geometries
-end
 function filter_and_simplify_exclusions(
-    exclusion_geometries::POLY_VEC;
-    min_area::Float64=1E-5,
-    simplify_tol::Float64=5E-4
+    old_geoms::POLY_VEC;
+    min_area::Float64,
+    simplify_tol::Float64
 )::POLY_VEC
-    copy_vec = copy(exclusion_geometries)
-    filter_and_simplify_exclusions!(copy_vec; min_area=min_area, simplify_tol=simplify_tol)
-    return copy_vec
+    tmp_geoms::Vector{<:IGeometry} = AG.simplify.(old_geoms, simplify_tol)
+    explode_multi_geoms!(tmp_geoms)
+
+    new_geoms::POLY_VEC = filter(
+        geom -> AG.geomarea(geom) >= min_area && !AG.isempty(geom),
+        tmp_geoms
+    )
+    return new_geoms
+end
+
+"""
+    Explodes multi-geometries in a vector of geometries to individual Polygons, ensuring the
+    resulting vector is a POLY_VEC.
+"""
+function explode_multi_geoms!(geometries::Vector{<:IGeometry})::POLY_VEC
+    multi_poly::IGeometry = IGeometry()
+    n::Int = 0
+    tmp_geoms::Vector{IGeometry} = IGeometry[]
+
+    multi_poly_idxs = findall(AG.ngeom.(geometries) .> 1)
+    for idx in multi_poly_idxs
+        multi_poly = geometries[idx]
+        n = AG.ngeom(multi_poly)
+
+        tmp_geoms = AG.getgeom.(Ref(multi_poly), 0:n-1)
+        for g in tmp_geoms
+            if typeof(g) == IGeometry{wkbPolygon}
+                push!(geometries, g)
+            elseif typeof(g) == IGeometry{wkbLineString}
+                push!(geometries, linestring_to_polygon(g))
+            else
+                throw(ArgumentError("Unexected geometry type: $(typeof(g))"))
+            end
+        end
+    end
+
+    # Delete MultiPolygons after appending individual Polygons
+    deleteat!(geometries, multi_poly_idxs)
+
+    return POLY_VEC(geometries)
 end
 
 """
@@ -114,28 +138,43 @@ Unionize overlapping exclusion zones.
 function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
     n = length(geometries)
 
+    # Local helper to fix invalid geometries
+    function repair(g::IGeometry)::IGeometry{wkbPolygon}
+        geom_type = typeof(g)
+
+        if geom_type == IGeometry{wkbLineString} || geom_type == IGeometry{AG.wkbLinearRing}
+            pts = [AG.getpoint(g, i) for i in 0:AG.ngeom(g)-1]
+
+            # Ensure closed loop
+            ((pts[1][1] != pts[end][1]) || (pts[1][2] != pts[end][2])) && push!(pts, pts[1])
+
+            xs::Vector{Float64} = getindex.(pts, 1)
+            ys::Vector{Float64} = getindex.(pts, 2)
+            g::IGeometry{wkbPolygon} = AG.createpolygon(xs, ys)
+        end
+
+        return g
+    end
+
+    # Pre-repair all geometries
+    geometries .= repair.(geometries)
+
     for i in 1:n
         geom1 = geometries[i]
-
-        if AG.ngeom(geom1) > 1
-            # Unionize multi-geometries
-            geom_a = linestring_to_polygon(AG.getgeom(geom1, 0))
-            for j in 1:AG.ngeom(geom1)-1
-                geom_b = linestring_to_polygon(AG.getgeom(geom1, j))
-                if AG.intersects(geom_a, geom_b)
-                    geom_a = AG.union(geom_a, geom_b)
-                end
-            end
-            geometries[i] = geom_a
-            geom1 = geom_a
-        end
 
         for j in i+1:n
             geom2 = geometries[j]
 
             if AG.overlaps(geom1, geom2)
                 @debug "Partial overlap: $i and $j"
-                union_geom = AG.union(geom1, geom2)
+                union_geom = try
+                    AG.union(geom1, geom2)
+                catch
+                    # Repair/buffer fallback if needed
+                    AG.union(AG.buffer(geom1, 0.0), AG.buffer(geom2, 0.0))
+                end
+                union_geom = repair(union_geom)
+
                 geometries[i] = union_geom
                 geometries[j] = union_geom
 
@@ -151,7 +190,7 @@ function unionize_overlaps!(geometries::POLY_VEC)::POLY_VEC
                 geometries[j] = geom1
             elseif AG.contains(geom2, geom1)
                 @debug "Full overlap: $j contains $i"
-                geometries[i] = geom2
+                geom1 = geometries[i] = geom2
             end
         end
     end
