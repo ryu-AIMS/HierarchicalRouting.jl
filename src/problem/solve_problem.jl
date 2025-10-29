@@ -54,7 +54,7 @@ end
         rng::AbstractRNG=Random.GLOBAL_RNG,
         waypoint_optim_method=nothing,
         do_improve::Bool=true,
-        time_limit::Float64=200.0
+        time_limit::Real=200.0
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -85,7 +85,7 @@ function solve(
     rng::AbstractRNG=Random.GLOBAL_RNG,
     waypoint_optim_method=nothing,
     do_improve::Bool=true,
-    time_limit::Float64=200.0
+    time_limit::Real=200.0
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
@@ -161,7 +161,7 @@ function solve(
         ordered_disturbances,
         problem,
         total_tender_capacity,
-        time_limit;
+        Float64(time_limit);
         do_improve,
         waypoint_optim_method
     )
