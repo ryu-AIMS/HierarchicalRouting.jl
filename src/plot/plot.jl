@@ -500,7 +500,8 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-        title::NTuple{2,String}=("Solution A", "Solution B")
+        highlight_critical_path_flag::Bool=false,
+        title::NTuple{2,String}=("Solution A", "Solution B"),
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -592,7 +593,6 @@ function solution(
         color=:black
     )
 
-
     highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
@@ -606,6 +606,7 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
     title::NTuple{2,String}=("Solution A", "Solution B")
 )::Figure
     fig = Figure(size=(1350, 750))  ## 2 fig plot
@@ -652,8 +653,14 @@ function solution(
         )
     end
 
-    # Annotate critical path costs
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    highlight_critical_path_flag && highlight_critical_path!.(
+        [ax1, ax2],
+        [soln_a, soln_b],
+        Ref(vessel_weightings)
+    )
+
+    # Annotate critical path costs
     critical_path_dist_a = critical_path(soln_a, vessel_weightings)
     critical_path_dist_b = critical_path(soln_b, vessel_weightings)
     total_dist_a = total_distance(soln_a, vessel_weightings)
@@ -689,6 +696,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
+        highlight_critical_path_flag::Bool=false,
     )::Figure
 
 Create a plot of the solution at each progressive disturbance event, including:
@@ -709,6 +717,8 @@ Create a plot of the solution at each progressive disturbance event, including:
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
+- `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the final
+plot.
 
 # Returns
 The created Figure object containing the plot.
@@ -722,6 +732,7 @@ function solution_disturbances(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
 )::Figure
     #! NOTE: This function assumes 2 disturbance events.
     #TODO: Generalize to any number of disturbance events.
@@ -742,8 +753,8 @@ function solution_disturbances(
     # Clusters
     clusters!.(
         [ax1, ax2, ax3],
-        [solution_disturbed.cluster_sets[end], solution_disturbed.cluster_sets[end], solution_disturbed.cluster_sets[end]];
-        cluster_radius=cluster_radius,
+        solution_disturbed.cluster_sets;
+        cluster_radius,
         nodes=true,
         centers=false,
         labels=true,
@@ -752,7 +763,7 @@ function solution_disturbances(
     # Tender sorties/routes
     if show_tenders
         ordered_disturbances = sort(unique(disturbance_clusters))
-        route!.(
+        tenders!.(
             [ax1, ax2, ax3],
             [
                 solution_disturbed.tenders[1][1:ordered_disturbances[1]-1],
@@ -767,15 +778,45 @@ function solution_disturbances(
     if show_mothership
         route!.(
             [ax1, ax2, ax3],
-            [
-                solution_disturbed.mothership_routes[1].route,
-                solution_disturbed.mothership_routes[2].route,
-                solution_disturbed.mothership_routes[3].route
-            ];
+            getfield.(solution_disturbed.mothership_routes, :route);
             labels=true,
             color=:black
         )
     end
+    highlight_critical_path_flag &&
+        highlight_critical_path!(ax3, solution_disturbed, problem)
+
+    # Annotate critical path cost
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_dist = critical_path(solution_disturbed, vessel_weightings)
+    total_dist = total_distance(solution_disturbed, vessel_weightings)
+
+    annotate_cost!(
+        ax3,
+        critical_path_dist;
+        position=(0.95, 0.07),
+        fontsize=14,
+        color=:black
+    )
+    annotate_cost!(
+        ax3,
+        total_dist;
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="total_distance()\ntotal dist"
+    )
+    text!(
+        ax3,
+        (0.02, 0.01)...,
+        text="""Vessel weightings:
+        (mothership, tenders)
+        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        align=(:left, :bottom),
+        space=:relative,
+        fontsize=14,
+        color=:black
+    )
 
     return fig
 end
@@ -914,6 +955,16 @@ function highlight_critical_path!(
     )
 
     return nothing
+end
+function highlight_critical_path!(
+    ax::Axis,
+    soln::MSTSolution,
+    problem::Problem;
+    color=:red,
+    linewidth=4
+)
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    return highlight_critical_path!(ax, soln, vessel_weightings; color, linewidth)
 end
 
 function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
