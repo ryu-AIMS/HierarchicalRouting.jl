@@ -368,7 +368,8 @@ function optimize_waypoints(
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
         if exclusion_count > 0
-            naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
+            naive_score = maximum(vessel_weightings) *
+                          sum(haversine.(wpts[1:end-1], wpts[2:end]))
             return naive_score * (exclusion_count + 1)^2
         end
 
@@ -438,7 +439,13 @@ function optimize_waypoints(
     end
     @info "Best critical path score found: $best_score"
 
-    Plot.route!(fig_wpts.current_axis[], best_soln.mothership_routes[end], color=:black)
+    Plot.route!(
+        fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
+    )
+    target_points = problem.targets.points.geometry
+    Plot.scatter!(
+        fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
+    )
     display(fig_wpts)
     result_trace = Optim.trace(result)
     fig = Plot.trace(result_trace, opt_method)
