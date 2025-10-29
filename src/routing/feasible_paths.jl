@@ -158,10 +158,10 @@ Check if a point is within an exclusion zone.
 - `true` if point is within an exclusion zone, `false` otherwise.
 """
 function point_in_exclusion(point::Point{2,Float64}, exclusion::IGeometry{wkbPolygon})::Bool
-    return any(AG.contains(exclusion, AG.createpoint(point[1], point[2])))
+    return any(AG.contains(exclusion, AG.createpoint(point.data)))
 end
 function point_in_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Bool
-    return any(AG.contains.(exclusions, Ref(AG.createpoint(point[1], point[2]))))
+    return any(AG.contains.(exclusions, Ref(AG.createpoint(point.data))))
 end
 
 """
@@ -177,7 +177,7 @@ Return the index of the exclusion zone that contains the point.
 - Index of the first exclusion zone that contains the point, or 0 if not found.
 """
 function containing_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Int
-    point_ag = AG.createpoint(point[1], point[2])
+    point_ag = AG.createpoint(point.data)
     exclusion_idx = findfirst(AG.contains.(exclusions, Ref(point_ag)))
     return isnothing(exclusion_idx) ? 0 : exclusion_idx
 end
@@ -357,8 +357,8 @@ Check if a point is within a convex hull of exclusion zones.
 - Index of exclusion zone if point is within a convex hull, 0 otherwise.
 """
 function point_in_convexhull(point::Point{2,Float64}, exclusions::POLY_VEC)
-    point_ag = AG.createpoint(point[1], point[2])
-    convex_exclusions_ag = AG.convexhull.(exclusions)
+    point_ag::AG.IGeometry{wkbPoint} = AG.createpoint(point.data)
+    convex_exclusions_ag::POLY_VEC = [AG.convexhull(exclusion) for exclusion in exclusions]
 
     point_in_exclusion_zone = AG.contains.(convex_exclusions_ag, [point_ag])
 
@@ -581,17 +581,18 @@ function build_graph(
     n_points::Int = length(chain_points)
 
     # Create the graph with one vertex per unique point.
-    graph = SimpleWeightedGraph(n_points)
-    visible_idx = findall(is_visible.(chain_points, Ref(final_point), Ref(exclusions)))
-    initial_pnt_idx = findall(chain_points .== initial_point)
-    final_pnt_idx = findall(chain_points .== final_point)
+    graph::SimpleWeightedGraph{Int64,Float64} = SimpleWeightedGraph(n_points)
+    visible_mask::Vector{Bool} = is_visible.(chain_points, Ref(final_point), Ref(exclusions))
+    visible_idx::Vector{Int64} = findall(visible_mask)
+    initial_pnt_idx::Vector{Int64} = findall(chain_points .== initial_point)
+    final_pnt_idx::Vector{Int64} = findall(chain_points .== final_point)
 
     # Add candidate (chain) edges.
     add_edge!.(
         Ref(graph),
-        vcat(map(p -> findall(chain_points .== p), points_from)...),
-        vcat(map(p -> findall(chain_points .== p), points_to)...),
-        haversine.(points_from, points_to)
+        vcat(map(p -> findall(chain_points .== p), points_from)...)::Vector{Int64},
+        vcat(map(p -> findall(chain_points .== p), points_to)...)::Vector{Int64},
+        haversine.(points_from, points_to)::Vector{Float64}
     )
 
     # Final_point is not in a convex hull, try to connect it to any visible point

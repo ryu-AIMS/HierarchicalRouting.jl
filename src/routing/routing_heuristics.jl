@@ -71,8 +71,8 @@ function adjust_waypoint(
     waypoint::Point{2,Float64},
     exclusions::POLY_VEC,
 )::Point{2,Float64}
-    waypoint_geom = AG.createpoint(waypoint[1], waypoint[2])
-    convex_hulls::POLY_VEC = AG.convexhull.(exclusions)
+    waypoint_geom = AG.createpoint(waypoint.data)
+    convex_hulls::POLY_VEC = [AG.convexhull(exclusion) for exclusion in exclusions]
     containing_polygons::POLY_VEC = filter(
         hull -> AG.contains(hull, waypoint_geom),
         convex_hulls
@@ -94,7 +94,7 @@ function adjust_waypoint(
     # iterate safely within all vertices on the exterior ring to populate pts
     @inbounds for i in 1:n_points
         pt = AG.getpoint(exterior_ring, i - 1) # 0-based indexing
-        boundary_points[i] = Point(pt[1], pt[2])
+        boundary_points[i] = Point{2,Float64}(pt[1], pt[2])
     end
 
     valid_boundary_points = Point{2,Float64}[]
@@ -361,12 +361,12 @@ function optimize_waypoints(
     )::Float64
         # Rebuild waypoints
         @inbounds for (j, i) in enumerate(free_idxs)
-            wpts[i] = Point(x[2j-1], x[2j])
+            wpts[i] = Point{2,Float64}(x[2j-1], x[2j])
         end
 
         # Exit early here if any waypoints are inside exclusion zones
-        has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
-        exclusion_count = count(has_bad_waypoint)
+        has_bad_waypoint::Vector{Bool} = point_in_exclusion.(wpts, Ref(exclusions_mothership))
+        exclusion_count::Int = count(has_bad_waypoint)
         if exclusion_count > 0
             naive_score = maximum(vessel_weightings) *
                           sum(haversine.(wpts[1:end-1], wpts[2:end]))
@@ -380,7 +380,7 @@ function optimize_waypoints(
             exclusions_tender
         )
 
-        score = critical_path(soln_proposed, vessel_weightings)
+        score::Float64 = critical_path(soln_proposed, vessel_weightings)
         isinf(score) && throw(DomainError(score,
             "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
         ))
@@ -410,12 +410,27 @@ function optimize_waypoints(
     )
 
     # Waypoints to optimize, formatted for Optim
-    wpts = waypoints_initial
-    x0 = pack_x(wpts, free_idxs)
+    wpts::Vector{Point{2,Float64}} = waypoints_initial
+    x0::Vector{Float64} = pack_x(wpts, free_idxs)
 
     # Each waypoint is bounded to its surrounding area (in decimal degrees)
-    lb = x0 .- 0.025
-    ub = x0 .+ 0.025
+    lb::Vector{Float64} = x0 .- 0.025
+    ub::Vector{Float64} = x0 .+ 0.025
+
+    # Ensure bounds are within lat/lon limits
+    (lon_min, lon_max, lat_min, lat_max) = get_bbox_bounds([
+        exclusions_mothership,
+        exclusions_tender,
+        problem.targets.points.geometry
+    ])
+
+    # Bound longitude and latitude to the problem bounding box
+    for i in 1:2:length(x0)
+        lb[i] = max(lb[i], lon_min)
+        ub[i] = min(ub[i], lon_max)
+        lb[i+1] = max(lb[i+1], lat_min)
+        ub[i+1] = min(ub[i+1], lat_max)
+    end
 
     result = optimize(
         obj,
@@ -619,7 +634,9 @@ function update_segment(
     )
 
     leg_to_update = [point_from, point_to]
-    dist, leg = get_feasible_vector(leg_to_update, exclusions)
+    dist::Vector{Float64}, leg::Vector{Vector{LineString{2,Float64}}} = get_feasible_vector(
+        leg_to_update, exclusions
+    )
     if section == :from
         return (sum(dist), vcat(leg..., remaining_segment...))
     elseif section == :to
