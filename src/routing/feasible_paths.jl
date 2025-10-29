@@ -72,7 +72,7 @@ function get_feasible_vector(
     nodes::Vector{Point{2,Float64}}, exclusions::POLY_VEC
 )::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
     n_points = length(nodes) - 1
-    dist_vector = zeros(n_points)
+    dist_vector = zeros(Float64, n_points)
     path_vector = fill(Vector{LineString{2,Float64}}(), n_points)
 
     for point_i_idx in 1:n_points
@@ -80,7 +80,7 @@ function get_feasible_vector(
         if nodes[point_i_idx] != nodes[point_i_idx+1]
             # TODO: Process elsewhere
             # Check if any of the points are within an exclusion zone
-            if !any(point_in_exclusion.(point_nodes, [exclusions]))
+            if !any(point_in_exclusion.(point_nodes, Ref(exclusions)))
                 dist_vector[point_i_idx], path_vector[point_i_idx] =
                     shortest_feasible_path(
                         point_nodes[1], point_nodes[2], exclusions
@@ -90,7 +90,8 @@ function get_feasible_vector(
             end
         end
     end
-
+    any(isinf.(dist_vector)) && throw(DomainError(dist_vector[findall(isinf, dist_vector)],
+        "Distance vector contains Inf values, indicating a waypoint in an exclusion zone."))
     return dist_vector, path_vector
 end
 
@@ -206,7 +207,8 @@ start pt and any other intersecting polygons.
 function shortest_feasible_path(
     initial_point::Point{2,Float64},
     final_point::Point{2,Float64},
-    exclusions::POLY_VEC,
+    exclusions::POLY_VEC;
+    _tried_reverse::Bool=false
 )::Tuple{Float64,Vector{LineString{2,Float64}}}
     final_exclusion_idx = point_in_convexhull(final_point, exclusions)
     initial_exclusion_idx = point_in_convexhull(initial_point, exclusions)
@@ -256,10 +258,13 @@ function shortest_feasible_path(
             #? Connect initial point to all visible vertices on final polygon?
         end
 
+        # Reuseable cache for mask to avoid repeated allocations
+        visibility_mask = falses(length(poly_vertices))
+
         # For each polygon vertex, add edges to all visible vertices
         for i in poly_vertices
             # Check visibility of all polygon vertices from the current vertex `i`
-            visibility_mask = is_visible.(Ref(i), poly_vertices, Ref(exclusions))
+            visibility_mask .= is_visible.(Ref(i), poly_vertices, Ref(exclusions))
             vis_pts_from_i = poly_vertices[visibility_mask]
             n_vis_pts_from_i = length(vis_pts_from_i)
 
@@ -287,6 +292,7 @@ function shortest_feasible_path(
             [exclusions[initial_exclusion_idx]]
         )[1]
 
+        # visited = Set(vcat(points_from, points_to))
         build_network!.(
             Ref(points_from),
             Ref(points_to),
@@ -294,7 +300,8 @@ function shortest_feasible_path(
             widest_verts,
             Ref(final_point),
             Ref(exclusions),
-            Ref(final_exclusion_idx)
+            Ref(final_exclusion_idx);
+            # visited=visited
         )
     end
 
@@ -310,6 +317,21 @@ function shortest_feasible_path(
 
     # Use A* algorithm to find shortest path
     path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
+    if iszero(length(path)) && !_tried_reverse
+        dist_rev, segs_rev = shortest_feasible_path(
+            final_point,
+            initial_point,
+            exclusions;
+            _tried_reverse=true
+        )
+        # Flip segments original forward direction (and order)
+        segs_fwd = reverse([LineString([last(ls), first(ls)]) for ls in getfield.(segs_rev, :points)])
+        return dist_rev, segs_fwd
+    elseif iszero(length(path))
+        throw(ErrorException(
+            "No path ($initial_point -> $final_point) because network/graph incomplete"
+        ))
+    end
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
     linestring_path::Vector{LineString} = [
@@ -374,11 +396,13 @@ Vectors `points_from`, `points_to`, and `exclusion_idxs` are modified in place.
 function build_network!(
     points_from::Vector{Point{2,Float64}},
     points_to::Vector{Point{2,Float64}},
-    exclusion_idxs::Vector{Int},
+    exclusion_idxs::Vector{Int64},
     current_point::Point{2,Float64},
     final_point::Point{2,Float64},
     exclusions::POLY_VEC,
-    final_exclusion_idx::Int
+    final_exclusion_idx::Int64;
+    visited::Set{Point{2,Float64}}=Set{Point{2,Float64}}(),
+    existing_edges::Set{Tuple{Point{2,Float64},Point{2,Float64}}}=Set{Tuple{Point{2,Float64},Point{2,Float64}}}()
 )::Nothing
     if current_point == final_point
         return nothing
@@ -396,37 +420,39 @@ function build_network!(
     sizehint!(points_to, length_vectors_new)
     sizehint!(exclusion_idxs, length_vectors_new)
 
-    for (vertex, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
-        # If vertex is nothing, or already visited/explored,
-        # or edge already exists in network, skip
-        if isnothing(vertex) ||
-           vertex == current_point ||
-           (current_point, vertex) ∈ zip(points_from, points_to)
+    for (candidate, next_exclusion_idx) in zip(candidates, next_exclusion_idxs)
+        # Skip invalid or previously visited candidates
+        should_skip = isnothing(candidate) ||
+                      candidate == current_point ||
+                      candidate ∈ visited ||
+                      (current_point, candidate) ∈ existing_edges
+        if should_skip
             continue
         end
 
         # Record new point/edge
+        push!(existing_edges, (current_point, candidate))
         push!(points_from, current_point)
-        push!(points_to, vertex)
+        push!(points_to, candidate)
         push!(exclusion_idxs, next_exclusion_idx)
 
-        # If verticex already visited/explored, skip
-        # If final exclusion zone reached, vertices added to graph later in build_graph()
-        if vertex ∈ points_from ||
-           (next_exclusion_idx == final_exclusion_idx && !isnothing(next_exclusion_idx))
-            continue
+        # Continue building network if not at final exclusion zone
+        keep_building = candidate ∉ visited &&
+                        !(next_exclusion_idx == final_exclusion_idx &&
+                          !isnothing(next_exclusion_idx))
+        if keep_building
+            build_network!(
+                points_from,
+                points_to,
+                exclusion_idxs,
+                candidate,
+                final_point,
+                exclusions,
+                final_exclusion_idx;
+                # visited=visited,
+                existing_edges=existing_edges
+            )
         end
-
-        # Continue building network from this vertex to final point
-        build_network!(
-            points_from,
-            points_to,
-            exclusion_idxs,
-            vertex,
-            final_point,
-            exclusions,
-            final_exclusion_idx
-        )
     end
     # TODO: check if path from current_point to next/intermediate point is feasible (no intersecting polygons in between)
 end
@@ -490,14 +516,15 @@ function build_graph(
         haversine.(points_from, points_to)
     )
 
-    # Only add polygon edges and extra visible connections if:
-    # 1. A polygon is provided, AND
-    # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
-    if !is_visible(initial_point, final_point, final_polygon)
+    # Only add polygon edges and extra visible connections if final_point is not in network
+    if final_point ∉ points_to
+        # Cache to reuse for masking visible vertices
+        visibility_mask = falses(length(final_poly_verts))
+
         # Add edges connecting any visible polygon vertices to other polyogn vertices
         for i in final_poly_verts
-            visibility_mask = (final_poly_verts .!= i) .&
-                              is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
+            visibility_mask .= (final_poly_verts .!= i) .&
+                               is_visible.(Ref(i), final_poly_verts, Ref(exclusions))
 
             visible_points = final_poly_verts[visibility_mask]
 

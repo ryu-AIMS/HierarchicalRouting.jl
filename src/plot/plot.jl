@@ -1,25 +1,39 @@
 module Plot
 
-import ..HierarchicalRouting
+using ..HierarchicalRouting:
+    Problem,
+    Cluster,
+    MothershipSolution,
+    TenderSolution,
+    MSTSolution,
+    Route,
+    generate_letter_id,
+    critical_path,
+    total_distance,
+    tender_clust_dist,
+    mothership_dist_within_clusts
 
 using DataFrames
 using Rasters
 using Statistics
 
 using GeometryBasics
-
 using GLMakie, GeoMakie
 
 """
     clusters(
-        ;
-        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-        cluster_sequence::Union{DataFrame,Nothing}=nothing,
-        cluster_radius::Real=0,
+        clusters::Vector{Cluster};
+        cluster_radius::Union{Float64, Int64}=0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Figure
+    clusters(
+        cluster_sequence::DataFrame;
+        cluster_radius::Union{Float64, Int64}=0,
+        centers::Bool=false,
+        labels::Bool=false
+    )::Figure
 
 Create a plot of nodes by cluster.
 
@@ -32,41 +46,87 @@ Create a plot of nodes by cluster.
 - `labels`: Plot cluster labels flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+The created Figure object containing the plot.
 """
 function clusters(
-    ;
-    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-    cluster_sequence::Union{DataFrame,Nothing}=nothing,
-    cluster_radius::Real=0,
+    clusters::Vector{Cluster};
+    cluster_radius::Union{Float64,Int64}=0,
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     clusters!(
         ax,
-        clusters=clusters,
-        cluster_sequence=cluster_sequence,
-        cluster_radius=cluster_radius,
-        nodes=nodes,
-        centers=centers,
-        labels=labels
+        clusters,
+        cluster_radius,
+        nodes,
+        centers,
+        labels
     )
 
-    return fig, ax
+    return fig
 end
+function clusters(
+    cluster_sequence::DataFrame;
+    cluster_radius::Union{Float64,Int64}=0,
+    centers::Bool=false,
+    labels::Bool=false
+)::Figure
+    fig = Figure(size=(800, 600))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+
+    clusters!(
+        ax,
+        cluster_sequence;
+        cluster_radius,
+        centers,
+        labels
+    )
+
+    return fig
+end
+
+function _calc_radius_offset(radius::Float64)::Union{Tuple,Nothing}
+    offsets = if radius > 0
+        (
+            radius .* cos.(range(0, 2π, length=100)),
+            radius .* sin.(range(0, 2π, length=100))
+        )
+    else
+        nothing
+    end
+
+    return offsets
+end
+
 """
     clusters!(
         ax::Axis;
-        clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-        cluster_sequence::Union{DataFrame,Nothing}=nothing,
-        cluster_radius::Real=0,
+        clusters::Vector{Cluster};
+        cluster_radius::Float64=0.0,
         nodes::Bool=true,
         centers::Bool=false,
         labels::Bool=false
+    )::Axis
+    clusters!(
+        ax::Axis;
+        cluster_sequence::DataFrame;
+        cluster_radius::Float64=0.0,
+        centers::Bool=false,
+        labels::Bool=false
+    )::Axis
+    clusters!(
+        ax::Axis,
+        cluster_radius::Float64,
+        sequence_ids::Vector{Int},
+        centroids::Vector{Point{2,Float64}},
+        centers::Bool=false,
+        labels::Bool=false;
+        nodes=false,
+        clusters=nothing
     )::Axis
 
 Plot nodes by cluster.
@@ -76,6 +136,8 @@ Plot nodes by cluster.
 - `clusters`: Clusters to plot.
 - `cluster_sequence`: Cluster by sequence visited.
 - `cluster_radius`: Radius of circle to represent clusters.
+- `sequence_ids`: Sequence IDs for clusters.
+- `centroids`: Cluster centroids.
 - `nodes`: Plot nodes flag.
 - `centers`: Plot cluster centers flag.
 - `labels`: Plot cluster labels flag.
@@ -84,47 +146,55 @@ Plot nodes by cluster.
 - `ax`: Axis object.
 """
 function clusters!(
-    ax::Axis;
-    clusters::Union{Vector{HierarchicalRouting.Cluster},Nothing}=nothing,
-    cluster_sequence::Union{DataFrame,Nothing}=nothing,
-    cluster_radius::Real=0,
+    ax::Axis,
+    clusters::Vector{Cluster};
+    cluster_radius::Float64=0.0,
     nodes::Bool=true,
     centers::Bool=false,
     labels::Bool=false
 )::Axis
-    # Validate inputs
-    if isnothing(clusters) && isnothing(cluster_sequence)
-        error("At least one of `clusters` or `cluster_sequence` must be provided.")
-    end
+    sequence_ids = getfield.(clusters, :id)
+    centroids = getfield.(clusters, :centroid)
 
-    sequence_id, colormap, centroids = nothing, nothing, nothing
-    if !isnothing(cluster_sequence)
-        sequence_id = [row.id for row in eachrow(cluster_sequence)[2:end-1]]
-        colormap = distinguishable_colors(length(sequence_id) + 2)[3:end]
-        centroids = hcat(cluster_sequence.lon, cluster_sequence.lat)[2:end-1, :]
-    elseif !isnothing(clusters)
-        sequence_id = 1:length(clusters)
-        colormap = distinguishable_colors(length(clusters) + 2)[3:end]
-        centroids = hcat([cluster.centroid[1] for cluster in clusters], [cluster.centroid[2] for cluster in clusters])
-    end
+    return clusters!(ax, cluster_radius, sequence_ids, centroids, centers, labels; nodes, clusters)
+end
+function clusters!(
+    ax::Axis,
+    cluster_sequence::DataFrame;
+    cluster_radius::Float64=0.0,
+    centers::Bool=false,
+    labels::Bool=false
+)::Axis
+    sequence_ids = cluster_sequence.id[2:end-1]
 
-    circle_offsets = cluster_radius > 0 ? (
-        cluster_radius .* cos.(range(0, 2π, length=100)),
-        cluster_radius .* sin.(range(0, 2π, length=100))
-    ) : nothing
+    centroids = collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
+    ordered_centroids = centroids[sortperm(sequence_ids)]
+    ordered_ids = sort(sequence_ids)
 
-    for (idx, seq) in enumerate(sequence_id)
+    return clusters!(ax, cluster_radius, ordered_ids, ordered_centroids, centers, labels)
+end
+function clusters!(
+    ax::Axis,
+    cluster_radius::Float64,
+    sequence_ids::Vector{Int},
+    centroids::Vector{Point{2,Float64}},
+    centers::Bool=false,
+    labels::Bool=false;
+    nodes=false,
+    clusters=nothing
+)::Axis
+    colormap = create_colormap(sequence_ids)
+    circle_offsets = _calc_radius_offset(cluster_radius)
+
+    for seq in sequence_ids
         color = colormap[seq]
 
-        # plot nodes
-        if nodes && !isnothing(clusters) && !isempty(clusters[seq].nodes)
+        # Plot nodes
+        if !isnothing(clusters) && nodes
             scatter!(ax, clusters[seq].nodes, color=color, markersize=10, marker=:x)
         end
 
-        center_lon, center_lat = !isnothing(cluster_sequence) ?
-                                 centroids[idx, :] :
-                                 centroids[seq, :]
-
+        center_lon, center_lat = centroids[seq]
         if cluster_radius > 0
             circle_lons = center_lon .+ circle_offsets[1]
             circle_lats = center_lat .+ circle_offsets[2]
@@ -135,12 +205,13 @@ function clusters!(
         if centers
             scatter!(ax, [center_lon], [center_lat], markersize=10, color=(color, 0.2), strokewidth=0)
         end
+
         if labels
             text!(
                 ax,
                 center_lon,
                 center_lat,
-                text=HierarchicalRouting.generate_letter_id(seq - 1),
+                text=generate_letter_id(seq),
                 font="bold",
                 fontsize=24,
                 align=(:center, :center),
@@ -148,6 +219,7 @@ function clusters!(
             )
         end
     end
+
     return ax
 end
 
@@ -155,7 +227,7 @@ end
     exclusions(
         exclusions::DataFrame;
         labels::Bool=false
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of exclusion zones.
 
@@ -164,18 +236,18 @@ Create a plot of exclusion zones.
 - `labels`: Plot exclusion zones flag.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+The created Figure object containing the plot.
 """
 function exclusions(
     exclusions::DataFrame;
     labels::Bool=false
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     exclusions!(ax, exclusions, labels=labels)
 
-    return fig, ax
+    return fig
 end
 """
     exclusions!(
@@ -215,12 +287,12 @@ function exclusions!(
 end
 
 """
-    linestrings(
-        route::HierarchicalRouting.Route;
+    route(
+        route::Route;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
-    )::Tuple{Figure, Axis}
+    )::Figure
 
 Create a plot of LineStrings for mothership route.
 
@@ -231,35 +303,45 @@ Create a plot of LineStrings for mothership route.
 - `color`: LineString color.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+The created Figure object containing the plot.
 """
-function linestrings(
-    route::HierarchicalRouting.Route;
+function route(
+    route::Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)::Tuple{Figure,Axis}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
-    linestrings!(ax, route, markers=markers, labels=labels, color=color)
+    route!(ax, route, markers=markers, labels=labels, color=color)
 
-    return fig, ax
+    return fig
 end
 """
-    linestrings!(
+    route!(
         ax::Axis,
-        route::HierarchicalRouting.Route;
+        route::Route;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
     )::Axis
+    route!(
+        ax::Axis,
+        ms::MothershipSolution;
+        markers::Bool=false,
+        labels::Bool=false,
+        color=nothing
+    )::Axis
+    route!(ax::Axis, tender_soln::Vector{TenderSolution})::Axis
 
 Plot LineStrings for mothership route.
 
 # Arguments
 - `ax`: Axis object.
 - `route`: Route including nodes and LineStrings.
+- `ms`: Solution instance containing mothership route.
+- `tender_soln`: Solution instance containing tender routes.
 - `markers`: Plot waypoints flag.
 - `labels`: Plot LineString labels flag.
 - `color`: LineString color.
@@ -267,9 +349,9 @@ Plot LineStrings for mothership route.
 # Returns
 - `ax`: Axis object.
 """
-function linestrings!(
+function route!(
     ax::Axis,
-    route::HierarchicalRouting.Route;
+    route::Route;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
@@ -285,7 +367,7 @@ function linestrings!(
 
     # Mark waypoints with 'x'
     if markers
-        scatter!(waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
+        scatter!(ax, waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
         # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
     end
 
@@ -307,53 +389,67 @@ function linestrings!(
     end
     return ax
 end
-
 function route!(
     ax::Axis,
-    ms::HierarchicalRouting.MothershipSolution;
+    ms::MothershipSolution;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
-)
-    return linestrings!(ax, ms.route; markers, labels, color)
+)::Axis
+    return route!(ax, ms.route; markers, labels, color)
 end
-
-function route!(ax::Axis, tender_soln::Vector{HierarchicalRouting.TenderSolution})
+function route!(ax::Axis, tender_soln::Vector{TenderSolution})::Axis
     return tenders!(ax, tender_soln)
+end
+function route!(
+    ax::Axis,
+    tender_soln::Vector{TenderSolution},
+    colormap::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
+)::Axis
+    for t_soln in tender_soln
+        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
+        s = length(t_soln.sorties)
+        palette = sequential_palette(base_hue, s + 3)[3:end]
+
+        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
+            route!(ax, sortie, color=color)
+        end
+    end
+    return ax
 end
 
 """
     tenders(
-        tender_soln::Vector{HierarchicalRouting.TenderSolution}
-    )::Tuple{Figure, Axis}
+        tender_soln::Vector{TenderSolution}
+    )::Figure
 
 Create a plot of tender routes within each cluster.
 
 # Arguments
-- `tender_soln::Vector{HierarchicalRouting.TenderSolution}`: Tender solutions.
+- `tender_soln::Vector{TenderSolution}`: Tender solutions.
 
 # Returns
-- `fig, ax`: Figure and Axis objects.
+The created Figure object containing the plot.
 """
 function tenders(
-    tender_soln::Vector{HierarchicalRouting.TenderSolution}
-)::Tuple{Figure,Axis}
+    tender_soln::Vector{TenderSolution}
+)::Figure
     fig = Figure(size=(800, 600))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
 
     tenders!(ax, tender_soln)
 
-    return fig, ax
+    return fig
 end
 
 """
     tenders!(
         ax::Axis,
-        tender_soln::Vector{HierarchicalRouting.TenderSolution}
+        tender_soln::Vector{TenderSolution}
     )::Axis
     function tenders!(
         ax::Axis,
-        tender_soln::Vector{HierarchicalRouting.TenderSolution},
+        tender_soln::Vector{TenderSolution},
         num_clusters::Int64
     )::Axis
 
@@ -369,53 +465,43 @@ Plot tender routes within each cluster, colored by cluster, sequentially shaded 
 """
 function tenders!(
     ax::Axis,
-    tender_soln::Vector{HierarchicalRouting.TenderSolution}
+    tender_soln::Vector{TenderSolution}
 )::Axis
-    # Create custom colormap, skipping the first two colors (yellow and black)
-    colormap = distinguishable_colors(length(tender_soln) + 2)[3:end]
-
-    # TODO: Plot critical path (longest) thicker than other paths
-    for (t_n, t_soln) in enumerate(tender_soln)
-        base_hue = convert_rgb_to_hue(colormap[t_n])
-        s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s + 3)[3:end]
-
-        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color=color)
-        end
-    end
-    return ax
+    colormap = create_colormap(getfield.(tender_soln, :id))
+    return route!(ax, tender_soln, colormap)
 end
 function tenders!(
     ax::Axis,
-    tender_soln::Vector{HierarchicalRouting.TenderSolution},
+    tender_soln::Vector{TenderSolution},
     num_clusters::Int64
 )::Axis
-    colormap = distinguishable_colors(num_clusters + 2)[3:end]
-
-    # TODO: Plot critical path (longest) thicker than other paths
-    for t_soln in tender_soln
-        base_hue = convert_rgb_to_hue(colormap[t_soln.id])
-        s = length(t_soln.sorties)
-        palette = sequential_palette(base_hue, s + 3)[3:end]
-
-        for (sortie, color) in zip(t_soln.sorties, palette[1:s])
-            linestrings!(ax, sortie, color=color)
-        end
-    end
-    return ax
+    colormap = create_colormap(1:num_clusters)
+    return route!(ax, tender_soln, colormap)
 end
 
 """
     solution(
-        problem::HierarchicalRouting.Problem,
-        soln::HierarchicalRouting.MSTSolution;
+        problem::Problem,
+        soln::MSTSolution;
         cluster_radius::Float64=0.0,
-        show_mothership_exclusions::Bool=false,
+        show_mothership_exclusions::Bool=true,
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
-        fig_size=(750, 880)
+        highlight_critical_path_flag::Bool=false,
+        title::String=""
+    )::Figure
+    solution(
+        problem::Problem,
+        soln_a::MSTSolution,
+        soln_b::MSTSolution;
+        cluster_radius::Float64=0.0,
+        show_mothership_exclusions::Bool=true,
+        show_tenders_exclusions::Bool=true,
+        show_mothership::Bool=true,
+        show_tenders::Bool=true,
+        highlight_critical_path_flag::Bool=false,
+        title::NTuple{2,String}=("Solution A", "Solution B"),
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -427,51 +513,468 @@ Create a plot of the full routing solution, including:
 # Arguments
 - `problem`: The hierarchical routing problem instance.
 - `soln`: The full solution to the problem.
+- `soln_a`: The first solution to compare.
+- `soln_b`: The second solution to compare.
 - `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
 - `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
-- `fig_size`: Size of the figure.
+- `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the plot.
+- `title`: Title for the plot, or titles for the two subplots when comparing solutions.
 
 # Returns
-- `fig`: The created Figure object containing the plot.
+The created Figure object containing the plot.
 """
 function solution(
-    problem::HierarchicalRouting.Problem,
-    soln::HierarchicalRouting.MSTSolution;
+    problem::Problem,
+    soln::MSTSolution;
     cluster_radius::Float64=0.0,
-    show_mothership_exclusions::Bool=false,
+    show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
+    title::String="",
 )::Figure
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax.title = title
 
     # Exclusions
     show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
     show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
 
-    # Clusters
-    clusters!(
-        ax,
-        clusters=soln.cluster_sets[end],
-        nodes=true,
-        centers=false,
-        labels=true,
-        cluster_radius=cluster_radius
-    )
+    # Tender sorties/routes
+    show_tenders && route!(ax, soln.tenders[end])
 
     # Mothership route
     if show_mothership
         route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
     end
 
-    # Tender sorties/routes
-    show_tenders && route!(ax, soln.tenders[end])
+    # Clusters
+    clusters!(
+        ax,
+        soln.cluster_sets[end];
+        labels=true,
+        cluster_radius
+    )
+
+    # Annotate critical path cost
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_dist = critical_path(soln, vessel_weightings)
+    total_dist = total_distance(soln, vessel_weightings)
+
+    annotate_cost!(
+        ax,
+        critical_path_dist;
+        position=(0.95, 0.07),
+        fontsize=14,
+        color=:black
+    )
+    annotate_cost!(
+        ax,
+        total_dist;
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="total_distance()\ntotal dist"
+    )
+    text!(
+        ax,
+        (0.02, 0.01)...,
+        text="""Vessel weightings:
+        (mothership, tenders)
+        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        align=(:left, :bottom),
+        space=:relative,
+        fontsize=14,
+        color=:black
+    )
+
+    highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
+end
+function solution(
+    problem::Problem,
+    soln_a::MSTSolution,
+    soln_b::MSTSolution;
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=true,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
+    title::NTuple{2,String}=("Solution A", "Solution B")
+)::Figure
+    fig = Figure(size=(1350, 750))  ## 2 fig plot
+    ax1, ax2 =
+        Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
+        Axis(fig[1, 2], xlabel="Longitude")
+    ax1.title = title[1]
+    ax2.title = title[2]
+
+    # Exclusions
+    if show_mothership_exclusions
+        exclusions!.([ax1, ax2], Ref(problem.mothership.exclusion); labels=false)
+    end
+    if show_tenders_exclusions
+        exclusions!.([ax1, ax2], Ref(problem.tenders.exclusion); labels=false)
+    end
+
+    # Clusters
+    clusters!.(
+        [ax1, ax2],
+        [soln_a.cluster_sets[end], soln_b.cluster_sets[end]];
+        cluster_radius=cluster_radius,
+        nodes=true,
+        centers=false,
+        labels=true,
+    )
+
+    # Tender sorties/routes
+    if show_tenders
+        tenders!.(
+            [ax1, ax2],
+            [soln_a.tenders[end], soln_b.tenders[end]]
+        )
+    end
+
+    # Mothership route
+    if show_mothership
+        route!.(
+            [ax1, ax2],
+            [soln_a.mothership_routes[end], soln_b.mothership_routes[end]];
+            markers=true,
+            labels=true,
+            color=:black
+        )
+    end
+
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    highlight_critical_path_flag && highlight_critical_path!.(
+        [ax1, ax2],
+        [soln_a, soln_b],
+        Ref(vessel_weightings)
+    )
+
+    # Annotate critical path costs
+    critical_path_dist_a = critical_path(soln_a, vessel_weightings)
+    critical_path_dist_b = critical_path(soln_b, vessel_weightings)
+    total_dist_a = total_distance(soln_a, vessel_weightings)
+    total_dist_b = total_distance(soln_b, vessel_weightings)
+
+    annotate_cost!.(
+        [ax1, ax2],
+        [critical_path_dist_a, critical_path_dist_b];
+        position=(0.95, 0.07),
+        fontsize=14,
+        color=:black
+    )
+
+    annotate_cost!.(
+        [ax1, ax2],
+        [total_dist_a, total_dist_b];
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="total_distance()\ntotal dist"
+    )
+
+    return fig
+end
+
+"""
+    function solution_disturbances(
+        problem::Problem,
+        solution_disturbed::MSTSolution,
+        disturbance_clusters::Set{Int64};
+        cluster_radius::Float64=0.0,
+        show_mothership_exclusions::Bool=true,
+        show_tenders_exclusions::Bool=true,
+        show_mothership::Bool=true,
+        show_tenders::Bool=true,
+        highlight_critical_path_flag::Bool=false,
+    )::Figure
+
+Create a plot of the solution at each progressive disturbance event, including:
+- exclusion zones for the **mothership** and **tenders**,
+- mothership route,
+- tender sorties (coloured by cluster), and
+- clustered points remaining remaining after disturbance event (coloured by cluster).
+
+#! NOTE: This function assumes 2 disturbance events.
+#TODO: Generalize to any number of disturbance events.
+
+# Arguments
+- `problem`: The hierarchical routing problem instance.
+- `solution_disturbed`: The solution with disturbances.
+- `disturbance_clusters`: Set of disturbance cluster IDs.
+- `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
+- `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
+- `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
+- `show_mothership`: Whether to show the **mothership** route.
+- `show_tenders`: Whether to show **tender** routes.
+- `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the final
+plot.
+
+# Returns
+The created Figure object containing the plot.
+"""
+function solution_disturbances(
+    problem::Problem,
+    solution_disturbed::MSTSolution,
+    disturbance_clusters::Set{Int64};
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=false,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
+)::Figure
+    #! NOTE: This function assumes 2 disturbance events.
+    #TODO: Generalize to any number of disturbance events.
+    fig = Figure(size=(1650, 600))  ## 3 fig plot
+    ax1, ax2, ax3 =
+        Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
+        Axis(fig[1, 2], xlabel="Longitude"),
+        Axis(fig[1, 3], xlabel="Longitude")
+
+    # Exclusions
+    if show_mothership_exclusions
+        exclusions!.([ax1, ax2, ax3], Ref(problem.mothership.exclusion); labels=false)
+    end
+    if show_tenders_exclusions
+        exclusions!.([ax1, ax2, ax3], Ref(problem.tenders.exclusion); labels=false)
+    end
+
+    # Clusters
+    clusters!.(
+        [ax1, ax2, ax3],
+        solution_disturbed.cluster_sets;
+        cluster_radius,
+        nodes=true,
+        centers=false,
+        labels=true,
+    )
+
+    # Tender sorties/routes
+    if show_tenders
+        ordered_disturbances = sort(unique(disturbance_clusters))
+        tenders!.(
+            [ax1, ax2, ax3],
+            [
+                solution_disturbed.tenders[1][1:ordered_disturbances[1]-1],
+                solution_disturbed.tenders[2][1:ordered_disturbances[2]-1],
+                solution_disturbed.tenders[3]
+            ],
+            length.(solution_disturbed.tenders[1:3])
+        )
+    end
+
+    # Mothership route
+    if show_mothership
+        route!.(
+            [ax1, ax2, ax3],
+            getfield.(solution_disturbed.mothership_routes, :route);
+            labels=true,
+            color=:black
+        )
+    end
+    highlight_critical_path_flag &&
+        highlight_critical_path!(ax3, solution_disturbed, problem)
+
+    # Annotate critical path cost
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_dist = critical_path(solution_disturbed, vessel_weightings)
+    total_dist = total_distance(solution_disturbed, vessel_weightings)
+
+    annotate_cost!(
+        ax3,
+        critical_path_dist;
+        position=(0.95, 0.07),
+        fontsize=14,
+        color=:black
+    )
+    annotate_cost!(
+        ax3,
+        total_dist;
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="total_distance()\ntotal dist"
+    )
+    text!(
+        ax3,
+        (0.02, 0.01)...,
+        text="""Vessel weightings:
+        (mothership, tenders)
+        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        align=(:left, :bottom),
+        space=:relative,
+        fontsize=14,
+        color=:black
+    )
+
+    return fig
+end
+
+function trace(
+    iters::Vector{Int},
+    fvals::Vector{Float64},
+    times::Vector{Float64},
+    opt_method=nothing
+)::Figure
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        xlabel="iteration", ylabel="f(x)",
+        yscale=Makie.log10,                 # set log scale
+        xgridvisible=false
+    )
+    if opt_method !== nothing
+        ax.title = "Optimization Trace: nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
+    end
+    lines!(ax, iters, max.(fvals, eps(Float64)))   # avoid 0 on a log scale
+
+    axt = Axis(fig[1, 1];
+        xaxisposition=:top, yaxisposition=:right, xlabel="time (s)",
+        yscale=Makie.log10,                 # match log scale
+        yticklabelsvisible=false, yticksvisible=false,
+        ygridvisible=false, xgridvisible=false,
+        backgroundcolor=:transparent
+    )
+
+    # Align vertical axes
+    linkyaxes!(ax, axt)
+    # Independent horizontal scale
+    xlims!(axt, extrema(times)...)
+    return fig
+end
+function trace(
+    tr,
+    opt_method=nothing
+)::Figure
+    iters = getfield.(tr, :iteration)
+    fvals = getfield.(tr, :value)
+    times = getindex.(getfield.(tr, :metadata), Ref("time"))
+
+    return trace(iters, fvals, times, opt_method)
+end
+
+function annotate_cost!(
+    ax::Axis,
+    cost::Float64;
+    position::Tuple{Float64,Float64}=(0.95, 0.02),
+    fontsize::Int=14,
+    color::Symbol=:black,
+    metric::String="Critical path"
+)::Axis
+    # Annotate the cost of the critical path on the plot
+    cost_km = cost / 1000  # Convert cost to km
+    text!(
+        ax,
+        position...,
+        text="$metric: $(round(cost_km, digits=2)) km",
+        align=(:right, :bottom),
+        space=:relative,
+        fontsize=fontsize,
+        color=color
+    )
+    return ax
+end
+
+function highlight_critical_path!(
+    ax::Axis,
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,AbstractFloat};
+    color=:red,
+    linewidth=4
+)
+    # Unpack
+    tenders = soln.tenders[end]
+    ms_route = soln.mothership_routes[end].route
+    num_clusters = length(tenders)
+
+    # Within clusters
+    clust_sorties = tender_clust_dist.(tenders)
+    clust_sorties = map(x -> isempty(x) ? [0.0] : x, clust_sorties)
+    longest_sortie_cost = maximum.(clust_sorties) .* vessel_weightings[2]
+    ms_within = mothership_dist_within_clusts(ms_route)[1:num_clusters]
+    mothership_sub_cost = vessel_weightings[1] .* ms_within
+
+    # For each cluster, identify critical path
+    for j in 1:num_clusters
+        if longest_sortie_cost[j] ≥ mothership_sub_cost[j]
+            # Draw the longest tender sortie
+            routes = tenders[j].sorties
+            idx = argmax(tender_clust_dist(tenders[j]))
+            route!(ax, routes[idx]; color=color)
+        else
+            # Draw the mothership route
+            start_point = ms_route.nodes[2j]
+            end_point = ms_route.nodes[2j+1]
+            start_segment = findfirst(
+                ==(start_point),
+                getindex.(getfield.(ms_route.line_strings, :points), 1)
+            )
+            end_segment = findfirst(
+                ==(end_point),
+                getindex.(getfield.(ms_route.line_strings, :points), 2)
+            )
+
+            lines!.(
+                Ref(ax),
+                ms_route.line_strings[start_segment:end_segment];
+                color=color,
+                linewidth=linewidth
+            )
+        end
+    end
+
+    # Highlight mothership segments between clusters
+    start_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[1:2:end-1]
+    end_segment_points::Vector{Point{2,Float64}} = ms_route.nodes[2:2:end]
+
+    start_segment = findfirst.(
+        .==(start_segment_points),
+        Ref(getindex.(getfield.(ms_route.line_strings, :points), 1))
+    )
+    end_segment = findfirst.(
+        .==(end_segment_points),
+        Ref(getindex.(getfield.(ms_route.line_strings, :points), 2))
+    )
+    segments = [ms_route.line_strings[i:j] for (i, j) in zip(start_segment, end_segment)]
+
+    lines!.(
+        Ref(ax),
+        segments;
+        color=color,
+        linewidth=linewidth
+    )
+
+    return nothing
+end
+function highlight_critical_path!(
+    ax::Axis,
+    soln::MSTSolution,
+    problem::Problem;
+    color=:red,
+    linewidth=4
+)
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    return highlight_critical_path!(ax, soln, vessel_weightings; color, linewidth)
+end
+
+function create_colormap(ids::Vector{Int})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
+    # Create custom colormap, skipping the first two colors (yellow and black)
+    max_id = maximum(ids)
+    colormap = distinguishable_colors(max_id + 2)[3:end]
+    return colormap
+end
+function create_colormap(ids::UnitRange{Int64})::Vector{RGB{Colors.FixedPointNumbers.N0f8}}
+    return create_colormap(collect(ids))
 end
 
 function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
@@ -483,5 +986,51 @@ function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
     return ColorTypes.HSV(base_color_float64).h
 end
 
-export clusters, clusters!, exclusions, exclusions!, linestrings, linestrings!, tenders, tenders!
+# Debug plots
+
+const PALETTE = RGBAf.(Makie.wong_colors())
+const POINT_COLORS = Dict{Int,RGBAf}()
+
+idx_color(i::Int) =
+    get!(POINT_COLORS, i) do
+        PALETTE[mod1(i, length(PALETTE))]   # cycle if ids exceed palette length
+    end
+
+function scatter_by_id!(ax, pts; ids=eachindex(pts), kwargs...)
+    scatter!(ax, pts; color=[idx_color(i) for i in ids], kwargs...)
+end
+
+"""
+    debug_waypoints(problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}}; title="")
+    debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+
+Plots the exclusion zones alongside indicative waypoints.
+
+# Example
+```julia
+import HierarchicalRouting as HR
+
+x = Problem(...)
+x = [some waypoints in long/lat sequence...]
+HR.Plot.debug_waypoints(problem, x)
+```
+"""
+function debug_waypoints(
+    problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}};
+    title=""
+)
+    fig = Figure(size=(750, 880))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    exclusions!(ax, problem.mothership.exclusion; labels=false)
+    exclusions!(ax, problem.tenders.exclusion; labels=false)
+    scatter!(ax, wpts, color=[idx_color(i) for i in eachindex(wpts)])
+    ax.title = title
+
+    return fig
+end
+function debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+    return debug_waypoints(problem, Point.(wpts[1:2:end], wpts[2:2:end]); title=title)
+end
+
+export clusters, clusters!, exclusions, exclusions!, route, route!, tenders, tenders!
 end
