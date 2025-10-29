@@ -15,8 +15,8 @@ end
     generate_letter_id(idx::Int64)::String
 
 Generate Letter-based ID from a number.
-Applies an Excel-style ordering, where 0-25 produces A-Z.
-Numbers greater than 25 results in two-character IDs and increments accordingly:
+Applies an Excel-style ordering, where 1-26 produces A-Z.
+Numbers greater than 26 results in two-character IDs and increments accordingly:
 e.g., A-Z, AA-AZ, BA-BZ, etc.
 
 # Examples
@@ -24,30 +24,30 @@ e.g., A-Z, AA-AZ, BA-BZ, etc.
 ```julia
 import HierarchicalRouting as HR
 
-HR.generate_letter_id(0)
+HR.generate_letter_id(1)
 # A
 
-HR.generate_letter_id(25)
+HR.generate_letter_id(26)
 # Z
 
-HR.generate_letter_id(26)
+HR.generate_letter_id(27)
 # AA
 
-HR.generate_letter_id(51)
+HR.generate_letter_id(52)
 # AZ
 
-HR.generate_letter_id(52)
+HR.generate_letter_id(53)
 # BA
 
-HR.generate_letter_id(77)
+HR.generate_letter_id(78)
 # BZ
 ```
 """
 function generate_letter_id(idx::Int64)::String
-    idx < 0 && throw(ArgumentError("Index must be non-negative"))
+    idx <= 0 && throw(ArgumentError("Index must be a positive integer: 1-indexed"))
 
     result::String = ""
-    n = idx
+    n = idx - 1
 
     while true
         result = string(Char('A' + (n % 26))) * result
@@ -63,7 +63,6 @@ end
 function generate_letter_id(c::Cluster)
     return generate_letter_id(c.id)
 end
-
 
 """
     generate_cluster_df(

@@ -72,7 +72,7 @@ function get_feasible_vector(
     nodes::Vector{Point{2,Float64}}, exclusions::POLY_VEC
 )::Tuple{Vector{Float64},Vector{Vector{LineString{2,Float64}}}}
     n_points = length(nodes) - 1
-    dist_vector = fill(Inf, n_points)
+    dist_vector = zeros(Float64, n_points)
     path_vector = fill(Vector{LineString{2,Float64}}(), n_points)
 
     for point_i_idx in 1:n_points
@@ -85,10 +85,13 @@ function get_feasible_vector(
                     shortest_feasible_path(
                         point_nodes[1], point_nodes[2], exclusions
                     )
+            else
+                dist_vector[point_i_idx] = Inf
             end
         end
     end
-
+    any(isinf.(dist_vector)) && throw(DomainError(dist_vector[findall(isinf, dist_vector)],
+        "Distance vector contains Inf values, indicating a waypoint in an exclusion zone."))
     return dist_vector, path_vector
 end
 
@@ -204,7 +207,8 @@ start pt and any other intersecting polygons.
 function shortest_feasible_path(
     initial_point::Point{2,Float64},
     final_point::Point{2,Float64},
-    exclusions::POLY_VEC,
+    exclusions::POLY_VEC;
+    _tried_reverse::Bool=false
 )::Tuple{Float64,Vector{LineString{2,Float64}}}
     final_exclusion_idx = point_in_convexhull(final_point, exclusions)
     initial_exclusion_idx = point_in_convexhull(initial_point, exclusions)
@@ -313,6 +317,21 @@ function shortest_feasible_path(
 
     # Use A* algorithm to find shortest path
     path = a_star(graph, initial_point_idx, final_point_idx, graph.weights)
+    if iszero(length(path)) && !_tried_reverse
+        dist_rev, segs_rev = shortest_feasible_path(
+            final_point,
+            initial_point,
+            exclusions;
+            _tried_reverse=true
+        )
+        # Flip segments original forward direction (and order)
+        segs_fwd = reverse([LineString([last(ls), first(ls)]) for ls in getfield.(segs_rev, :points)])
+        return dist_rev, segs_fwd
+    elseif iszero(length(path))
+        throw(ErrorException(
+            "No path ($initial_point -> $final_point) because network/graph incomplete"
+        ))
+    end
     dist = sum(graph.weights[p.src, p.dst] for p in path)
 
     linestring_path::Vector{LineString} = [
@@ -497,10 +516,8 @@ function build_graph(
         haversine.(points_from, points_to)
     )
 
-    # Only add polygon edges and extra visible connections if:
-    # 1. A polygon is provided, AND
-    # 2. Direct line/path from initial_point -> final_point is NOT visible (i.e. obstructed)
-    if !is_visible(initial_point, final_point, final_polygon)
+    # Only add polygon edges and extra visible connections if final_point is not in network
+    if final_point ∉ points_to
         # Cache to reuse for masking visible vertices
         visibility_mask = falses(length(final_poly_verts))
 

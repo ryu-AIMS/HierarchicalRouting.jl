@@ -9,7 +9,7 @@ using ..HierarchicalRouting:
     Route,
     generate_letter_id,
     critical_path,
-    critical_distance_path,
+    total_distance,
     tender_clust_dist,
     mothership_dist_within_clusts
 
@@ -211,7 +211,7 @@ function clusters!(
                 ax,
                 center_lon,
                 center_lat,
-                text=generate_letter_id(seq - 1),
+                text=generate_letter_id(seq),
                 font="bold",
                 fontsize=24,
                 align=(:center, :center),
@@ -488,6 +488,8 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
+        highlight_critical_path_flag::Bool=false,
+        title::String=""
     )::Figure
     solution(
         problem::Problem,
@@ -498,6 +500,7 @@ end
         show_tenders_exclusions::Bool=true,
         show_mothership::Bool=true,
         show_tenders::Bool=true,
+        title::NTuple{2,String}=("Solution A", "Solution B")
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -516,6 +519,8 @@ Create a plot of the full routing solution, including:
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
 - `show_mothership`: Whether to show the **mothership** route.
 - `show_tenders`: Whether to show **tender** routes.
+- `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the plot.
+- `title`: Title for the plot, or titles for the two subplots when comparing solutions.
 
 # Returns
 The created Figure object containing the plot.
@@ -528,9 +533,12 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
+    title::String="",
 )::Figure
     fig = Figure(size=(750, 880))
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax.title = title
 
     # Exclusions
     show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
@@ -555,7 +563,7 @@ function solution(
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     critical_path_dist = critical_path(soln, vessel_weightings)
-    total_dist = critical_distance_path(soln, vessel_weightings)
+    total_dist = total_distance(soln, vessel_weightings)
 
     annotate_cost!(
         ax,
@@ -570,10 +578,22 @@ function solution(
         position=(0.95, 0.01),
         fontsize=14,
         color=:black,
-        metric="critical_distance_path()\ntotal dist"
+        metric="total_distance()\ntotal dist"
+    )
+    text!(
+        ax,
+        (0.02, 0.01)...,
+        text="""Vessel weightings:
+        (mothership, tenders)
+        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        align=(:left, :bottom),
+        space=:relative,
+        fontsize=14,
+        color=:black
     )
 
-    highlight_critical_path!(ax, soln, vessel_weightings)
+
+    highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
 end
@@ -586,11 +606,14 @@ function solution(
     show_tenders_exclusions::Bool=true,
     show_mothership::Bool=true,
     show_tenders::Bool=true,
+    title::NTuple{2,String}=("Solution A", "Solution B")
 )::Figure
     fig = Figure(size=(1350, 750))  ## 2 fig plot
     ax1, ax2 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
         Axis(fig[1, 2], xlabel="Longitude")
+    ax1.title = title[1]
+    ax2.title = title[2]
 
     # Exclusions
     if show_mothership_exclusions
@@ -633,8 +656,8 @@ function solution(
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     critical_path_dist_a = critical_path(soln_a, vessel_weightings)
     critical_path_dist_b = critical_path(soln_b, vessel_weightings)
-    total_dist_a = critical_distance_path(soln_a, vessel_weightings)
-    total_dist_b = critical_distance_path(soln_b, vessel_weightings)
+    total_dist_a = total_distance(soln_a, vessel_weightings)
+    total_dist_b = total_distance(soln_b, vessel_weightings)
 
     annotate_cost!.(
         [ax1, ax2],
@@ -650,7 +673,7 @@ function solution(
         position=(0.95, 0.01),
         fontsize=14,
         color=:black,
-        metric="critical_distance_path()\ntotal dist"
+        metric="total_distance()\ntotal dist"
     )
 
     return fig
@@ -757,6 +780,48 @@ function solution_disturbances(
     return fig
 end
 
+function trace(
+    iters::Vector{Int},
+    fvals::Vector{Float64},
+    times::Vector{Float64},
+    opt_method=nothing
+)::Figure
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        xlabel="iteration", ylabel="f(x)",
+        yscale=Makie.log10,                 # set log scale
+        xgridvisible=false
+    )
+    if opt_method !== nothing
+        ax.title = "Optimization Trace: nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
+    end
+    lines!(ax, iters, max.(fvals, eps(Float64)))   # avoid 0 on a log scale
+
+    axt = Axis(fig[1, 1];
+        xaxisposition=:top, yaxisposition=:right, xlabel="time (s)",
+        yscale=Makie.log10,                 # match log scale
+        yticklabelsvisible=false, yticksvisible=false,
+        ygridvisible=false, xgridvisible=false,
+        backgroundcolor=:transparent
+    )
+
+    # Align vertical axes
+    linkyaxes!(ax, axt)
+    # Independent horizontal scale
+    xlims!(axt, extrema(times)...)
+    return fig
+end
+function trace(
+    tr,
+    opt_method=nothing
+)::Figure
+    iters = getfield.(tr, :iteration)
+    fvals = getfield.(tr, :value)
+    times = getindex.(getfield.(tr, :metadata), Ref("time"))
+
+    return trace(iters, fvals, times, opt_method)
+end
+
 function annotate_cost!(
     ax::Axis,
     cost::Float64;
@@ -782,7 +847,7 @@ end
 function highlight_critical_path!(
     ax::Axis,
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0);
+    vessel_weightings::NTuple{2,AbstractFloat};
     color=:red,
     linewidth=4
 )
@@ -868,6 +933,52 @@ function convert_rgb_to_hue(base_color::RGB{Colors.FixedPointNumbers.N0f8})
         float(base_color.b)
     )
     return ColorTypes.HSV(base_color_float64).h
+end
+
+# Debug plots
+
+const PALETTE = RGBAf.(Makie.wong_colors())
+const POINT_COLORS = Dict{Int,RGBAf}()
+
+idx_color(i::Int) =
+    get!(POINT_COLORS, i) do
+        PALETTE[mod1(i, length(PALETTE))]   # cycle if ids exceed palette length
+    end
+
+function scatter_by_id!(ax, pts; ids=eachindex(pts), kwargs...)
+    scatter!(ax, pts; color=[idx_color(i) for i in ids], kwargs...)
+end
+
+"""
+    debug_waypoints(problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}}; title="")
+    debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+
+Plots the exclusion zones alongside indicative waypoints.
+
+# Example
+```julia
+import HierarchicalRouting as HR
+
+x = Problem(...)
+x = [some waypoints in long/lat sequence...]
+HR.Plot.debug_waypoints(problem, x)
+```
+"""
+function debug_waypoints(
+    problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}};
+    title=""
+)
+    fig = Figure(size=(750, 880))
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    exclusions!(ax, problem.mothership.exclusion; labels=false)
+    exclusions!(ax, problem.tenders.exclusion; labels=false)
+    scatter!(ax, wpts, color=[idx_color(i) for i in eachindex(wpts)])
+    ax.title = title
+
+    return fig
+end
+function debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+    return debug_waypoints(problem, Point.(wpts[1:2:end], wpts[2:2:end]); title=title)
 end
 
 export clusters, clusters!, exclusions, exclusions!, route, route!, tenders, tenders!

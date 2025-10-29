@@ -19,7 +19,6 @@ struct TenderSolution
     start::Point{2,Float64}
     finish::Point{2,Float64}
     sorties::Vector{Route}
-    dist_matrix::Matrix{Float64}
 end
 function TenderSolution(t::TenderSolution, sorties::Vector{Route})
     return TenderSolution(
@@ -27,7 +26,6 @@ function TenderSolution(t::TenderSolution, sorties::Vector{Route})
         t.start,
         t.finish,
         sorties,
-        t.dist_matrix
     )
 end
 
@@ -239,43 +237,88 @@ end
 """
     optimize_waypoints(
         soln::MSTSolution,
-        problem::Problem;
-        opt_method=GradientDescent(),
+        problem::Problem,
+        opt_method;
         cost_tol::Float64=0.0,
-        gradient_tol::Float64=3e5,
-        iterations::Int64=10,
-        time_limit::Float64=60.0
+        gradient_tol::Float64=3e4,
+        iterations::Int64=typemax(Int64),
+        time_limit::Float64=200.0,
+    )::MSTSolution
+    optimize_waypoints(
+        soln::MSTSolution,
+        problem::Problem,
+        opt_method,
+        candidate_wpt_idxs::Union{AbstractVector{<:Integer},AbstractUnitRange{<:Integer}};
+        cost_tol::Float64=0.0,
+        gradient_tol::Float64=3e4,
+        iterations::Int64=typemax(Int64),
+        time_limit::Float64=200.0,
     )::MSTSolution
 
-Optimize waypoint positions in the final mothership route using gradient-based optimization
+Optimize waypoint positions in the final mothership route using `opt_method` provided
 to minimize the critical path time while avoiding exclusion zones.
 
-This function takes the waypoints from the last mothership route (excluding depot start/end
-points) and optimizes their positions within a constrained search space. The optimization
+This function optimizes the waypoints from the last mothership route (excluding depot start/
+end points)by perturbing their positions within a constrained search space. The optimization
 minimizes the critical path score while penalizing waypoints that fall within exclusion
 zones.
+
+Disturbance scenarios can be handled by optimizing only a subset of waypoints corresponding
+to clusters affected by disturbances. `candidate_wpt_idxs` specifies the indices of
+waypoints to optimize, allowing for partial optimization of the route.
 
 # Arguments
 - `soln::MSTSolution`: Current mothership and tender solution.
 - `problem::Problem`: Definition of problem context (vessel specs and exclusion zones)
-- `opt_method`: Optimization algorithm (default: GradientDescent())
-- `cost_tol`: Relative cost function tolerance. Stop optimization if function falls below this value.
-- `gradient_tol::Float64`: Gradient norm convergence tolerance. \
-                           Stop optimization when gradient norm falls below this value
+- `opt_method`: Optimization algorithm used to improve waypoint positions.
+- `candidate_wpt_idxs`: Indices of waypoints to optimize. If not provided, all interior
+(non-depot) waypoints will be optimized.
+- `cost_tol`: Relative cost function tolerance. Stop optimization if function falls below
+this value.
+- `gradient_tol::Float64`: Gradient norm convergence tolerance. Stop optimization when
+gradient norm falls below this value
 - `iterations::Int64`: Maximum number of optimization iterations
 - `time_limit::Float64`: Soft limit on the time spent optimizing
 
 # Returns
-Updated mothership and tender solution with optimized waypoint positions and regenerated tender sorties
+Updated mothership and tender solution with optimized waypoint positions and regenerated
+tender sorties
 """
 function optimize_waypoints(
     soln::MSTSolution,
-    problem::Problem;
-    opt_method=GradientDescent(),
+    problem::Problem,
+    opt_method;
     cost_tol::Float64=0.0,
     gradient_tol::Float64=3e4,
-    iterations::Int64=10,
-    time_limit::Float64=60.0
+    iterations::Int64=typemax(Int64),
+    time_limit::Float64=200.0,
+)::MSTSolution
+    # Optimize all interior waypoints by default
+    n_nodes = length(soln.mothership_routes[end].route.nodes)
+    n_nodes <= 0 && return soln
+
+    # Candidate waypoint indices to optimize (excluding depot start/end)
+    candidate_wpt_idxs = 2:n_nodes-1
+
+    # Pass to partial-optimization overload with all interior indices
+    return optimize_waypoints(
+        soln, problem, opt_method,
+        candidate_wpt_idxs;
+        cost_tol=cost_tol,
+        gradient_tol=gradient_tol,
+        iterations=iterations,
+        time_limit=time_limit,
+    )
+end
+function optimize_waypoints(
+    soln::MSTSolution,
+    problem::Problem,
+    opt_method,
+    candidate_wpt_idxs::Union{AbstractVector{<:Integer},AbstractUnitRange{<:Integer}};
+    cost_tol::Float64=0.0,
+    gradient_tol::Float64=3e4,
+    iterations::Int64=typemax(Int64),
+    time_limit::Float64=200.0,
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
@@ -286,56 +329,70 @@ function optimize_waypoints(
     last_ms_route = soln.mothership_routes[end]
 
     # Flatten initial waypoints
-    waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
-    x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
+    waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes
+    n_wpts::Int64 = length(waypoints_initial)
+    free_idxs::Vector{Int} = sort!(unique!(collect(candidate_wpt_idxs)))
 
-    # Initialize variables for objective function
-    wpts_length::Int64 = length(waypoints_initial) + 2 # +2 for depot start/end points
-    wpts::Vector{Point{2,Float64}} = Vector{Point{2,Float64}}(undef, wpts_length)
-    has_bad_waypoint::BitVector = falses(wpts_length)
-    exclusion_count::Int64 = 0
-    score::Float64 = 0.0
+    isempty(free_idxs) && return soln
+    @assert all(1 .<= free_idxs .<= n_wpts) "Free waypoint indices must be within 1:$n_wpts"
 
-    best_soln = Ref{MSTSolution}(soln)
-    best_score = Ref(Inf)
-    best_count = Ref(0)
+    """
+    Pack waypoints into optimization vector x, and unpack back into waypoints
+    """
+    @inline function pack_x(pts::Vector{Point{2,Float64}}, idxs::Vector{Int})::Vector{Float64}
+        x = Vector{Float64}(undef, 2 * length(idxs))
+        @inbounds for (j, i) in enumerate(idxs)
+            x[2j-1] = pts[i][1]
+            x[2j] = pts[i][2]
+        end
+        return x
+    end
+
+    best_soln::MSTSolution = soln
+    best_score::Float64 = critical_path(soln, vessel_weightings)
+    best_count::Int64 = 0
+    soln_proposed::MSTSolution = soln
+
+    fig_wpts = Plot.debug_waypoints(problem, last_ms_route.route.nodes)
 
     # Objective from x -> critical_path
     function obj(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        wpts .= Point.([
-            last_ms_route.route.nodes[1],  # first waypoint (depot)
-            tuple.(x[1:2:end], x[2:2:end])...,
-            last_ms_route.route.nodes[end]  # last waypoint (depot)
-        ])
+        @inbounds for (j, i) in enumerate(free_idxs)
+            wpts[i] = Point(x[2j-1], x[2j])
+        end
 
         # Exit early here if any waypoints are inside exclusion zones
         has_bad_waypoint = point_in_exclusion.(wpts, Ref(exclusions_mothership))
         exclusion_count = count(has_bad_waypoint)
         if exclusion_count > 0
             naive_score = sum(haversine.(wpts[1:end-1], wpts[2:end])) * vessel_weightings[1]
-            return naive_score + naive_score * exclusion_count
+            return naive_score * (exclusion_count + 1)^2
         end
 
         soln_proposed = rebuild_solution_with_waypoints(
-            best_soln[],
+            soln,
             wpts,
             exclusions_mothership,
             exclusions_tender
         )
 
         score = critical_path(soln_proposed, vessel_weightings)
+        isinf(score) && throw(DomainError(score,
+            "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
+        ))
 
-        if score < best_score[]
-            best_soln[] = soln_proposed
-            best_score[] = score
-            best_count[] = 0
+        if score < best_score
+            best_soln = soln_proposed
+            best_score = score
+            best_count = 0
         else
             # For debugging and tracking
-            best_count[] += 1
+            best_count += 1
         end
+        Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
 
         return score
     end
@@ -345,33 +402,49 @@ function optimize_waypoints(
         iterations=iterations,
         f_reltol=cost_tol,
         g_abstol=gradient_tol,
-        show_trace=true,
+        # show_trace=true, show_every=10,
+        store_trace=true,
         allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
 
+    # Waypoints to optimize, formatted for Optim
+    wpts = waypoints_initial
+    x0 = pack_x(wpts, free_idxs)
+
     # Each waypoint is bounded to its surrounding area (in decimal degrees)
-    lb = x0 .- 0.05
-    ub = x0 .+ 0.05
+    lb = x0 .- 0.025
+    ub = x0 .+ 0.025
 
     result = optimize(
         obj,
         lb,
         ub,
         x0,
-        Fminbox(opt_method),
+        opt_method,
         opt_options
     )
 
     @info "Type:" summary(result)
     @info "Minimum value:" minimum(result)
-    @info "Convergence status:" Optim.converged(result)
-    @info "X status:" Optim.x_converged(result)
-    @info "Function status:" Optim.f_converged(result)
-    @info "Gradient status:" Optim.g_converged(result)
-    # @info "Gradient trace:" Optim.g_norm_trace(result)
+    if Optim.converged(result)
+        @info "Converged at: "
+        Optim.x_converged(result) && @info "x"
+        Optim.f_converged(result) && @info "f(x)"
+        Optim.g_converged(result) && @info "∇f(x)"
+        @info "\nConverged after $(Optim.iterations(result)) iterations"
+    else
+        @info "Did not converge after $(Optim.iterations(result)) iterations"
+    end
+    @info "Best critical path score found: $best_score"
 
-    return best_soln[]
+    Plot.route!(fig_wpts.current_axis[], best_soln.mothership_routes[end], color=:black)
+    display(fig_wpts)
+    result_trace = Optim.trace(result)
+    fig = Plot.trace(result_trace, opt_method)
+    display(fig)
+
+    return best_soln
 end
 
 """
@@ -403,7 +476,7 @@ function rebuild_solution_with_waypoints(
         waypoints_proposed, exclusions_mothership
     )
     ms_route_new::Route = Route(
-        waypoints_proposed,
+        copy(waypoints_proposed),
         dist_vector_proposed,
         vcat(line_strings_proposed...)
     )
@@ -424,8 +497,8 @@ function rebuild_solution_with_waypoints(
     # Return a new MSTSolution with the updated mothership route
     return MSTSolution(
         solution_ex.cluster_sets,
-        [ms_soln_new],
-        [tender_soln_new]
+        [solution_ex.mothership_routes[1:end-1]; ms_soln_new],
+        [solution_ex.tenders[1:end-1]; [tender_soln_new]]
     )
 end
 
@@ -462,9 +535,7 @@ function rebuild_sortie(
     sortie_end_has_moved,
 )::Route
     segment_to_keep = route.line_strings
-    updated_dist_matrix = typeof(route.dist_matrix) == Vector{Float64} ?
-                          route.dist_matrix :
-                          get_superdiag_vals(route.dist_matrix)
+    updated_dist_matrix::Vector{Float64} = get_distance_vector(route.dist_matrix)
 
     # Keep the segments of the line strings that contain matching start/end points
     if sortie_start_has_moved
@@ -574,7 +645,9 @@ function generate_tender_sorties(
     # Update the tender solutions with the new waypoints
     tenders_old = soln.tenders[end]
     n = length(tenders_old)
-    @assert length(tmp_wpts) == 2n + 2 "expected 2 points per tender plus depot start/end"
+    length(tmp_wpts) != (2n + 2) && throw(DimensionMismatch(
+        "Expected 2 points per tender plus depot start/end"
+    ))
 
     js = 1:n
     starts_new = tmp_wpts[2 .* js]
@@ -610,7 +683,6 @@ function generate_tender_sorties(
             start_new,
             finish_new,
             sorties_new,
-            tender_old.dist_matrix #! dist_matrix is not updated here
         )
     end
 
@@ -729,7 +801,7 @@ function nearest_neighbour(
     # adjust_waypoints to ensure not within exclusion zones - allows for feasible path calc
     feasible_centroids::Vector{Point{2,Float64}} = adjust_waypoint.(
         Point{2,Float64}.(cluster_centroids.lon, cluster_centroids.lat),
-        Ref(exclusions_mothership.geometry)
+        Ref(exclusions_mothership)
     )
     cluster_centroids[!, :lon] = [pt[1] for pt in feasible_centroids]
     cluster_centroids[!, :lat] = [pt[2] for pt in feasible_centroids]
@@ -737,7 +809,7 @@ function nearest_neighbour(
     # Create distance matrix between start, end, and feasible cluster centroids
     dist_matrix = get_feasible_matrix(
         vcat([current_point], feasible_centroids),
-        exclusions_mothership.geometry
+        exclusions_mothership
     )[1]
     centroid_matrix = dist_matrix[3:end, 3:end]
     current_dist_vector = dist_matrix[1, 3:end]
@@ -913,7 +985,12 @@ function two_opt(
     exclusions_tender::POLY_VEC,
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
+
+    ordered_centroids = sort(cluster_centroids[1:end-1, :], :id)  # drop last row
+    centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
+    push!(centroid_nodes, first(centroid_nodes))  # return to depot
+
+    dist_matrix::Matrix{Float64} = get_feasible_matrix(centroid_nodes, exclusions_mothership)[1]
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -926,7 +1003,7 @@ function two_opt(
     # Optimize the entire route
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_vector,
+        dist_matrix,
         route_distance
     )
 
@@ -956,7 +1033,12 @@ function two_opt(
     cluster_seq_idx::Int64
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
+
+    ordered_centroids = sort(cluster_centroids[1:end-1, :], :id)  # drop last row
+    centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
+    push!(centroid_nodes, first(centroid_nodes))  # return to depot
+
+    dist_matrix::Matrix{Float64} = get_feasible_matrix(centroid_nodes, exclusions_mothership)[1]
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -969,7 +1051,7 @@ function two_opt(
     # Optimize only from cluster_seq_idx to the end
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_vector,
+        dist_matrix,
         route_distance;
         start_idx=cluster_seq_idx,
         end_idx=length(initial_route)
@@ -997,14 +1079,14 @@ function two_opt(
     tender_soln_current::TenderSolution,
     exclusions_tender::POLY_VEC,
 )::TenderSolution
-    sorties_current = tender_soln_current.sorties
-    sorties_new = Vector{Route}(undef, length(sorties_current))
+    sorties_current::Vector{Route} = tender_soln_current.sorties
+    sorties_new::Vector{Route} = Vector{Route}(undef, length(sorties_current))
 
     for (idx, sortie) in enumerate(sorties_current)
         if length(sortie.nodes) ≤ 1
             # If there is only 1 node between start and finish, no change is possible
             # update to distance vector
-            dist_vector = get_superdiag_vals(sortie.dist_matrix)
+            dist_vector::Vector{Float64} = get_distance_vector(sortie.dist_matrix)
             sorties_new[idx] = Route(
                 sortie.nodes,
                 dist_vector,
@@ -1015,7 +1097,6 @@ function two_opt(
 
         nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
         n = length(nodes)
-
         initial_sequence = collect(1:n)
 
         # Optimize sequence, but don't modify start (index 1) and finish (index n)
@@ -1045,7 +1126,6 @@ function two_opt(
         tender_soln_current.start,
         tender_soln_current.finish,
         sorties_new,
-        tender_soln_current.dist_matrix,
     )
 end
 
@@ -1153,7 +1233,6 @@ function tender_sequential_nearest_neighbour(
 
             current_node = tour_lengths[t] == 0 ? 1 : tender_tours[t][tour_lengths[t]]
 
-            #? Will this change the original matrix?
             distances = dist_matrix[current_node, 1:n_nodes]
             distances[visited] .= Inf
             nearest_idx = argmin(distances)
@@ -1199,7 +1278,6 @@ function tender_sequential_nearest_neighbour(
         waypoints[1],
         waypoints[2],
         routes,
-        dist_matrix
     )
     improved_sortie = two_opt(
         initial_sortie,

@@ -451,7 +451,6 @@ function insert_unallocated_node(
             tenders[cluster_seq_idx].start,
             tenders[cluster_seq_idx].finish,
             updated_sorties,
-            tenders[cluster_seq_idx].dist_matrix #! recompute or un-used??
         )
 
         #! update min_tender_sorties
@@ -580,7 +579,7 @@ end
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
         static_limit::Int=150;
-        vessel_weightings::NTuple{2, AbstractFloat}=(1.0, 1.0),
+        vessel_weightings::NTuple{2, AbstractFloat},
         cross_cluster_flag::Bool=false,
     )
 
@@ -598,7 +597,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
     Default = 0.95 = 95%.
 - `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
 - `vessel_weightings`: Tuple of weightings (mothership, tenders) to apply to vessel
-    distances to generate costs for the objective function. Default = (1.0, 1.0).
+    distances to generate costs for the objective function.
 - `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
     considered. Default = false.
 
@@ -616,7 +615,7 @@ function simulated_annealing(
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
     static_limit::Int=150;
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0),
+    vessel_weightings::NTuple{2,AbstractFloat},
     cross_cluster_flag::Bool=false,
 )::Tuple{MSTSolution,Float64}
     # Initialize best solution as initial
@@ -632,8 +631,10 @@ function simulated_annealing(
         obj_current = obj_best
         static_ctr = 0
 
-        @info "\n\tCluster\t\t$(cluster_set[clust_idx].id)\n\t" *
-              "Iteration \tBest Value \t\tTemp\n\t0\t\t$obj_best\t$temp"
+        @info """
+        Cluster: \t$(cluster_set[clust_idx].id)
+        \tIteration \tBest Value \t\tTemp
+        \t0\t\t$obj_best\t$temp"""
 
         for iteration in 1:max_iterations
             if !cross_cluster_flag
@@ -677,8 +678,8 @@ function simulated_annealing(
             end
 
             if static_ctr >= static_limit
-                @info "$iteration\t\t$obj_best\t$temp\n\t" *
-                      "Early exit at iteration $iteration due to stagnation."
+                @info """$iteration\t\t$obj_best\t$temp
+                \tEarly exit at iteration $iteration due to stagnation."""
                 break
             end
         end

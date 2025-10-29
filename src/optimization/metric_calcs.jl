@@ -1,20 +1,45 @@
 
 """
     route_distance(_, dist_vector::Vector{Float64})::Float64
+    route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
 
 Calculate the total distance of a route, given a vector of distances, starting and ending at
-the same point.
+the same point, or a distance matrix and a vector of node indices.
 
 # Arguments
 - `_`: Unused. Kept to maintain compatibility when this function is passed as an argument to
 `optimize_route_two_opt`.
 - `dist_vector`: Vector of distances between consecutive points in the route.
+- `route`: Vector of node indices representing the order of the route.
+- `dist_matrix`: Distance matrix between nodes, ordered by node index.
 
 # Returns
 Total distance of the return route.
 """
 function route_distance(_, dist_vector::Vector{Float64})::Float64
     return sum(dist_vector)
+end
+function route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
+    distance_segments = getindex.(Ref(dist_matrix), route[1:end-1], route[2:end])
+    return_segment = dist_matrix[route[end], route[1]]
+    return sum(distance_segments) + return_segment
+end
+
+"""
+    get_distance_vector(dist_matrix::Matrix{Float64})::Vector{Float64}
+    get_distance_vector(dist_vector::Vector{Float64})::Vector{Float64}
+
+Get a vector of distances between consecutive points in a route, given either a distance
+matrix or a distance vector.
+
+If a distance matrix is provided, the method returns the superdiagonal: the first diagonal
+above the main diagonal.
+"""
+function get_distance_vector(dist_matrix::Matrix{Float64})::Vector{Float64}
+    return [dist_matrix[i, i+1] for i in 1:(size(dist_matrix, 1)-1)]
+end
+function get_distance_vector(dist_vector::Vector{Float64})::Vector{Float64}
+    return copy(dist_vector)
 end
 
 """
@@ -76,6 +101,10 @@ end
         node_order::Vector{Int64},
         dist_matrix::Matrix{Float64}
     )::Float64
+    tender_sortie_dist(
+        _::Vector{Int64},
+        dist_vector::Vector{Float64}
+    )::Float64
 
 Compute the cost of a sortie, which starts and ends at given points, but does not return to
 start.
@@ -84,6 +113,7 @@ start.
 - `sortie`: Route object containing nodes and distance matrix.
 - `node_order`: Vector of node indices representing the order of the sortie.
 - `dist_matrix`: Distance matrix between nodes, ordered by node index.
+- `dist_vector`: Vector of distances between consecutive nodes in the sortie.
 
 # Returns
 The total distance of the sortie.
@@ -99,6 +129,12 @@ function tender_sortie_dist(
         dist_matrix[node_order[i], node_order[i+1]]
         for i in 1:(length(node_order)-1)
     )
+end
+function tender_sortie_dist(
+    _::Vector{Int64},
+    dist_vector::Vector{Float64}
+)::Float64
+    return sum(dist_vector)
 end
 
 """
@@ -140,7 +176,11 @@ end
 """
     critical_path(
         soln::MSTSolution,
-        vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+        vessel_weightings::NTuple{2,AbstractFloat}
+    )::Float64
+    critical_path(
+        soln::MSTSolution,
+        problem::Problem,
     )::Float64
 
 Compute the critical path cost of the solution.
@@ -152,13 +192,14 @@ This is the longest path for a return trip, quantified as the sum of:
 # Arguments
 - `soln`: The solution to evaluate.
 - `vessel_weightings`: The weightings for mothership and sortie costs.
+- `problem`: The problem instance containing vessel weightings.
 
 # Returns
 The total (critical path) cost of the solution.
 """
 function critical_path(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    vessel_weightings::NTuple{2,AbstractFloat}
 )::Float64
     tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
@@ -166,6 +207,7 @@ function critical_path(
 
     # Within clusters
     cluster_sorties = tender_clust_dist.(tenders)
+
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
     mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
@@ -176,13 +218,22 @@ function critical_path(
 
     # Between clusters
     tow_cost = vessel_weightings[1] * mothership_dist_between_clusts(ms_route, num_clusters)
-
-    return cluster_cost_total + tow_cost
+    total_critical_path = cluster_cost_total + tow_cost
+    isinf(total_critical_path) && throw(DomainError(total_critical_path,
+        "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
+    ))
+    return total_critical_path
+end
+function critical_path(
+    soln::MSTSolution,
+    problem::Problem,
+)::Float64
+    return critical_path(soln, (problem.mothership.weighting, problem.tenders.weighting))
 end
 
-function critical_distance_path(
+function total_distance(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat}=(1.0, 1.0)
+    vessel_weightings::NTuple{2,AbstractFloat}
 )::Float64
     tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
