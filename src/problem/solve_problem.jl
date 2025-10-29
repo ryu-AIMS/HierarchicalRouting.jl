@@ -157,12 +157,8 @@ function solve(
         problem,
         total_tender_capacity;
         do_improve,
+        waypoint_optim_method
     )
-
-    if !isnothing(waypoint_optim_method)
-        @info "Optimizing waypoints using $(waypoint_optim_method)"
-        return optimize_waypoints(solution, problem, waypoint_optim_method)
-    end
 
     return solution
 end
@@ -178,6 +174,7 @@ end
         problem::Problem,
         total_tender_capacity::Int;
         do_improve::Bool=false,
+        waypoint_optim_method=nothing,
     )::MSTSolution
 
 Simulates and applies disturbance events to the solution.
@@ -186,6 +183,9 @@ Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each distu
 - If `do_improve=true`, additionally runs `improve_solution(...)` at each disturbance, using
   vessel_weightings derived from the `problem` instance.
 - Assumes index 1 (pre-disturbance state) has already been written into the *_sets vectors.
+- `waypoint_optim_method` can be provided to optimize waypoints between disturbance events.
+    - NB: Currently, partial optimization perturbs ALL future/unvisited waypoints, rather than
+    just those appearing in `candidate_wpt_idxs` and/or between disturbance events.
 """
 function _apply_disturbance_events!(
     cluster_sets::Vector{Vector{Cluster}},
@@ -196,10 +196,26 @@ function _apply_disturbance_events!(
     problem::Problem,
     total_tender_capacity::Int;
     do_improve::Bool=false,
+    waypoint_optim_method=nothing,
 )::MSTSolution
     disturb_idx = 1
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
+    solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+
+    # Optimize initial waypoints
+    if !isnothing(waypoint_optim_method)
+        @info "Optimizing pre-disturbed waypoint subset using $(waypoint_optim_method)"
+
+        solution = optimize_waypoints(
+            MSTSolution([clusters], [ms_route], [tender_soln_sets[disturb_idx]]),
+            problem,
+            waypoint_optim_method
+        )
+        clusters = cluster_sets[disturb_idx] = solution.cluster_sets[disturb_idx]
+        ms_route = ms_soln_sets[disturb_idx] = solution.mothership_routes[disturb_idx]
+        tender_soln_sets[disturb_idx] = solution.tenders[disturb_idx]
+    end
 
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
@@ -265,6 +281,30 @@ function _apply_disturbance_events!(
             end
         end
 
+        # Increment event index
+        disturb_idx += 1
+
+        # Optimize mothership waypoints between disturbance events
+        if !isnothing(waypoint_optim_method)
+            # Optimize ALL future wpts #! NOTE: not just to next disturbance event
+            clust_selection = (ordered_disturbances[disturb_idx-1]:length(clusters)+1)
+            candidate_wpt_idxs = 2*clust_selection[1]:2*clust_selection[end]-1
+
+            @info """Optimizing waypoints $candidate_wpt_idxs for clusters $clust_selection
+                    using $waypoint_optim_method"""
+
+            solution_tmp::MSTSolution = optimize_waypoints(
+                MSTSolution([clusters], [ms_route], [current_tender_soln]),
+                problem,
+                waypoint_optim_method,
+                candidate_wpt_idxs
+            )
+
+            clusters = solution_tmp.cluster_sets[1]
+            ms_route = solution_tmp.mothership_routes[1]
+            current_tender_soln = solution_tmp.tenders[1]
+        end
+
         # Solution improvement step (used by `solve`, not by `initial_solution`)
         if do_improve
             next_disturbance_cluster_idx =
@@ -293,14 +333,15 @@ function _apply_disturbance_events!(
             )
         end
 
-        # Increment event index and update solution sets
-        disturb_idx += 1
+        # Update solution sets
         cluster_sets[disturb_idx] = clusters
         ms_soln_sets[disturb_idx] = ms_route
         tender_soln_sets[disturb_idx] = current_tender_soln
     end
 
-    solution::MSTSolution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    if !isempty(ordered_disturbances)
+        solution = MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+    end
 
     return solution
 end
