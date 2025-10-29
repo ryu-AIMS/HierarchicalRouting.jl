@@ -780,6 +780,48 @@ function solution_disturbances(
     return fig
 end
 
+function trace(
+    iters::Vector{Int},
+    fvals::Vector{Float64},
+    times::Vector{Float64},
+    opt_method=nothing
+)::Figure
+    fig = Figure()
+    ax = Axis(fig[1, 1];
+        xlabel="iteration", ylabel="f(x)",
+        yscale=Makie.log10,                 # set log scale
+        xgridvisible=false
+    )
+    if opt_method !== nothing
+        ax.title = "Optimization Trace: nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
+    end
+    lines!(ax, iters, max.(fvals, eps(Float64)))   # avoid 0 on a log scale
+
+    axt = Axis(fig[1, 1];
+        xaxisposition=:top, yaxisposition=:right, xlabel="time (s)",
+        yscale=Makie.log10,                 # match log scale
+        yticklabelsvisible=false, yticksvisible=false,
+        ygridvisible=false, xgridvisible=false,
+        backgroundcolor=:transparent
+    )
+
+    # Align vertical axes
+    linkyaxes!(ax, axt)
+    # Independent horizontal scale
+    xlims!(axt, extrema(times)...)
+    return fig
+end
+function trace(
+    tr,
+    opt_method=nothing
+)::Figure
+    iters = getfield.(tr, :iteration)
+    fvals = getfield.(tr, :value)
+    times = getindex.(getfield.(tr, :metadata), Ref("time"))
+
+    return trace(iters, fvals, times, opt_method)
+end
+
 function annotate_cost!(
     ax::Axis,
     cost::Float64;
@@ -895,6 +937,18 @@ end
 
 # Debug plots
 
+const PALETTE = RGBAf.(Makie.wong_colors())
+const POINT_COLORS = Dict{Int,RGBAf}()
+
+idx_color(i::Int) =
+    get!(POINT_COLORS, i) do
+        PALETTE[mod1(i, length(PALETTE))]   # cycle if ids exceed palette length
+    end
+
+function scatter_by_id!(ax, pts; ids=eachindex(pts), kwargs...)
+    scatter!(ax, pts; color=[idx_color(i) for i in ids], kwargs...)
+end
+
 """
     debug_waypoints(problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}}; title="")
     debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
@@ -918,7 +972,7 @@ function debug_waypoints(
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
     exclusions!(ax, problem.mothership.exclusion; labels=false)
     exclusions!(ax, problem.tenders.exclusion; labels=false)
-    scatter!(wpts)
+    scatter!(ax, wpts, color=[idx_color(i) for i in eachindex(wpts)])
     ax.title = title
 
     return fig

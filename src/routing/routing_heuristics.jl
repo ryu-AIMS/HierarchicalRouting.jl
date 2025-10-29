@@ -241,22 +241,38 @@ end
         opt_method;
         cost_tol::Float64=0.0,
         gradient_tol::Float64=3e4,
-        iterations::Int64=100,
-        time_limit::Float64=60.0
+        iterations::Int64=typemax(Int64),
+        time_limit::Float64=200.0,
+    )::MSTSolution
+    optimize_waypoints(
+        soln::MSTSolution,
+        problem::Problem,
+        opt_method,
+        candidate_wpt_idxs::Union{AbstractVector{<:Integer},AbstractUnitRange{<:Integer}};
+        cost_tol::Float64=0.0,
+        gradient_tol::Float64=3e4,
+        iterations::Int64=typemax(Int64),
+        time_limit::Float64=200.0,
     )::MSTSolution
 
-Optimize waypoint positions in the final mothership route using gradient-based optimization
+Optimize waypoint positions in the final mothership route using `opt_method` provided
 to minimize the critical path time while avoiding exclusion zones.
 
-This function takes the waypoints from the last mothership route (excluding depot start/end
-points) and optimizes their positions within a constrained search space. The optimization
+This function optimizes the waypoints from the last mothership route (excluding depot start/
+end points)by perturbing their positions within a constrained search space. The optimization
 minimizes the critical path score while penalizing waypoints that fall within exclusion
 zones.
+
+Disturbance scenarios can be handled by optimizing only a subset of waypoints corresponding
+to clusters affected by disturbances. `candidate_wpt_idxs` specifies the indices of
+waypoints to optimize, allowing for partial optimization of the route.
 
 # Arguments
 - `soln::MSTSolution`: Current mothership and tender solution.
 - `problem::Problem`: Definition of problem context (vessel specs and exclusion zones)
 - `opt_method`: Optimization algorithm used to improve waypoint positions.
+- `candidate_wpt_idxs`: Indices of waypoints to optimize. If not provided, all interior
+(non-depot) waypoints will be optimized.
 - `cost_tol`: Relative cost function tolerance. Stop optimization if function falls below
 this value.
 - `gradient_tol::Float64`: Gradient norm convergence tolerance. Stop optimization when
@@ -274,8 +290,35 @@ function optimize_waypoints(
     opt_method;
     cost_tol::Float64=0.0,
     gradient_tol::Float64=3e4,
-    iterations::Int64=100,
-    time_limit::Float64=60.0
+    iterations::Int64=typemax(Int64),
+    time_limit::Float64=200.0,
+)::MSTSolution
+    # Optimize all interior waypoints by default
+    n_nodes = length(soln.mothership_routes[end].route.nodes)
+    n_nodes <= 0 && return soln
+
+    # Candidate waypoint indices to optimize (excluding depot start/end)
+    candidate_wpt_idxs = 2:n_nodes-1
+
+    # Pass to partial-optimization overload with all interior indices
+    return optimize_waypoints(
+        soln, problem, opt_method,
+        candidate_wpt_idxs;
+        cost_tol=cost_tol,
+        gradient_tol=gradient_tol,
+        iterations=iterations,
+        time_limit=time_limit,
+    )
+end
+function optimize_waypoints(
+    soln::MSTSolution,
+    problem::Problem,
+    opt_method,
+    candidate_wpt_idxs::Union{AbstractVector{<:Integer},AbstractUnitRange{<:Integer}};
+    cost_tol::Float64=0.0,
+    gradient_tol::Float64=3e4,
+    iterations::Int64=typemax(Int64),
+    time_limit::Float64=200.0,
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
@@ -286,31 +329,39 @@ function optimize_waypoints(
     last_ms_route = soln.mothership_routes[end]
 
     # Flatten initial waypoints
-    waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes[2:end-1]
-    x0::Vector{Float64} = reinterpret(Float64, waypoints_initial)
+    waypoints_initial::Vector{Point{2,Float64}} = last_ms_route.route.nodes
+    n_wpts::Int64 = length(waypoints_initial)
+    free_idxs::Vector{Int} = sort!(unique!(collect(candidate_wpt_idxs)))
 
-    # Initialize variables for objective function
-    wpts_length::Int64 = length(waypoints_initial) + 2 # +2 for depot start/end points
-    wpts::Vector{Point{2,Float64}} = Vector{Point{2,Float64}}(undef, wpts_length)
-    wpts[1] = last_ms_route.route.nodes[1] # Depot start fixed
-    wpts[end] = last_ms_route.route.nodes[end] # Depot end fixed
+    isempty(free_idxs) && return soln
+    @assert all(1 .<= free_idxs .<= n_wpts) "Free waypoint indices must be within 1:$n_wpts"
 
-    has_bad_waypoint::BitVector = falses(wpts_length)
-    exclusion_count::Int64 = 0
-    score::Float64 = 0.0
+    """
+    Pack waypoints into optimization vector x, and unpack back into waypoints
+    """
+    @inline function pack_x(pts::Vector{Point{2,Float64}}, idxs::Vector{Int})::Vector{Float64}
+        x = Vector{Float64}(undef, 2 * length(idxs))
+        @inbounds for (j, i) in enumerate(idxs)
+            x[2j-1] = pts[i][1]
+            x[2j] = pts[i][2]
+        end
+        return x
+    end
 
     best_soln::MSTSolution = soln
     best_score::Float64 = critical_path(soln, vessel_weightings)
     best_count::Int64 = 0
     soln_proposed::MSTSolution = soln
 
+    fig_wpts = Plot.debug_waypoints(problem, last_ms_route.route.nodes)
+
     # Objective from x -> critical_path
     function obj(
         x::Vector{Float64};
     )::Float64
         # Rebuild waypoints
-        @inbounds for i in 1:length(waypoints_initial)
-            wpts[i+1] = Point(x[2i-1], x[2i])
+        @inbounds for (j, i) in enumerate(free_idxs)
+            wpts[i] = Point(x[2j-1], x[2j])
         end
 
         # Exit early here if any waypoints are inside exclusion zones
@@ -341,6 +392,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count += 1
         end
+        Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
 
         return score
     end
@@ -350,11 +402,15 @@ function optimize_waypoints(
         iterations=iterations,
         f_reltol=cost_tol,
         g_abstol=gradient_tol,
-        show_trace=true,
-        show_every=10,
+        # show_trace=true, show_every=10,
+        store_trace=true,
         allow_f_increases=false,  # allow or disallow objective function value to increase
         time_limit=time_limit
     )
+
+    # Waypoints to optimize, formatted for Optim
+    wpts = waypoints_initial
+    x0 = pack_x(wpts, free_idxs)
 
     # Each waypoint is bounded to its surrounding area (in decimal degrees)
     lb = x0 .- 0.025
@@ -371,11 +427,22 @@ function optimize_waypoints(
 
     @info "Type:" summary(result)
     @info "Minimum value:" minimum(result)
-    @info "Convergence status:" Optim.converged(result)
-    @info "X status:" Optim.x_converged(result)
-    @info "Function status:" Optim.f_converged(result)
-    @info "Gradient status:" Optim.g_converged(result)
-    # @info "Gradient trace:" Optim.g_norm_trace(result)
+    if Optim.converged(result)
+        @info "Converged at: "
+        Optim.x_converged(result) && @info "x"
+        Optim.f_converged(result) && @info "f(x)"
+        Optim.g_converged(result) && @info "∇f(x)"
+        @info "\nConverged after $(Optim.iterations(result)) iterations"
+    else
+        @info "Did not converge after $(Optim.iterations(result)) iterations"
+    end
+    @info "Best critical path score found: $best_score"
+
+    Plot.route!(fig_wpts.current_axis[], best_soln.mothership_routes[end], color=:black)
+    display(fig_wpts)
+    result_trace = Optim.trace(result)
+    fig = Plot.trace(result_trace, opt_method)
+    display(fig)
 
     return best_soln
 end
@@ -918,7 +985,12 @@ function two_opt(
     exclusions_tender::POLY_VEC,
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
+
+    ordered_centroids = sort(cluster_centroids[1:end-1, :], :id)  # drop last row
+    centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
+    push!(centroid_nodes, first(centroid_nodes))  # return to depot
+
+    dist_matrix::Matrix{Float64} = get_feasible_matrix(centroid_nodes, exclusions_mothership)[1]
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -931,7 +1003,7 @@ function two_opt(
     # Optimize the entire route
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_vector,
+        dist_matrix,
         route_distance
     )
 
@@ -961,7 +1033,12 @@ function two_opt(
     cluster_seq_idx::Int64
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
-    dist_vector::Vector{Float64} = ms_soln_current.route.dist_matrix
+
+    ordered_centroids = sort(cluster_centroids[1:end-1, :], :id)  # drop last row
+    centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
+    push!(centroid_nodes, first(centroid_nodes))  # return to depot
+
+    dist_matrix::Matrix{Float64} = get_feasible_matrix(centroid_nodes, exclusions_mothership)[1]
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -974,7 +1051,7 @@ function two_opt(
     # Optimize only from cluster_seq_idx to the end
     optimized_route = optimize_route_two_opt(
         initial_route,
-        dist_vector,
+        dist_matrix,
         route_distance;
         start_idx=cluster_seq_idx,
         end_idx=length(initial_route)

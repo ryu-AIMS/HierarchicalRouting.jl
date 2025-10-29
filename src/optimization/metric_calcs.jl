@@ -1,20 +1,28 @@
 
 """
     route_distance(_, dist_vector::Vector{Float64})::Float64
+    route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
 
 Calculate the total distance of a route, given a vector of distances, starting and ending at
-the same point.
+the same point, or a distance matrix and a vector of node indices.
 
 # Arguments
 - `_`: Unused. Kept to maintain compatibility when this function is passed as an argument to
 `optimize_route_two_opt`.
 - `dist_vector`: Vector of distances between consecutive points in the route.
+- `route`: Vector of node indices representing the order of the route.
+- `dist_matrix`: Distance matrix between nodes, ordered by node index.
 
 # Returns
 Total distance of the return route.
 """
 function route_distance(_, dist_vector::Vector{Float64})::Float64
     return sum(dist_vector)
+end
+function route_distance(route::Vector{Int64}, dist_matrix::Matrix{Float64})::Float64
+    distance_segments = getindex.(Ref(dist_matrix), route[1:end-1], route[2:end])
+    return_segment = dist_matrix[route[end], route[1]]
+    return sum(distance_segments) + return_segment
 end
 
 """
@@ -24,7 +32,8 @@ end
 Get a vector of distances between consecutive points in a route, given either a distance
 matrix or a distance vector.
 
-If a distance matrix is provided, the method returns the superdiagonal: the first diagonal above the main diagonal.
+If a distance matrix is provided, the method returns the superdiagonal: the first diagonal
+above the main diagonal.
 """
 function get_distance_vector(dist_matrix::Matrix{Float64})::Vector{Float64}
     return [dist_matrix[i, i+1] for i in 1:(size(dist_matrix, 1)-1)]
