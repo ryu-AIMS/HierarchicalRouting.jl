@@ -10,7 +10,8 @@ using ..HierarchicalRouting:
     generate_letter_id,
     critical_path,
     tender_clust_dist,
-    mothership_dist_within_clusts
+    mothership_dist_within_clusts,
+    Optim
 
 using DataFrames
 using Rasters
@@ -871,8 +872,10 @@ function trace(
         yscale=Makie.log10,                 # set log scale
         xgridvisible=false
     )
-    if opt_method !== nothing
-        ax.title = "Optimization Trace: nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
+    if opt_method isa Optim.SAMIN
+        ax.title = "SAMIN Optimization Trace: nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
+    elseif opt_method isa Optim.ParticleSwarm
+        ax.title = "Particle Swarm Optimization Trace"
     end
     lines!(ax, iters, max.(fvals, eps(Float64)))   # avoid 0 on a log scale
 
