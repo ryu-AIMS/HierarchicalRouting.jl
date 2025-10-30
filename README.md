@@ -301,15 +301,17 @@ The project structure is as follows:
 
 ```
 HierarchicalRouting/
+├───data
 ├───outputs             # Output files from analyses
 ├───src                 # Source code for package
 │   ├───clustering      # Clustering utilities
 │   ├───optimization    # Optimization heuristics
-│   ├───plotting        # Visualizations
+│   ├───plot            # Visualizations
 │   ├───problem         # Problem setup and initialization
 │   ├───processing      # Data processing functions
 │   └───routing         # Routing algorithms
 └───test
+    └───data
 ```
 
 ## Solution structure
@@ -341,7 +343,7 @@ MSTSolution
 │
 ├── cluster_sets (Vector{Vector{Cluster}})
 ├── mothership_routes (Vector{MothershipSolution})
-└── tenders (Vector{TenderSolution})
+└── tenders (Vector{Vector{TenderSolution}})
 
 Cluster
 │
@@ -357,14 +359,13 @@ MothershipSolution
 Route
 │
 ├── nodes (Vector{Point{2, Float64}})
-├── dist_matrix (Matrix{Float64})
+├── dist_matrix (Vector{Float64})
 └── line_strings (Vector{LineString{2, Float64}})
  
 TenderSolution
 │
-├── id
+├── id (Int64)
 ├── start (Point{2, Float64})
 ├── finish (Point{2, Float64})
-├── sorties (Vector{Route})
-└── dist_matrix (Matrix{Float64})
+└── sorties (Vector{Route})
 ```
