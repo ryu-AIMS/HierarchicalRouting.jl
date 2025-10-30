@@ -32,10 +32,10 @@ solution.
 ```julia
 using HierarchicalRouting
 
-target_path = "<PATH/TO/TARGET_SCENARIO_GEOJSON>"
-subset_path = "<PATH/TO/TARGET_SUBSET_GPKG>"
-env_data_path = "<PATH/TO/BATHYMETRY_TIF>"
-env_disturbance_path = "<PATH/TO/WAVE_DISTURBANCE_GEOJSON>"
+target_path = "<PATH/TO/TARGET_SCENARIO.GEOJSON>"
+subset_path = "<PATH/TO/TARGET_SUBSET.GPKG>"
+env_data_path = "<PATH/TO/BATHYMETRY.TIF>"
+env_disturbance_path = "<PATH/TO/WAVE_DISTURBANCE.GEOJSON>"
 
 # Load the problem configuration
 problem = load_problem(
