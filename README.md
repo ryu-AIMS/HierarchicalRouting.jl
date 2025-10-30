@@ -43,13 +43,13 @@ problem = load_problem(
     subset_path,
     env_data_path,
     env_disturbance_path,
-    (146.175, -16.84),                                      # depot
-    -10.0,                                                  # draft_ms
-    -5.0,                                                   # draft_t
-    5.0,                                                    # weight_ms
-    2.0,                                                    # weight_t
-    3,                                                      # n_tenders
-    2;                                                      # t_cap
+    (146.175, -16.84),              # depot (lon, lat)
+    -2.5,                           # draft_ms [m]
+    -1.0,                           # draft_t [m]
+    0.2,                            # weight_ms [(m/s)^-1]
+    0.075,                          # weight_t [(m/s)^-1]
+    3,                              # n_tenders
+    2;                              # t_cap
 );
 ```
 
@@ -73,7 +73,8 @@ The following arguments are required:
     - **draft_ms**: The draft of the mothership.
     - **draft_t**: The draft of the tenders.
 - **Weighting**: The weighting factor for the mothership and tenders, as a multiplier of
-    distance travelled to quantify cost.
+    distance travelled to quantify time. This is defined as the inverse of the
+    vessel speed in metres per second.
     - **weight_ms**: The weighting factor for the mothership.
     - **weight_t**: The weighting factor for the tenders.
 - **n_tenders**: The number of tenders available to use for deployment.
@@ -83,7 +84,8 @@ The following arguments are required:
 Optional parameters are:
 - **target_subset_path**: The path to save the target subset raster. Default is "".
 - **output_dir**: The path to the directory to save the output files. Default is "outputs/".
-- **debug_mode**: A boolean indicating whether to run in debug mode. Default is false.
+- **debug_mode**: A boolean indicating whether to run in debug mode. This will read and
+    write intermediate files to the output directory for inspection. Default is false.
 
 ### Generate an initial solution
 
