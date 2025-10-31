@@ -421,7 +421,8 @@ function optimize_waypoints(
     (lon_min, lon_max, lat_min, lat_max) = get_bbox_bounds([
         exclusions_mothership,
         exclusions_tender,
-        problem.targets.points.geometry
+        problem.targets.points.geometry,
+        [problem.depot]
     ])
 
     # Bound longitude and latitude to the problem bounding box
