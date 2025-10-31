@@ -468,6 +468,11 @@ function optimize_waypoints(
         fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
     )
     display(fig_wpts)
+    Plot.solution!(
+        fig_wpts.current_axis[], best_soln;
+        vessel_weightings,
+    )
+    display(fig_wpts)
     result_trace = Optim.trace(result)
     fig = Plot.trace(result_trace, opt_method)
     display(fig)
