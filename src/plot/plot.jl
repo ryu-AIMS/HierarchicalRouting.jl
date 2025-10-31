@@ -659,6 +659,61 @@ function solution(
 
     return fig
 end
+function solution!(
+    ax::Axis,
+    soln::MSTSolution;
+    vessel_weightings::NTuple{2,AbstractFloat}=(0.0, 0.0),
+    cluster_radius::Float64=0.0,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=true,
+    title::String="",
+)::Axis
+    ax.title = title * " Solution"
+    ax.titlesize = 18
+    # Tender sorties/routes
+    show_tenders && route!(ax, soln.tenders[end])
+
+    # Mothership route
+    if show_mothership
+        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
+    end
+
+    # Clusters
+    clusters!(
+        ax,
+        soln.cluster_sets[end];
+        labels=true,
+        cluster_radius
+    )
+
+    # Annotate critical path cost
+    critical_path_dist = critical_path(soln, vessel_weightings)
+
+    annotate_cost!(
+        ax,
+        critical_path_dist;
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black
+    )
+    text!(
+        ax,
+        (0.02, 0.01)...,
+        text="""Vessel speeds (kts):
+        (mothership, tenders)
+        ($(round(1.94384/vessel_weightings[1], digits=1)),\t\t\
+        $(round(1.94384/vessel_weightings[2], digits=1)))""",
+        align=(:left, :bottom),
+        space=:relative,
+        fontsize=14,
+        color=:black
+    )
+
+    highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
+
+    return ax
+end
 function solution(
     problem::Problem,
     soln_a::MSTSolution,
