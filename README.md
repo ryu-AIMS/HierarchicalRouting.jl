@@ -151,30 +151,17 @@ Below are examples to create:
 - an iteratively disturbed solution, with a series of plots at each disturbance event,
     assuming 2 disturbance events.
 
-### Initial solution plot
+### Problem instance
 
 ```julia
-using HierarchicalRouting.Plot.GeoMakie
-
-fig = Figure(size=(750, 880))
-ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude");
-# Add exclusions for the mothership
-HierarchicalRouting.Plot.exclusions!(ax, problem.mothership.exclusion, labels=true);
-# Add exclusions for tenders
-HierarchicalRouting.Plot.exclusions!(ax, problem.tenders.exclusion, labels=true);
-# Add clustered points
-HierarchicalRouting.Plot.clusters!(ax, solution_best.cluster_sets[end]);
-# Add mothership routes
-HierarchicalRouting.Plot.route!(
-    ax,
-    solution_best.mothership_routes[end].route,
-    color=:black
-);
-# Add tender routes
-HierarchicalRouting.Plot.tenders!(ax, solution_best.tenders);
+Plot.problem(
+    problem;
+    labels=true
+)
 ```
-<img src="assets\initial_solution.png" alt="Initial solution plot" width="400" /></i>
+![Problem instance plot](assets/problem_instance.png)
 
+### Solution plot
 ### Optimized solution plot
 
 ```julia
