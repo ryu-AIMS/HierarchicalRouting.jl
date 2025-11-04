@@ -172,7 +172,7 @@ Plot.solution(
 ```
 ![Solution plot](assets/solution_moore.png)
 
-### Disturbance solution plot
+### Disturbed solution plot
 
 ```julia
 Plot.solution_disturbances(
