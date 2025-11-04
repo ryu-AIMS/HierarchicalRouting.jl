@@ -159,7 +159,7 @@ Plot.problem(
     labels=true
 )
 ```
-![Problem instance plot](assets/problem_instance.png)
+![Problem instance plot](assets/problem_instance_moore.png)
 
 ### Solution plot
 
@@ -170,7 +170,7 @@ Plot.solution(
     highlight_critical_path_flag=true
 )
 ```
-![Initial solution plot](assets/initial_solution.png)
+![Solution plot](assets/solution_moore.png)
 
 ### Disturbance solution plot
 
@@ -182,7 +182,7 @@ Plot.solution_disturbances(
     highlight_critical_path_flag=true
 )
 ```
-![Initial solution plot](assets/disturbance_solution.png)
+![Disturbed solution plot](assets/disturbed_solution.png)
 
 ## Development setup
 
