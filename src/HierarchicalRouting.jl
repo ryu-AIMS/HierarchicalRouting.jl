@@ -29,6 +29,7 @@ include("processing/spatial_operations.jl")
 include("clustering/clustering.jl")
 
 include("routing/routing_heuristics.jl")
+include("routing/waypoints.jl")
 include("routing/feasible_paths.jl")
 include("routing/polygon_traversal.jl")
 include("optimization/metric_calcs.jl")
