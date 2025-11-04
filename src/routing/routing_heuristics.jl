@@ -140,7 +140,6 @@ unless within exclusion zone, then adjust to closest boundary point.
 - A DataFrame containing waypoints and connecting clusters.
 """
 function get_waypoints(sequence::DataFrame, exclusions::POLY_VEC)::DataFrame
-    # TODO: Implement convex hull exclusion zones
     # TODO: Use graph to determine feasible paths and waypoints along path
     n_cluster_seqs = nrow(sequence)
 
@@ -188,7 +187,6 @@ function get_waypoints(
     sequence::DataFrame,
     exclusions::POLY_VEC
 )::DataFrame
-    # TODO: Implement convex hull exclusion zones
     # TODO: Use graph to determine feasible paths and waypoints along path
     n_cluster_seqs = nrow(sequence)
 
