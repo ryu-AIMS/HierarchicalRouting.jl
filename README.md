@@ -162,39 +162,15 @@ Plot.problem(
 ![Problem instance plot](assets/problem_instance.png)
 
 ### Solution plot
-### Optimized solution plot
 
 ```julia
-using GeoMakie
-
-fig = Figure(size=(1650, 600));
-ax1, ax2 = Axis(fig[1, 1]), Axis(fig[1, 2]);
-# Add exclusions for the tenders
-HierarchicalRouting.Plot.exclusions!.(
-    [ax1, ax2],
-    [problem.tenders.exclusion],
-    labels=false
-);
-# Add clustered points
-HierarchicalRouting.Plot.clusters!(ax1, solution_init.cluster_sets[end]);
-HierarchicalRouting.Plot.clusters!(ax2, solution_best.cluster_sets[end]);
-# Add mothership routes
-HierarchicalRouting.Plot.route!.(
-    [ax1, ax2],
-    [
-        solution_init.mothership_routes[end].route,
-        solution_best.mothership_routes[end].route
-    ],
-    color=:black
-);
-# Add tender routes
-HierarchicalRouting.Plot.tenders!.(
-    [ax1, ax2],
-    [solution_init.tenders, solution_best.tenders]
-);
-
+Plot.solution(
+    problem,
+    solution;
+    highlight_critical_path_flag=true
+)
 ```
-<img src="assets\optimized_solution.png" alt="Initial solution plot" width="800" /></i>
+![Initial solution plot](assets/initial_solution.png)
 
 ### Disturbance solution plot
 
