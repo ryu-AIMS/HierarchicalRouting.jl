@@ -176,6 +176,57 @@ function get_waypoints(
 end
 
 """
+    optimize_waypoints!(
+        clusters::Vector{Cluster},
+        ms_soln::MothershipSolution,
+        tender_soln::Vector{TenderSolution},
+        problem::Problem,
+        waypoint_optim_method,
+        time_limit::Float64,
+    )::Tuple{Vector{Cluster},MothershipSolution,Vector{TenderSolution}}
+
+Optimize the waypoints of the mothership route using the provided optimization method.
+
+# Arguments
+- `clusters`: Current set of clusters
+- `ms_soln`: Current mothership solution
+- `tender_soln`: Current tender solutions
+- `problem`: Problem instance
+- `waypoint_optim_method`: Function to use in waypoint optimization.
+- `time_limit`: Time limit for waypoint optimization, in seconds
+
+# Returns
+- Updated clusters, mothership solution, and tender solutions after waypoint optimization
+"""
+function optimize_waypoints!(
+    clusters::Vector{Cluster},
+    ms_soln::MothershipSolution,
+    tender_soln::Vector{TenderSolution},
+    problem::Problem,
+    waypoint_optim_method,
+    time_limit::Float64,
+)::Tuple{Vector{Cluster},MothershipSolution,Vector{TenderSolution}}
+    if isnothing(waypoint_optim_method)
+        return clusters, ms_soln, tender_soln
+    end
+
+    @info "Optimizing full waypoint subset using $(waypoint_optim_method)"
+
+    solution_temp::MSTSolution = optimize_waypoints(
+        MSTSolution([clusters], [ms_soln], [tender_soln]),
+        problem,
+        waypoint_optim_method;
+        time_limit=time_limit,
+    )
+
+    clusters = solution_temp.cluster_sets[1]
+    ms_soln = solution_temp.mothership_routes[1]
+    tender_soln = solution_temp.tenders[1]
+
+    return clusters, ms_soln, tender_soln
+end
+
+"""
     optimize_waypoints(
         soln::MSTSolution,
         problem::Problem,
