@@ -175,64 +175,14 @@ Plot.solution(
 ### Disturbance solution plot
 
 ```julia
-using GeoMakie
-
-fig = Figure(size=(1650, 600))
-ax1, ax2, ax3 =
-    Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
-    Axis(fig[1, 2], xlabel="Longitude"),
-    Axis(fig[1, 3], xlabel="Longitude");
-# Add exclusions for tenders
-HierarchicalRouting.Plot.exclusions!.(
-    [ax1, ax2, ax3],
-    [problem.tenders.exclusion],
-    labels=false
-);
-# Add clustered points
-HierarchicalRouting.Plot.clusters!(
-    ax1,
-    solution_best.cluster_sets[end],
-    labels=true,
-    cluster_radius=0.025
-);
-HierarchicalRouting.Plot.clusters!(
-    ax2,
-    solution_best.cluster_sets[end],
-    labels=true,
-    cluster_radius=0.025
-);
-HierarchicalRouting.Plot.clusters!(
-    ax3,
-    solution_best.cluster_sets[end],
-    labels=true,
-    cluster_radius=0.025
-);
-# Add mothership routes
-HierarchicalRouting.Plot.route!.(
-    [ax1, ax2, ax3],
-    [solution_best.mothership_routes[1].route,
-     solution_best.mothership_routes[2].route,
-     solution_best.mothership_routes[3].route],
-    labels=true,
-    color=:black
-);
-# Add tender routes
-HierarchicalRouting.Plot.tenders!(
-    ax1,
-    [solution_best.tenders[1]],
-    5
-);
-HierarchicalRouting.Plot.tenders!(
-    ax2,
-    solution_best.tenders[1:3],
-    5
-);
-HierarchicalRouting.Plot.tenders!(
-    ax3,
-    solution_best.tenders
-);
+Plot.solution_disturbances(
+    problem,
+    solution_disturbed,
+    disturbance_clusters;
+    highlight_critical_path_flag=true
+)
 ```
-<img src="assets\disturbance_solution.png" alt="Initial solution plot" height="300" width="800" /></i>
+![Initial solution plot](assets/disturbance_solution.png)
 
 ## Development setup
 
