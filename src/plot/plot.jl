@@ -1034,7 +1034,7 @@ function _highlight_critical_core!(
     end
 
     # Critical path BETWEEN selected clusters, including depot links to first & last clusts
-    ks::Vector{Int} = [0; clust_range[1:end-1]; num_clusters]
+    ks::Vector{Int} = num_clusters == 1 ? [0] : [0; clust_range[1:end-1]; num_clusters]
     start_pts::Vector{Point{2,Float64}} = [ms_route.nodes[2k+1] for k in ks]
     end_pts::Vector{Point{2,Float64}} = [ms_route.nodes[2(k+1)] for k in ks]
 
