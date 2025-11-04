@@ -135,12 +135,21 @@ Optional parameters are:
 
 ## Visualization
 
-To visualize the routing solution, use GeoMakie and the `Plot` module.
+To visualize the routing solution, use the `Plot` module.
 Below are examples to create:
-- one complete plot of final clusters, exclusions, and routes;
-- a comparison of the full initial and full final (after optimization) solutions;
-- a series of plots for each sequential routing plan pre-deployment, and at each(assuming 2)
-disturbance event.
+- a plot of the problem instance, with:
+    - the depot,
+    - exclusion zones for:
+        - the mothership,
+        - the tenders, and
+    - target deployment locations;
+- a plot of the solution, including existing problem instance elements, as well as:
+    - clustered deployment locations - coloured by cluster,
+    - mothership route - bold,
+    - tender sorties - coloured by cluster,
+    - critical path - highlighted in red;
+- an iteratively disturbed solution, with a series of plots at each disturbance event,
+    assuming 2 disturbance events.
 
 ### Initial solution plot
 
