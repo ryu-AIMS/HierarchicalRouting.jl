@@ -30,7 +30,7 @@ include("clustering/clustering.jl")
 
 include("routing/routing_heuristics.jl")
 include("routing/waypoints.jl")
-include("optimization/metaheuristics.jl")
+include("routing/heuristics.jl")
 include("routing/feasible_paths.jl")
 include("routing/point_validation.jl")
 include("routing/polygon_traversal.jl")
