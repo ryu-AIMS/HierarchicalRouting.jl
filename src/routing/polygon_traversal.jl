@@ -1,5 +1,23 @@
 
 """
+    collect_polygon_vertices(polygon::IGeometry{wkbPolygon})::Vector{Point{2,Float64}}
+
+Collect all vertices of a polygon.
+
+# Arguments
+- `polygon`: Polygon to collect vertices from.
+
+# Returns
+Vector of polygon vertices.
+"""
+function collect_polygon_vertices(polygon::IGeometry{wkbPolygon})::Vector{Point{2,Float64}}
+    exterior_ring::IGeometry{wkbLineString} = GI.getgeom(polygon, 1)
+    pts::Vector{Point{2,Float64}} = Point{2,Float64}.(GI.coordinates(exterior_ring))
+
+    return unique(pts)
+end
+
+"""
     find_widest_points(
         current_point::Point{2,Float64},
         final_point::Point{2,Float64},
