@@ -147,15 +147,10 @@ function solve(
     end
 
     # Apply solution to the first set of clusters pre-disturbance
-    disturb_idx = 1
-    cluster_sets[disturb_idx] = clusters
-    ms_soln_sets[disturb_idx] = ms_route
-    tender_soln_sets[disturb_idx] = initial_tenders
-
-    optimize_waypoints!(
-        cluster_sets[1],
-        ms_soln_sets[1],
-        tender_soln_sets[1],
+    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints!(
+        clusters,
+        ms_route,
+        initial_tenders,
         problem,
         waypoint_optim_method,
         Float64(time_limit),
