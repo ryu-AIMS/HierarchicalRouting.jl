@@ -577,8 +577,6 @@ Create a plot of the full routing solution, including:
 - `soln`: The full solution to the problem.
 - `soln_a`: The first solution to compare.
 - `soln_b`: The second solution to compare.
-- `vessel_weightings`: Tuple of vessel weightings for (mothership, tenders).
-If not explicitly provided, use problem weightings.
 - `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
 - `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
 - `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
@@ -609,111 +607,19 @@ function solution(
     ax.title = title * " Solution"
     ax.titlesize = 18
 
-    if vessel_weightings == (0.0, 0.0)
-        vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
-    end
-
-    # Exclusions
-    show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
-    show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
-
-    # Tender sorties/routes
-    show_tenders && route!(ax, soln.tenders[end])
-
-    # Mothership route
-    if show_mothership
-        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
-    end
-
-    # Clusters
-    clusters!(
+    solution!(
         ax,
-        soln.cluster_sets[end];
-        labels=true,
-        cluster_radius
+        problem,
+        soln;
+        cluster_radius=cluster_radius,
+        show_mothership_exclusions=show_mothership_exclusions,
+        show_tenders_exclusions=show_tenders_exclusions,
+        show_mothership=show_mothership,
+        show_tenders=show_tenders,
+        highlight_critical_path=highlight_critical_path_flag,
     )
-
-    # Annotate critical path cost
-    critical_path_dist = critical_path(soln, vessel_weightings)
-
-    annotate_cost!(
-        ax,
-        critical_path_dist;
-        position=(0.95, 0.01),
-        fontsize=14,
-        color=:black
-    )
-    text!(
-        ax,
-        (0.02, 0.01)...,
-        text="""Vessel speeds (kts):
-        (mothership, tenders)
-        ($(round(1.94384/vessel_weightings[1], digits=1)),\t\t\
-        $(round(1.94384/vessel_weightings[2], digits=1)))""",
-        align=(:left, :bottom),
-        space=:relative,
-        fontsize=14,
-        color=:black
-    )
-
-    highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
 
     return fig
-end
-function solution!(
-    ax::Axis,
-    soln::MSTSolution;
-    vessel_weightings::NTuple{2,AbstractFloat}=(0.0, 0.0),
-    cluster_radius::Float64=0.0,
-    show_mothership::Bool=true,
-    show_tenders::Bool=true,
-    highlight_critical_path_flag::Bool=true,
-    title::String="",
-)::Axis
-    ax.title = title * " Solution"
-    ax.titlesize = 18
-    # Tender sorties/routes
-    show_tenders && route!(ax, soln.tenders[end])
-
-    # Mothership route
-    if show_mothership
-        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
-    end
-
-    # Clusters
-    clusters!(
-        ax,
-        soln.cluster_sets[end];
-        labels=true,
-        cluster_radius
-    )
-
-    # Annotate critical path cost
-    critical_path_dist = critical_path(soln, vessel_weightings)
-
-    annotate_cost!(
-        ax,
-        critical_path_dist;
-        position=(0.95, 0.01),
-        fontsize=14,
-        color=:black
-    )
-    text!(
-        ax,
-        (0.02, 0.01)...,
-        text="""Vessel speeds (kts):
-        (mothership, tenders)
-        ($(round(1.94384/vessel_weightings[1], digits=1)),\t\t\
-        $(round(1.94384/vessel_weightings[2], digits=1)))""",
-        align=(:left, :bottom),
-        space=:relative,
-        fontsize=14,
-        color=:black
-    )
-
-    highlight_critical_path_flag && highlight_critical_path!(ax, soln, vessel_weightings)
-
-    return ax
 end
 function solution(
     problem::Problem,
@@ -791,6 +697,96 @@ function solution(
     )
 
     return fig
+end
+
+"""
+    function solution!(
+        ax::Axis,
+        problem::Problem,
+        soln::MSTSolution;
+        cluster_radius::Float64=0.0,
+        show_mothership_exclusions::Bool=true,
+        show_tenders_exclusions::Bool=true,
+        show_mothership::Bool=true,
+        show_tenders::Bool=true,
+        highlight_critical_path::Bool=false,
+    )::Axis
+
+Create a plot of the full routing solution, including:
+- exclusion zones for the **mothership** and **tenders**,
+- mothership route,
+- tender sorties (coloured by cluster), and
+- clustered target points (coloured by cluster).
+
+# Arguments
+- `ax`: The axis to plot on.
+- `problem`: The hierarchical routing problem instance.
+- `soln`: The full solution to the problem.
+- `cluster_radius`: Radius of the cluster circles to display around cluster centroids.
+- `show_mothership_exclusions`: Whether to show **mothership** exclusion zones.
+- `show_tenders_exclusions`: Whether to show **tender** exclusion zones.
+- `show_mothership`: Whether to show the **mothership** route.
+- `show_tenders`: Whether to show **tender** routes.
+- `highlight_critical_path`: Whether to highlight the critical path (in red).
+
+# Returns
+The created Figure object containing the plot.
+"""
+function solution!(
+    ax::Axis,
+    problem::Problem,
+    soln::MSTSolution;
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=true,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path::Bool=false,
+)::Axis
+    # Exclusions
+    show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
+    show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
+
+    # Tender sorties/routes
+    show_tenders && route!(ax, soln.tenders[end])
+
+    # Mothership route
+    if show_mothership
+        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
+    end
+
+    # Clusters
+    clusters!(
+        ax,
+        soln.cluster_sets[end];
+        labels=true,
+        cluster_radius
+    )
+
+    # Annotate critical path cost
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_dist = critical_path(soln, vessel_weightings)
+    total_dist = critical_distance_path(soln, vessel_weightings)
+
+    annotate_cost!(
+        ax,
+        critical_path_dist;
+        position=(0.95, 0.07),
+        fontsize=14,
+        color=:black
+    )
+    annotate_cost!(
+        ax,
+        total_dist;
+        position=(0.95, 0.01),
+        fontsize=14,
+        color=:black,
+        metric="critical_distance_path()\ntotal dist"
+    )
+
+    highlight_critical_path && highlight_critical_path!(ax, soln, vessel_weightings)
+
+    return ax
 end
 
 """
