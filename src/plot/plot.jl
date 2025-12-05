@@ -586,6 +586,7 @@ If not explicitly provided, use problem weightings.
 - `show_tenders`: Whether to show **tender** routes.
 - `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the plot.
 - `title`: Title for the plot, or titles for the two subplots when comparing solutions.
+- `size`: Size of the figure (width, height).
 
 # Returns
 The created Figure object containing the plot.
