@@ -766,7 +766,6 @@ function solution!(
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     critical_path_dist = critical_path(soln, vessel_weightings)
-    total_dist = critical_distance_path(soln, vessel_weightings)
 
     annotate_cost!(
         ax,
@@ -774,14 +773,6 @@ function solution!(
         position=(0.95, 0.07),
         fontsize=14,
         color=:black
-    )
-    annotate_cost!(
-        ax,
-        total_dist;
-        position=(0.95, 0.01),
-        fontsize=14,
-        color=:black,
-        metric="critical_distance_path()\ntotal dist"
     )
 
     highlight_critical_path && highlight_critical_path!(ax, soln, vessel_weightings)
