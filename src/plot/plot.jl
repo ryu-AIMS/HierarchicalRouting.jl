@@ -691,7 +691,6 @@ function solution(
     annotate_cost!.(
         [ax1, ax2],
         [critical_path_dist_a, critical_path_dist_b];
-        position=(0.95, 0.01),
         fontsize=14,
         color=:black
     )
@@ -770,7 +769,6 @@ function solution!(
     annotate_cost!(
         ax,
         critical_path_dist;
-        position=(0.95, 0.07),
         fontsize=14,
         color=:black
     )
@@ -891,7 +889,6 @@ function solution_disturbances(
     annotate_cost!(
         ax3,
         critical_path_dist;
-        position=(0.95, 0.07),
         fontsize=14,
         color=:black
     )
@@ -958,7 +955,7 @@ end
 function annotate_cost!(
     ax::Axis,
     dist_weighted_m::Float64;
-    position::Tuple{Float64,Float64}=(0.95, 0.02),
+    position::Tuple{Float64,Float64}=(0.95, 0.01),
     fontsize::Int=14,
     color::Symbol=:black,
     metric::String="Critical path"
