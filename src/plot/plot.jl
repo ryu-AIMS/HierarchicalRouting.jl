@@ -898,9 +898,10 @@ function solution_disturbances(
     text!(
         ax3,
         (0.02, 0.01)...,
-        text="""Vessel weightings:
+        text="""Vessel speeds (m/s):
         (mothership, tenders)
-        ($(vessel_weightings[1]),\t$(vessel_weightings[2]))""",
+        ($(round(1/vessel_weightings[1], digits=1)),\t\t\
+        $(round(1/vessel_weightings[2], digits=1)))""",
         align=(:left, :bottom),
         space=:relative,
         fontsize=14,
