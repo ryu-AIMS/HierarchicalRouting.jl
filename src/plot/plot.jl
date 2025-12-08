@@ -302,6 +302,7 @@ end
         labels::Bool=false,
         title::String="",
         size::Tuple{Int64,Int64}=(700, 875),
+        legend_position::NTuple{2,Real}=(1, 0.8)
     )::Figure
 
 Create a plot of the problem instance, including:
@@ -314,6 +315,7 @@ Create a plot of the problem instance, including:
 - `labels`: Plot exclusion zones flag.
 - `title`: Title for the prolem instance plotted.
 - `size`: Size of the figure (width, height).
+- `legend_position`: Position of the legend in the plot.
 
 # Returns
 The Figure containing the plot.
@@ -323,6 +325,7 @@ function problem(
     labels::Bool=false,
     title::String="",
     size::Tuple{Int64,Int64}=(700, 875),
+    legend_position::NTuple{2,Real}=(1, 0.8)
 )::Figure
     fig = Figure(size=size)
     ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
@@ -341,7 +344,7 @@ function problem(
     scatter!(ax, target_points, color=:black, markersize=10, marker=:x, label="Targets")
 
     # Legend
-    axislegend(ax; position=(1, 0.8))
+    axislegend(ax; position=legend_position)
 
     return fig
 end
