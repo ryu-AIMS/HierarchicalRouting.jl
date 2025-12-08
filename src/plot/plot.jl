@@ -445,7 +445,15 @@ function route!(
 
     if labels
         # Annotate waypoints by sequence
-        text!(ax, waypoint_matrix[:, 1], waypoint_matrix[:, 2] .+ 0.002, text=string.(0:size(waypoint_matrix, 1)-1), align=(:center, :center), color=:black)
+        text!(
+            ax,
+            waypoint_matrix[:, 1],
+            waypoint_matrix[:, 2] .+ 0.003,
+            text=string.(0:size(waypoint_matrix, 1)-1),
+            fontsize=18,
+            align=(:center, :center),
+            color=:black
+        )
     end
     return ax
 end
