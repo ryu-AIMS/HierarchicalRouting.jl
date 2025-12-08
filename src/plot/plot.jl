@@ -551,7 +551,6 @@ end
     solution(
         problem::Problem,
         soln::MSTSolution,
-        vessel_weightings::NTuple{2,Float64}=(0.0, 0.0);
         cluster_radius::Float64=0.0,
         show_mothership_exclusions::Bool=true,
         show_tenders_exclusions::Bool=true,
@@ -599,8 +598,7 @@ The created Figure object containing the plot.
 """
 function solution(
     problem::Problem,
-    soln::MSTSolution,
-    vessel_weightings::NTuple{2,Float64}=(0.0, 0.0);
+    soln::MSTSolution;
     cluster_radius::Float64=0.0,
     show_mothership_exclusions::Bool=true,
     show_tenders_exclusions::Bool=true,
