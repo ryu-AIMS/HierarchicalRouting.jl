@@ -898,18 +898,7 @@ function solution_disturbances(
         fontsize=14,
         color=:black
     )
-    text!(
-        ax3,
-        (0.02, 0.01)...,
-        text="""Vessel speeds (m/s):
-        (mothership, tenders)
-        ($(round(1/vessel_weightings[1], digits=1)),\t\t\
-        $(round(1/vessel_weightings[2], digits=1)))""",
-        align=(:left, :bottom),
-        space=:relative,
-        fontsize=14,
-        color=:black
-    )
+    annotate_vessel_speeds!(ax3, vessel_weightings)
 
     return fig
 end
@@ -974,6 +963,31 @@ function annotate_cost!(
         text="$metric: $(round(dist_weighted_km, digits=2)) weighted-km",
         align=(:right, :bottom),
         space=:relative,
+        fontsize=fontsize,
+        color=color
+    )
+    return ax
+end
+
+function annotate_vessel_speeds!(
+    ax::Axis,
+    vessel_weightings::NTuple{2,AbstractFloat};
+    position::Tuple{Float64,Float64}=(0.02, 0.01),
+    align::Tuple{Symbol,Symbol}=(:left, :bottom),
+    space::Symbol=:relative,
+    fontsize::Int=14,
+    color::Symbol=:black
+)::Axis
+    speed_ms = round(1 / vessel_weightings[1], digits=1)
+    speed_t = round(1 / vessel_weightings[2], digits=1)
+    text!(
+        ax,
+        position...,
+        text="""Vessel speeds (m/s):
+        (mothership, tenders)
+        ($(speed_ms),   $(speed_t))""",
+        align=align,
+        space=space,
         fontsize=fontsize,
         color=color
     )
