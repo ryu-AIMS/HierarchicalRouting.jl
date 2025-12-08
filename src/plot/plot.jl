@@ -778,6 +778,7 @@ function solution!(
         fontsize=14,
         color=:black
     )
+    annotate_vessel_speeds!(ax, vessel_weightings)
 
     highlight_critical_path && highlight_critical_path!(ax, soln, vessel_weightings)
 
