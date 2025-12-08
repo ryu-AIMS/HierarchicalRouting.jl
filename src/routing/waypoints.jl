@@ -457,7 +457,8 @@ function optimize_waypoints(
     Plot.solution!(
         fig_wpts.current_axis[],
         problem,
-        best_soln
+        best_soln;
+        highlight_critical_path=true,
     )
     display(fig_wpts)
     result_trace = Optim.trace(result)
