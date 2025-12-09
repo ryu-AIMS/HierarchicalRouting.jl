@@ -462,8 +462,9 @@ function optimize_waypoints(
     )
     display(fig_wpts)
     Plot.solution!(
-        fig_wpts.current_axis[], best_soln;
-        vessel_weightings,
+        fig_wpts.current_axis[],
+        problem,
+        best_soln
     )
     display(fig_wpts)
     result_trace = Optim.trace(result)
