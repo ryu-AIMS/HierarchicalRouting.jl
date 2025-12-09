@@ -405,10 +405,6 @@ function optimize_waypoints(
     wpts::Vector{Point{2,Float64}} = waypoints_initial
     x0::Vector{Float64} = pack_x(wpts, free_idxs)
 
-    # Each waypoint is bounded to its surrounding area (in decimal degrees)
-    lb::Vector{Float64} = x0 .- 0.025
-    ub::Vector{Float64} = x0 .+ 0.025
-
     # Ensure bounds are within lat/lon limits
     (lon_min, lon_max, lat_min, lat_max) = get_bbox_bounds([
         exclusions_mothership,
@@ -417,13 +413,10 @@ function optimize_waypoints(
         [problem.depot]
     ])
 
-    # Bound longitude and latitude to the problem bounding box
-    for i in 1:2:length(x0)
-        lb[i] = max(lb[i], lon_min)
-        ub[i] = min(ub[i], lon_max)
-        lb[i+1] = max(lb[i+1], lat_min)
-        ub[i+1] = min(ub[i+1], lat_max)
-    end
+    # Bound longitude and latitude bounding boxes to entire problem instance
+    lb::Vector{Float64} = repeat([lon_min, lat_min], length(x0) ÷ 2)
+    ub::Vector{Float64} = repeat([lon_max, lat_max], length(x0) ÷ 2)
+
     if opt_method isa Optim.ParticleSwarm
         opt_method = Optim.ParticleSwarm(
             lower=lb,
@@ -464,7 +457,8 @@ function optimize_waypoints(
     Plot.solution!(
         fig_wpts.current_axis[],
         problem,
-        best_soln
+        best_soln;
+        highlight_critical_path=true,
     )
     display(fig_wpts)
     result_trace = Optim.trace(result)
