@@ -322,12 +322,16 @@ function two_opt(
         n = length(nodes)
         initial_sequence = collect(1:n)
 
-        # Optimize sequence, but don't modify start (index 1) and finish (index n)
+        # Compute the full feasible matrix once for the two_opt optimization
+        sortie_full_matrix = get_feasible_matrix(nodes, exclusions_tender)[1]
+
+        # Optimize sequence, but don't modify:
+        # start (already avoided in optimize_route_two_opt()) and finish (index n)
         optimized_sequence = optimize_route_two_opt(
             initial_sequence,
-            sortie.dist_matrix,
+            sortie_full_matrix,
             tender_sortie_dist;
-            start_idx=2,
+            start_idx=1,
             end_idx=n - 1
         )
 
