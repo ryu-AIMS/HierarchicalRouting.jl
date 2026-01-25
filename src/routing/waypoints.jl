@@ -355,7 +355,7 @@ function optimize_waypoints(
     best_count::Int64 = 0
     soln_proposed::MSTSolution = soln
 
-    fig_wpts = Plot.debug_waypoints(problem, last_ms_route.route.nodes)
+    fig_wpts = Plot.debug_waypoints(problem, waypoints_initial)
 
     # Objective from x -> critical_path
     function obj(
