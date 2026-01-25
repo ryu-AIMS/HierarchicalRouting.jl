@@ -355,7 +355,7 @@ function optimize_waypoints(
     best_count::Int64 = 0
     soln_proposed::MSTSolution = soln
 
-    fig_wpts = Plot.debug_waypoints(problem, waypoints_initial)
+    fig_wpts = plot_flag ? Plot.debug_waypoints(problem, waypoints_initial) : nothing
 
     # Objective from x -> critical_path
     function obj(
@@ -395,7 +395,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count += 1
         end
-        Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
+        plot_flag && Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
 
         return score
     end
@@ -456,24 +456,25 @@ function optimize_waypoints(
     end
     @info "Best critical path score found: $best_score"
 
-    Plot.route!(
-        fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
-    )
-    target_points = problem.targets.points.geometry
-    Plot.scatter!(
-        fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
-    )
-    display(fig_wpts)
-    Plot.solution!(
-        fig_wpts.current_axis[],
-        problem,
-        best_soln;
-        highlight_critical_path=true,
-    )
-    display(fig_wpts)
-    result_trace = Optim.trace(result)
-    fig = Plot.trace(result_trace, opt_method)
-    display(fig)
+    if plot_flag
+        Plot.route!(
+            fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
+        )
+        target_points = problem.targets.points.geometry
+        Plot.scatter!(
+            fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
+        )
+        display(fig_wpts)
+        Plot.solution!(
+            fig_wpts.current_axis[],
+            problem,
+            best_soln;
+            highlight_critical_path=true,
+        )
+        display(fig_wpts)
+        result_trace = Optim.trace(result)
+        display(Plot.trace(result_trace, opt_method))
+    end
 
     return best_soln
 end
