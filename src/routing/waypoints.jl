@@ -183,6 +183,7 @@ end
         problem::Problem,
         waypoint_optim_method,
         time_limit::Float64,
+        wpt_optim_plot_flag::Bool=false,
     )::Tuple{Vector{Cluster},MothershipSolution,Vector{TenderSolution}}
 
 Optimize the waypoints of the mothership route using the provided optimization method.
@@ -194,6 +195,7 @@ Optimize the waypoints of the mothership route using the provided optimization m
 - `problem`: Problem instance
 - `waypoint_optim_method`: Function to use in waypoint optimization.
 - `time_limit`: Time limit for waypoint optimization, in seconds
+- `wpt_optim_plot_flag`: Flag to enable plotting during waypoint optimization.
 
 # Returns
 - Updated clusters, mothership solution, and tender solutions after waypoint optimization
@@ -205,6 +207,7 @@ function optimize_waypoints!(
     problem::Problem,
     waypoint_optim_method,
     time_limit::Float64,
+    wpt_optim_plot_flag::Bool=false,
 )::Tuple{Vector{Cluster},MothershipSolution,Vector{TenderSolution}}
     if isnothing(waypoint_optim_method)
         return clusters, ms_soln, tender_soln
@@ -217,6 +220,7 @@ function optimize_waypoints!(
         problem,
         waypoint_optim_method;
         time_limit=time_limit,
+        plot_flag=wpt_optim_plot_flag,
     )
 
     clusters = solution_temp.cluster_sets[1]
@@ -235,6 +239,7 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        plot_flag::Bool,
     )::MSTSolution
     optimize_waypoints(
         soln::MSTSolution,
@@ -245,6 +250,7 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        plot_flag::Bool,
     )::MSTSolution
 
 Optimize waypoint positions in the final mothership route using `opt_method` provided
@@ -271,6 +277,7 @@ this value.
 gradient norm falls below this value
 - `iterations::Int64`: Maximum number of optimization iterations
 - `time_limit::Float64`: Soft limit on the time spent optimizing
+- `plot_flag::Bool`: Flag to enable plotting during waypoint optimization.
 
 # Returns
 Updated mothership and tender solution with optimized waypoint positions and regenerated
@@ -284,6 +291,7 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    plot_flag::Bool,
 )::MSTSolution
     # Optimize all interior waypoints by default
     n_nodes = length(soln.mothership_routes[end].route.nodes)
@@ -300,6 +308,7 @@ function optimize_waypoints(
         gradient_tol=gradient_tol,
         iterations=iterations,
         time_limit=time_limit,
+        plot_flag=plot_flag
     )
 end
 function optimize_waypoints(
@@ -311,6 +320,7 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    plot_flag::Bool,
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
