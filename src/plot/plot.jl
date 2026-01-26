@@ -694,12 +694,12 @@ function solution(
     )
 
     # Annotate critical path costs
-    critical_path_dist_a = critical_path(soln_a, vessel_weightings)
-    critical_path_dist_b = critical_path(soln_b, vessel_weightings)
+    critical_path_time_a = critical_path(soln_a, vessel_weightings)
+    critical_path_time_b = critical_path(soln_b, vessel_weightings)
 
     annotate_cost!.(
         [ax1, ax2],
-        [critical_path_dist_a, critical_path_dist_b];
+        [critical_path_time_a, critical_path_time_b];
         fontsize=14,
         color=:black
     )
@@ -773,11 +773,11 @@ function solution!(
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
-    critical_path_dist = critical_path(soln, vessel_weightings)
+    critical_path_time = critical_path(soln, vessel_weightings)
 
     annotate_cost!(
         ax,
-        critical_path_dist;
+        critical_path_time;
         fontsize=14,
         color=:black
     )
@@ -894,11 +894,11 @@ function solution_disturbances(
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
-    critical_path_dist = critical_path(solution_disturbed, vessel_weightings)
+    critical_path_time = critical_path(solution_disturbed, vessel_weightings)
 
     annotate_cost!(
         ax3,
-        critical_path_dist;
+        critical_path_time;
         fontsize=14,
         color=:black
     )
