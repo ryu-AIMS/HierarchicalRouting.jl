@@ -176,14 +176,16 @@ end
 """
     critical_path(
         soln::MSTSolution,
-        vessel_weightings::NTuple{2,AbstractFloat}
+        vessel_weightings::NTuple{2,AbstractFloat},
+        dist_conversion_factor::Float64=3.6,
     )::Float64
     critical_path(
         soln::MSTSolution,
         problem::Problem,
+        dist_conversion_factor::Float64=3.6,
     )::Float64
 
-Compute the critical path cost of the solution.
+Compute the critical path cost (time) of the solution.
 This is the longest path for a return trip, quantified as the sum of:
 - the sum (`cluster_cost_total`) of the longest path within each cluster (`cluster_cost_each`),
     i.e., the sum of the maximum(sortie, mothership) cost within each cluster, and
@@ -193,13 +195,16 @@ This is the longest path for a return trip, quantified as the sum of:
 - `soln`: The solution to evaluate.
 - `vessel_weightings`: The weightings for mothership and sortie costs.
 - `problem`: The problem instance containing vessel weightings.
+- `dist_conversion_factor`: Conversion factor. Default: converts vessel weightings from m/s
+    to km/h.
 
 # Returns
-The total (critical path) cost of the solution.
+The total (critical path) cost of the solution. Cost is measure in time (hours).
 """
 function critical_path(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat}
+    vessel_weightings::NTuple{2,AbstractFloat},
+    dist_conversion_factor::Float64=3.6,
 )::Float64
     tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
@@ -227,8 +232,13 @@ end
 function critical_path(
     soln::MSTSolution,
     problem::Problem,
+    dist_conversion_factor::Float64=3.6,
 )::Float64
-    return critical_path(soln, (problem.mothership.weighting, problem.tenders.weighting))
+    return critical_path(
+        soln,
+        (problem.mothership.weighting, problem.tenders.weighting),
+        dist_conversion_factor
+    )
 end
 
 function total_distance(
