@@ -206,8 +206,8 @@ function critical_path(
     vessel_weightings::NTuple{2,AbstractFloat},
     dist_conversion_factor::Float64=3.6,
 )::Float64
-    tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
+    tenders = soln.tenders[end]
     num_clusters = length(tenders)
 
     # Within clusters
@@ -223,6 +223,8 @@ function critical_path(
 
     # Between clusters
     tow_cost = vessel_weightings[1] * mothership_dist_between_clusts(ms_route, num_clusters)
+
+    # Total critical path
     total_critical_path = cluster_cost_total + tow_cost
     isinf(total_critical_path) && throw(DomainError(total_critical_path,
         "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
