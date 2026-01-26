@@ -967,7 +967,7 @@ function annotate_cost!(
     text!(
         ax,
         position...,
-        text="$metric: $cost_hours hours, $(round(cost_minutes, digits=1)) minutes",
+        text="$metric: $cost_hours hr, $(round(cost_minutes, digits=1)) min",
         align=(:right, :bottom),
         space=:relative,
         fontsize=fontsize,
