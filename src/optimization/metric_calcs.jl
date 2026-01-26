@@ -210,19 +210,23 @@ function critical_path(
     tenders = soln.tenders[end]
     num_clusters = length(tenders)
 
+    # Convert weightings to km/h
+    vessel_weightings_kmh = vessel_weightings ./ dist_conversion_factor
+
     # Within clusters
     cluster_sorties = tender_clust_dist.(tenders)
 
     cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
-    longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
+    longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings_kmh[2]
     mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
-    mothership_sub_clust_cost = vessel_weightings[1] * mothership_within_clusts
+    mothership_sub_clust_cost = mothership_within_clusts * vessel_weightings_kmh[1]
 
     cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
     cluster_cost_total = sum(cluster_cost_each)
 
     # Between clusters
-    tow_cost = vessel_weightings[1] * mothership_dist_between_clusts(ms_route, num_clusters)
+    tow_cost = mothership_dist_between_clusts(ms_route, num_clusters) *
+               vessel_weightings_kmh[1]
 
     # Total critical path
     total_critical_path = cluster_cost_total + tow_cost
