@@ -953,18 +953,17 @@ end
 
 function annotate_cost!(
     ax::Axis,
-    dist_weighted_m::Float64;
+    cost_time::Float64;
     position::Tuple{Float64,Float64}=(0.95, 0.01),
     fontsize::Int=14,
     color::Symbol=:black,
     metric::String="Critical path"
 )::Axis
-    # Annotate the cost of the critical path on the plot
-    dist_weighted_km = dist_weighted_m / 1000  # Convert dist to km
+    # Annotate the cost (time) of the critical path on the plot
     text!(
         ax,
         position...,
-        text="$metric: $(round(dist_weighted_km, digits=2)) weighted-km",
+        text="$metric: $(round(cost_time, digits=2)) hours",
         align=(:right, :bottom),
         space=:relative,
         fontsize=fontsize,
