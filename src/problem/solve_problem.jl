@@ -54,7 +54,8 @@ end
         rng::AbstractRNG=Random.GLOBAL_RNG,
         waypoint_optim_method=nothing,
         do_improve::Bool=true,
-        time_limit::Real=200.0
+        time_limit::Real=200.0,
+        wpt_optim_plot_flag::Bool=false,
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -73,6 +74,7 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `waypoint_optim_method`: Function to use in waypoint optimization.
 - `do_improve`: Whether to improve the initial solution by optimization tender sorties
 - `time_limit`: Time limit for waypoint optimization, in seconds
+- `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
 
 # Returns
 Best total MSTSolution found
@@ -85,7 +87,8 @@ function solve(
     rng::AbstractRNG=Random.GLOBAL_RNG,
     waypoint_optim_method=nothing,
     do_improve::Bool=true,
-    time_limit::Real=200.0
+    time_limit::Real=200.0,
+    wpt_optim_plot_flag::Bool=false,
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
@@ -154,6 +157,7 @@ function solve(
         problem,
         waypoint_optim_method,
         Float64(time_limit),
+        wpt_optim_plot_flag
     )
 
     # Simulate disturbance events

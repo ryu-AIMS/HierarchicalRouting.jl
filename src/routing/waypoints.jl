@@ -183,6 +183,7 @@ end
         problem::Problem,
         waypoint_optim_method,
         time_limit::Float64,
+        wpt_optim_plot_flag::Bool=false,
     )::Tuple{Vector{Cluster},MothershipSolution,Vector{TenderSolution}}
 
 Optimize the waypoints of the mothership route using the provided optimization method.
@@ -194,6 +195,7 @@ Optimize the waypoints of the mothership route using the provided optimization m
 - `problem`: Problem instance
 - `waypoint_optim_method`: Function to use in waypoint optimization.
 - `time_limit`: Time limit for waypoint optimization, in seconds
+- `wpt_optim_plot_flag`: Flag to enable plotting during waypoint optimization.
 
 # Returns
 - Updated clusters, mothership solution, and tender solutions after waypoint optimization
@@ -205,6 +207,7 @@ function optimize_waypoints!(
     problem::Problem,
     waypoint_optim_method,
     time_limit::Float64,
+    wpt_optim_plot_flag::Bool=false,
 )::Tuple{Vector{Cluster},MothershipSolution,Vector{TenderSolution}}
     if isnothing(waypoint_optim_method)
         return clusters, ms_soln, tender_soln
@@ -217,6 +220,7 @@ function optimize_waypoints!(
         problem,
         waypoint_optim_method;
         time_limit=time_limit,
+        plot_flag=wpt_optim_plot_flag,
     )
 
     clusters = solution_temp.cluster_sets[1]
@@ -235,6 +239,7 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        plot_flag::Bool,
     )::MSTSolution
     optimize_waypoints(
         soln::MSTSolution,
@@ -245,6 +250,7 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        plot_flag::Bool,
     )::MSTSolution
 
 Optimize waypoint positions in the final mothership route using `opt_method` provided
@@ -271,6 +277,7 @@ this value.
 gradient norm falls below this value
 - `iterations::Int64`: Maximum number of optimization iterations
 - `time_limit::Float64`: Soft limit on the time spent optimizing
+- `plot_flag::Bool`: Flag to enable plotting during waypoint optimization.
 
 # Returns
 Updated mothership and tender solution with optimized waypoint positions and regenerated
@@ -284,6 +291,7 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    plot_flag::Bool,
 )::MSTSolution
     # Optimize all interior waypoints by default
     n_nodes = length(soln.mothership_routes[end].route.nodes)
@@ -300,6 +308,7 @@ function optimize_waypoints(
         gradient_tol=gradient_tol,
         iterations=iterations,
         time_limit=time_limit,
+        plot_flag=plot_flag
     )
 end
 function optimize_waypoints(
@@ -311,6 +320,7 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    plot_flag::Bool,
 )::MSTSolution
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
@@ -345,7 +355,7 @@ function optimize_waypoints(
     best_count::Int64 = 0
     soln_proposed::MSTSolution = soln
 
-    fig_wpts = Plot.debug_waypoints(problem, last_ms_route.route.nodes)
+    fig_wpts = plot_flag ? Plot.debug_waypoints(problem, waypoints_initial) : nothing
 
     # Objective from x -> critical_path
     function obj(
@@ -385,7 +395,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count += 1
         end
-        Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
+        plot_flag && Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
 
         return score
     end
@@ -446,24 +456,25 @@ function optimize_waypoints(
     end
     @info "Best critical path score found: $best_score"
 
-    Plot.route!(
-        fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
-    )
-    target_points = problem.targets.points.geometry
-    Plot.scatter!(
-        fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
-    )
-    display(fig_wpts)
-    Plot.solution!(
-        fig_wpts.current_axis[],
-        problem,
-        best_soln;
-        highlight_critical_path=true,
-    )
-    display(fig_wpts)
-    result_trace = Optim.trace(result)
-    fig = Plot.trace(result_trace, opt_method)
-    display(fig)
+    if plot_flag
+        Plot.route!(
+            fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
+        )
+        target_points = problem.targets.points.geometry
+        Plot.scatter!(
+            fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
+        )
+        display(fig_wpts)
+        Plot.solution!(
+            fig_wpts.current_axis[],
+            problem,
+            best_soln;
+            highlight_critical_path=true,
+        )
+        display(fig_wpts)
+        result_trace = Optim.trace(result)
+        display(Plot.trace(result_trace, opt_method))
+    end
 
     return best_soln
 end
