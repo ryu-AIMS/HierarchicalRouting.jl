@@ -694,12 +694,12 @@ function solution(
     )
 
     # Annotate critical path costs
-    critical_path_dist_a = critical_path(soln_a, vessel_weightings)
-    critical_path_dist_b = critical_path(soln_b, vessel_weightings)
+    critical_path_time_a = critical_path(soln_a, vessel_weightings)
+    critical_path_time_b = critical_path(soln_b, vessel_weightings)
 
     annotate_cost!.(
         [ax1, ax2],
-        [critical_path_dist_a, critical_path_dist_b];
+        [critical_path_time_a, critical_path_time_b];
         fontsize=14,
         color=:black
     )
@@ -773,11 +773,11 @@ function solution!(
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
-    critical_path_dist = critical_path(soln, vessel_weightings)
+    critical_path_time = critical_path(soln, vessel_weightings)
 
     annotate_cost!(
         ax,
-        critical_path_dist;
+        critical_path_time;
         fontsize=14,
         color=:black
     )
@@ -894,11 +894,11 @@ function solution_disturbances(
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
-    critical_path_dist = critical_path(solution_disturbed, vessel_weightings)
+    critical_path_time = critical_path(solution_disturbed, vessel_weightings)
 
     annotate_cost!(
         ax3,
-        critical_path_dist;
+        critical_path_time;
         fontsize=14,
         color=:black
     )
@@ -953,18 +953,21 @@ end
 
 function annotate_cost!(
     ax::Axis,
-    dist_weighted_m::Float64;
+    cost_time::Float64;
     position::Tuple{Float64,Float64}=(0.95, 0.01),
     fontsize::Int=14,
     color::Symbol=:black,
     metric::String="Critical path"
 )::Axis
-    # Annotate the cost of the critical path on the plot
-    dist_weighted_km = dist_weighted_m / 1000  # Convert dist to km
+    # Format cost time in hours and minutes
+    cost_hours::Int = floor(cost_time)
+    cost_minutes::Float64 = (cost_time - cost_hours) * 60
+
+    # Annotate the cost (time) of the critical path on the plot
     text!(
         ax,
         position...,
-        text="$metric: $(round(dist_weighted_km, digits=2)) weighted-km",
+        text="$metric: $cost_hours hr, $(round(cost_minutes, digits=1)) min",
         align=(:right, :bottom),
         space=:relative,
         fontsize=fontsize,
@@ -982,14 +985,18 @@ function annotate_vessel_speeds!(
     fontsize::Int=14,
     color::Symbol=:black
 )::Axis
-    speed_ms = round(1 / vessel_weightings[1], digits=1)
-    speed_t = round(1 / vessel_weightings[2], digits=1)
+    speed_ms_m_per_s = 1 / vessel_weightings[1]
+    speed_t_m_per_s = 1 / vessel_weightings[2]
+
+    speed_ms_kmh = round(speed_ms_m_per_s * 3.6, digits=1)
+    speed_t_kmh = round(speed_t_m_per_s * 3.6, digits=1)
+
     text!(
         ax,
         position...,
-        text="""Vessel speeds (m/s):
+        text="""Vessel speeds (km/hr):
         (mothership, tenders)
-        ($(speed_ms),   $(speed_t))""",
+        ($(speed_ms_kmh),   $(speed_t_kmh))""",
         align=align,
         space=space,
         fontsize=fontsize,

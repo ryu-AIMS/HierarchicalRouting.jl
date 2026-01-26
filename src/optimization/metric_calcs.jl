@@ -176,14 +176,16 @@ end
 """
     critical_path(
         soln::MSTSolution,
-        vessel_weightings::NTuple{2,AbstractFloat}
+        vessel_weightings::NTuple{2,AbstractFloat},
+        dist_conversion_factor::Float64=3.6,
     )::Float64
     critical_path(
         soln::MSTSolution,
         problem::Problem,
+        dist_conversion_factor::Float64=3.6,
     )::Float64
 
-Compute the critical path cost of the solution.
+Compute the critical path cost (time) of the solution.
 This is the longest path for a return trip, quantified as the sum of:
 - the sum (`cluster_cost_total`) of the longest path within each cluster (`cluster_cost_each`),
     i.e., the sum of the maximum(sortie, mothership) cost within each cluster, and
@@ -193,42 +195,56 @@ This is the longest path for a return trip, quantified as the sum of:
 - `soln`: The solution to evaluate.
 - `vessel_weightings`: The weightings for mothership and sortie costs.
 - `problem`: The problem instance containing vessel weightings.
+- `dist_conversion_factor`: Conversion factor. Default: converts vessel weightings from m/s
+    to km/h.
 
 # Returns
-The total (critical path) cost of the solution.
+The total (critical path) cost of the solution. Cost is measure in time (hours).
 """
 function critical_path(
     soln::MSTSolution,
-    vessel_weightings::NTuple{2,AbstractFloat}
+    vessel_weightings::NTuple{2,AbstractFloat},
+    dist_conversion_factor::Float64=3.6,
 )::Float64
-    tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
+    tenders = soln.tenders[end]
     num_clusters = length(tenders)
 
+    # Convert weightings to (km/h)-1
+    w_ms, w_t = vessel_weightings ./ dist_conversion_factor
+
     # Within clusters
-    cluster_sorties = tender_clust_dist.(tenders)
+    cluster_sorties_m = tender_clust_dist.(tenders)
+    cluster_sorties_m = map(x -> isempty(x) ? [0.0] : x, cluster_sorties_m)
+    longest_sortie_hr = (maximum.(cluster_sorties_m) ./ 1000) * w_t
 
-    cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
-    longest_sortie_cost = maximum.(cluster_sorties) .* vessel_weightings[2]
-    mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
-    mothership_sub_clust_cost = vessel_weightings[1] * mothership_within_clusts
+    mothership_within_clusts_m = mothership_dist_within_clusts(ms_route)[1:num_clusters]
+    mothership_sub_clust_hr = (mothership_within_clusts_m ./ 1000) * w_ms
 
-    cluster_cost_each = max.(longest_sortie_cost, mothership_sub_clust_cost)
-    cluster_cost_total = sum(cluster_cost_each)
+    cluster_cost_each_hr = max.(longest_sortie_hr, mothership_sub_clust_hr)
+    cluster_cost_total_hr = sum(cluster_cost_each_hr)
 
     # Between clusters
-    tow_cost = vessel_weightings[1] * mothership_dist_between_clusts(ms_route, num_clusters)
-    total_critical_path = cluster_cost_total + tow_cost
-    isinf(total_critical_path) && throw(DomainError(total_critical_path,
+    tow_dist_m = mothership_dist_between_clusts(ms_route, num_clusters)
+    tow_cost_hr = (tow_dist_m / 1000) * w_ms
+
+    # Total critical path
+    critical_path_hr = cluster_cost_total_hr + tow_cost_hr
+    isinf(critical_path_hr) && throw(DomainError(critical_path_hr,
         "Critical path cost is infinite, indicating a waypoint in an exclusion zone."
     ))
-    return total_critical_path
+    return critical_path_hr
 end
 function critical_path(
     soln::MSTSolution,
     problem::Problem,
+    dist_conversion_factor::Float64=3.6,
 )::Float64
-    return critical_path(soln, (problem.mothership.weighting, problem.tenders.weighting))
+    return critical_path(
+        soln,
+        (problem.mothership.weighting, problem.tenders.weighting),
+        dist_conversion_factor
+    )
 end
 
 function total_distance(
