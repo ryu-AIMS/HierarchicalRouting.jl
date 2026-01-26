@@ -959,11 +959,15 @@ function annotate_cost!(
     color::Symbol=:black,
     metric::String="Critical path"
 )::Axis
+    # Format cost time in hours and minutes
+    cost_hours::Int = floor(cost_time)
+    cost_minutes::Float64 = (cost_time - cost_hours) * 60
+
     # Annotate the cost (time) of the critical path on the plot
     text!(
         ax,
         position...,
-        text="$metric: $(round(cost_time, digits=2)) hours",
+        text="$metric: $cost_hours hours, $(round(cost_minutes, digits=1)) minutes",
         align=(:right, :bottom),
         space=:relative,
         fontsize=fontsize,
