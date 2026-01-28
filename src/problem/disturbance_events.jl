@@ -74,6 +74,7 @@ end
         time_limit::Float64;
         do_improve::Bool=false,
         waypoint_optim_method=nothing,
+        wpt_optim_plot_flag::Bool=false,
     )::MSTSolution
 
 Simulates and applies disturbance events to the solution.
@@ -97,6 +98,7 @@ function _apply_disturbance_events!(
     time_limit::Float64;
     do_improve::Bool=false,
     waypoint_optim_method=nothing,
+    wpt_optim_plot_flag::Bool=false,
 )::MSTSolution
     disturb_idx = 1
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
@@ -184,7 +186,8 @@ function _apply_disturbance_events!(
                 problem,
                 waypoint_optim_method,
                 candidate_wpt_idxs;
-                time_limit
+                time_limit,
+                plot_flag=wpt_optim_plot_flag,
             )
 
             clusters = solution_tmp.cluster_sets[1]
