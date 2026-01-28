@@ -27,23 +27,12 @@ function get_feasible_matrix(
 
     for point_j_idx in 1:n_points, point_i_idx in 1:point_j_idx-1
         point_nodes = getindex(nodes, [point_i_idx, point_j_idx])
-        if point_nodes[1] != point_nodes[2]
-            # TODO: Process elsewhere
-            # Check if any of the points are within an exclusion zone
-            if any(point_in_exclusion.(point_nodes, [exclusions]))
-                dist_matrix[point_i_idx, point_j_idx] =
-                    dist_matrix[point_j_idx, point_i_idx] =
-                        Inf
-            else
-                dist_matrix[point_i_idx, point_j_idx],
-                path_matrix[point_i_idx, point_j_idx] =
-                    shortest_feasible_path(
-                        point_nodes[1], point_nodes[2], exclusions
-                    )
-                dist_matrix[point_j_idx, point_i_idx] =
-                    dist_matrix[point_i_idx, point_j_idx]
-            end
-        end
+
+        dist_matrix[point_i_idx, point_j_idx], path_matrix[point_i_idx, point_j_idx] =
+            shortest_feasible_path(
+                point_nodes[1], point_nodes[2], exclusions
+            )
+        dist_matrix[point_j_idx, point_i_idx] = dist_matrix[point_i_idx, point_j_idx]
     end
 
     return dist_matrix, path_matrix
@@ -77,21 +66,12 @@ function get_feasible_vector(
 
     for point_i_idx in 1:n_points
         point_nodes = getindex(nodes, [point_i_idx, point_i_idx + 1])
-        if nodes[point_i_idx] != nodes[point_i_idx+1]
-            # TODO: Process elsewhere
-            # Check if any of the points are within an exclusion zone
-            if !any(point_in_exclusion.(point_nodes, Ref(exclusions)))
-                dist_vector[point_i_idx], path_vector[point_i_idx] =
-                    shortest_feasible_path(
-                        point_nodes[1], point_nodes[2], exclusions
-                    )
-            else
-                dist_vector[point_i_idx] = Inf
-            end
-        end
+
+        dist_vector[point_i_idx], path_vector[point_i_idx] = shortest_feasible_path(
+            point_nodes[1], point_nodes[2], exclusions
+        )
     end
-    any(isinf.(dist_vector)) && throw(DomainError(dist_vector[findall(isinf, dist_vector)],
-        "Distance vector contains Inf values, indicating a waypoint in an exclusion zone."))
+
     return dist_vector, path_vector
 end
 
@@ -171,6 +151,13 @@ function shortest_feasible_path(
     exclusions::POLY_VEC;
     _tried_reverse::Bool=false
 )::Tuple{Float64,Vector{LineString{2,Float64}}}
+    # If initial and final points are the same, return zero distance and direct/dummy path
+    initial_point == final_point && return 0.0, [LineString([initial_point, final_point])]
+
+    # If either point is within an exclusion zone, no feasible path
+    any(point_in_exclusion.([initial_point, final_point], Ref(exclusions))) &&
+        return Inf, Vector{LineString{2,Float64}}()
+
     final_exclusion_idx = point_in_convexhull(final_point, exclusions)
     initial_exclusion_idx = point_in_convexhull(initial_point, exclusions)
 

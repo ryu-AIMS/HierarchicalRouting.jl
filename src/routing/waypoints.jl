@@ -443,6 +443,21 @@ function optimize_waypoints(
         opt_options
     )
 
+    x_best_flat::Vector{Float64} = Optim.minimizer(result)
+    x_best::Vector{Point{2,Float64}} = Point.(
+        [
+        waypoints_initial[1],  # first waypoint (depot)
+        tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
+        waypoints_initial[end]  # last waypoint (depot)
+    ]
+    )
+    best_soln = rebuild_solution_with_waypoints(
+        best_soln,
+        x_best,
+        exclusions_mothership,
+        exclusions_tender
+    )
+
     @info "Type:" summary(result)
     @info "Minimum value:" minimum(result)
     if Optim.converged(result)
