@@ -171,7 +171,8 @@ function solve(
         total_tender_capacity,
         Float64(time_limit);
         do_improve,
-        waypoint_optim_method
+        waypoint_optim_method,
+        wpt_optim_plot_flag,
     )
 
     return solution
