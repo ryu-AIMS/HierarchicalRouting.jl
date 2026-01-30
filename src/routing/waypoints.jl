@@ -443,12 +443,13 @@ function optimize_waypoints(
         opt_options
     )
 
-    x_best_flat::Vector{Float64} = Optim.minimizer(result)
+    x_best_free_flat::Vector{Float64} = Optim.minimizer(result)
+    # Rebuild full waypoint set including depot, fixed waypoints & free waypoints
     x_best::Vector{Point{2,Float64}} = Point.(
         [
-        waypoints_initial[1],  # first waypoint (depot)
-        tuple.(x_best_flat[1:2:end], x_best_flat[2:2:end])...,
-        waypoints_initial[end]  # last waypoint (depot)
+        waypoints_initial[1:free_idxs[1]-1]...,
+        Point.(x_best_free_flat[1:2:end], x_best_free_flat[2:2:end])...,
+        waypoints_initial[free_idxs[end]+1:end]...
     ]
     )
     best_soln = rebuild_solution_with_waypoints(
