@@ -136,7 +136,8 @@ function solve(
             MSTSolution([clusters], [ms_route], [initial_tenders]),
             problem.mothership.exclusion.geometry,
             problem.tenders.exclusion.geometry,
-            1, next_cluster_idx, vessel_weightings
+            1, next_cluster_idx, vessel_weightings,
+            cross_cluster_flag=false
         )
 
         # Apply the optimized initial solution to the first set of clusters pre-disturbance

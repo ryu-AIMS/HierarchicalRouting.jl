@@ -211,6 +211,7 @@ function _apply_disturbance_events!(
                 disturb_clust_idx,
                 next_disturbance_cluster_idx,
                 vessel_weightings,
+                cross_cluster_flag=false
             )
             # Overwrite with improved
             clusters = optimized_current_solution.cluster_sets[1]
