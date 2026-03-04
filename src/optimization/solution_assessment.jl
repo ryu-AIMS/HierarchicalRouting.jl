@@ -580,7 +580,7 @@ end
         cooling_rate::Float64=0.95,
         static_limit::Int=150;
         vessel_weightings::NTuple{2, AbstractFloat},
-        cross_cluster_flag::Bool=false,
+        cross_cluster_flag::Bool,
     )
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -599,7 +599,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `vessel_weightings`: Tuple of weightings (mothership, tenders) to apply to vessel
     distances to generate costs for the objective function.
 - `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
-    considered. Default = false.
+    considered.
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.
@@ -616,7 +616,7 @@ function simulated_annealing(
     cooling_rate::Float64=0.95,
     static_limit::Int=150;
     vessel_weightings::NTuple{2,AbstractFloat},
-    cross_cluster_flag::Bool=false,
+    cross_cluster_flag::Bool,
 )::Tuple{MSTSolution,Float64}
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)

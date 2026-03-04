@@ -270,6 +270,7 @@ end
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         perturb_function::Function=perturb_swap_solution,
+        cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
@@ -281,6 +282,7 @@ end
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         perturb_function::Function=perturb_swap_solution,
+        cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
@@ -300,6 +302,8 @@ Multiple dispatch to improve full and partial solutions (respectively).
 - `opt_function`: Optimization function to improve the solution
 - `objective_function`: Objective function to quantify and evaluate the solution
 - `perturb_function`: Perturbation function to generate changes in the solution
+- `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
+    considered. Default = true.
 - `max_iterations`: Maximum number of iterations
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
@@ -320,6 +324,7 @@ function improve_solution(
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     perturb_function::Function=perturb_swap_solution,
+    cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
@@ -365,7 +370,8 @@ function improve_solution(
         temp_init,
         cooling_rate,
         static_limit;
-        vessel_weightings
+        vessel_weightings,
+        cross_cluster_flag,
     )
 
     merged_clusters = vcat(
@@ -393,6 +399,7 @@ function improve_solution(
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     perturb_function::Function=perturb_swap_solution,
+    cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
@@ -412,6 +419,7 @@ function improve_solution(
         current_cluster_idx,
         next_cluster_idx,
         vessel_weightings;
+        cross_cluster_flag=cross_cluster_flag,
         opt_function,
         objective_function,
         perturb_function,
