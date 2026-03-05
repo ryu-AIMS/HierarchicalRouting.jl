@@ -178,18 +178,10 @@ function perturb_swap_solution(
     )
 
     # Update mothership route and waypoints based on updated clusters
+    depot = soln.mothership_routes[end].route.nodes[1]
     cluster_seq_ids = getfield.(soln.tenders[end], :id)
     cluster_centroids = getfield.(new_clusters, :centroid)
-    ordered_cluster_centroids = cluster_centroids[cluster_seq_ids]
-    depot = soln.mothership_routes[end].route.nodes[1]
-    full_ms_route_pts = [[depot]; ordered_cluster_centroids; [depot]]
-
-    cluster_sequence = DataFrame(
-        id=[0; cluster_seq_ids; 0],
-        lon=getindex.(full_ms_route_pts, 1),
-        lat=getindex.(full_ms_route_pts, 2)
-    )
-
+    cluster_sequence = get_cluster_sequence_df(depot, cluster_seq_ids, cluster_centroids)
     updated_waypoints = get_waypoints(cluster_sequence, exclusions_mothership)
     waypoint_path_vector = get_feasible_vector(
         updated_waypoints.waypoint,
