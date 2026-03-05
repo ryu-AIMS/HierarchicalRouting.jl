@@ -200,47 +200,71 @@ function perturb_swap_solution(
     )
 
     # Update routes for modified sorties
-    tours = [
-        [[tender_a.start]; sortie_a.nodes; [tender_a.finish]],
-        [[tender_b.start]; sortie_b.nodes; [tender_b.finish]]
+    cc = updated_waypoints.connecting_clusters
+    cc_first = first.(cc)
+    cc_last = last.(cc)
+
+    tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
+    tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
+    tender_b_new_start_idx = findlast(cc_last .== cluster_b_idx)
+    tender_b_new_finish_idx = findfirst(cc_first .== cluster_b_idx)
+
+    (tender_a_new_start_idx === nothing || tender_a_new_finish_idx === nothing ||
+     tender_b_new_start_idx === nothing || tender_b_new_finish_idx === nothing) &&
+        error("Could not resolve tender start/finish indices from connecting_clusters")
+
+    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
+    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
+    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
+    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+
+    tours_new_a::Vector{Vector{Point{2,Float64}}} = [
+        [tender_a_new_start, sortie_nodes, tender_a_new_finish]
+        for sortie_nodes in new_clusters[cluster_a_idx].nodes
     ]
-    updated_linestrings = getindex.(
-        get_feasible_vector.(tours, Ref(exclusions_tender)),
-        2
+    tours_new_b::Vector{Vector{Point{2,Float64}}} = [
+        [tender_b_new_start, sortie_nodes, tender_b_new_finish]
+        for sortie_nodes in new_clusters[cluster_b_idx].nodes
+    ]
+
+    updated_sortie_matrix_a::Vector{Matrix{Float64}} = getindex.(
+        get_feasible_matrix.(tours_new_a, Ref(exclusions_tender)),
+        1
     )
-    updated_sortie_matrices = getindex.(
-        get_feasible_matrix.(tours, Ref(exclusions_tender)),
+    updated_sortie_matrix_b::Vector{Matrix{Float64}} = getindex.(
+        get_feasible_matrix.(tours_new_b, Ref(exclusions_tender)),
         1
     )
 
-    sortie_a = Route(
-        sortie_a.nodes,
-        updated_sortie_matrices[1],
-        vcat(updated_linestrings[1]...)
+    updated_linestrings_a::Vector{Vector{Vector{LineString{2,Float64}}}} = getindex.(
+        get_feasible_vector.(tours_new_a, Ref(exclusions_tender)),
+        2
     )
-    sortie_b = Route(
-        sortie_b.nodes,
-        updated_sortie_matrices[2],
-        vcat(updated_linestrings[2]...)
+    updated_linestrings_b::Vector{Vector{Vector{LineString{2,Float64}}}} = getindex.(
+        get_feasible_vector.(tours_new_b, Ref(exclusions_tender)),
+        2
     )
 
-    # Re-compute sorties for the modified clusters
-    sorties_a = [
-        i == sortie_a_idx ? sortie_a : tender_a.sorties[i]
-        for i in 1:length(tender_a.sorties)
-    ]
-    sorties_b = [
-        i == sortie_b_idx ? sortie_b : tender_b.sorties[i]
-        for i in 1:length(tender_b.sorties)
-    ]
+    sorties_a::Vector{Route} = Route.(
+        [t[2:end-1] for t in tours_new_a],
+        updated_sortie_matrix_a,
+        [vcat(l...) for l in updated_linestrings_a]
+    )
+    sorties_b::Vector{Route} = Route.(
+        [t[2:end-1] for t in tours_new_b],
+        updated_sortie_matrix_b,
+        [vcat(l...) for l in updated_linestrings_b]
+    )
 
-    tender_a_new, tender_b_new = TenderSolution.(
-        [tender_a, tender_b],
+    tenders_a_new, tenders_b_new = TenderSolution.(
+        [tender_a.id, tender_b.id],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
         [sorties_a, sorties_b]
     )
     # Re-run two-opt on the modified sorties
     tender_a_improved, tender_b_improved = two_opt.(
-        [tender_a_new, tender_b_new],
+        [tenders_a_new, tenders_b_new],
         Ref(exclusions_tender)
     )
 
