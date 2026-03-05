@@ -165,6 +165,9 @@ function perturb_swap_solution(
     # Swap nodes between clusters
     node_a_idx_clust = findfirst(isequal(node_a), nodes_a)
     node_b_idx_clust = findfirst(isequal(node_b), nodes_b)
+    (node_a_idx_clust === nothing || node_b_idx_clust === nothing) &&
+        throw(ArgumentError("Swap node not found in respective cluster nodes"))
+
     nodes_a[node_a_idx_clust] = node_b
     nodes_b[node_b_idx_clust] = node_a
 
@@ -254,6 +257,14 @@ function perturb_swap_solution(
         updated_sortie_matrix_b,
         [vcat(l...) for l in updated_linestrings_b]
     )
+
+    tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+        tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
+        tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+        tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...) &&
+            throw(ArgumentError(
+                "Tender start/end point wrongly included in sortie nodes after perturbation"
+            ))
 
     tenders_a_new, tenders_b_new = TenderSolution.(
         [tender_a.id, tender_b.id],
