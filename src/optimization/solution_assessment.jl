@@ -653,29 +653,26 @@ function simulated_annealing(
         \t0\t\t$obj_best\t$temp"""
 
         for iteration in 1:max_iterations
-            if !cross_cluster_flag
+            if !cross_cluster_flag || rand() < 0.5
+                # swap two nodes within the same cluster
                 soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
             else
-                if rand() < 0.5
-                    # swap two nodes within the same cluster
-                    soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
-                else
-                    # swap two nodes between two different random clusters
-                    clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
-                    soln_proposed = perturb_function(
-                        soln_current,
-                        (clust_idx, clust_swap_idx),
-                        exclusions_mothership,
-                        exclusions_tender
-                    )
-                end
+                # swap two nodes between two different random clusters
+                clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
+                soln_proposed = perturb_function(
+                    soln_current,
+                    (clust_idx, clust_swap_idx),
+                    exclusions_mothership,
+                    exclusions_tender
+                )
             end
+
             obj_proposed = objective_function(soln_proposed, vessel_weightings)
-            improvement = obj_current - obj_proposed
+            Δ = obj_proposed - obj_current
             static_ctr += 1
 
             # If the new solution is improved OR meets acceptance prob criteria
-            if improvement > 0 || exp(improvement / temp) > rand()
+            if Δ < 0 || rand() < exp(-Δ / temp)
                 soln_current = soln_proposed
                 obj_current = obj_proposed
 
