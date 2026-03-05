@@ -184,23 +184,17 @@ function perturb_swap_solution(
     cluster_centroids = getfield.(new_clusters, :centroid)
     cluster_sequence = get_cluster_sequence_df(depot, cluster_seq_ids, cluster_centroids)
     updated_waypoints = get_waypoints(cluster_sequence, exclusions_mothership)
-    waypoint_path_vector = get_feasible_vector(
+
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
         updated_waypoints.waypoint,
         exclusions_mothership
-    )[2]
-
-    ordered_clusters = sort(cluster_sequence[1:end-1, :], :id)
-    ordered_centroid_pts = Point{2,Float64}.(ordered_clusters.lon, ordered_clusters.lat)
-    full_ms_route_matrix = get_feasible_matrix(
-        ordered_centroid_pts,
-        exclusions_mothership
-    )[1]
+    )
 
     updated_ms_solution = MothershipSolution(
         cluster_sequence,
         Route(
             updated_waypoints.waypoint,
-            full_ms_route_matrix,
+            waypoint_dist_vector,
             vcat(waypoint_path_vector...)
         )
     )
