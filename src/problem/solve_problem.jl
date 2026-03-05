@@ -56,6 +56,7 @@ end
         do_improve::Bool=true,
         time_limit::Real=200.0,
         wpt_optim_plot_flag::Bool=false,
+        cross_cluster_flag::Bool=false,
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -75,6 +76,7 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `do_improve`: Whether to improve the initial solution by optimization tender sorties
 - `time_limit`: Time limit for waypoint optimization, in seconds
 - `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
+- `cross_cluster_flag`: Flag to allow perturbations across clusters in solution improvement
 
 # Returns
 Best total MSTSolution found
@@ -89,6 +91,7 @@ function solve(
     do_improve::Bool=true,
     time_limit::Real=200.0,
     wpt_optim_plot_flag::Bool=false,
+    cross_cluster_flag::Bool=false,
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
@@ -136,8 +139,8 @@ function solve(
             MSTSolution([clusters], [ms_route], [initial_tenders]),
             problem.mothership.exclusion.geometry,
             problem.tenders.exclusion.geometry,
-            1, next_cluster_idx, vessel_weightings,
-            cross_cluster_flag=false
+            1, next_cluster_idx, vessel_weightings;
+            cross_cluster_flag
         )
 
         # Apply the optimized initial solution to the first set of clusters pre-disturbance
