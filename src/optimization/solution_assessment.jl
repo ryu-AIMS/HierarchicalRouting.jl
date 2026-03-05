@@ -269,7 +269,16 @@ function perturb_swap_solution(
     )
 
     # Update tenders with existing start/finish (not yet adjusted)
-    tenders_all::Vector{Vector{TenderSolution}} = copy(soln.tenders[end])
+    soln_temp = deepcopy(soln)
+    soln_temp.cluster_sets[end] = new_clusters
+
+    u = rebuild_solution_with_waypoints(
+        soln_temp,
+        updated_waypoints.waypoint,
+        exclusions_mothership,
+        exclusions_tender
+    )
+
     tenders_all[clust_a_seq_idx] = tender_a_improved
     tenders_all[clust_b_seq_idx] = tender_b_improved
 
