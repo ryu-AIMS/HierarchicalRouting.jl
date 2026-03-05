@@ -154,6 +154,7 @@ function solve(
     end
 
     # Apply solution to the first set of clusters pre-disturbance
+    @info "Optimizing waypoints using PSO"
     cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints!(
         clusters,
         ms_route,
@@ -165,6 +166,7 @@ function solve(
     )
 
     # Simulate disturbance events
+    @info "Apply disturbance events"
     solution::MSTSolution = _apply_disturbance_events!(
         cluster_sets,
         ms_soln_sets,
