@@ -282,15 +282,11 @@ function perturb_swap_solution(
     tenders_all[clust_a_seq_idx] = tender_a_improved
     tenders_all[clust_b_seq_idx] = tender_b_improved
 
-    tenders_full_updated::Vector{Vector{TenderSolution}} = [
-        soln.tenders[end],
-        tenders_all
-    ]
     # Create new perturbed solution
     soln_perturbed = MSTSolution(
-        [new_clusters],
-        [updated_ms_solution],
-        tenders_full_updated
+        [soln.cluster_sets[end], new_clusters],             # [new_clusters],
+        [soln.mothership_routes[end], updated_ms_solution], # [updated_ms_solution],
+        [soln.tenders[end], tenders_all]
     )
     return soln_perturbed
 end
