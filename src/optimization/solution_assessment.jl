@@ -133,8 +133,8 @@ function perturb_swap_solution(
 )::MSTSolution
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
-    tender_a = soln.tenders[end][clust_a_seq_idx]
-    tender_b = soln.tenders[end][clust_b_seq_idx]
+    tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
+    tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
     sortie_a_idx = rand(1:length(tender_a.sorties))
@@ -158,6 +158,7 @@ function perturb_swap_solution(
 
     cluster_a_idx = tender_a.id
     cluster_b_idx = tender_b.id
+
     nodes_a = new_clusters[cluster_a_idx].nodes
     nodes_b = new_clusters[cluster_b_idx].nodes
 
@@ -167,10 +168,8 @@ function perturb_swap_solution(
     nodes_a[node_a_idx_clust] = node_b
     nodes_b[node_b_idx_clust] = node_a
 
-    centroid_a, centroid_b = Point{2,Float64}.([
-        (mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2))),
-        (mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
-    ])
+    centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
+    centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
     new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] = Cluster.(
         [cluster_a_idx, cluster_b_idx],
@@ -279,6 +278,7 @@ function perturb_swap_solution(
         exclusions_tender
     )
 
+    tenders_all::Vector{TenderSolution} = u.tenders[end]
     tenders_all[clust_a_seq_idx] = tender_a_improved
     tenders_all[clust_b_seq_idx] = tender_b_improved
 
