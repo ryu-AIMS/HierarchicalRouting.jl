@@ -597,34 +597,29 @@ end
 
 """
     simulated_annealing(
+        problem::Problem,
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
-        exclusions_mothership::POLY_VEC,
-        exclusions_tender::POLY_VEC,
         max_iterations::Int=5_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
         static_limit::Int=150;
-        vessel_weightings::NTuple{2, AbstractFloat},
         cross_cluster_flag::Bool,
-    )
+    )::Tuple{MSTSolution,Float64}
 
 Simulated Annealing optimization algorithm to optimize the solution.
 
 # Arguments
+- `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `soln_init`: Initial solution.
 - `objective_function`: Function to evaluate the solution.
 - `perturb_function`: Function to perturb the solution.
-- `exclusions_mothership`: Exclusion zone polygons for mothership.
-- `exclusions_tender`: Exclusion zone polygons for tender.
 - `max_iterations`: Maximum number of iterations. Default = 5_000.
 - `temp_init`: Initial temperature. Default = 500.0.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
     Default = 0.95 = 95%.
 - `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
-- `vessel_weightings`: Tuple of weightings (mothership, tenders) to apply to vessel
-    distances to generate costs for the objective function.
 - `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
     considered.
 
@@ -633,18 +628,22 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `obj_best`: Objective value of the best solution.
 """
 function simulated_annealing(
+    problem::Problem,
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    exclusions_mothership::POLY_VEC,
-    exclusions_tender::POLY_VEC,
     max_iterations::Int=5_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
     static_limit::Int=150;
-    vessel_weightings::NTuple{2,AbstractFloat},
     cross_cluster_flag::Bool,
 )::Tuple{MSTSolution,Float64}
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    vessel_weightings::NTuple{2,AbstractFloat} = (
+        problem.mothership.weighting,
+        problem.tenders.weighting
+    )
+
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
     obj_init = objective_function(soln_init, vessel_weightings)

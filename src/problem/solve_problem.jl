@@ -357,18 +357,15 @@ function improve_solution(
         [current_mothership_route],
         [current_tender_routes]
     )
-    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     soln_best_partial, z_best = opt_function(
+        problem,
         current_solution,
         objective_function,
         perturb_function,
-        problem.mothership.exclusion.geometry,
-        problem.tenders.exclusion.geometry,
         max_iterations,
         temp_init,
         cooling_rate,
         static_limit;
-        vessel_weightings,
         cross_cluster_flag,
     )
 
