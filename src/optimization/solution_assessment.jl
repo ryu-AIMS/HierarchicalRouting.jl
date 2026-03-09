@@ -221,58 +221,23 @@ function perturb_swap_solution(
     tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
     tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
 
-    tours_new_a::Vector{Vector{Point{2,Float64}}} = [
-        [tender_a_new_start, sortie_nodes, tender_a_new_finish]
-        for sortie_nodes in new_clusters[cluster_a_idx].nodes
-    ]
-    tours_new_b::Vector{Vector{Point{2,Float64}}} = [
-        [tender_b_new_start, sortie_nodes, tender_b_new_finish]
-        for sortie_nodes in new_clusters[cluster_b_idx].nodes
-    ]
-
-    updated_sortie_matrix_a::Vector{Matrix{Float64}} = getindex.(
-        get_feasible_matrix.(tours_new_a, Ref(exclusions_tender)),
-        1
-    )
-    updated_sortie_matrix_b::Vector{Matrix{Float64}} = getindex.(
-        get_feasible_matrix.(tours_new_b, Ref(exclusions_tender)),
-        1
+    # Create tender tours by tender sequential nearest neighbour
+    tenders_a_new, tenders_b_new = tender_sequential_nearest_neighbour.(
+        [new_clusters[cluster_a_idx], new_clusters[cluster_b_idx]],
+        [(tender_a_new_start, tender_a_new_finish), (tender_b_new_start, tender_b_new_finish)],
+        Ref(problem.tenders.number), #! Get n_tenders from problem instance
+        Ref(problem.tenders.capacity), #! Get t_cap from problem instance
+        Ref(exclusions_tender)
     )
 
-    updated_linestrings_a::Vector{Vector{Vector{LineString{2,Float64}}}} = getindex.(
-        get_feasible_vector.(tours_new_a, Ref(exclusions_tender)),
-        2
-    )
-    updated_linestrings_b::Vector{Vector{Vector{LineString{2,Float64}}}} = getindex.(
-        get_feasible_vector.(tours_new_b, Ref(exclusions_tender)),
-        2
-    )
-
-    sorties_a::Vector{Route} = Route.(
-        [t[2:end-1] for t in tours_new_a],
-        updated_sortie_matrix_a,
-        [vcat(l...) for l in updated_linestrings_a]
-    )
-    sorties_b::Vector{Route} = Route.(
-        [t[2:end-1] for t in tours_new_b],
-        updated_sortie_matrix_b,
-        [vcat(l...) for l in updated_linestrings_b]
-    )
-
-    tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-        tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
-        tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-        tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...) &&
+    tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
+        tender_b_new_start ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) ||
+        tender_a_new_finish ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
+        tender_b_new_finish ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) &&
             throw(ArgumentError(
                 "Tender start/end point wrongly included in sortie nodes after perturbation"
             ))
 
-    tenders_a_new, tenders_b_new = TenderSolution.(
-        [tender_a.id, tender_b.id],
-        [tender_a_new_start, tender_b_new_start],
-        [tender_a_new_finish, tender_b_new_finish],
-        [sorties_a, sorties_b]
-    )
     # Re-run two-opt on the modified sorties
     tender_a_improved, tender_b_improved = two_opt.(
         [tenders_a_new, tenders_b_new],
