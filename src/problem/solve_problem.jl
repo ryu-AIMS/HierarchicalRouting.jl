@@ -166,7 +166,6 @@ function solve(
     )
 
     # Simulate disturbance events
-    @info "Apply disturbance events"
     solution::MSTSolution = _apply_disturbance_events!(
         cluster_sets,
         ms_soln_sets,
