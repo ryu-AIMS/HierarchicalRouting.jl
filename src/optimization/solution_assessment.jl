@@ -9,8 +9,7 @@
     perturb_swap_solution(
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
-        exclusions_mothership::POLY_VEC=POLY_VEC(),
-        exclusions_tender::POLY_VEC=POLY_VEC()
+        problem::Problem,
     )::MSTSolution
 
 Perturb the solution by swapping two nodes:
@@ -22,8 +21,8 @@ Perturb the solution by swapping two nodes:
 - `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
     selects cluster.
 - `cluster_pair`: Tuple of two cluster sequence indices to swap nodes between.
+- `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `exclusions_tender`: Exclusion zone polygons for tender. Default = DataFrame().
-- `exclusions_mothership`: Exclusion zone polygons for mothership. Default = DataFrame().
 - `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
 # Returns
@@ -128,9 +127,11 @@ end
 function perturb_swap_solution(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
-    exclusions_mothership::POLY_VEC=POLY_VEC(),
-    exclusions_tender::POLY_VEC=POLY_VEC()
+    problem::Problem,
 )::MSTSolution
+    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
     tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
@@ -672,8 +673,7 @@ function simulated_annealing(
                 soln_proposed = perturb_function(
                     soln_current,
                     (clust_idx, clust_swap_idx),
-                    exclusions_mothership,
-                    exclusions_tender
+                    problem
                 )
             end
 
