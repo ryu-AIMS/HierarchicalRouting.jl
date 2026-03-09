@@ -103,7 +103,6 @@ function solve(
     ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
     tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
-    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
 
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(problem; k)
@@ -137,9 +136,9 @@ function solve(
 
         optimized_initial, _ = improve_solution(
             MSTSolution([clusters], [ms_route], [initial_tenders]),
-            problem.mothership.exclusion.geometry,
-            problem.tenders.exclusion.geometry,
-            1, next_cluster_idx, vessel_weightings;
+            problem,
+            1,
+            next_cluster_idx;
             cross_cluster_flag
         )
 
@@ -267,11 +266,9 @@ end
 """
     improve_solution(
         initial_solution::MSTSolution,
-        exclusions_mothership::POLY_VEC,
-        exclusions_tender::POLY_VEC,
+        problem::Problem,
         current_cluster_idx::Int,
-        next_cluster_idx::Int,
-        vessel_weightings::NTuple{2,AbstractFloat};
+        next_cluster_idx::Int;
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         perturb_function::Function=perturb_swap_solution,
@@ -300,8 +297,7 @@ Multiple dispatch to improve full and partial solutions (respectively).
 
 # Arguments
 - `initial_solution`: Initial solution to improve
-- `exclusions_mothership`: Exclusion zone polygon polygons for the mothership
-- `exclusions_tender`: Exclusion zone polygon polygons for the tenders
+- `problem`: Problem instance to solve
 - `current_cluster_idx`: Index of the current cluster in the sequence
 - `next_cluster_idx`: Index of the next cluster in the sequence
 - `opt_function`: Optimization function to improve the solution
@@ -313,7 +309,6 @@ Multiple dispatch to improve full and partial solutions (respectively).
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
 - `static_limit`: Number of iterations to allow stagnation before early exit
-- `vessel_weightings`: Weightings for the mothership and tenders in the objective function
 
 # Returns
 - `soln_best`: Solution with lowest objective value found
@@ -321,11 +316,9 @@ Multiple dispatch to improve full and partial solutions (respectively).
 """
 function improve_solution(
     initial_solution::MSTSolution,
-    exclusions_mothership::POLY_VEC,
-    exclusions_tender::POLY_VEC,
+    problem::Problem,
     current_cluster_idx::Int,
-    next_cluster_idx::Int,
-    vessel_weightings::NTuple{2,AbstractFloat};
+    next_cluster_idx::Int;
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     perturb_function::Function=perturb_swap_solution,
@@ -364,13 +357,13 @@ function improve_solution(
         [current_mothership_route],
         [current_tender_routes]
     )
-
+    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
     soln_best_partial, z_best = opt_function(
         current_solution,
         objective_function,
         perturb_function,
-        exclusions_mothership,
-        exclusions_tender,
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry,
         max_iterations,
         temp_init,
         cooling_rate,
@@ -410,20 +403,14 @@ function improve_solution(
     cooling_rate::Float64=0.95,
     static_limit::Int=20,
 )
-    vessel_weightings::NTuple{2,AbstractFloat} = (
-        problem.mothership.weighting,
-        problem.tenders.weighting
-    )
     current_cluster_idx::Int64 = 1
     next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
 
     return improve_solution(
         init_solution,
-        problem.mothership.exclusion.geometry,
-        problem.tenders.exclusion.geometry,
+        problem,
         current_cluster_idx,
-        next_cluster_idx,
-        vessel_weightings;
+        next_cluster_idx;
         cross_cluster_flag=cross_cluster_flag,
         opt_function,
         objective_function,

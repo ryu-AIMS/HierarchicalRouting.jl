@@ -207,11 +207,9 @@ function _apply_disturbance_events!(
 
             optimized_current_solution, _ = improve_solution(
                 MSTSolution([clusters], [ms_route], [current_tender_soln]),
-                problem.mothership.exclusion.geometry,
-                problem.tenders.exclusion.geometry,
+                problem,
                 disturb_clust_idx,
                 next_disturbance_cluster_idx,
-                vessel_weightings,
                 cross_cluster_flag=false
             )
             # Overwrite with improved
