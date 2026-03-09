@@ -274,8 +274,8 @@ end
         perturb_function::Function=perturb_swap_solution,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
-        temp_init::Float64=500.0,
-        cooling_rate::Float64=0.95,
+        temp_init::Float64=5.0,
+        cooling_rate::Float64=0.85,
         min_iters::Int=50,
         static_limit::Int=20,
     )::Tuple{MSTSolution,Float64}
@@ -287,8 +287,8 @@ end
         perturb_function::Function=perturb_swap_solution,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
-        temp_init::Float64=500.0,
-        cooling_rate::Float64=0.95,
+        temp_init::Float64=5.0,
+        cooling_rate::Float64=0.85,
         min_iters::Int=50,
         static_limit::Int=20,
     )
@@ -327,8 +327,8 @@ function improve_solution(
     perturb_function::Function=perturb_swap_solution,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
-    temp_init::Float64=500.0,
-    cooling_rate::Float64=0.95,
+    temp_init::Float64=5.0,
+    cooling_rate::Float64=0.85,
     min_iters::Int=50,
     static_limit::Int=20,
 )::Tuple{MSTSolution,Float64}
@@ -401,8 +401,8 @@ function improve_solution(
     perturb_function::Function=perturb_swap_solution,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
-    temp_init::Float64=500.0,
-    cooling_rate::Float64=0.95,
+    temp_init::Float64=5.0,
+    cooling_rate::Float64=0.85,
     min_iters::Int=50,
     static_limit::Int=20,
 )
