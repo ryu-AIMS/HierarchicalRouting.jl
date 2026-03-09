@@ -567,10 +567,10 @@ end
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
-        max_iterations::Int=5_000,
-        temp_init::Float64=500.0,
-        cooling_rate::Float64=0.95,
-        static_limit::Int=150;
+        max_iterations::Int,
+        temp_init::Float64,
+        cooling_rate::Float64,
+        static_limit::Int;
         cross_cluster_flag::Bool,
     )::Tuple{MSTSolution,Float64}
 
@@ -581,13 +581,11 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `soln_init`: Initial solution.
 - `objective_function`: Function to evaluate the solution.
 - `perturb_function`: Function to perturb the solution.
-- `max_iterations`: Maximum number of iterations. Default = 5_000.
-- `temp_init`: Initial temperature. Default = 500.0.
+- `max_iterations`: Maximum number of iterations.
+- `temp_init`: Initial temperature.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
-    Default = 0.95 = 95%.
-- `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
-- `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
-    considered.
+- `static_limit`: Number of iterations to allow stagnation before early exit.
+- `cross_cluster_flag`: Boolean to indicate consideration of cross-cluster perturbations.
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.
@@ -598,10 +596,10 @@ function simulated_annealing(
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    max_iterations::Int=5_000,
-    temp_init::Float64=500.0,
-    cooling_rate::Float64=0.95,
-    static_limit::Int=150;
+    max_iterations::Int,
+    temp_init::Float64,
+    cooling_rate::Float64,
+    static_limit::Int;
     cross_cluster_flag::Bool,
 )::Tuple{MSTSolution,Float64}
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
