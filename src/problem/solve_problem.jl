@@ -276,6 +276,7 @@ end
         max_iterations::Int=1_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
+        min_iters::Int=50,
         static_limit::Int=20,
     )::Tuple{MSTSolution,Float64}
     improve_solution(
@@ -288,6 +289,7 @@ end
         max_iterations::Int=1_000,
         temp_init::Float64=500.0,
         cooling_rate::Float64=0.95,
+        min_iters::Int=50,
         static_limit::Int=20,
     )
 
@@ -308,6 +310,7 @@ Multiple dispatch to improve full and partial solutions (respectively).
 - `max_iterations`: Maximum number of iterations
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
+- `min_iters`: Minimum number of iterations to perform before allowing early exit
 - `static_limit`: Number of iterations to allow stagnation before early exit
 
 # Returns
@@ -326,6 +329,7 @@ function improve_solution(
     max_iterations::Int=1_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
+    min_iters::Int=50,
     static_limit::Int=20,
 )::Tuple{MSTSolution,Float64}
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
@@ -365,6 +369,7 @@ function improve_solution(
         max_iterations,
         temp_init,
         cooling_rate,
+        min_iters,
         static_limit;
         cross_cluster_flag,
     )
@@ -398,6 +403,7 @@ function improve_solution(
     max_iterations::Int=1_000,
     temp_init::Float64=500.0,
     cooling_rate::Float64=0.95,
+    min_iters::Int=50,
     static_limit::Int=20,
 )
     current_cluster_idx::Int64 = 1
@@ -415,6 +421,7 @@ function improve_solution(
         max_iterations,
         temp_init,
         cooling_rate,
+        min_iters,
         static_limit
     )
 end

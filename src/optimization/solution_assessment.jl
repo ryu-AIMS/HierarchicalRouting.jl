@@ -570,6 +570,7 @@ end
         max_iterations::Int,
         temp_init::Float64,
         cooling_rate::Float64,
+        min_iters::Int,
         static_limit::Int;
         cross_cluster_flag::Bool,
     )::Tuple{MSTSolution,Float64}
@@ -584,6 +585,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `max_iterations`: Maximum number of iterations.
 - `temp_init`: Initial temperature.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
+- `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
 - `cross_cluster_flag`: Boolean to indicate consideration of cross-cluster perturbations.
 
@@ -599,6 +601,7 @@ function simulated_annealing(
     max_iterations::Int,
     temp_init::Float64,
     cooling_rate::Float64,
+    min_iters::Int,
     static_limit::Int;
     cross_cluster_flag::Bool,
 )::Tuple{MSTSolution,Float64}
@@ -663,7 +666,7 @@ function simulated_annealing(
                 @info "$iteration\t\t$obj_best\t$temp"
             end
 
-            if static_ctr >= static_limit
+            if iteration >= min_iters && static_ctr >= static_limit
                 @info """$iteration\t\t$obj_best\t$temp
                 \tEarly exit at iteration $iteration due to stagnation."""
                 break
