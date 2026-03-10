@@ -161,13 +161,14 @@ function solve(
 
     # Simulate disturbance events
     total_tender_capacity::Int = Int(problem.tenders.number * problem.tenders.capacity)
+    time_limit_pso_disturbed = Float64(time_limit / length(ordered_disturbances))
     solution = _apply_disturbance_events!(
         solution,
         clust_seq,
         ordered_disturbances,
         problem,
         total_tender_capacity,
-        Float64(time_limit);
+        time_limit_pso_disturbed;
         do_improve,
         waypoint_optim_method,
         wpt_optim_plot_flag,
