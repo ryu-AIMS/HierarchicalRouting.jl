@@ -96,15 +96,24 @@ function _apply_disturbance_events!(
     waypoint_optim_method=nothing,
     wpt_optim_plot_flag::Bool=false,
 )::MSTSolution
-    cluster_sets::Vector{Vector{Cluster}} = solution.cluster_sets
-    ms_soln_sets::Vector{MothershipSolution} = solution.mothership_routes
-    tender_soln_sets::Vector{Vector{TenderSolution}} = solution.tenders
+    n_events = length(ordered_disturbances)
+    if iszero(n_events)
+        return solution
+    else
+        @info "Apply disturbance events"
+    end
+
+    cluster_sets = Vector{Vector{Cluster}}(undef, n_events + 1)
+    ms_soln_sets = Vector{MothershipSolution}(undef, n_events + 1)
+    tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events + 1)
 
     disturb_idx = 1
+    cluster_sets[1] = solution.cluster_sets[1]
+    ms_soln_sets[1] = solution.mothership_routes[1]
+    tender_soln_sets[1] = solution.tenders[1]
+
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
-
-    isempty(ordered_disturbances) || @info "Apply disturbance events"
 
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
@@ -199,7 +208,7 @@ function _apply_disturbance_events!(
         # Solution improvement step (used by `solve`, not by `initial_solution`)
         if do_improve
             next_disturbance_cluster_idx =
-                disturb_clust_idx <= length(ordered_disturbances) ?
+                disturb_clust_idx <= n_events ?
                 ordered_disturbances[disturb_clust_idx] :
                 length(clusters) + 1
 
