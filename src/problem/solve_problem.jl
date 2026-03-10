@@ -97,7 +97,7 @@ function solve(
         Random.seed!(rng, seed)
     end
 
-    ordered_disturbances = sort(unique(disturbance_clusters))
+    ordered_disturbances::Vector{Int64} = sort(unique(disturbance_clusters))
 
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(problem; k)
@@ -111,7 +111,7 @@ function solve(
     )
 
     # Generate initial tender solutions using sequential nearest neighbour
-    initial_tenders = [
+    initial_tenders::Vector{TenderSolution} = [
         tender_sequential_nearest_neighbour(
             clusters[clust_seq][j],
             (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
@@ -127,9 +127,9 @@ function solve(
     if do_improve
         @info "Improving initial solution using simulated annealing"
         # Optimize the initial tenders solution up to the first disturbance
-        next_cluster_idx = !isempty(ordered_disturbances) ?
-                           ordered_disturbances[1] :
-                           length(clusters)
+        next_cluster_idx::Int64 = !isempty(ordered_disturbances) ?
+                                  ordered_disturbances[1] :
+                                  length(clusters)
 
         solution, _ = improve_solution(
             solution,
@@ -157,7 +157,7 @@ function solve(
     )
 
     # Simulate disturbance events
-    total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
+    total_tender_capacity::Int = Int(problem.tenders.number * problem.tenders.capacity)
     solution = _apply_disturbance_events!(
         solution,
         clust_seq,
