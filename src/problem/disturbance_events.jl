@@ -64,9 +64,7 @@ end
 
 """
     _apply_disturbance_events!(
-        cluster_sets::Vector{Vector{Cluster}},
-        ms_soln_sets::Vector{MothershipSolution},
-        tender_soln_sets::Vector{Vector{TenderSolution}},
+        solution::MSTSolution,
         clust_seq::Vector{Int64},
         ordered_disturbances::Vector{Int64},
         problem::Problem,
@@ -88,9 +86,7 @@ Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each distu
     just those appearing in `candidate_wpt_idxs` and/or between disturbance events.
 """
 function _apply_disturbance_events!(
-    cluster_sets::Vector{Vector{Cluster}},
-    ms_soln_sets::Vector{MothershipSolution},
-    tender_soln_sets::Vector{Vector{TenderSolution}},
+    solution::MSTSolution,
     clust_seq::Vector{Int64},
     ordered_disturbances::Vector{Int64},
     problem::Problem,
@@ -100,6 +96,10 @@ function _apply_disturbance_events!(
     waypoint_optim_method=nothing,
     wpt_optim_plot_flag::Bool=false,
 )::MSTSolution
+    cluster_sets::Vector{Vector{Cluster}} = solution.cluster_sets
+    ms_soln_sets::Vector{MothershipSolution} = solution.mothership_routes
+    tender_soln_sets::Vector{Vector{TenderSolution}} = solution.tenders
+
     disturb_idx = 1
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]

@@ -153,7 +153,7 @@ function solve(
 
     # Apply solution to the first set of clusters pre-disturbance
     @info "Optimizing waypoints using PSO"
-    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints(
+    solution = optimize_waypoints(
         solution,
         problem,
         waypoint_optim_method;
@@ -163,9 +163,7 @@ function solve(
 
     # Simulate disturbance events
     solution = _apply_disturbance_events!(
-        cluster_sets,
-        ms_soln_sets,
-        tender_soln_sets,
+        solution,
         clust_seq,
         ordered_disturbances,
         problem,
