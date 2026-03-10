@@ -127,6 +127,8 @@ function solve(
         for j in 1:length(clust_seq)
     ]
 
+    solution::MSTSolution = MSTSolution([clusters], [ms_route], [initial_tenders])
+
     if do_improve
         @info "Improving initial solution using simulated annealing"
         # Optimize the initial tenders solution up to the first disturbance
@@ -134,38 +136,33 @@ function solve(
                            ordered_disturbances[1] :
                            length(clusters)
 
-        optimized_initial, _ = improve_solution(
-            MSTSolution([clusters], [ms_route], [initial_tenders]),
+        solution, _ = improve_solution(
+            solution,
             problem,
             1,
             next_cluster_idx;
             cross_cluster_flag
         )
 
-        # Apply the optimized initial solution to the first set of clusters pre-disturbance
-        clusters = optimized_initial.cluster_sets[1]
-        ms_route = optimized_initial.mothership_routes[1]
-        initial_tenders = optimized_initial.tenders[1]
+        # Update cluster sequence after improvement
         clust_seq = filter(
-            c -> c != 0 && c <= length(clusters),
-            ms_route.cluster_sequence.id
+            c -> c != 0 && c <= length(solution.cluster_sets[end]),
+            solution.mothership_routes[end].cluster_sequence.id
         )
     end
 
     # Apply solution to the first set of clusters pre-disturbance
     @info "Optimizing waypoints using PSO"
     cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints(
-        clusters,
-        ms_route,
-        initial_tenders,
+        solution,
         problem,
-        waypoint_optim_method,
-        Float64(time_limit),
-        wpt_optim_plot_flag
+        waypoint_optim_method;
+        time_limit=Float64(time_limit),
+        plot_flag=wpt_optim_plot_flag
     )
 
     # Simulate disturbance events
-    solution::MSTSolution = _apply_disturbance_events!(
+    solution = _apply_disturbance_events!(
         cluster_sets,
         ms_soln_sets,
         tender_soln_sets,
