@@ -154,7 +154,7 @@ function solve(
 
     # Apply solution to the first set of clusters pre-disturbance
     @info "Optimizing waypoints using PSO"
-    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints!(
+    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints(
         clusters,
         ms_route,
         initial_tenders,
