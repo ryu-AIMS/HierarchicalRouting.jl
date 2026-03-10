@@ -212,8 +212,6 @@ function _apply_disturbance_events!(
                 ordered_disturbances[disturb_clust_idx] :
                 length(clusters) + 1
 
-            vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
-
             optimized_current_solution, _ = improve_solution(
                 MSTSolution([clusters], [ms_route], [current_tender_soln]),
                 problem,

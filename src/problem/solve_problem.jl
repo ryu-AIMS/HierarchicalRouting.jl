@@ -98,11 +98,6 @@ function solve(
     end
 
     ordered_disturbances = sort(unique(disturbance_clusters))
-    n_events = length(ordered_disturbances) + 1
-    cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
-    ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
-    tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
-    total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
 
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(problem; k)
@@ -162,6 +157,7 @@ function solve(
     )
 
     # Simulate disturbance events
+    total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
     solution = _apply_disturbance_events!(
         solution,
         clust_seq,
