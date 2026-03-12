@@ -225,8 +225,8 @@ function perturb_swap_solution(
     tenders_a_new, tenders_b_new = tender_sequential_nearest_neighbour.(
         [new_clusters[cluster_a_idx], new_clusters[cluster_b_idx]],
         [(tender_a_new_start, tender_a_new_finish), (tender_b_new_start, tender_b_new_finish)],
-        Ref(problem.tenders.number), #! Get n_tenders from problem instance
-        Ref(problem.tenders.capacity), #! Get t_cap from problem instance
+        Ref(problem.tenders.number),
+        Ref(problem.tenders.capacity),
         Ref(exclusions_tender)
     )
 
