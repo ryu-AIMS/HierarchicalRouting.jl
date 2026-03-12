@@ -985,18 +985,15 @@ function annotate_vessel_speeds!(
     fontsize::Int=14,
     color::Symbol=:black
 )::Axis
-    speed_ms_m_per_s = 1 / vessel_weightings[1]
-    speed_t_m_per_s = 1 / vessel_weightings[2]
-
-    speed_ms_kmh = round(speed_ms_m_per_s * 3.6, digits=1)
-    speed_t_kmh = round(speed_t_m_per_s * 3.6, digits=1)
+    speed_ms_m_per_s = round(1 / vessel_weightings[1], digits=2)
+    speed_t_m_per_s = round(1 / vessel_weightings[2], digits=2)
 
     text!(
         ax,
         position...,
-        text="""Vessel speeds (km/hr):
+        text="""Vessel speeds (m/s):
         (mothership, tenders)
-        ($(speed_ms_kmh),   $(speed_t_kmh))""",
+        ($(speed_ms_m_per_s),   $(speed_t_m_per_s))""",
         align=align,
         space=space,
         fontsize=fontsize,
