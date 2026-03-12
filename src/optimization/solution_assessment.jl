@@ -247,6 +247,7 @@ function perturb_swap_solution(
     # Update tenders with existing start/finish (not yet adjusted)
     soln_temp = deepcopy(soln)
     soln_temp.cluster_sets[end] = new_clusters
+    soln_temp.mothership_routes[end] = updated_ms_solution
 
     u = rebuild_solution_with_waypoints(
         soln_temp,
