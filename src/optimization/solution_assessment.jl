@@ -261,9 +261,9 @@ function perturb_swap_solution(
 
     # Create new perturbed solution
     soln_perturbed = MSTSolution(
-        [soln.cluster_sets[end], new_clusters],             # [new_clusters],
-        [soln.mothership_routes[end], updated_ms_solution], # [updated_ms_solution],
-        [soln.tenders[end], tenders_all]
+        [soln.cluster_sets; [new_clusters]],
+        [soln.mothership_routes; updated_ms_solution],
+        [soln.tenders; [tenders_all]]
     )
     return soln_perturbed
 end
