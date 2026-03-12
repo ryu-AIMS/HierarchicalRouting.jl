@@ -394,7 +394,7 @@ end
     capacity_constrained_kmeans(
         coordinates::Matrix{Float64};
         max_cluster_size::Int64,
-        max_split_distance::Int64=12000,
+        max_split_distance::Int64=typemax(Int64),
         k_spec::Int=0,
         max_iter::Int64=1000,
         n_restarts::Int64=20,
@@ -424,7 +424,7 @@ A vector of cluster assignments for each reef.
 function capacity_constrained_kmeans(
     coordinates::Matrix{Float64};
     max_cluster_size::Int64,
-    max_split_distance::Int64=12000,
+    max_split_distance::Int64=typemax(Int64),
     k_spec::Int=0,
     max_iter::Int64=1000,
     n_restarts::Int64=20,
