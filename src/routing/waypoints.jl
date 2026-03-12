@@ -254,7 +254,7 @@ function optimize_waypoints(
     plot_flag::Bool,
 )::MSTSolution
     if isnothing(opt_method)
-        return solution
+        return soln
     else
         @info "Optimizing full waypoint subset using $(opt_method)"
     end
