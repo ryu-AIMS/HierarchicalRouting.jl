@@ -957,7 +957,7 @@ function annotate_cost!(
     position::Tuple{Float64,Float64}=(0.95, 0.01),
     fontsize::Int=14,
     color::Symbol=:black,
-    metric::String="Critical path"
+    metric::String="Makespan"
 )::Axis
     # Format cost time in hours and minutes
     cost_hours::Int = floor(cost_time)
