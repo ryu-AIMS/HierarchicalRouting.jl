@@ -191,9 +191,9 @@ function _apply_disturbance_events!(
                 plot_flag=wpt_optim_plot_flag,
             )
 
-            clusters = solution_tmp.cluster_sets[1]
-            ms_route = solution_tmp.mothership_routes[1]
-            current_tender_soln = solution_tmp.tenders[1]
+            clusters = solution_tmp.cluster_sets[end]
+            ms_route = solution_tmp.mothership_routes[end]
+            current_tender_soln = solution_tmp.tenders[end]
         end
 
         # Solution improvement step (used by `solve`, not by `initial_solution`)
@@ -213,9 +213,9 @@ function _apply_disturbance_events!(
                 cross_cluster_flag=false
             )
             # Overwrite with improved
-            clusters = optimized_current_solution.cluster_sets[1]
-            ms_route = optimized_current_solution.mothership_routes[1]
-            current_tender_soln = optimized_current_solution.tenders[1]
+            clusters = optimized_current_solution.cluster_sets[end]
+            ms_route = optimized_current_solution.mothership_routes[end]
+            current_tender_soln = optimized_current_solution.tenders[end]
             # Update clust_seq in case that it has changed post-improvement
             clust_seq = filter(
                 c -> c != 0 && c <= length(clusters),

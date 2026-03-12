@@ -376,18 +376,18 @@ function improve_solution(
 
     merged_clusters = vcat(
         cluster_set[clust_seq_noncurrent],
-        soln_best_partial.cluster_sets[1]
+        soln_best_partial.cluster_sets[end]
     )
     sort!(merged_clusters, by=c -> c.id)
 
-    merged_tenders = vcat(soln_best_partial.tenders[1], noncurrent_tender_routes)
+    merged_tenders = vcat(soln_best_partial.tenders[end], noncurrent_tender_routes)
     sort!(merged_tenders, by=t -> t.id)
     interior_ids = @view cluster_seq_ids[2:end-1]
     ordered_tenders = merged_tenders[interior_ids]
 
     soln_best = MSTSolution(
         [merged_clusters],
-        [soln_best_partial.mothership_routes[1]],
+        [soln_best_partial.mothership_routes[end]],
         [ordered_tenders]
     )
 
