@@ -230,13 +230,13 @@ function perturb_swap_solution(
         Ref(exclusions_tender)
     )
 
-    tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
-        tender_b_new_start ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) ||
-        tender_a_new_finish ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
-        tender_b_new_finish ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) &&
-            throw(ArgumentError(
-                "Tender start/end point wrongly included in sortie nodes after perturbation"
-            ))
+    (tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
+     tender_b_new_start ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) ||
+     tender_a_new_finish ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
+     tender_b_new_finish ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...)) &&
+        throw(ArgumentError(
+            "Tender start/end point wrongly included in sortie nodes after perturbation"
+        ))
 
     # Re-run two-opt on the modified sorties
     tender_a_improved, tender_b_improved = two_opt.(
