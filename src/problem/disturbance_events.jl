@@ -100,7 +100,7 @@ function _apply_disturbance_events!(
     if iszero(n_events)
         return solution
     else
-        @info "Apply disturbance events"
+        @info "Apply disturbance events at clusters $(ordered_disturbances)"
     end
 
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events + 1)
