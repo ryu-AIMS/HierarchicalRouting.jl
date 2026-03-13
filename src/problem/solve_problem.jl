@@ -97,13 +97,14 @@ function solve(
         Random.seed!(rng, seed)
     end
 
-    ordered_disturbances::Vector{Int64} = sort(unique(disturbance_clusters))
-
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(problem; k)
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     n_clusters::Int = length(clusters)
+    ordered_disturbances::Vector{Int64} = sort(
+        [d for d in disturbance_clusters if d <= n_clusters]
+    )
 
     # Route the mothership using nearest neighbour and 2-opt
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
