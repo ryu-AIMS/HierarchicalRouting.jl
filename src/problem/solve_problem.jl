@@ -103,10 +103,12 @@ function solve(
     clusters::Vector{Cluster} = cluster_problem(problem; k)
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
+    n_clusters::Int = length(clusters)
+
     # Route the mothership using nearest neighbour and 2-opt
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
     clust_seq::Vector{Int64} = filter(
-        c -> c != 0 && c <= length(clusters),
+        c -> c != 0 && c <= n_clusters,
         ms_route.cluster_sequence.id
     )
 
@@ -129,7 +131,7 @@ function solve(
         # Optimize the initial tenders solution up to the first disturbance
         next_cluster_idx::Int64 = !isempty(ordered_disturbances) ?
                                   ordered_disturbances[1] :
-                                  length(clusters)
+                                  n_clusters
 
         solution, _ = improve_solution(
             solution,
