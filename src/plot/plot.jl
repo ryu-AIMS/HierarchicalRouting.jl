@@ -574,6 +574,7 @@ end
         show_tenders::Bool=true,
         highlight_critical_path_flag::Bool=false,
         title::NTuple{2,String}=("Solution A", "Solution B"),
+        size::Tuple{Int64,Int64}=(1350, 750),
     )::Figure
 
 Create a plot of the full routing solution, including:
@@ -640,9 +641,10 @@ function solution(
     show_mothership::Bool=true,
     show_tenders::Bool=true,
     highlight_critical_path_flag::Bool=false,
-    title::NTuple{2,String}=("Solution A", "Solution B")
+    title::NTuple{2,String}=("Solution A", "Solution B"),
+    size::Tuple{Int64,Int64}=(1350, 750),
 )::Figure
-    fig = Figure(size=(1350, 750))  ## 2 fig plot
+    fig = Figure(size=size)  ## 2 fig plot
     ax1, ax2 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
         Axis(fig[1, 2], xlabel="Longitude")
@@ -799,6 +801,7 @@ end
         show_mothership::Bool=true,
         show_tenders::Bool=true,
         highlight_critical_path_flag::Bool=false,
+        size::Tuple{Int64,Int64}=(1650, 600),
     )::Figure
 
 Create a plot of the solution at each progressive disturbance event, including:
@@ -821,6 +824,7 @@ Create a plot of the solution at each progressive disturbance event, including:
 - `show_tenders`: Whether to show **tender** routes.
 - `highlight_critical_path_flag`: Flag to highlight the critical path (in red) on the final
 plot.
+-`size`: The size (width, height) for the full figure.
 
 # Returns
 The created Figure object containing the plot.
@@ -835,10 +839,11 @@ function solution_disturbances(
     show_mothership::Bool=true,
     show_tenders::Bool=true,
     highlight_critical_path_flag::Bool=false,
+    size::Tuple{Int64,Int64}=(1650, 600),
 )::Figure
     #! NOTE: This function assumes 2 disturbance events.
     #TODO: Generalize to any number of disturbance events.
-    fig = Figure(size=(1650, 600))  ## 3 fig plot
+    fig = Figure(size=size)  ## 3 fig plot
     ax1, ax2, ax3 =
         Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude"),
         Axis(fig[1, 2], xlabel="Longitude"),
