@@ -227,11 +227,7 @@ function disturb_remaining_clusters(
     k_d_upper = min(max(k + 1, n_sites, k^2), n_sites)
     k_d = rand(k_d_lower:k_d_upper)
 
-    disturbance_clusters = kmeans(
-        coordinates_array_3d,
-        k_d;
-        tol=tol
-    )
+    disturbance_clusters = kmeans(coordinates_array_3d, k_d; tol=tol)
 
     # Create a score based on the disturbance values for each cluster
     disturbance_scores = Vector{Float64}(undef, n_sites)
