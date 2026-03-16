@@ -56,6 +56,7 @@ end
         do_improve::Bool=true,
         time_limit::Real=200.0,
         wpt_optim_plot_flag::Bool=false,
+        cross_cluster_flag::Bool=false,
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -75,6 +76,7 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `do_improve`: Whether to improve the initial solution by optimization tender sorties
 - `time_limit`: Time limit for waypoint optimization, in seconds
 - `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
+- `cross_cluster_flag`: Flag to allow perturbations across clusters in solution improvement
 
 # Returns
 Best total MSTSolution found
@@ -89,6 +91,7 @@ function solve(
     do_improve::Bool=true,
     time_limit::Real=200.0,
     wpt_optim_plot_flag::Bool=false,
+    cross_cluster_flag::Bool=false,
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
@@ -100,7 +103,6 @@ function solve(
     ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
     tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
     total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
-    vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
 
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(problem; k)
@@ -134,9 +136,10 @@ function solve(
 
         optimized_initial, _ = improve_solution(
             MSTSolution([clusters], [ms_route], [initial_tenders]),
-            problem.mothership.exclusion.geometry,
-            problem.tenders.exclusion.geometry,
-            1, next_cluster_idx, vessel_weightings
+            problem,
+            1,
+            next_cluster_idx;
+            cross_cluster_flag
         )
 
         # Apply the optimized initial solution to the first set of clusters pre-disturbance
@@ -150,6 +153,7 @@ function solve(
     end
 
     # Apply solution to the first set of clusters pre-disturbance
+    @info "Optimizing waypoints using PSO"
     cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints!(
         clusters,
         ms_route,
@@ -262,17 +266,17 @@ end
 """
     improve_solution(
         initial_solution::MSTSolution,
-        exclusions_mothership::POLY_VEC,
-        exclusions_tender::POLY_VEC,
+        problem::Problem,
         current_cluster_idx::Int,
-        next_cluster_idx::Int,
-        vessel_weightings::NTuple{2,AbstractFloat};
+        next_cluster_idx::Int;
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         perturb_function::Function=perturb_swap_solution,
+        cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
-        temp_init::Float64=500.0,
-        cooling_rate::Float64=0.95,
+        temp_init::Float64=5.0,
+        cooling_rate::Float64=0.85,
+        min_iters::Int=50,
         static_limit::Int=20,
     )::Tuple{MSTSolution,Float64}
     improve_solution(
@@ -281,9 +285,11 @@ end
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         perturb_function::Function=perturb_swap_solution,
+        cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
-        temp_init::Float64=500.0,
-        cooling_rate::Float64=0.95,
+        temp_init::Float64=5.0,
+        cooling_rate::Float64=0.85,
+        min_iters::Int=50,
         static_limit::Int=20,
     )
 
@@ -293,18 +299,19 @@ Multiple dispatch to improve full and partial solutions (respectively).
 
 # Arguments
 - `initial_solution`: Initial solution to improve
-- `exclusions_mothership`: Exclusion zone polygon polygons for the mothership
-- `exclusions_tender`: Exclusion zone polygon polygons for the tenders
+- `problem`: Problem instance to solve
 - `current_cluster_idx`: Index of the current cluster in the sequence
 - `next_cluster_idx`: Index of the next cluster in the sequence
 - `opt_function`: Optimization function to improve the solution
 - `objective_function`: Objective function to quantify and evaluate the solution
 - `perturb_function`: Perturbation function to generate changes in the solution
+- `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
+    considered. Default = true.
 - `max_iterations`: Maximum number of iterations
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
+- `min_iters`: Minimum number of iterations to perform before allowing early exit
 - `static_limit`: Number of iterations to allow stagnation before early exit
-- `vessel_weightings`: Weightings for the mothership and tenders in the objective function
 
 # Returns
 - `soln_best`: Solution with lowest objective value found
@@ -312,17 +319,17 @@ Multiple dispatch to improve full and partial solutions (respectively).
 """
 function improve_solution(
     initial_solution::MSTSolution,
-    exclusions_mothership::POLY_VEC,
-    exclusions_tender::POLY_VEC,
+    problem::Problem,
     current_cluster_idx::Int,
-    next_cluster_idx::Int,
-    vessel_weightings::NTuple{2,AbstractFloat};
+    next_cluster_idx::Int;
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     perturb_function::Function=perturb_swap_solution,
+    cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
-    temp_init::Float64=500.0,
-    cooling_rate::Float64=0.95,
+    temp_init::Float64=5.0,
+    cooling_rate::Float64=0.85,
+    min_iters::Int=50,
     static_limit::Int=20,
 )::Tuple{MSTSolution,Float64}
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
@@ -354,34 +361,33 @@ function improve_solution(
         [current_mothership_route],
         [current_tender_routes]
     )
-
     soln_best_partial, z_best = opt_function(
+        problem,
         current_solution,
         objective_function,
         perturb_function,
-        exclusions_mothership,
-        exclusions_tender,
         max_iterations,
         temp_init,
         cooling_rate,
+        min_iters,
         static_limit;
-        vessel_weightings
+        cross_cluster_flag,
     )
 
     merged_clusters = vcat(
         cluster_set[clust_seq_noncurrent],
-        soln_best_partial.cluster_sets[1]
+        soln_best_partial.cluster_sets[end]
     )
     sort!(merged_clusters, by=c -> c.id)
 
-    merged_tenders = vcat(soln_best_partial.tenders[1], noncurrent_tender_routes)
+    merged_tenders = vcat(soln_best_partial.tenders[end], noncurrent_tender_routes)
     sort!(merged_tenders, by=t -> t.id)
     interior_ids = @view cluster_seq_ids[2:end-1]
     ordered_tenders = merged_tenders[interior_ids]
 
     soln_best = MSTSolution(
         [merged_clusters],
-        [soln_best_partial.mothership_routes[1]],
+        [soln_best_partial.mothership_routes[end]],
         [ordered_tenders]
     )
 
@@ -393,31 +399,29 @@ function improve_solution(
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     perturb_function::Function=perturb_swap_solution,
+    cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
-    temp_init::Float64=500.0,
-    cooling_rate::Float64=0.95,
+    temp_init::Float64=5.0,
+    cooling_rate::Float64=0.85,
+    min_iters::Int=50,
     static_limit::Int=20,
 )
-    vessel_weightings::NTuple{2,AbstractFloat} = (
-        problem.mothership.weighting,
-        problem.tenders.weighting
-    )
     current_cluster_idx::Int64 = 1
     next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
 
     return improve_solution(
         init_solution,
-        problem.mothership.exclusion.geometry,
-        problem.tenders.exclusion.geometry,
+        problem,
         current_cluster_idx,
-        next_cluster_idx,
-        vessel_weightings;
+        next_cluster_idx;
+        cross_cluster_flag=cross_cluster_flag,
         opt_function,
         objective_function,
         perturb_function,
         max_iterations,
         temp_init,
         cooling_rate,
+        min_iters,
         static_limit
     )
 end

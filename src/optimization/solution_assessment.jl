@@ -9,8 +9,7 @@
     perturb_swap_solution(
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
-        exclusions_mothership::POLY_VEC=POLY_VEC(),
-        exclusions_tender::POLY_VEC=POLY_VEC()
+        problem::Problem,
     )::MSTSolution
 
 Perturb the solution by swapping two nodes:
@@ -22,8 +21,8 @@ Perturb the solution by swapping two nodes:
 - `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
     selects cluster.
 - `cluster_pair`: Tuple of two cluster sequence indices to swap nodes between.
+- `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `exclusions_tender`: Exclusion zone polygons for tender. Default = DataFrame().
-- `exclusions_mothership`: Exclusion zone polygons for mothership. Default = DataFrame().
 - `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
 # Returns
@@ -128,48 +127,53 @@ end
 function perturb_swap_solution(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
-    exclusions_mothership::POLY_VEC=POLY_VEC(),
-    exclusions_tender::POLY_VEC=POLY_VEC()
+    problem::Problem,
 )::MSTSolution
+    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
-    tender_a = soln.tenders[end][clust_a_seq_idx]
-    tender_b = soln.tenders[end][clust_b_seq_idx]
+    tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
+    tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
     sortie_a_idx = rand(1:length(tender_a.sorties))
     sortie_b_idx = rand(1:length(tender_b.sorties))
-    sortie_a = deepcopy(tender_a.sorties[sortie_a_idx])
-    sortie_b = deepcopy(tender_b.sorties[sortie_b_idx])
 
-    if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
-        return soln
-    end
+    sortie_a_nodes = copy(tender_a.sorties[sortie_a_idx].nodes)
+    sortie_b_nodes = copy(tender_b.sorties[sortie_b_idx].nodes)
 
-    # Swap two random nodes across the two sorties
-    node_a_idx, node_b_idx = rand(1:length(sortie_a.nodes)), rand(1:length(sortie_b.nodes))
-    node_a, node_b = sortie_a.nodes[node_a_idx], sortie_b.nodes[node_b_idx]
-    sortie_a.nodes[node_a_idx] = node_b
-    sortie_b.nodes[node_b_idx] = node_a
+    (isempty(sortie_a_nodes) || isempty(sortie_b_nodes)) && return soln
+
+    # Pick two random nodes across the two sorties
+    node_a_idx, node_b_idx = rand(1:length(sortie_a_nodes)), rand(1:length(sortie_b_nodes))
+    node_a, node_b = sortie_a_nodes[node_a_idx], sortie_b_nodes[node_b_idx]
+
+    # Swap the nodes between the two sorties
+    sortie_a_nodes[node_a_idx] = node_b
+    sortie_b_nodes[node_b_idx] = node_a
 
     # Update new clusters
     new_clusters::Vector{Cluster} = deepcopy(soln.cluster_sets[end])
 
     cluster_a_idx = tender_a.id
     cluster_b_idx = tender_b.id
+
     nodes_a = new_clusters[cluster_a_idx].nodes
     nodes_b = new_clusters[cluster_b_idx].nodes
 
     # Swap nodes between clusters
     node_a_idx_clust = findfirst(isequal(node_a), nodes_a)
     node_b_idx_clust = findfirst(isequal(node_b), nodes_b)
+    (node_a_idx_clust === nothing || node_b_idx_clust === nothing) &&
+        throw(ArgumentError("Swap node not found in respective cluster nodes"))
+
     nodes_a[node_a_idx_clust] = node_b
     nodes_b[node_b_idx_clust] = node_a
 
-    centroid_a, centroid_b = Point{2,Float64}.([
-        (mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2))),
-        (mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
-    ])
+    centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
+    centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
     new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] = Cluster.(
         [cluster_a_idx, cluster_b_idx],
@@ -178,99 +182,89 @@ function perturb_swap_solution(
     )
 
     # Update mothership route and waypoints based on updated clusters
+    depot = soln.mothership_routes[end].route.nodes[1]
     cluster_seq_ids = getfield.(soln.tenders[end], :id)
     cluster_centroids = getfield.(new_clusters, :centroid)
-    ordered_cluster_centroids = cluster_centroids[cluster_seq_ids]
-    depot = soln.mothership_routes[end].route.nodes[1]
-    full_ms_route_pts = [[depot]; ordered_cluster_centroids; [depot]]
-
-    cluster_sequence = DataFrame(
-        id=[0; cluster_seq_ids; 0],
-        lon=getindex.(full_ms_route_pts, 1),
-        lat=getindex.(full_ms_route_pts, 2)
-    )
-
+    cluster_sequence = get_cluster_sequence_df(depot, cluster_seq_ids, cluster_centroids)
     updated_waypoints = get_waypoints(cluster_sequence, exclusions_mothership)
-    waypoint_path_vector = get_feasible_vector(
+
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
         updated_waypoints.waypoint,
         exclusions_mothership
-    )[2]
-
-    ordered_clusters = sort(cluster_sequence[1:end-1, :], :id)
-    ordered_centroid_pts = Point{2,Float64}.(ordered_clusters.lon, ordered_clusters.lat)
-    full_ms_route_matrix = get_feasible_matrix(
-        ordered_centroid_pts,
-        exclusions_mothership
-    )[1]
+    )
 
     updated_ms_solution = MothershipSolution(
         cluster_sequence,
         Route(
             updated_waypoints.waypoint,
-            full_ms_route_matrix,
+            waypoint_dist_vector,
             vcat(waypoint_path_vector...)
         )
     )
 
     # Update routes for modified sorties
-    tours = [
-        [[tender_a.start]; sortie_a.nodes; [tender_a.finish]],
-        [[tender_b.start]; sortie_b.nodes; [tender_b.finish]]
-    ]
-    updated_linestrings = getindex.(
-        get_feasible_vector.(tours, Ref(exclusions_tender)),
-        2
-    )
-    updated_sortie_matrices = getindex.(
-        get_feasible_matrix.(tours, Ref(exclusions_tender)),
-        1
+    cc = updated_waypoints.connecting_clusters
+    cc_first = first.(cc)
+    cc_last = last.(cc)
+
+    tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
+    tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
+    tender_b_new_start_idx = findlast(cc_last .== cluster_b_idx)
+    tender_b_new_finish_idx = findfirst(cc_first .== cluster_b_idx)
+
+    (tender_a_new_start_idx === nothing || tender_a_new_finish_idx === nothing ||
+     tender_b_new_start_idx === nothing || tender_b_new_finish_idx === nothing) &&
+        error("Could not resolve tender start/finish indices from connecting_clusters")
+
+    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
+    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
+    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
+    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+
+    # Create tender tours by tender sequential nearest neighbour
+    tenders_a_new, tenders_b_new = tender_sequential_nearest_neighbour.(
+        [new_clusters[cluster_a_idx], new_clusters[cluster_b_idx]],
+        [(tender_a_new_start, tender_a_new_finish), (tender_b_new_start, tender_b_new_finish)],
+        Ref(problem.tenders.number),
+        Ref(problem.tenders.capacity),
+        Ref(exclusions_tender)
     )
 
-    sortie_a = Route(
-        sortie_a.nodes,
-        updated_sortie_matrices[1],
-        vcat(updated_linestrings[1]...)
-    )
-    sortie_b = Route(
-        sortie_b.nodes,
-        updated_sortie_matrices[2],
-        vcat(updated_linestrings[2]...)
-    )
+    (tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
+     tender_b_new_start ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) ||
+     tender_a_new_finish ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
+     tender_b_new_finish ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...)) &&
+        throw(ArgumentError(
+            "Tender start/end point wrongly included in sortie nodes after perturbation"
+        ))
 
-    # Re-compute sorties for the modified clusters
-    sorties_a = [
-        i == sortie_a_idx ? sortie_a : tender_a.sorties[i]
-        for i in 1:length(tender_a.sorties)
-    ]
-    sorties_b = [
-        i == sortie_b_idx ? sortie_b : tender_b.sorties[i]
-        for i in 1:length(tender_b.sorties)
-    ]
-
-    tender_a_new, tender_b_new = TenderSolution.(
-        [tender_a, tender_b],
-        [sorties_a, sorties_b]
-    )
     # Re-run two-opt on the modified sorties
     tender_a_improved, tender_b_improved = two_opt.(
-        [tender_a_new, tender_b_new],
+        [tenders_a_new, tenders_b_new],
         Ref(exclusions_tender)
     )
 
     # Update tenders with existing start/finish (not yet adjusted)
-    tenders_all::Vector{Vector{TenderSolution}} = copy(soln.tenders[end])
+    soln_temp = deepcopy(soln)
+    soln_temp.cluster_sets[end] = new_clusters
+    soln_temp.mothership_routes[end] = updated_ms_solution
+
+    u = rebuild_solution_with_waypoints(
+        soln_temp,
+        updated_waypoints.waypoint,
+        exclusions_mothership,
+        exclusions_tender
+    )
+
+    tenders_all::Vector{TenderSolution} = u.tenders[end]
     tenders_all[clust_a_seq_idx] = tender_a_improved
     tenders_all[clust_b_seq_idx] = tender_b_improved
 
-    tenders_full_updated::Vector{Vector{TenderSolution}} = [
-        soln.tenders[end],
-        tenders_all
-    ]
     # Create new perturbed solution
     soln_perturbed = MSTSolution(
-        [new_clusters],
-        [updated_ms_solution],
-        tenders_full_updated
+        [soln.cluster_sets; [new_clusters]],
+        [soln.mothership_routes; updated_ms_solution],
+        [soln.tenders; [tenders_all]]
     )
     return soln_perturbed
 end
@@ -570,54 +564,54 @@ end
 
 """
     simulated_annealing(
+        problem::Problem,
         soln_init::MSTSolution,
         objective_function::Function,
         perturb_function::Function,
-        exclusions_mothership::POLY_VEC,
-        exclusions_tender::POLY_VEC,
-        max_iterations::Int=5_000,
-        temp_init::Float64=500.0,
-        cooling_rate::Float64=0.95,
-        static_limit::Int=150;
-        vessel_weightings::NTuple{2, AbstractFloat},
-        cross_cluster_flag::Bool=false,
-    )
+        max_iterations::Int,
+        temp_init::Float64,
+        cooling_rate::Float64,
+        min_iters::Int,
+        static_limit::Int;
+        cross_cluster_flag::Bool,
+    )::Tuple{MSTSolution,Float64}
 
 Simulated Annealing optimization algorithm to optimize the solution.
 
 # Arguments
+- `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `soln_init`: Initial solution.
 - `objective_function`: Function to evaluate the solution.
 - `perturb_function`: Function to perturb the solution.
-- `exclusions_mothership`: Exclusion zone polygons for mothership.
-- `exclusions_tender`: Exclusion zone polygons for tender.
-- `max_iterations`: Maximum number of iterations. Default = 5_000.
-- `temp_init`: Initial temperature. Default = 500.0.
+- `max_iterations`: Maximum number of iterations.
+- `temp_init`: Initial temperature.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
-    Default = 0.95 = 95%.
-- `static_limit`: Number of iterations to allow stagnation before early exit. Default = 150.
-- `vessel_weightings`: Tuple of weightings (mothership, tenders) to apply to vessel
-    distances to generate costs for the objective function.
-- `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
-    considered. Default = false.
+- `min_iters`: Minimum number of iterations to perform before allowing early exit.
+- `static_limit`: Number of iterations to allow stagnation before early exit.
+- `cross_cluster_flag`: Boolean to indicate consideration of cross-cluster perturbations.
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.
 - `obj_best`: Objective value of the best solution.
 """
 function simulated_annealing(
+    problem::Problem,
     soln_init::MSTSolution,
     objective_function::Function,
     perturb_function::Function,
-    exclusions_mothership::POLY_VEC,
-    exclusions_tender::POLY_VEC,
-    max_iterations::Int=5_000,
-    temp_init::Float64=500.0,
-    cooling_rate::Float64=0.95,
-    static_limit::Int=150;
-    vessel_weightings::NTuple{2,AbstractFloat},
-    cross_cluster_flag::Bool=false,
+    max_iterations::Int,
+    temp_init::Float64,
+    cooling_rate::Float64,
+    min_iters::Int,
+    static_limit::Int;
+    cross_cluster_flag::Bool,
 )::Tuple{MSTSolution,Float64}
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    vessel_weightings::NTuple{2,AbstractFloat} = (
+        problem.mothership.weighting,
+        problem.tenders.weighting
+    )
+
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
     obj_init = objective_function(soln_init, vessel_weightings)
@@ -637,29 +631,25 @@ function simulated_annealing(
         \t0\t\t$obj_best\t$temp"""
 
         for iteration in 1:max_iterations
-            if !cross_cluster_flag
+            if !cross_cluster_flag || rand() < 0.5
+                # swap two nodes within the same cluster
                 soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
             else
-                if rand() < 0.5
-                    # swap two nodes within the same cluster
-                    soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
-                else
-                    # swap two nodes between two different random clusters
-                    clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
-                    soln_proposed = perturb_function(
-                        soln_current,
-                        (clust_idx, clust_swap_idx),
-                        exclusions_mothership,
-                        exclusions_tender
-                    )
-                end
+                # swap two nodes between two different random clusters
+                clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
+                soln_proposed = perturb_function(
+                    soln_current,
+                    (clust_idx, clust_swap_idx),
+                    problem
+                )
             end
+
             obj_proposed = objective_function(soln_proposed, vessel_weightings)
-            improvement = obj_current - obj_proposed
+            Δ = obj_proposed - obj_current
             static_ctr += 1
 
             # If the new solution is improved OR meets acceptance prob criteria
-            if improvement > 0 || exp(improvement / temp) > rand()
+            if Δ < 0 || rand() < exp(-Δ / temp)
                 soln_current = soln_proposed
                 obj_current = obj_proposed
 
@@ -677,7 +667,7 @@ function simulated_annealing(
                 @info "$iteration\t\t$obj_best\t$temp"
             end
 
-            if static_ctr >= static_limit
+            if iteration >= min_iters && static_ctr >= static_limit
                 @info """$iteration\t\t$obj_best\t$temp
                 \tEarly exit at iteration $iteration due to stagnation."""
                 break

@@ -92,6 +92,7 @@ The cost of each sortie in the cluster.
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
     tender_dist_vectors::Vector{Vector{Float64}} = getfield.(tenders.sorties, :dist_matrix)
     sortie_dists::Vector{Float64} = sum.(tender_dist_vectors)
+    sortie_dists = map(x -> isempty(x) ? [0.0] : x, sortie_dists)
     return sortie_dists
 end
 
@@ -215,7 +216,6 @@ function critical_path(
 
     # Within clusters
     cluster_sorties_m = tender_clust_dist.(tenders)
-    cluster_sorties_m = map(x -> isempty(x) ? [0.0] : x, cluster_sorties_m)
     longest_sortie_hr = (maximum.(cluster_sorties_m) ./ 1000) * w_t
 
     mothership_within_clusts_m = mothership_dist_within_clusts(ms_route)[1:num_clusters]
@@ -257,7 +257,6 @@ function total_distance(
 
     # Within clusters
     cluster_sorties = tender_clust_dist.(tenders)
-    cluster_sorties = map(x -> isempty(x) ? [0.0] : x, cluster_sorties)
     total_sortie_cost = sum.(cluster_sorties) .* vessel_weightings[2]
     mothership_within_clusts = mothership_dist_within_clusts(ms_route)[1:num_clusters]
     mothership_sub_clust_cost = vessel_weightings[1] * mothership_within_clusts

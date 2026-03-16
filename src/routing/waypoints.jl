@@ -175,6 +175,21 @@ function get_waypoints(
     return DataFrame(waypoint=waypoints, connecting_clusters=connecting_clusters)
 end
 
+function get_cluster_sequence_df(
+    depot::Point{2,Float64},
+    sequence_ids::Vector{Int64},
+    centroids::Vector{Point{2,Float64}},
+)::DataFrame
+    ordered_centroids = centroids[sequence_ids]
+    full_ms_route_pts = [[depot]; ordered_centroids; [depot]]
+
+    return DataFrame(
+        id=[0; sequence_ids; 0],
+        lon=getindex.(full_ms_route_pts, 1),
+        lat=getindex.(full_ms_route_pts, 2)
+    )
+end
+
 """
     optimize_waypoints!(
         clusters::Vector{Cluster},
