@@ -64,9 +64,7 @@ end
 
 """
     _apply_disturbance_events!(
-        cluster_sets::Vector{Vector{Cluster}},
-        ms_soln_sets::Vector{MothershipSolution},
-        tender_soln_sets::Vector{Vector{TenderSolution}},
+        solution::MSTSolution,
         clust_seq::Vector{Int64},
         ordered_disturbances::Vector{Int64},
         problem::Problem,
@@ -88,9 +86,7 @@ Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each distu
     just those appearing in `candidate_wpt_idxs` and/or between disturbance events.
 """
 function _apply_disturbance_events!(
-    cluster_sets::Vector{Vector{Cluster}},
-    ms_soln_sets::Vector{MothershipSolution},
-    tender_soln_sets::Vector{Vector{TenderSolution}},
+    solution::MSTSolution,
     clust_seq::Vector{Int64},
     ordered_disturbances::Vector{Int64},
     problem::Problem,
@@ -100,11 +96,24 @@ function _apply_disturbance_events!(
     waypoint_optim_method=nothing,
     wpt_optim_plot_flag::Bool=false,
 )::MSTSolution
+    n_events = length(ordered_disturbances)
+    if iszero(n_events)
+        return solution
+    else
+        @info "Apply disturbance events"
+    end
+
+    cluster_sets = Vector{Vector{Cluster}}(undef, n_events + 1)
+    ms_soln_sets = Vector{MothershipSolution}(undef, n_events + 1)
+    tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events + 1)
+
     disturb_idx = 1
+    cluster_sets[1] = solution.cluster_sets[1]
+    ms_soln_sets[1] = solution.mothership_routes[1]
+    tender_soln_sets[1] = solution.tenders[1]
+
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
-
-    isempty(ordered_disturbances) || @info "Apply disturbance events"
 
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
@@ -199,11 +208,9 @@ function _apply_disturbance_events!(
         # Solution improvement step (used by `solve`, not by `initial_solution`)
         if do_improve
             next_disturbance_cluster_idx =
-                disturb_clust_idx <= length(ordered_disturbances) ?
+                disturb_clust_idx <= n_events ?
                 ordered_disturbances[disturb_clust_idx] :
                 length(clusters) + 1
-
-            vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
 
             optimized_current_solution, _ = improve_solution(
                 MSTSolution([clusters], [ms_route], [current_tender_soln]),

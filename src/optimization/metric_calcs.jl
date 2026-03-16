@@ -91,8 +91,7 @@ The cost of each sortie in the cluster.
 """
 function tender_clust_dist(tenders::TenderSolution)::Vector{Float64}
     tender_dist_vectors::Vector{Vector{Float64}} = getfield.(tenders.sorties, :dist_matrix)
-    sortie_dists::Vector{Float64} = sum.(tender_dist_vectors)
-    sortie_dists = map(x -> isempty(x) ? [0.0] : x, sortie_dists)
+    sortie_dists::Vector{Float64} = [isempty(x) ? 0.0 : sum(x) for x in tender_dist_vectors]
     return sortie_dists
 end
 

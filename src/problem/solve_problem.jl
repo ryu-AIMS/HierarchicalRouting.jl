@@ -97,26 +97,24 @@ function solve(
         Random.seed!(rng, seed)
     end
 
-    ordered_disturbances = sort(unique(disturbance_clusters))
-    n_events = length(ordered_disturbances) + 1
-    cluster_sets = Vector{Vector{Cluster}}(undef, n_events)
-    ms_soln_sets = Vector{MothershipSolution}(undef, n_events)
-    tender_soln_sets = Vector{Vector{TenderSolution}}(undef, n_events)
-    total_tender_capacity = Int(problem.tenders.number * problem.tenders.capacity)
-
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(problem; k)
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
+    n_clusters::Int = length(clusters)
+    ordered_disturbances::Vector{Int64} = sort(
+        [d for d in disturbance_clusters if d <= n_clusters]
+    )
+
     # Route the mothership using nearest neighbour and 2-opt
     ms_route::MothershipSolution = optimize_mothership_route(problem, cluster_centroids_df)
     clust_seq::Vector{Int64} = filter(
-        c -> c != 0 && c <= length(clusters),
+        c -> c != 0 && c <= n_clusters,
         ms_route.cluster_sequence.id
     )
 
     # Generate initial tender solutions using sequential nearest neighbour
-    initial_tenders = [
+    initial_tenders::Vector{TenderSolution} = [
         tender_sequential_nearest_neighbour(
             clusters[clust_seq][j],
             (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
@@ -127,48 +125,44 @@ function solve(
         for j in 1:length(clust_seq)
     ]
 
+    solution::MSTSolution = MSTSolution([clusters], [ms_route], [initial_tenders])
+
     if do_improve
         @info "Improving initial solution using simulated annealing"
         # Optimize the initial tenders solution up to the first disturbance
-        next_cluster_idx = !isempty(ordered_disturbances) ?
-                           ordered_disturbances[1] :
-                           length(clusters)
+        next_cluster_idx::Int64 = !isempty(ordered_disturbances) ?
+                                  ordered_disturbances[1] :
+                                  n_clusters
 
-        optimized_initial, _ = improve_solution(
-            MSTSolution([clusters], [ms_route], [initial_tenders]),
+        solution, _ = improve_solution(
+            solution,
             problem,
             1,
             next_cluster_idx;
             cross_cluster_flag
         )
 
-        # Apply the optimized initial solution to the first set of clusters pre-disturbance
-        clusters = optimized_initial.cluster_sets[1]
-        ms_route = optimized_initial.mothership_routes[1]
-        initial_tenders = optimized_initial.tenders[1]
+        # Update cluster sequence after improvement
         clust_seq = filter(
-            c -> c != 0 && c <= length(clusters),
-            ms_route.cluster_sequence.id
+            c -> c != 0 && c <= length(solution.cluster_sets[end]),
+            solution.mothership_routes[end].cluster_sequence.id
         )
     end
 
     # Apply solution to the first set of clusters pre-disturbance
     @info "Optimizing waypoints using PSO"
-    cluster_sets[1], ms_soln_sets[1], tender_soln_sets[1] = optimize_waypoints!(
-        clusters,
-        ms_route,
-        initial_tenders,
+    solution = optimize_waypoints(
+        solution,
         problem,
-        waypoint_optim_method,
-        Float64(time_limit),
-        wpt_optim_plot_flag
+        waypoint_optim_method;
+        time_limit=Float64(time_limit),
+        plot_flag=wpt_optim_plot_flag
     )
 
     # Simulate disturbance events
-    solution::MSTSolution = _apply_disturbance_events!(
-        cluster_sets,
-        ms_soln_sets,
-        tender_soln_sets,
+    total_tender_capacity::Int = Int(problem.tenders.number * problem.tenders.capacity)
+    solution = _apply_disturbance_events!(
+        solution,
         clust_seq,
         ordered_disturbances,
         problem,
