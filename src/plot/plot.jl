@@ -60,8 +60,8 @@ function clusters(
 
     clusters!(
         ax,
-        clusters,
-        cluster_radius,
+        clusters;
+        cluster_radius=Float64(cluster_radius),
         nodes,
         centers,
         labels
