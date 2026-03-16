@@ -472,8 +472,8 @@ end
     _constrained_kmeans_single_iteration(
         coordinates::Matrix{Float64},
         k::Int64;
-        max_cluster_size::Int64=6,
-        max_split_distance::Int64=12000,
+        max_cluster_size::Int64,
+        max_split_distance::Int64,
         max_iter::Int64=1000;
         k_spec::Int=0,
         tol::Float64=0.01
@@ -501,8 +501,8 @@ A vector of cluster assignments for each reef, ensuring that no cluster exceeds 
 function _constrained_kmeans_single_iteration(
     coordinates::Matrix{Float64},
     k::Int64,
-    max_cluster_size::Int64=6,
-    max_split_distance::Int64=12000,
+    max_cluster_size::Int64,
+    max_split_distance::Int64,
     max_iter::Int64=1000;
     k_spec::Int=0,
     tol::Float64=0.01
