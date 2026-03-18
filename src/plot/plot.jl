@@ -633,6 +633,39 @@ function solution(
 end
 function solution(
     problem::Problem,
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,AbstractFloat};
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=true,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
+    title::String="",
+    size::Tuple{Int64,Int64}=(700, 875),
+)::Figure
+    fig = Figure(size=size)
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax.title = title * " Solution"
+    ax.titlesize = 18
+
+    solution!(
+        ax,
+        problem,
+        soln,
+        vessel_weightings;
+        cluster_radius=cluster_radius,
+        show_mothership_exclusions=show_mothership_exclusions,
+        show_tenders_exclusions=show_tenders_exclusions,
+        show_mothership=show_mothership,
+        show_tenders=show_tenders,
+        highlight_critical_path=highlight_critical_path_flag,
+    )
+
+    return fig
+end
+function solution(
+    problem::Problem,
     soln_a::MSTSolution,
     soln_b::MSTSolution;
     cluster_radius::Float64=0.0,
@@ -775,6 +808,53 @@ function solution!(
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_time = critical_path(soln, vessel_weightings)
+
+    annotate_cost!(
+        ax,
+        critical_path_time;
+        fontsize=14,
+        color=:black
+    )
+    annotate_vessel_speeds!(ax, vessel_weightings)
+
+    highlight_critical_path && highlight_critical_path!(ax, soln, vessel_weightings)
+
+    return ax
+end
+function solution!(
+    ax::Axis,
+    problem::Problem,
+    vessel_weightings::NTuple{2,AbstractFloat},
+    soln::MSTSolution;
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=true,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path::Bool=false,
+)::Axis
+    # Exclusions
+    show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
+    show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
+
+    # Tender sorties/routes
+    show_tenders && route!(ax, soln.tenders[end])
+
+    # Mothership route
+    if show_mothership
+        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
+    end
+
+    # Clusters
+    clusters!(
+        ax,
+        soln.cluster_sets[end];
+        labels=true,
+        cluster_radius
+    )
+
+    # Annotate critical path cost
     critical_path_time = critical_path(soln, vessel_weightings)
 
     annotate_cost!(
