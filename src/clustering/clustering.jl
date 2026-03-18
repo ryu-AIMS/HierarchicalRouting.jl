@@ -687,7 +687,7 @@ function one_to_one_mapping_hungarian(
     assignment, _ = hungarian(costs)
 
     return Dict{Int64,Int64}(
-        new_ids[i] => prev_ids[assignment[i]] for i in 1:length(new_ids)
+        nid => prev_ids[assignment[i]] for (i, nid) in enumerate(new_ids)
     )
 end
 

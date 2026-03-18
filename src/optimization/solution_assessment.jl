@@ -435,8 +435,8 @@ function insert_unallocated_node(
 
         # Update the sortie in the tender solution
         updated_sorties = [
-            i == closest_available_sortie_idx ? updated_sortie : sorties[i]
-            for i in 1:length(sorties)
+            i == closest_available_sortie_idx ? updated_sortie : s
+            for (i, s) in enumerate(sorties)
         ]
 
         #? Does this modify the original solution in-place?
