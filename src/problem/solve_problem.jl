@@ -57,6 +57,7 @@ end
         time_limit::Real=200.0,
         wpt_optim_plot_flag::Bool=false,
         cross_cluster_flag::Bool=false,
+        soln_progress_plot_flag::Bool=false,
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -77,6 +78,7 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `time_limit`: Time limit for waypoint optimization, in seconds
 - `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
 - `cross_cluster_flag`: Flag to allow perturbations across clusters in solution improvement
+- `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
 
 # Returns
 Best total MSTSolution found
@@ -92,6 +94,7 @@ function solve(
     time_limit::Real=200.0,
     wpt_optim_plot_flag::Bool=false,
     cross_cluster_flag::Bool=false,
+    soln_progress_plot_flag::Bool=false,
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
@@ -126,6 +129,14 @@ function solve(
     ]
 
     solution::MSTSolution = MSTSolution([clusters], [ms_route], [initial_tenders])
+    @info "Initial solution generated with objective value: $(critical_path(solution, problem))"
+    soln_progress_plot_flag && display(Plot.solution(
+        problem,
+        solution;
+        highlight_critical_path_flag=true,
+        title="Initial",
+        size=(700, 875)
+    ))
 
     if do_improve
         @info "Improving initial solution using simulated annealing"
@@ -147,6 +158,13 @@ function solve(
             c -> c != 0 && c <= length(solution.cluster_sets[end]),
             solution.mothership_routes[end].cluster_sequence.id
         )
+        soln_progress_plot_flag && display(Plot.solution(
+            problem,
+            solution;
+            highlight_critical_path_flag=true,
+            title="SA Optimized",
+            size=(700, 875)
+        ))
     end
 
     # Apply solution to the first set of clusters pre-disturbance
@@ -158,6 +176,13 @@ function solve(
         time_limit=Float64(time_limit),
         plot_flag=wpt_optim_plot_flag
     )
+    soln_progress_plot_flag && display(Plot.solution(
+        problem,
+        solution;
+        highlight_critical_path_flag=true,
+        title="PSO Optimized",
+        size=(700, 875)
+    ))
 
     # Simulate disturbance events
     total_tender_capacity::Int = Int(problem.tenders.number * problem.tenders.capacity)
