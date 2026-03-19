@@ -227,11 +227,7 @@ function disturb_remaining_clusters(
     k_d_upper = min(max(k + 1, n_sites, k^2), n_sites)
     k_d = rand(k_d_lower:k_d_upper)
 
-    disturbance_clusters = kmeans(
-        coordinates_array_3d,
-        k_d;
-        tol=tol
-    )
+    disturbance_clusters = kmeans(coordinates_array_3d, k_d; tol=tol)
 
     # Create a score based on the disturbance values for each cluster
     disturbance_scores = Vector{Float64}(undef, n_sites)
@@ -394,7 +390,7 @@ end
     capacity_constrained_kmeans(
         coordinates::Matrix{Float64};
         max_cluster_size::Int64,
-        max_split_distance::Int64=12000,
+        max_split_distance::Int64=typemax(Int64),
         k_spec::Int=0,
         max_iter::Int64=1000,
         n_restarts::Int64=20,
@@ -424,7 +420,7 @@ A vector of cluster assignments for each reef.
 function capacity_constrained_kmeans(
     coordinates::Matrix{Float64};
     max_cluster_size::Int64,
-    max_split_distance::Int64=12000,
+    max_split_distance::Int64=typemax(Int64),
     k_spec::Int=0,
     max_iter::Int64=1000,
     n_restarts::Int64=20,
@@ -476,8 +472,8 @@ end
     _constrained_kmeans_single_iteration(
         coordinates::Matrix{Float64},
         k::Int64;
-        max_cluster_size::Int64=6,
-        max_split_distance::Int64=12000,
+        max_cluster_size::Int64,
+        max_split_distance::Int64,
         max_iter::Int64=1000;
         k_spec::Int=0,
         tol::Float64=0.01
@@ -505,8 +501,8 @@ A vector of cluster assignments for each reef, ensuring that no cluster exceeds 
 function _constrained_kmeans_single_iteration(
     coordinates::Matrix{Float64},
     k::Int64,
-    max_cluster_size::Int64=6,
-    max_split_distance::Int64=12000,
+    max_cluster_size::Int64,
+    max_split_distance::Int64,
     max_iter::Int64=1000;
     k_spec::Int=0,
     tol::Float64=0.01
