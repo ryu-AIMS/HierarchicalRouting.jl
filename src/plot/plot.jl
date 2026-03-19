@@ -442,7 +442,7 @@ function route!(
         points = hasproperty(line_string, :points) ?
                  [Point{2,Float64}(p[1], p[2]) for p in line_string.points] :
                  [Point{2,Float64}(p[1], p[2]) for l in line_string for p in l.points]
-        line_width = line_color == :black ? 3 : 2
+        line_width = line_color == :black ? 7 : 2
         lines!(ax, points, color=line_color, linewidth=line_width)
     end
 
@@ -1095,8 +1095,8 @@ function _highlight_critical_core!(
     soln::MSTSolution,
     vessel_weightings::NTuple{2,AbstractFloat},
     clust_range::Vector{Int};
+    linewidth::Real,
     color=:red,
-    linewidth::Real=4,
 )::Nothing
     tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
@@ -1157,7 +1157,7 @@ function highlight_critical_path_partial!(
     problem::Problem,
     clusters::AbstractVector{<:UnitRange{Int}};
     color=:red,
-    linewidth::Real=4,
+    linewidth::Real=8,
 )::Nothing
     vessel_weightings::NTuple{2,AbstractFloat} =
         (problem.mothership.weighting, problem.tenders.weighting)
@@ -1173,7 +1173,7 @@ function highlight_critical_path!(
     soln::MSTSolution,
     vessel_weightings::NTuple{2,AbstractFloat};
     color=:red,
-    linewidth::Real=4,
+    linewidth::Real=8,
 )::Nothing
     clust_range::Vector{Int} = collect(1:length(soln.tenders[end]))
     _highlight_critical_core!(ax, soln, vessel_weightings, clust_range; color, linewidth)
@@ -1185,7 +1185,7 @@ function highlight_critical_path!(
     soln::MSTSolution,
     problem::Problem;
     color=:red,
-    linewidth::Real=4,
+    linewidth::Real=8,
 )::Nothing
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting,
