@@ -430,8 +430,7 @@ function route!(
 
     # Mark waypoints with 'x'
     if markers
-        scatter!(ax, waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
-        # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
+        scatter!(ax, waypoint_matrix, marker='x', markersize=10, color=:black)
     end
 
     # Plot LineStrings
