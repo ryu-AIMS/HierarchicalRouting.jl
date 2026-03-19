@@ -421,17 +421,15 @@ function route!(
 )::Axis
     line_strings = route.line_strings
     waypoints = route.nodes[1:end-1]
+    waypoint_matrix = hcat(getindex.(waypoints, 1), getindex.(waypoints, 2))
 
     n_graphs = length(line_strings)
     color_palette = isnothing(color) ? cgrad(:rainbow, n_graphs) : nothing
     color = isnothing(color) ? color_palette : fill(color, n_graphs)
 
-    waypoint_matrix = hcat([wp[1] for wp in waypoints], [wp[2] for wp in waypoints])
-
     # Mark waypoints with 'x'
     if markers
-        scatter!(ax, waypoint_matrix, marker='x', markersize=10, color=:black)#, label = "Waypoints")
-        # series(waypoint_matrix, marker = 'x', markersize = 10, color = :black, label = "Waypoints")
+        scatter!(ax, waypoint_matrix, marker='x', markersize=10, color=:black)
     end
 
     # Plot LineStrings
@@ -442,7 +440,7 @@ function route!(
         points = hasproperty(line_string, :points) ?
                  [Point{2,Float64}(p[1], p[2]) for p in line_string.points] :
                  [Point{2,Float64}(p[1], p[2]) for l in line_string for p in l.points]
-        line_width = line_color == :black ? 3 : 2
+        line_width = line_color == :black ? 7 : 2
         lines!(ax, points, color=line_color, linewidth=line_width)
     end
 
@@ -633,6 +631,39 @@ function solution(
 end
 function solution(
     problem::Problem,
+    soln::MSTSolution,
+    vessel_weightings::NTuple{2,AbstractFloat};
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=true,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path_flag::Bool=false,
+    title::String="",
+    size::Tuple{Int64,Int64}=(700, 875),
+)::Figure
+    fig = Figure(size=size)
+    ax = Axis(fig[1, 1], xlabel="Longitude", ylabel="Latitude")
+    ax.title = title * " Solution"
+    ax.titlesize = 18
+
+    solution!(
+        ax,
+        problem,
+        soln,
+        vessel_weightings;
+        cluster_radius=cluster_radius,
+        show_mothership_exclusions=show_mothership_exclusions,
+        show_tenders_exclusions=show_tenders_exclusions,
+        show_mothership=show_mothership,
+        show_tenders=show_tenders,
+        highlight_critical_path=highlight_critical_path_flag,
+    )
+
+    return fig
+end
+function solution(
+    problem::Problem,
     soln_a::MSTSolution,
     soln_b::MSTSolution;
     cluster_radius::Float64=0.0,
@@ -775,6 +806,53 @@ function solution!(
 
     # Annotate critical path cost
     vessel_weightings = (problem.mothership.weighting, problem.tenders.weighting)
+    critical_path_time = critical_path(soln, vessel_weightings)
+
+    annotate_cost!(
+        ax,
+        critical_path_time;
+        fontsize=14,
+        color=:black
+    )
+    annotate_vessel_speeds!(ax, vessel_weightings)
+
+    highlight_critical_path && highlight_critical_path!(ax, soln, vessel_weightings)
+
+    return ax
+end
+function solution!(
+    ax::Axis,
+    problem::Problem,
+    vessel_weightings::NTuple{2,AbstractFloat},
+    soln::MSTSolution;
+    cluster_radius::Float64=0.0,
+    show_mothership_exclusions::Bool=true,
+    show_tenders_exclusions::Bool=true,
+    show_mothership::Bool=true,
+    show_tenders::Bool=true,
+    highlight_critical_path::Bool=false,
+)::Axis
+    # Exclusions
+    show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
+    show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
+
+    # Tender sorties/routes
+    show_tenders && route!(ax, soln.tenders[end])
+
+    # Mothership route
+    if show_mothership
+        route!(ax, soln.mothership_routes[end]; markers=true, labels=true, color=:black)
+    end
+
+    # Clusters
+    clusters!(
+        ax,
+        soln.cluster_sets[end];
+        labels=true,
+        cluster_radius
+    )
+
+    # Annotate critical path cost
     critical_path_time = critical_path(soln, vessel_weightings)
 
     annotate_cost!(
@@ -1015,8 +1093,8 @@ function _highlight_critical_core!(
     soln::MSTSolution,
     vessel_weightings::NTuple{2,AbstractFloat},
     clust_range::Vector{Int};
+    linewidth::Real,
     color=:red,
-    linewidth::Real=4,
 )::Nothing
     tenders = soln.tenders[end]
     ms_route = soln.mothership_routes[end].route
@@ -1077,7 +1155,7 @@ function highlight_critical_path_partial!(
     problem::Problem,
     clusters::AbstractVector{<:UnitRange{Int}};
     color=:red,
-    linewidth::Real=4,
+    linewidth::Real=8,
 )::Nothing
     vessel_weightings::NTuple{2,AbstractFloat} =
         (problem.mothership.weighting, problem.tenders.weighting)
@@ -1093,10 +1171,23 @@ function highlight_critical_path!(
     soln::MSTSolution,
     vessel_weightings::NTuple{2,AbstractFloat};
     color=:red,
-    linewidth::Real=4,
+    linewidth::Real=8,
 )::Nothing
     clust_range::Vector{Int} = collect(1:length(soln.tenders[end]))
     _highlight_critical_core!(ax, soln, vessel_weightings, clust_range; color, linewidth)
+
+    # Annotate waypoints by sequence on top of routes
+    waypoints = soln.mothership_routes[end].route.nodes[1:end-1]
+    waypoint_matrix = hcat(getindex.(waypoints, 1), getindex.(waypoints, 2))
+    text!(
+        ax,
+        waypoint_matrix[:, 1],
+        waypoint_matrix[:, 2] .+ 0.003,
+        text=string.(0:size(waypoint_matrix, 1)-1),
+        fontsize=18,
+        align=(:center, :center),
+        color=:black
+    )
     return
 end
 
@@ -1105,7 +1196,7 @@ function highlight_critical_path!(
     soln::MSTSolution,
     problem::Problem;
     color=:red,
-    linewidth::Real=4,
+    linewidth::Real=8,
 )::Nothing
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting,
