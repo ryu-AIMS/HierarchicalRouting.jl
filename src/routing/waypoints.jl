@@ -392,7 +392,7 @@ function optimize_waypoints(
     # Bound longitude and latitude bounding boxes to entire problem instance
     lb::Vector{Float64} = repeat([lon_min, lat_min], length(x0) ÷ 2)
     ub::Vector{Float64} = repeat([lon_max, lat_max], length(x0) ÷ 2)
-
+    Random.seed!(1234)
     if opt_method isa Optim.ParticleSwarm
         opt_method = Optim.ParticleSwarm(
             lower=lb,
