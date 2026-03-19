@@ -421,12 +421,11 @@ function route!(
 )::Axis
     line_strings = route.line_strings
     waypoints = route.nodes[1:end-1]
+    waypoint_matrix = hcat(getindex.(waypoints, 1), getindex.(waypoints, 2))
 
     n_graphs = length(line_strings)
     color_palette = isnothing(color) ? cgrad(:rainbow, n_graphs) : nothing
     color = isnothing(color) ? color_palette : fill(color, n_graphs)
-
-    waypoint_matrix = hcat([wp[1] for wp in waypoints], [wp[2] for wp in waypoints])
 
     # Mark waypoints with 'x'
     if markers
