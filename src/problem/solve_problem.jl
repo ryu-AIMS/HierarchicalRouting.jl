@@ -161,13 +161,14 @@ function solve(
 
     # Simulate disturbance events
     total_tender_capacity::Int = Int(problem.tenders.number * problem.tenders.capacity)
+    time_limit_pso_disturbed = Float64(time_limit / length(ordered_disturbances))
     solution = _apply_disturbance_events!(
         solution,
         clust_seq,
         ordered_disturbances,
         problem,
         total_tender_capacity,
-        Float64(time_limit);
+        time_limit_pso_disturbed;
         do_improve,
         waypoint_optim_method,
         wpt_optim_plot_flag,
@@ -268,8 +269,8 @@ end
         perturb_function::Function=perturb_swap_solution,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
-        temp_init::Float64=5.0,
-        cooling_rate::Float64=0.85,
+        temp_init::Float64=2.0,
+        cooling_rate::Float64=0.9,
         min_iters::Int=50,
         static_limit::Int=20,
     )::Tuple{MSTSolution,Float64}
@@ -281,8 +282,8 @@ end
         perturb_function::Function=perturb_swap_solution,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
-        temp_init::Float64=5.0,
-        cooling_rate::Float64=0.85,
+        temp_init::Float64=2.0,
+        cooling_rate::Float64=0.9,
         min_iters::Int=50,
         static_limit::Int=20,
     )
@@ -321,8 +322,8 @@ function improve_solution(
     perturb_function::Function=perturb_swap_solution,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
-    temp_init::Float64=5.0,
-    cooling_rate::Float64=0.85,
+    temp_init::Float64=2.0,
+    cooling_rate::Float64=0.9,
     min_iters::Int=50,
     static_limit::Int=20,
 )::Tuple{MSTSolution,Float64}
@@ -395,8 +396,8 @@ function improve_solution(
     perturb_function::Function=perturb_swap_solution,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
-    temp_init::Float64=5.0,
-    cooling_rate::Float64=0.85,
+    temp_init::Float64=2.0,
+    cooling_rate::Float64=0.9,
     min_iters::Int=50,
     static_limit::Int=20,
 )
