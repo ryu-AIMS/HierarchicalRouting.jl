@@ -1175,6 +1175,19 @@ function highlight_critical_path!(
 )::Nothing
     clust_range::Vector{Int} = collect(1:length(soln.tenders[end]))
     _highlight_critical_core!(ax, soln, vessel_weightings, clust_range; color, linewidth)
+
+    # Annotate waypoints by sequence on top of routes
+    waypoints = soln.mothership_routes[end].route.nodes[1:end-1]
+    waypoint_matrix = hcat(getindex.(waypoints, 1), getindex.(waypoints, 2))
+    text!(
+        ax,
+        waypoint_matrix[:, 1],
+        waypoint_matrix[:, 2] .+ 0.003,
+        text=string.(0:size(waypoint_matrix, 1)-1),
+        fontsize=18,
+        align=(:center, :center),
+        color=:black
+    )
     return
 end
 
