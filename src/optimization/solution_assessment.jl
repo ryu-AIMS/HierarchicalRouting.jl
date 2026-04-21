@@ -292,11 +292,8 @@ function perturb_swap_solution(
     sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
     sorties_b::Vector{Route} = copy(tenders_all[clust_b_seq_idx].sorties)
 
-    # Locally preserve existing sortie structure, only swapping nodes within selected sortie
-    # Keeps the perturbation local, rather than rebuilding clusters via sequential NN
-    sorties_a_new::Vector{Route}, sorties_b_new::Vector{Route} = _recompute_sortie_routes.(
-        [tender_a.sorties, tender_b.sorties],
-        [sortie_a_idx, sortie_b_idx],
+    # Build new routes for modified sorties based on updated waypoints and swapped nodes
+    sorties_a[sortie_a_idx], sorties_b[sortie_b_idx] = _build_sortie_route.(
         [sortie_a_nodes, sortie_b_nodes],
         [tender_a_new_start, tender_b_new_start],
         [tender_a_new_finish, tender_b_new_finish],
@@ -309,7 +306,7 @@ function perturb_swap_solution(
         [tender_a.id, tender_b.id],
         [tender_a_new_start, tender_b_new_start],
         [tender_a_new_finish, tender_b_new_finish],
-        [sorties_a_new, sorties_b_new]
+        [sorties_a, sorties_b]
     )
 
     (tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
