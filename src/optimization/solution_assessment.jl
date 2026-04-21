@@ -161,15 +161,14 @@ function perturb_swap_solution(
     # Update new clusters
     new_clusters::Vector{Cluster} = deepcopy(soln.cluster_sets[end])
 
-    cluster_a_idx = tender_a.id
-    cluster_b_idx = tender_b.id
+    cluster_a_idx::Int, cluster_b_idx::Int = tender_a.id, tender_b.id
 
-    nodes_a = new_clusters[cluster_a_idx].nodes
-    nodes_b = new_clusters[cluster_b_idx].nodes
+    nodes_a::Vector{Point{2,Float64}} = new_clusters[cluster_a_idx].nodes
+    nodes_b::Vector{Point{2,Float64}} = new_clusters[cluster_b_idx].nodes
 
     # Swap nodes between clusters
-    node_a_idx_clust = findfirst(isequal(node_a), nodes_a)
-    node_b_idx_clust = findfirst(isequal(node_b), nodes_b)
+    node_a_idx_clust::Union{Int,Nothing} = findfirst(isequal(node_a), nodes_a)
+    node_b_idx_clust::Union{Int,Nothing} = findfirst(isequal(node_b), nodes_b)
     (node_a_idx_clust === nothing || node_b_idx_clust === nothing) &&
         throw(ArgumentError("Swap node not found in respective cluster nodes"))
 
