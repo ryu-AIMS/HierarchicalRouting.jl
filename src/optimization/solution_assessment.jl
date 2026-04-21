@@ -138,8 +138,8 @@ function perturb_swap_solution(
     tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
-    sortie_a_idx = rand(1:length(tender_a.sorties))
-    sortie_b_idx = rand(1:length(tender_b.sorties))
+    sortie_a_idx = rand(eachindex(tender_a.sorties))
+    sortie_b_idx = rand(eachindex(tender_b.sorties))
 
     sortie_a_nodes = copy(tender_a.sorties[sortie_a_idx].nodes)
     sortie_b_nodes = copy(tender_b.sorties[sortie_b_idx].nodes)
