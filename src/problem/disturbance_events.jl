@@ -96,12 +96,8 @@ function _apply_disturbance_events!(
     waypoint_optim_method=nothing,
     wpt_optim_plot_flag::Bool=false,
 )::MSTSolution
+    @info "Apply disturbance events at clusters $(ordered_disturbances)"
     n_events = length(ordered_disturbances)
-    if iszero(n_events)
-        return solution
-    else
-        @info "Apply disturbance events at clusters $(ordered_disturbances)"
-    end
 
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events + 1)
     ms_soln_sets = Vector{MothershipSolution}(undef, n_events + 1)
