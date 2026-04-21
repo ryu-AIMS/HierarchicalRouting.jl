@@ -141,10 +141,14 @@ function perturb_swap_solution(
     sortie_a_idx = rand(eachindex(tender_a.sorties))
     sortie_b_idx = rand(eachindex(tender_b.sorties))
 
+    # Assert chosen sorties not empty
+    @assert(!isempty(tender_a.sorties[sortie_a_idx].nodes),
+        "Empty sortie in tender_a during cross-cluster swap")
+    @assert(!isempty(tender_b.sorties[sortie_b_idx].nodes),
+        "Empty sortie in tender_b during cross-cluster swap")
+
     sortie_a_nodes = copy(tender_a.sorties[sortie_a_idx].nodes)
     sortie_b_nodes = copy(tender_b.sorties[sortie_b_idx].nodes)
-
-    (isempty(sortie_a_nodes) || isempty(sortie_b_nodes)) && return soln
 
     # Pick two random nodes across the two sorties
     node_a_idx, node_b_idx = rand(1:length(sortie_a_nodes)), rand(1:length(sortie_b_nodes))
