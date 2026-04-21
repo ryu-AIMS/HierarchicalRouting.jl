@@ -263,6 +263,13 @@ function perturb_swap_solution(
         )
     )
 
+    # Update tender solutions with the new (start/finish) waypoints based on perturbation
+    tenders_all::Vector{TenderSolution} = generate_tender_sorties(
+        MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
+        updated_waypoints.waypoint,
+        exclusions_tender
+    )
+
     # Identify new start/finish waypoints based on updated clusters and ms sequence
     cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
     cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
