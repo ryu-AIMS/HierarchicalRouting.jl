@@ -318,23 +318,12 @@ function perturb_swap_solution(
         ))
 
     # Re-run two-opt on the modified tender solutions
-    tender_a_improved, tender_b_improved = two_opt.(
+    tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
         [tenders_a_new, tenders_b_new],
         Ref(exclusions_tender)
     )
 
-    # Update tenders in full solution
-    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
-    tenders_all[clust_a_seq_idx] = tender_a_improved
-    tenders_all[clust_b_seq_idx] = tender_b_improved
-
-    # Create new perturbed solution
-    soln_perturbed = MSTSolution(
-        [new_clusters],
-        [updated_ms_solution],
-        [tenders_all]
-    )
-    return soln_perturbed
+    return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
 end
 
 """
