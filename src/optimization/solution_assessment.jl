@@ -208,12 +208,12 @@ function perturb_swap_solution(
     sortie_b_nodes[node_b_idx] = node_a
 
     # Update new clusters
-    new_clusters::Vector{Cluster} = deepcopy(soln.cluster_sets[end])
+    new_clusters::Vector{Cluster} = copy(soln.cluster_sets[end])
 
     cluster_a_idx::Int, cluster_b_idx::Int = tender_a.id, tender_b.id
 
-    nodes_a::Vector{Point{2,Float64}} = new_clusters[cluster_a_idx].nodes
-    nodes_b::Vector{Point{2,Float64}} = new_clusters[cluster_b_idx].nodes
+    nodes_a::Vector{Point{2,Float64}} = copy(new_clusters[cluster_a_idx].nodes)
+    nodes_b::Vector{Point{2,Float64}} = copy(new_clusters[cluster_b_idx].nodes)
 
     # Swap nodes between clusters
     node_a_idx_clust::Union{Int,Nothing} = findfirst(isequal(node_a), nodes_a)
@@ -280,6 +280,10 @@ function perturb_swap_solution(
     tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
     tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
     tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+
+    # Rebuild the modified sorties with the new start/finish waypoints and swapped nodes
+    sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
+    sorties_b::Vector{Route} = copy(tenders_all[clust_b_seq_idx].sorties)
 
     # Locally preserve existing sortie structure, only swapping nodes within selected sortie
     # Keeps the perturbation local, rather than rebuilding clusters via sequential NN
