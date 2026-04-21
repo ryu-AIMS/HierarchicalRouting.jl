@@ -204,15 +204,27 @@ function perturb_swap_solution(
     centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
     centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
-    new_clusters[cluster_a_idx] = Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a)
-    new_clusters[cluster_b_idx] = Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
+    new_clusters[cluster_a_idx] = Cluster(
+        id=cluster_a_idx,
+        centroid=centroid_a,
+        nodes=nodes_a
+    )
+    new_clusters[cluster_b_idx] = Cluster(
+        id=cluster_b_idx,
+        centroid=centroid_b,
+        nodes=nodes_b
+    )
 
     # Update mothership route and waypoints based on updated clusters
-    depot = soln.mothership_routes[end].route.nodes[1]
-    cluster_seq_ids = getfield.(soln.tenders[end], :id)
-    cluster_centroids = getfield.(new_clusters, :centroid)
-    cluster_sequence = get_cluster_sequence_df(depot, cluster_seq_ids, cluster_centroids)
-    updated_waypoints = get_waypoints(cluster_sequence, exclusions_mothership)
+    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
+    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
+    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
+    cluster_sequence::DataFrame = get_cluster_sequence_df(
+        depot,
+        cluster_seq_ids,
+        cluster_centroids
+    )
+    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
 
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
         updated_waypoints.waypoint,
@@ -228,10 +240,9 @@ function perturb_swap_solution(
         )
     )
 
-    # Update routes for modified sorties
-    cc = updated_waypoints.connecting_clusters
-    cc_first = first.(cc)
-    cc_last = last.(cc)
+    # Identify new start/finish waypoints based on updated clusters and ms sequence
+    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
+    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
 
     tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
     tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
