@@ -204,11 +204,8 @@ function perturb_swap_solution(
     centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
     centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
-    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] = Cluster.(
-        [cluster_a_idx, cluster_b_idx],
-        [centroid_a, centroid_b],
-        [nodes_a, nodes_b],
-    )
+    new_clusters[cluster_a_idx] = Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a)
+    new_clusters[cluster_b_idx] = Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
 
     # Update mothership route and waypoints based on updated clusters
     depot = soln.mothership_routes[end].route.nodes[1]
