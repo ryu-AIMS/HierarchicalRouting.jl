@@ -250,13 +250,24 @@ function perturb_swap_solution(
     tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
     tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
 
-    # Create tender tours by tender sequential nearest neighbour
-    tenders_a_new, tenders_b_new = tender_sequential_nearest_neighbour.(
-        [new_clusters[cluster_a_idx], new_clusters[cluster_b_idx]],
-        [(tender_a_new_start, tender_a_new_finish), (tender_b_new_start, tender_b_new_finish)],
-        Ref(problem.tenders.number),
-        Ref(problem.tenders.capacity),
+    # Locally preserve existing sortie structure, only swapping nodes within selected sortie
+    # Keeps the perturbation local, rather than rebuilding clusters via sequential NN
+    sorties_a_new::Vector{Route}, sorties_b_new::Vector{Route} = _recompute_sortie_routes.(
+        [tender_a.sorties, tender_b.sorties],
+        [sortie_a_idx, sortie_b_idx],
+        [sortie_a_nodes, sortie_b_nodes],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
         Ref(exclusions_tender)
+    )
+
+    # Rebuild tender solutions, preserving cluster identity but updating sorties to reflect:
+    # (1) swapped node membership, and (2) updated mothership launch/rendezvous waypoints
+    tenders_a_new, tenders_b_new = TenderSolution.(
+        [tender_a.id, tender_b.id],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
+        [sorties_a_new, sorties_b_new]
     )
 
     (tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
@@ -267,25 +278,14 @@ function perturb_swap_solution(
             "Tender start/end point wrongly included in sortie nodes after perturbation"
         ))
 
-    # Re-run two-opt on the modified sorties
+    # Re-run two-opt on the modified tender solutions
     tender_a_improved, tender_b_improved = two_opt.(
         [tenders_a_new, tenders_b_new],
         Ref(exclusions_tender)
     )
 
-    # Update tenders with existing start/finish (not yet adjusted)
-    soln_temp = deepcopy(soln)
-    soln_temp.cluster_sets[end] = new_clusters
-    soln_temp.mothership_routes[end] = updated_ms_solution
-
-    u = rebuild_solution_with_waypoints(
-        soln_temp,
-        updated_waypoints.waypoint,
-        exclusions_mothership,
-        exclusions_tender
-    )
-
-    tenders_all::Vector{TenderSolution} = u.tenders[end]
+    # Update tenders in full solution
+    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
     tenders_all[clust_a_seq_idx] = tender_a_improved
     tenders_all[clust_b_seq_idx] = tender_b_improved
 
