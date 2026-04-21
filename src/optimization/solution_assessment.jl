@@ -26,6 +26,29 @@ function _recompute_sortie_routes(
 end
 
 """
+    _build_sortie_route(
+        sortie_nodes::Vector{Point{2,Float64}},
+        start_pt::Point{2,Float64},
+        finish_pt::Point{2,Float64},
+        exclusions::POLY_VEC
+    )::Route
+
+Compute a feasible `Route` for a sortie given its interior nodes and start/finish waypoints.
+Used when sortie node membership changes (cross-cluster swap), for which `rebuild_sortie`
+is insufficient (it only updates the terminal legs, assuming interior nodes are unchanged).
+"""
+function _build_sortie_route(
+    sortie_nodes::Vector{Point{2,Float64}},
+    start_pt::Point{2,Float64},
+    finish_pt::Point{2,Float64},
+    exclusions::POLY_VEC
+)::Route
+    full_tour = [[start_pt]; sortie_nodes; [finish_pt]]
+    dist_vec, path_vec = get_feasible_vector(full_tour, exclusions)
+    return Route(sortie_nodes, dist_vec, vcat(path_vec...))
+end
+
+"""
     perturb_swap_solution(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
