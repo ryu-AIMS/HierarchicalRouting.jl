@@ -309,10 +309,11 @@ function perturb_swap_solution(
         [sorties_a, sorties_b]
     )
 
-    (tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
-     tender_b_new_start ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) ||
-     tender_a_new_finish ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
-     tender_b_new_finish ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...)) &&
+    # Waypoints must not appear as interior sortie nodes
+    (tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
+     tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...)) &&
         throw(ArgumentError(
             "Tender start/end point wrongly included in sortie nodes after perturbation"
         ))
