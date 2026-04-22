@@ -328,47 +328,6 @@ function perturb_swap_solution(
 end
 
 """
-    find_unallocated_nodes(
-        soln::MSTSolution
-    )::Set{Point{2,Float64}}
-    find_unallocated_nodes(
-        clusters::Vector{Cluster},
-        tenders::Vector{TenderSolution}
-    )::Set{Point{2,Float64}}
-
-Find nodes that are not allocated to any sortie in the solution.
-
-# Arguments
-- `soln`: Solution to find unallocated nodes in.
-- `clusters`: Vector of clusters.
-- `tenders`: Vector of tender solutions.
-
-# Returns
- A set of unallocated nodes.
-"""
-function find_unallocated_nodes(
-    soln::MSTSolution
-)::Set{Point{2,Float64}}
-    clusters = soln.cluster_sets[end]
-    tenders = soln.tenders[end]
-    return find_unallocated_nodes(clusters, tenders)
-end
-function find_unallocated_nodes(
-    clusters::Vector{Cluster},
-    tenders::Vector{TenderSolution}
-)::Set{Point{2,Float64}}
-    cluster_sorties = getfield.(tenders, :sorties)
-
-    all_nodes::Set{Point{2,Float64}} = Set(vcat(getfield.(clusters, :nodes)...))
-    allocated_nodes::Set{Point{2,Float64}} = Set(
-        collect(Base.Iterators.flatten(
-            getfield.(Base.Iterators.flatten(cluster_sorties), :nodes))
-        )
-    )
-    return setdiff(all_nodes, allocated_nodes)
-end
-
-"""
     insert_unallocated_node(
         soln::MSTSolution,
         exclusions::Vector{IGeometry{wkbPolygon}}
