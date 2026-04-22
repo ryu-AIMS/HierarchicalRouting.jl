@@ -303,7 +303,7 @@ function perturb_swap_solution(
     # Rebuild tender solutions, preserving cluster identity but updating sorties to reflect:
     # (1) swapped node membership, and (2) updated mothership launch/rendezvous waypoints
     tenders_a_new, tenders_b_new = TenderSolution.(
-        [tender_a.id, tender_b.id],
+        [cluster_a_idx, cluster_b_idx],
         [tender_a_new_start, tender_b_new_start],
         [tender_a_new_finish, tender_b_new_finish],
         [sorties_a, sorties_b]
