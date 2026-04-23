@@ -628,7 +628,7 @@ function simulated_annealing(
                     soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
                 else
                     # move a node across sorties within the cluster
-                    soln_proposed = soln_current #! placeholder for move operator function
+                    soln_proposed = perturb_move(soln_current, clust_idx, exclusions_tender)
                 end
             else
                 clust_alt_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
@@ -643,7 +643,11 @@ function simulated_annealing(
                     )
                 else
                     # move a node from a sortie in one cluster to another
-                    soln_proposed = soln_current #! placeholder for move operator function
+                    soln_proposed = perturb_move(
+                        soln_current,
+                        (clust_idx, clust_alt_idx),
+                        problem
+                    )
                 end
             end
 
