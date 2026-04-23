@@ -332,7 +332,6 @@ end
         problem::Problem,
         soln_init::MSTSolution,
         objective_function::Function,
-        perturb_function::Function,
         max_iterations::Int,
         temp_init::Float64,
         cooling_rate::Float64,
@@ -347,7 +346,6 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `soln_init`: Initial solution.
 - `objective_function`: Function to evaluate the solution.
-- `perturb_function`: Function to perturb the solution.
 - `max_iterations`: Maximum number of iterations.
 - `temp_init`: Initial temperature.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
@@ -363,7 +361,6 @@ function simulated_annealing(
     problem::Problem,
     soln_init::MSTSolution,
     objective_function::Function,
-    perturb_function::Function,
     max_iterations::Int,
     temp_init::Float64,
     cooling_rate::Float64,
@@ -400,7 +397,7 @@ function simulated_annealing(
                 # swap/move within the same cluster @ 50/50
                 if rand() < 0.5
                     # swap two nodes within the same cluster
-                    soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
+                    soln_proposed = perturb_swap_solution(soln_current, clust_idx, exclusions_tender)
                 else
                     # move a node across sorties within the cluster
                     soln_proposed = soln_current #! placeholder for move operator function
@@ -411,7 +408,7 @@ function simulated_annealing(
 
                 if rand() < 0.5
                     # swap two nodes between two different random clusters
-                    soln_proposed = perturb_function(
+                    soln_proposed = perturb_swap_solution(
                         soln_current,
                         (clust_idx, clust_alt_idx),
                         problem
