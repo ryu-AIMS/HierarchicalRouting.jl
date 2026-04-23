@@ -49,13 +49,13 @@ function _build_sortie_route(
 end
 
 """
-    perturb_swap_solution(
+    perturb_swap(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
         exclusions_tender::POLY_VEC=POLY_VEC();
         enforce_diff_sortie::Bool=false
     )::MSTSolution
-    perturb_swap_solution(
+    perturb_swap(
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
         problem::Problem,
@@ -77,7 +77,7 @@ Perturb the solution by swapping two nodes:
 # Returns
 Perturbed full solution.
 """
-function perturb_swap_solution(
+function perturb_swap(
     soln::MSTSolution,
     clust_seq_idx_target::Int64=-1,
     exclusions_tender::POLY_VEC=POLY_VEC();
@@ -173,7 +173,7 @@ function perturb_swap_solution(
     ]
     return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_full_updated)
 end
-function perturb_swap_solution(
+function perturb_swap(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
@@ -397,7 +397,7 @@ function simulated_annealing(
                 # swap/move within the same cluster @ 50/50
                 if rand() < 0.5
                     # swap two nodes within the same cluster
-                    soln_proposed = perturb_swap_solution(soln_current, clust_idx, exclusions_tender)
+                    soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
                 else
                     # move a node across sorties within the cluster
                     soln_proposed = soln_current #! placeholder for move operator function
@@ -408,7 +408,7 @@ function simulated_annealing(
 
                 if rand() < 0.5
                     # swap two nodes between two different random clusters
-                    soln_proposed = perturb_swap_solution(
+                    soln_proposed = perturb_swap(
                         soln_current,
                         (clust_idx, clust_alt_idx),
                         problem
