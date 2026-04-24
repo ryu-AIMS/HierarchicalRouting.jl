@@ -164,11 +164,7 @@ function perturb_swap(
     tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
     tenders_all[clust_seq_idx] = tender_improved
 
-    tenders_full_updated::Vector{Vector{TenderSolution}} = [
-        copy(soln.tenders[end]),
-        tenders_all
-    ]
-    return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_full_updated)
+    return MSTSolution(soln.cluster_sets, soln.mothership_routes, [tenders_all])
 end
 function perturb_swap(
     soln::MSTSolution,
@@ -453,7 +449,7 @@ function perturb_move(
     return MSTSolution(
         soln.cluster_sets,
         soln.mothership_routes,
-        [copy(soln.tenders[end]), tenders_all]
+        [tenders_all]
     )
 end
 function perturb_move(
