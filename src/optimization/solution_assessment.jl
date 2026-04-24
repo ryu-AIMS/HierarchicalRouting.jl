@@ -344,7 +344,7 @@ end
     perturb_move(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
-        exclusions_tender::POLY_VEC=POLY_VEC()
+        problem::Problem,
     )::MSTSolution
     perturb_move(
         soln::MSTSolution,
@@ -362,7 +362,6 @@ Perturb the solution by moving a single node from one sortie to another:
     selects cluster.
 - `cluster_pair`: Tuple of two cluster sequence indices to move a node between.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
-- `exclusions_tender`: Exclusion zone polygons for tender. Default = POLY_VEC().
 
 # Returns
 Perturbed full solution.
@@ -370,11 +369,14 @@ Perturbed full solution.
 function perturb_move(
     soln::MSTSolution,
     clust_seq_idx_target::Int64=-1,
-    exclusions_tender::POLY_VEC=POLY_VEC()
+    problem::Problem,
 )::MSTSolution
     clust_seq_idx = clust_seq_idx_target == -1 ?
                     rand(1:length(soln.tenders[end])) :
                     clust_seq_idx_target
+
+    #! WITHIN CLUSTER MOVE
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
 
     tender = deepcopy(soln.tenders[end][clust_seq_idx])
     sorties = deepcopy(tender.sorties)
