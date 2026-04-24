@@ -343,7 +343,7 @@ end
 """
     perturb_move(
         soln::MSTSolution,
-        clust_seq_idx_target::Int64=-1,
+        clust_seq_idx::Int64,
         problem::Problem,
     )::MSTSolution
     perturb_move(
@@ -358,8 +358,7 @@ Perturb the solution by moving a single node from one sortie to another:
 
 # Arguments
 - `soln`: Solution to perturb.
-- `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
-    selects cluster.
+- `clust_seq_idx`: Sequence index of cluster to perturb.
 - `cluster_pair`: Tuple of two cluster sequence indices to move a node between.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
 
@@ -368,13 +367,9 @@ Perturbed full solution.
 """
 function perturb_move(
     soln::MSTSolution,
-    clust_seq_idx_target::Int64=-1,
+    clust_seq_idx::Int64,
     problem::Problem,
 )::MSTSolution
-    clust_seq_idx = clust_seq_idx_target == -1 ?
-                    rand(1:length(soln.tenders[end])) :
-                    clust_seq_idx_target
-
     #! WITHIN CLUSTER MOVE
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
 
