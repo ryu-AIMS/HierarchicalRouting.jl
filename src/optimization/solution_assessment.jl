@@ -407,16 +407,17 @@ function perturb_move(
     no_sorties = length(sorties)
     no_sorties < 2 && return soln
 
-    # Find a source sortie with at least one node
-    source_idx::Union{Int,Nothing} = nothing
-    for idx in shuffle(1:length(sorties))
-        if !isempty(sorties[idx].nodes)
-            source_idx = idx
-            break
-        end
-    end
-    source_idx === nothing && return soln
+    # Find longest (critical) sortie, and get its nodes
+    critical_sortie, longest_sortie_nodes = _find_longest_feasible_sortie(
+        soln,
+        clust_seq_idx,
+        problem
+    )
 
+    # If non-critical, or infeasible (only 1 node in longest sortie), exit
+    (critical_sortie == 0 || length(longest_sortie_nodes) < 2) && return soln
+
+    source_idx = critical_sortie
     dest_idx = rand(setdiff(1:no_sorties, source_idx))
 
     source_nodes = copy(sorties[source_idx].nodes)
@@ -468,11 +469,17 @@ function perturb_move(
     tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
     tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
-    source_sortie_idx = rand(eachindex(tender_a.sorties))
-    dest_sortie_idx = rand(eachindex(tender_b.sorties))
+    #?! ONLY MOVE FROM CRITICAL SEGMENT?
+    critical_sortie, longest_sortie_nodes = _find_longest_feasible_sortie(
+        soln,
+        clust_a_seq_idx,
+        problem
+    )
 
-    @assert(!isempty(tender_a.sorties[source_sortie_idx].nodes),
-        "Empty source sortie in tender_a during cross-cluster move")
+    # If non-critical, or infeasible (only 1 node in longest sortie), exit
+    (critical_sortie == 0 || length(longest_sortie_nodes) < 2) && return soln
+    source_sortie_idx = critical_sortie
+    dest_sortie_idx = rand(eachindex(tender_b.sorties))
 
     source_nodes = copy(tender_a.sorties[source_sortie_idx].nodes)
     dest_nodes = copy(tender_b.sorties[dest_sortie_idx].nodes)
