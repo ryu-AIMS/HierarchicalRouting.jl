@@ -354,13 +354,13 @@ end
 function _move_node!(
     source_nodes::Vector{Point{2,Float64}},
     dest_nodes::Vector{Point{2,Float64}}
-)::Nothing
+)::Point{2,Float64}
     node_idx = rand(1:length(source_nodes))
     node = source_nodes[node_idx]
     deleteat!(source_nodes, node_idx)
     insert_pos = rand(1:(length(dest_nodes)+1))
     insert!(dest_nodes, insert_pos, node)
-    return
+    return node
 end
 
 """
@@ -481,7 +481,7 @@ function perturb_move(
     dest_nodes = copy(tender_b.sorties[dest_sortie_idx].nodes)
 
     # Remove a random node from source, insert at random position in destination
-    _move_node!(source_nodes, dest_nodes)
+    node = _move_node!(source_nodes, dest_nodes)
 
     # Update cluster membership
     new_clusters::Vector{Cluster} = copy(soln.cluster_sets[end])
