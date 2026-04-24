@@ -654,27 +654,28 @@ function simulated_annealing(
 
         for iteration in 1:max_iterations
             if !cross_cluster_flag || rand() < 0.5
-                # swap/move within the same cluster @ 50/50
+                # SUB-cluster perturbation
+                # Swap/move within the same cluster @ 50/50
                 if rand() < 0.5
-                    # swap two nodes within the same cluster
+                    # Swap 2 nodes across sorties within the same cluster
                     soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
                 else
-                    # move a node across sorties within the cluster
-                    soln_proposed = perturb_move(soln_current, clust_idx, exclusions_tender)
+                    # Move a node across sorties within the same cluster
+                    soln_proposed = perturb_move(soln_current, clust_idx, problem)
                 end
             else
+                # CROSS-cluster perturbation
                 clust_alt_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
-                # swap two nodes between two different random clusters
 
                 if rand() < 0.5
-                    # swap two nodes between two different random clusters
+                    # Swap 2 nodes between a sortie in one cluster to another
                     soln_proposed = perturb_swap(
                         soln_current,
                         (clust_idx, clust_alt_idx),
                         problem
                     )
                 else
-                    # move a node from a sortie in one cluster to another
+                    # Move a node from a sortie in one cluster to another
                     soln_proposed = perturb_move(
                         soln_current,
                         (clust_idx, clust_alt_idx),
