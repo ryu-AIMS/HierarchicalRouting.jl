@@ -48,6 +48,33 @@ function _build_sortie_route(
     return Route(sortie_nodes, dist_vec, vcat(path_vec...))
 end
 
+""" Resolve new waypoints for tenders affected by a cross-cluster perturbation. """
+function _resolve_tender_endpoints(
+    updated_waypoints::DataFrame,
+    cluster_a_idx::Int,
+    cluster_b_idx::Int
+)::NTuple{4,Point}
+    # Identify new start/finish waypoints for the two modified tenders
+    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
+    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
+
+    tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
+    tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
+    tender_b_new_start_idx = findlast(cc_last .== cluster_b_idx)
+    tender_b_new_finish_idx = findfirst(cc_first .== cluster_b_idx)
+
+    (tender_a_new_start_idx === nothing || tender_a_new_finish_idx === nothing ||
+     tender_b_new_start_idx === nothing || tender_b_new_finish_idx === nothing) &&
+        error("Could not resolve tender start/finish indices from connecting_clusters")
+
+    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
+    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
+    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
+    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+
+    return tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish
+end
+
 """
     perturb_swap(
         soln::MSTSolution,
@@ -263,23 +290,8 @@ function perturb_swap(
         exclusions_tender
     )
 
-    # Identify new start/finish waypoints based on updated clusters and ms sequence
-    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
-    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
-
-    tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
-    tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
-    tender_b_new_start_idx = findlast(cc_last .== cluster_b_idx)
-    tender_b_new_finish_idx = findfirst(cc_first .== cluster_b_idx)
-
-    (tender_a_new_start_idx === nothing || tender_a_new_finish_idx === nothing ||
-     tender_b_new_start_idx === nothing || tender_b_new_finish_idx === nothing) &&
-        error("Could not resolve tender start/finish indices from connecting_clusters")
-
-    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
-    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
-    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
-    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+    tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
+        _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
 
     # Rebuild the modified sorties with the new start/finish waypoints and swapped nodes
     sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
@@ -535,23 +547,8 @@ function perturb_move(
         exclusions_tender
     )
 
-    # Identify new start/finish waypoints for the two modified tenders
-    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
-    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
-
-    tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
-    tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
-    tender_b_new_start_idx = findlast(cc_last .== cluster_b_idx)
-    tender_b_new_finish_idx = findfirst(cc_first .== cluster_b_idx)
-
-    (tender_a_new_start_idx === nothing || tender_a_new_finish_idx === nothing ||
-     tender_b_new_start_idx === nothing || tender_b_new_finish_idx === nothing) &&
-        error("Could not resolve tender start/finish indices from connecting_clusters")
-
-    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
-    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
-    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
-    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+    tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
+        _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
 
     # Rebuild routes for the modified sorties with updated waypoints and moved nodes
     sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
