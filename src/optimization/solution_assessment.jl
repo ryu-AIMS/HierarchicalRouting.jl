@@ -91,22 +91,19 @@ function perturb_swap(
     sorties = deepcopy(tender.sorties)
 
     # If < 2 sorties in cluster, no perturbation possible
-    if length(sorties) < 2
-        return soln
-    end
+    no_sorties = length(sorties)
+    no_sorties < 2 && return soln
 
     # Choose two random sorties to swap nodes between
     # if enforce_diff_sortie is true: ensure different sorties are selected
     sortie_a_idx, sortie_b_idx = enforce_diff_sortie ?
-                                 shuffle(1:length(sorties))[1:2] :
-                                 rand(1:length(sorties), 2)
+                                 shuffle(1:no_sorties)[1:2] :
+                                 rand(1:no_sorties, 2)
 
     sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
     # No perturbation possible if a sortie has no nodes
-    if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
-        return soln
-    end
+    isempty(sortie_a.nodes) || isempty(sortie_b.nodes) && return soln
 
     # Determine node indices to swap
     if sortie_a_idx == sortie_b_idx
@@ -406,9 +403,9 @@ function perturb_move(
     tender = deepcopy(soln.tenders[end][clust_seq_idx])
     sorties = deepcopy(tender.sorties)
 
-    if length(sorties) < 2
-        return soln
-    end
+    # No perturbation possible if < 2 sorties in cluster
+    no_sorties = length(sorties)
+    no_sorties < 2 && return soln
 
     # Find a source sortie with at least one node
     source_idx::Union{Int,Nothing} = nothing
@@ -420,7 +417,7 @@ function perturb_move(
     end
     source_idx === nothing && return soln
 
-    dest_idx = rand(setdiff(1:length(sorties), source_idx))
+    dest_idx = rand(setdiff(1:no_sorties, source_idx))
 
     source_nodes = copy(sorties[source_idx].nodes)
     dest_nodes = copy(sorties[dest_idx].nodes)
