@@ -327,6 +327,36 @@ function perturb_swap(
     return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
 end
 
+""" Finds longest sortie in a cluster and determines if it's on the critical path."""
+function _find_longest_feasible_sortie(
+    soln::MSTSolution,
+    clust_seq_idx::Int64,
+    problem::Problem,
+)::Tuple{Int,Vector{Point{2,Float64}}}
+    vessel_weightings::NTuple{2,AbstractFloat} = (
+        problem.mothership.weighting,
+        problem.tenders.weighting
+    )
+
+    #! Find THE LONGEST sortie with 2+ nodes: so 1 can be moved and remain feasible
+    # Mothership cross-cluster segment distance
+    ms_cross_segment_dist = soln.mothership_routes[end].route.dist_matrix[2*clust_seq_idx]
+    ms_cross_segment_time = ms_cross_segment_dist * vessel_weightings[1]
+
+    # Longest sortie & index
+    sortie_lengths = tender_clust_dist(soln.tenders[end][clust_seq_idx])
+    longest_sortie_time = maximum(sortie_lengths) * vessel_weightings[2]
+    longest_sortie_idx = argmax(sortie_lengths)
+    longest_sortie_nodes = soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
+
+    # Critical segment feasibility
+    critical_sortie = 0
+    if longest_sortie_time ≥ ms_cross_segment_time
+        critical_sortie = argmax(sortie_lengths)
+    end
+    return critical_sortie, longest_sortie_nodes
+end
+
 """ Moves a random node from source to destination node list for perturb_move."""
 function _move_node!(
     source_nodes::Vector{Point{2,Float64}},
