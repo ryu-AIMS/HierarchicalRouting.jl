@@ -75,6 +75,39 @@ function _resolve_tender_endpoints(
     return tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish
 end
 
+""" Rebuild mothership solution after a cross-cluster perturbation."""
+function _rebuild_mothership_solution(
+    soln,
+    new_clusters,
+    exclusions_mothership
+)::Tuple{DataFrame,MothershipSolution}
+    # Update mothership route and waypoints based on updated clusters
+    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
+    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
+    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
+    cluster_sequence::DataFrame = get_cluster_sequence_df(
+        depot,
+        cluster_seq_ids,
+        cluster_centroids
+    )
+    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
+
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
+        updated_waypoints.waypoint,
+        exclusions_mothership
+    )
+
+    updated_ms_solution = MothershipSolution(
+        cluster_sequence,
+        Route(
+            updated_waypoints.waypoint,
+            waypoint_dist_vector,
+            vcat(waypoint_path_vector...)
+        )
+    )
+    return updated_waypoints, updated_ms_solution
+end
+
 """
     perturb_swap(
         soln::MSTSolution,
@@ -259,28 +292,10 @@ function perturb_swap(
     )
 
     # Update mothership route and waypoints based on updated clusters
-    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
-    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
-    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
-    cluster_sequence::DataFrame = get_cluster_sequence_df(
-        depot,
-        cluster_seq_ids,
-        cluster_centroids
-    )
-    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
-
-    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
-        updated_waypoints.waypoint,
+    updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
+        soln,
+        new_clusters,
         exclusions_mothership
-    )
-
-    updated_ms_solution = MothershipSolution(
-        cluster_sequence,
-        Route(
-            updated_waypoints.waypoint,
-            waypoint_dist_vector,
-            vcat(waypoint_path_vector...)
-        )
     )
 
     # Update tender solutions with the new (start/finish) waypoints based on perturbation
@@ -517,30 +532,13 @@ function perturb_move(
     new_clusters[cluster_b_idx] = Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
 
     # Update mothership route and waypoints based on updated clusters
-    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
-    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
-    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
-    cluster_sequence::DataFrame = get_cluster_sequence_df(
-        depot,
-        cluster_seq_ids,
-        cluster_centroids
-    )
-    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
-
-    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
-        updated_waypoints.waypoint,
+    updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
+        soln,
+        new_clusters,
         exclusions_mothership
     )
 
-    updated_ms_solution = MothershipSolution(
-        cluster_sequence,
-        Route(
-            updated_waypoints.waypoint,
-            waypoint_dist_vector,
-            vcat(waypoint_path_vector...)
-        )
-    )
-
+    # Update tender solutions with the new (start/finish) waypoints based on perturbation
     tenders_all::Vector{TenderSolution} = generate_tender_sorties(
         MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
         updated_waypoints.waypoint,
