@@ -108,6 +108,50 @@ function _rebuild_mothership_solution(
     return updated_waypoints, updated_ms_solution
 end
 
+""" Finalise modified tender solutions for cross-cluster perturbations by rebuilding
+    modified sorties with new waypoints and swapped nodes."""
+function _finalise_cross_cluster_tenders(
+    sorties_a::Vector{Route},
+    sorties_b::Vector{Route},
+    source_nodes::Vector{Point{2,Float64}},
+    dest_nodes::Vector{Point{2,Float64}},
+    tender_a_new_start::Point{2,Float64},
+    tender_a_new_finish::Point{2,Float64},
+    tender_b_new_start::Point{2,Float64},
+    tender_b_new_finish::Point{2,Float64},
+    exclusions_tender::POLY_VEC,
+    cluster_a_idx::Int64,
+    cluster_b_idx::Int64,
+    source_sortie_idx::Int64,
+    dest_sortie_idx::Int64
+)::Tuple{TenderSolution,TenderSolution}
+    sorties_a[source_sortie_idx], sorties_b[dest_sortie_idx] = _build_sortie_route.(
+        [source_nodes, dest_nodes],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
+        Ref(exclusions_tender)
+    )
+
+    # Rebuild tender solutions, preserving cluster identity but updating sorties to reflect:
+    # (1) swapped node membership, and (2) updated mothership launch/rendezvous waypoints
+    tenders_a_new, tenders_b_new = TenderSolution.(
+        [cluster_a_idx, cluster_b_idx],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
+        [sorties_a, sorties_b]
+    )
+
+    # Waypoints must not appear as interior sortie nodes
+    (tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
+     tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...)) &&
+        throw(ArgumentError(
+            "Tender start/end point wrongly included in sortie nodes after perturbation"
+        ))
+    return tenders_a_new, tenders_b_new
+end
+
 """
     perturb_swap(
         soln::MSTSolution,
@@ -308,35 +352,22 @@ function perturb_swap(
     tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
         _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
 
-    # Rebuild the modified sorties with the new start/finish waypoints and swapped nodes
-    sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
-    sorties_b::Vector{Route} = copy(tenders_all[clust_b_seq_idx].sorties)
-
     # Build new routes for modified sorties based on updated waypoints and swapped nodes
-    sorties_a[sortie_a_idx], sorties_b[sortie_b_idx] = _build_sortie_route.(
-        [sortie_a_nodes, sortie_b_nodes],
-        [tender_a_new_start, tender_b_new_start],
-        [tender_a_new_finish, tender_b_new_finish],
-        Ref(exclusions_tender)
+    tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
+        copy(tenders_all[clust_a_seq_idx].sorties),
+        copy(tenders_all[clust_b_seq_idx].sorties),
+        sortie_a_nodes,
+        sortie_b_nodes,
+        tender_a_new_start,
+        tender_a_new_finish,
+        tender_b_new_start,
+        tender_b_new_finish,
+        exclusions_tender,
+        cluster_a_idx,
+        cluster_b_idx,
+        sortie_a_idx,
+        sortie_b_idx
     )
-
-    # Rebuild tender solutions, preserving cluster identity but updating sorties to reflect:
-    # (1) swapped node membership, and (2) updated mothership launch/rendezvous waypoints
-    tenders_a_new, tenders_b_new = TenderSolution.(
-        [cluster_a_idx, cluster_b_idx],
-        [tender_a_new_start, tender_b_new_start],
-        [tender_a_new_finish, tender_b_new_finish],
-        [sorties_a, sorties_b]
-    )
-
-    # Waypoints must not appear as interior sortie nodes
-    (tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-     tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
-     tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-     tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...)) &&
-        throw(ArgumentError(
-            "Tender start/end point wrongly included in sortie nodes after perturbation"
-        ))
 
     # Re-run two-opt on the modified tender solutions
     tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
@@ -548,31 +579,22 @@ function perturb_move(
     tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
         _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
 
-    # Rebuild routes for the modified sorties with updated waypoints and moved nodes
-    sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
-    sorties_b::Vector{Route} = copy(tenders_all[clust_b_seq_idx].sorties)
-
-    sorties_a[source_sortie_idx], sorties_b[dest_sortie_idx] = _build_sortie_route.(
-        [source_nodes, dest_nodes],
-        [tender_a_new_start, tender_b_new_start],
-        [tender_a_new_finish, tender_b_new_finish],
-        Ref(exclusions_tender)
+    # Build new routes for modified sorties based on updated waypoints and swapped nodes
+    tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
+        copy(tenders_all[clust_a_seq_idx].sorties),
+        copy(tenders_all[clust_b_seq_idx].sorties),
+        source_nodes,
+        dest_nodes,
+        tender_a_new_start,
+        tender_a_new_finish,
+        tender_b_new_start,
+        tender_b_new_finish,
+        exclusions_tender,
+        cluster_a_idx,
+        cluster_b_idx,
+        source_sortie_idx,
+        dest_sortie_idx
     )
-
-    tenders_a_new, tenders_b_new = TenderSolution.(
-        [cluster_a_idx, cluster_b_idx],
-        [tender_a_new_start, tender_b_new_start],
-        [tender_a_new_finish, tender_b_new_finish],
-        [sorties_a, sorties_b]
-    )
-
-    (tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-     tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
-     tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-     tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...)) &&
-        throw(ArgumentError(
-            "Tender start/end point wrongly included in sortie nodes after perturbation"
-        ))
 
     tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
         [tenders_a_new, tenders_b_new],
