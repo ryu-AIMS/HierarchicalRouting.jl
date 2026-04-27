@@ -504,11 +504,8 @@ function perturb_move(
     tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
     tenders_all[clust_seq_idx] = tender_improved
 
-    return MSTSolution(
-        soln.cluster_sets,
-        soln.mothership_routes,
-        [tenders_all]
-    )
+    soln_proposed = MSTSolution(soln.cluster_sets, soln.mothership_routes, [tenders_all])
+    return soln_proposed
 end
 function perturb_move(
     soln::MSTSolution,
@@ -601,7 +598,8 @@ function perturb_move(
         Ref(exclusions_tender)
     )
 
-    return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
+    soln_proposed = MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
+    return soln_proposed
 end
 
 """
