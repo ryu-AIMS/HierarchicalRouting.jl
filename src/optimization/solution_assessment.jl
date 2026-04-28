@@ -458,7 +458,7 @@ function perturb_move(
     sorties = deepcopy(tender.sorties)
 
     # No perturbation possible if < 2 sorties in cluster
-    no_sorties = length(sorties)
+    no_sorties::Int = length(sorties)
     no_sorties < 2 && return soln
 
     # Find longest (critical) sortie, and get its nodes
@@ -471,8 +471,8 @@ function perturb_move(
     # If non-critical, or infeasible (only 1 node in longest sortie), exit
     (critical_sortie == 0 || length(longest_sortie_nodes) < 2) && return soln
 
-    source_idx = critical_sortie
-    dest_idx = rand(setdiff(1:no_sorties, source_idx))
+    source_idx::Int = critical_sortie
+    dest_idx::Int = rand(setdiff(1:no_sorties, source_idx))
 
     source_nodes = copy(sorties[source_idx].nodes)
     dest_nodes = copy(sorties[dest_idx].nodes)
@@ -529,14 +529,14 @@ function perturb_move(
 
     # If non-critical, or infeasible (only 1 node in longest sortie), exit
     (critical_sortie == 0 || length(longest_sortie_nodes) < 2) && return soln
-    source_sortie_idx = critical_sortie
-    dest_sortie_idx = rand(eachindex(tender_b.sorties))
+    source_sortie_idx::Int = critical_sortie
+    dest_sortie_idx::Int = rand(eachindex(tender_b.sorties))
 
     source_nodes = copy(tender_a.sorties[source_sortie_idx].nodes)
     dest_nodes = copy(tender_b.sorties[dest_sortie_idx].nodes)
 
     # Remove a random node from source, insert at random position in destination
-    node = _move_node!(source_nodes, dest_nodes)
+    node::Point{2,Float64} = _move_node!(source_nodes, dest_nodes)
 
     # Update cluster membership
     new_clusters::Vector{Cluster} = copy(soln.cluster_sets[end])
