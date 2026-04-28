@@ -664,8 +664,8 @@ function simulated_annealing(
 
         @info """
         Cluster: \t$(cluster_set[clust_idx].id)
-        \tIteration \tBest Value \t\tTemp
-        \t0\t\t$obj_best\t$temp"""
+        \tIteration\tBest Value\tTemp
+        \t0\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"""
 
         for iteration in 1:max_iterations
             if !cross_cluster_flag || rand() < 0.5
@@ -712,19 +712,19 @@ function simulated_annealing(
                     static_ctr = 0
                     soln_best = deepcopy(soln_current)
                     obj_best = obj_current
-                    @info "$iteration\t\t$obj_best\t$temp"
+                    @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
                 end
             end
 
             temp *= cooling_rate
 
             if iteration % 100 == 0
-                @info "$iteration\t\t$obj_best\t$temp"
+                @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
             end
 
             if iteration >= min_iters && static_ctr >= static_limit
-                @info """$iteration\t\t$obj_best\t$temp
-                \tEarly exit at iteration $iteration due to stagnation."""
+                @info """$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))
+                \tEarly exit at iteration $iteration."""
                 break
             end
         end
