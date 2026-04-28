@@ -1,5 +1,54 @@
 
 """
+    Recompute the routes for sorties in a cluster after a perturbation.
+"""
+function _recompute_sortie_routes(
+    original_sorties::Vector{Route},
+    modified_sortie_idx::Int,
+    modified_nodes::Vector{Point{2,Float64}},
+    start_point::Point{2,Float64},
+    finish_point::Point{2,Float64},
+    exclusions::POLY_VEC
+)::Vector{Route}
+    new_sorties = Vector{Route}(undef, length(original_sorties))
+    for s_idx in eachindex(original_sorties)
+        nodes_new = s_idx == modified_sortie_idx ? modified_nodes : copy(original_sorties[s_idx].nodes)
+        tender_tour = [[start_point]; nodes_new; [finish_point]]
+        dist_mat = get_feasible_matrix(tender_tour, exclusions)[1]
+        path_vec = get_feasible_vector(tender_tour, exclusions)[2]
+        new_sorties[s_idx] = Route(
+            nodes_new,
+            dist_mat,
+            vcat(path_vec...)
+        )
+    end
+    return new_sorties
+end
+
+"""
+    _build_sortie_route(
+        sortie_nodes::Vector{Point{2,Float64}},
+        start_pt::Point{2,Float64},
+        finish_pt::Point{2,Float64},
+        exclusions::POLY_VEC
+    )::Route
+
+Compute a feasible `Route` for a sortie given its interior nodes and start/finish waypoints.
+Used when sortie node membership changes (cross-cluster swap), for which `rebuild_sortie`
+is insufficient (it only updates the terminal legs, assuming interior nodes are unchanged).
+"""
+function _build_sortie_route(
+    sortie_nodes::Vector{Point{2,Float64}},
+    start_pt::Point{2,Float64},
+    finish_pt::Point{2,Float64},
+    exclusions::POLY_VEC
+)::Route
+    full_tour = [[start_pt]; sortie_nodes; [finish_pt]]
+    dist_vec, path_vec = get_feasible_vector(full_tour, exclusions)
+    return Route(sortie_nodes, dist_vec, vcat(path_vec...))
+end
+
+"""
     perturb_swap_solution(
         soln::MSTSolution,
         clust_seq_idx_target::Int64=-1,
@@ -138,13 +187,17 @@ function perturb_swap_solution(
     tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
-    sortie_a_idx = rand(1:length(tender_a.sorties))
-    sortie_b_idx = rand(1:length(tender_b.sorties))
+    sortie_a_idx = rand(eachindex(tender_a.sorties))
+    sortie_b_idx = rand(eachindex(tender_b.sorties))
+
+    # Assert chosen sorties not empty
+    @assert(!isempty(tender_a.sorties[sortie_a_idx].nodes),
+        "Empty sortie in tender_a during cross-cluster swap")
+    @assert(!isempty(tender_b.sorties[sortie_b_idx].nodes),
+        "Empty sortie in tender_b during cross-cluster swap")
 
     sortie_a_nodes = copy(tender_a.sorties[sortie_a_idx].nodes)
     sortie_b_nodes = copy(tender_b.sorties[sortie_b_idx].nodes)
-
-    (isempty(sortie_a_nodes) || isempty(sortie_b_nodes)) && return soln
 
     # Pick two random nodes across the two sorties
     node_a_idx, node_b_idx = rand(1:length(sortie_a_nodes)), rand(1:length(sortie_b_nodes))
@@ -155,17 +208,16 @@ function perturb_swap_solution(
     sortie_b_nodes[node_b_idx] = node_a
 
     # Update new clusters
-    new_clusters::Vector{Cluster} = deepcopy(soln.cluster_sets[end])
+    new_clusters::Vector{Cluster} = copy(soln.cluster_sets[end])
 
-    cluster_a_idx = tender_a.id
-    cluster_b_idx = tender_b.id
+    cluster_a_idx::Int, cluster_b_idx::Int = tender_a.id, tender_b.id
 
-    nodes_a = new_clusters[cluster_a_idx].nodes
-    nodes_b = new_clusters[cluster_b_idx].nodes
+    nodes_a::Vector{Point{2,Float64}} = copy(new_clusters[cluster_a_idx].nodes)
+    nodes_b::Vector{Point{2,Float64}} = copy(new_clusters[cluster_b_idx].nodes)
 
     # Swap nodes between clusters
-    node_a_idx_clust = findfirst(isequal(node_a), nodes_a)
-    node_b_idx_clust = findfirst(isequal(node_b), nodes_b)
+    node_a_idx_clust::Union{Int,Nothing} = findfirst(isequal(node_a), nodes_a)
+    node_b_idx_clust::Union{Int,Nothing} = findfirst(isequal(node_b), nodes_b)
     (node_a_idx_clust === nothing || node_b_idx_clust === nothing) &&
         throw(ArgumentError("Swap node not found in respective cluster nodes"))
 
@@ -175,18 +227,27 @@ function perturb_swap_solution(
     centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
     centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
-    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] = Cluster.(
-        [cluster_a_idx, cluster_b_idx],
-        [centroid_a, centroid_b],
-        [nodes_a, nodes_b],
+    new_clusters[cluster_a_idx] = Cluster(
+        id=cluster_a_idx,
+        centroid=centroid_a,
+        nodes=nodes_a
+    )
+    new_clusters[cluster_b_idx] = Cluster(
+        id=cluster_b_idx,
+        centroid=centroid_b,
+        nodes=nodes_b
     )
 
     # Update mothership route and waypoints based on updated clusters
-    depot = soln.mothership_routes[end].route.nodes[1]
-    cluster_seq_ids = getfield.(soln.tenders[end], :id)
-    cluster_centroids = getfield.(new_clusters, :centroid)
-    cluster_sequence = get_cluster_sequence_df(depot, cluster_seq_ids, cluster_centroids)
-    updated_waypoints = get_waypoints(cluster_sequence, exclusions_mothership)
+    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
+    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
+    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
+    cluster_sequence::DataFrame = get_cluster_sequence_df(
+        depot,
+        cluster_seq_ids,
+        cluster_centroids
+    )
+    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
 
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
         updated_waypoints.waypoint,
@@ -202,10 +263,16 @@ function perturb_swap_solution(
         )
     )
 
-    # Update routes for modified sorties
-    cc = updated_waypoints.connecting_clusters
-    cc_first = first.(cc)
-    cc_last = last.(cc)
+    # Update tender solutions with the new (start/finish) waypoints based on perturbation
+    tenders_all::Vector{TenderSolution} = generate_tender_sorties(
+        MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
+        updated_waypoints.waypoint,
+        exclusions_tender
+    )
+
+    # Identify new start/finish waypoints based on updated clusters and ms sequence
+    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
+    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
 
     tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
     tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
@@ -221,52 +288,43 @@ function perturb_swap_solution(
     tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
     tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
 
-    # Create tender tours by tender sequential nearest neighbour
-    tenders_a_new, tenders_b_new = tender_sequential_nearest_neighbour.(
-        [new_clusters[cluster_a_idx], new_clusters[cluster_b_idx]],
-        [(tender_a_new_start, tender_a_new_finish), (tender_b_new_start, tender_b_new_finish)],
-        Ref(problem.tenders.number),
-        Ref(problem.tenders.capacity),
+    # Rebuild the modified sorties with the new start/finish waypoints and swapped nodes
+    sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
+    sorties_b::Vector{Route} = copy(tenders_all[clust_b_seq_idx].sorties)
+
+    # Build new routes for modified sorties based on updated waypoints and swapped nodes
+    sorties_a[sortie_a_idx], sorties_b[sortie_b_idx] = _build_sortie_route.(
+        [sortie_a_nodes, sortie_b_nodes],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
         Ref(exclusions_tender)
     )
 
-    (tender_a_new_start ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
-     tender_b_new_start ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...) ||
-     tender_a_new_finish ∈ vcat(getfield.(tenders_a_new.sorties, :nodes)...) ||
-     tender_b_new_finish ∈ vcat(getfield.(tenders_b_new.sorties, :nodes)...)) &&
+    # Rebuild tender solutions, preserving cluster identity but updating sorties to reflect:
+    # (1) swapped node membership, and (2) updated mothership launch/rendezvous waypoints
+    tenders_a_new, tenders_b_new = TenderSolution.(
+        [cluster_a_idx, cluster_b_idx],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
+        [sorties_a, sorties_b]
+    )
+
+    # Waypoints must not appear as interior sortie nodes
+    (tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
+     tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...)) &&
         throw(ArgumentError(
             "Tender start/end point wrongly included in sortie nodes after perturbation"
         ))
 
-    # Re-run two-opt on the modified sorties
-    tender_a_improved, tender_b_improved = two_opt.(
+    # Re-run two-opt on the modified tender solutions
+    tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
         [tenders_a_new, tenders_b_new],
         Ref(exclusions_tender)
     )
 
-    # Update tenders with existing start/finish (not yet adjusted)
-    soln_temp = deepcopy(soln)
-    soln_temp.cluster_sets[end] = new_clusters
-    soln_temp.mothership_routes[end] = updated_ms_solution
-
-    u = rebuild_solution_with_waypoints(
-        soln_temp,
-        updated_waypoints.waypoint,
-        exclusions_mothership,
-        exclusions_tender
-    )
-
-    tenders_all::Vector{TenderSolution} = u.tenders[end]
-    tenders_all[clust_a_seq_idx] = tender_a_improved
-    tenders_all[clust_b_seq_idx] = tender_b_improved
-
-    # Create new perturbed solution
-    soln_perturbed = MSTSolution(
-        [soln.cluster_sets; [new_clusters]],
-        [soln.mothership_routes; updated_ms_solution],
-        [soln.tenders; [tenders_all]]
-    )
-    return soln_perturbed
+    return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
 end
 
 """

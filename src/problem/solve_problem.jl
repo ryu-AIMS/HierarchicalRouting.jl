@@ -184,6 +184,8 @@ function solve(
         size=(700, 875)
     ))
 
+    isempty(disturbance_clusters) && return solution
+
     # Simulate disturbance events
     total_tender_capacity::Int = Int(problem.tenders.number * problem.tenders.capacity)
     time_limit_pso_disturbed = Float64(time_limit / length(ordered_disturbances))
