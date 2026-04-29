@@ -155,7 +155,7 @@ end
 """
     perturb_swap(
         soln::MSTSolution,
-        clust_seq_idx_target::Int64=-1,
+        clust_seq_idx::Int64,
         exclusions_tender::POLY_VEC=POLY_VEC();
         enforce_diff_sortie::Bool=false
     )::MSTSolution
@@ -171,8 +171,7 @@ Perturb the solution by swapping two nodes:
 
 # Arguments
 - `soln`: Solution to perturb.
-- `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
-    selects cluster.
+- `clust_seq_idx`: Sequence index of cluster to perturb.
 - `cluster_pair`: Tuple of two cluster sequence indices to swap nodes between.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `exclusions_tender`: Exclusion zone polygons for tender. Default = DataFrame().
@@ -183,14 +182,10 @@ Perturbed full solution.
 """
 function perturb_swap(
     soln::MSTSolution,
-    clust_seq_idx_target::Int64=-1,
+    clust_seq_idx::Int64,
     exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
-    clust_seq_idx = clust_seq_idx_target == -1 ?
-                    rand(1:length(soln.tenders[end])) :
-                    clust_seq_idx_target
-
     tender = deepcopy(soln.tenders[end][clust_seq_idx])
     sorties = deepcopy(tender.sorties)
 
