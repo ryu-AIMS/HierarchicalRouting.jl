@@ -44,7 +44,7 @@ function _build_sortie_route(
     finish_pt::Point{2,Float64},
     exclusions::POLY_VEC
 )::Route
-    full_tour = [[start_pt]; sortie_nodes; [finish_pt]]
+    full_tour::Vector{Point{2,Float64}} = [[start_pt]; sortie_nodes; [finish_pt]]
     dist_vec, path_vec = get_feasible_vector(full_tour, exclusions)
     return Route(sortie_nodes, dist_vec, vcat(path_vec...))
 end
@@ -59,14 +59,10 @@ function _resolve_tender_endpoints(
     cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
     cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
 
-    tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
-    tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
-    tender_b_new_start_idx = findlast(cc_last .== cluster_b_idx)
-    tender_b_new_finish_idx = findfirst(cc_first .== cluster_b_idx)
-
-    (tender_a_new_start_idx === nothing || tender_a_new_finish_idx === nothing ||
-     tender_b_new_start_idx === nothing || tender_b_new_finish_idx === nothing) &&
-        error("Could not resolve tender start/finish indices from connecting_clusters")
+    tender_a_new_start_idx::Int = findlast(cc_last .== cluster_a_idx)
+    tender_a_new_finish_idx::Int = findfirst(cc_first .== cluster_a_idx)
+    tender_b_new_start_idx::Int = findlast(cc_last .== cluster_b_idx)
+    tender_b_new_finish_idx::Int = findfirst(cc_first .== cluster_b_idx)
 
     tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
     tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
