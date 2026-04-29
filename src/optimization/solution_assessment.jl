@@ -11,8 +11,9 @@ function _recompute_sortie_routes(
     exclusions::POLY_VEC
 )::Vector{Route}
     new_sorties = Vector{Route}(undef, length(original_sorties))
-    for s_idx in eachindex(original_sorties)
-        nodes_new = s_idx == modified_sortie_idx ? modified_nodes : copy(original_sorties[s_idx].nodes)
+
+    for (s_idx, old_sortie) in enumerate(original_sorties)
+        nodes_new = s_idx == modified_sortie_idx ? modified_nodes : copy(old_sortie.nodes)
         tender_tour = [[start_point]; nodes_new; [finish_point]]
         dist_mat = get_feasible_matrix(tender_tour, exclusions)[1]
         path_vec = get_feasible_vector(tender_tour, exclusions)[2]
