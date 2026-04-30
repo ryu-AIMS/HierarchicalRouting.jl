@@ -640,15 +640,17 @@ function simulated_annealing(
 
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
-    obj_init = objective_function(soln_init, vessel_weightings)
-    obj_best = obj_init
+    soln_current = deepcopy(soln_best)
+    soln_proposed = MSTSolution([], [], [])
+    obj_best = objective_function(soln_init, vessel_weightings)
+    obj_init = obj_best
+    obj_current = obj_best
+    obj_proposed = obj_best
     cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
     no_clusts::Int = length(cluster_set)
 
     # Initialize current solution as best, reset temp
     temp = temp_init
-    soln_current = deepcopy(soln_best)
-    obj_current = obj_best
     static_ctr = 0
 
     # Trace vectors for logging
