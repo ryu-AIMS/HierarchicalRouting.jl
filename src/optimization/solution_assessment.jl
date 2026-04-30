@@ -630,6 +630,14 @@ function simulated_annealing(
         problem.tenders.weighting
     )
 
+    @info "Starting Simulated Annealing Optimization with parameters:"
+    @info "  - Max Iterations: $max_iterations"
+    @info "  - Initial Temperature: $temp_init"
+    @info "  - Cooling Rate: $cooling_rate"
+    @info "  - Minimum Iterations: $min_iters"
+    @info "  - Static Limit: $static_limit"
+    @info "  - Cross-Cluster Flag: $cross_cluster_flag"
+
     # Initialize best solution as initial
     soln_best = deepcopy(soln_init)
     obj_init = objective_function(soln_init, vessel_weightings)
