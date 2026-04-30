@@ -710,9 +710,14 @@ function simulated_annealing(
             end
         end
 
+        static_ctr += 1
         obj_proposed = objective_function(soln_proposed, vessel_weightings)
         Δ = obj_proposed - obj_current
-        static_ctr += 1
+
+        if Δ == 0
+            Δ = total_distance(soln_proposed, vessel_weightings) -
+                total_distance(soln_current, vessel_weightings)
+        end
 
         # If the new solution is improved OR meets acceptance prob criteria
         if Δ < 0 || rand() < exp(-Δ / temp)
