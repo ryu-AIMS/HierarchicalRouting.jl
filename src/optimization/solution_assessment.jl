@@ -643,6 +643,13 @@ function simulated_annealing(
     obj_current = obj_best
     static_ctr = 0
 
+    # Trace vectors for logging
+    trace_iters = Int[]
+    trace_best = Float64[]
+    trace_current = Float64[]
+    trace_proposed = Float64[]
+    trace_temps = Float64[]
+
     @info """
     Cluster: \t$(cluster_set[clust_idx].id)
     \tIteration\tBest Value\tTemp
@@ -698,6 +705,13 @@ function simulated_annealing(
             end
         end
 
+        # Record after accept/reject so current/best reflect the updated state
+        push!(trace_iters, iteration)
+        push!(trace_proposed, obj_proposed)
+        push!(trace_current, obj_current)
+        push!(trace_best, obj_best)
+        push!(trace_temps, temp)
+
         temp *= cooling_rate
 
         if iteration % 100 == 0
@@ -707,6 +721,10 @@ function simulated_annealing(
         if iteration >= min_iters && static_ctr >= static_limit
             @info """$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))
             \tEarly exit at iteration $iteration."""
+            # Display trace after each cluster's SA run completes
+            display(Plot.sa_trace(
+                trace_iters, trace_best, trace_current, trace_proposed, trace_temps
+            ))
             break
         end
     end
