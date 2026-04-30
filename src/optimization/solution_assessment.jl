@@ -663,6 +663,7 @@ function simulated_annealing(
     clust_idx = Int(0)
     clust_alt_idx = Int(0)
     shuffled_clusters = Vector{Int}(undef, no_clusts)
+    perturbation_type::Symbol = :none
 
     @info """
     Cluster: \t$(cluster_set[clust_idx].id)
@@ -680,9 +681,11 @@ function simulated_annealing(
             if rand() < 0.5
                 # Swap 2 nodes across sorties within the same cluster
                 soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
+                perturbation_type = :SWAP
             else
                 # Move a node across sorties within the same cluster
                 soln_proposed = perturb_move(soln_current, clust_idx, problem)
+                perturbation_type = :MOVE
             end
         else
             # CROSS-cluster perturbation
@@ -695,6 +698,7 @@ function simulated_annealing(
                     (clust_idx, clust_alt_idx),
                     problem
                 )
+                perturbation_type = :SWAP
             else
                 # Move a node from a sortie in one cluster to another
                 soln_proposed = perturb_move(
@@ -702,6 +706,7 @@ function simulated_annealing(
                     (clust_idx, clust_alt_idx),
                     problem
                 )
+                perturbation_type = :MOVE
             end
         end
 
