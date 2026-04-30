@@ -635,79 +635,79 @@ function simulated_annealing(
     obj_init = objective_function(soln_init, vessel_weightings)
     obj_best = obj_init
     cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
-    # TODO: Display cost values for each cluster, rather than total solution cost
-    for clust_idx in 1:length(cluster_set)
-        # Initialize current solution as best, reset temp
-        temp = temp_init
-        soln_current = deepcopy(soln_best)
-        obj_current = obj_best
-        static_ctr = 0
+    no_clusts::Int = length(cluster_set)
 
-        @info """
-        Cluster: \t$(cluster_set[clust_idx].id)
-        \tIteration\tBest Value\tTemp
-        \t0\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"""
+    # Initialize current solution as best, reset temp
+    temp = temp_init
+    soln_current = deepcopy(soln_best)
+    obj_current = obj_best
+    static_ctr = 0
 
-        for iteration in 1:max_iterations
-            if !cross_cluster_flag || rand() < 0.5
-                # SUB-cluster perturbation
-                # Swap/move within the same cluster @ 50/50
-                if rand() < 0.5
-                    # Swap 2 nodes across sorties within the same cluster
-                    soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
-                else
-                    # Move a node across sorties within the same cluster
-                    soln_proposed = perturb_move(soln_current, clust_idx, problem)
-                end
+    @info """
+    Cluster: \t$(cluster_set[clust_idx].id)
+    \tIteration\tBest Value\tTemp
+    \t0\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"""
+
+    for iteration in 1:max_iterations
+        clust_idx = shuffle(1:no_clusts)
+        if !cross_cluster_flag || rand() < 0.5
+            # SUB-cluster perturbation
+            # Swap/move within the same cluster @ 50/50
+            if rand() < 0.5
+                # Swap 2 nodes across sorties within the same cluster
+                soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
             else
-                # CROSS-cluster perturbation
-                clust_alt_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
-
-                if rand() < 0.5
-                    # Swap 2 nodes between a sortie in one cluster to another
-                    soln_proposed = perturb_swap(
-                        soln_current,
-                        (clust_idx, clust_alt_idx),
-                        problem
-                    )
-                else
-                    # Move a node from a sortie in one cluster to another
-                    soln_proposed = perturb_move(
-                        soln_current,
-                        (clust_idx, clust_alt_idx),
-                        problem
-                    )
-                end
+                # Move a node across sorties within the same cluster
+                soln_proposed = perturb_move(soln_current, clust_idx, problem)
             end
+        else
+            # CROSS-cluster perturbation
+            clust_alt_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
 
-            obj_proposed = objective_function(soln_proposed, vessel_weightings)
-            Δ = obj_proposed - obj_current
-            static_ctr += 1
-
-            # If the new solution is improved OR meets acceptance prob criteria
-            if Δ < 0 || rand() < exp(-Δ / temp)
-                soln_current = soln_proposed
-                obj_current = obj_proposed
-
-                if obj_current < obj_best
-                    static_ctr = 0
-                    soln_best = deepcopy(soln_current)
-                    obj_best = obj_current
-                    @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
-                end
+            if rand() < 0.5
+                # Swap 2 nodes between a sortie in one cluster to another
+                soln_proposed = perturb_swap(
+                    soln_current,
+                    (clust_idx, clust_alt_idx),
+                    problem
+                )
+            else
+                # Move a node from a sortie in one cluster to another
+                soln_proposed = perturb_move(
+                    soln_current,
+                    (clust_idx, clust_alt_idx),
+                    problem
+                )
             end
+        end
 
-            temp *= cooling_rate
+        obj_proposed = objective_function(soln_proposed, vessel_weightings)
+        Δ = obj_proposed - obj_current
+        static_ctr += 1
 
-            if iteration % 100 == 0
+        # If the new solution is improved OR meets acceptance prob criteria
+        if Δ < 0 || rand() < exp(-Δ / temp)
+            soln_current = soln_proposed
+            obj_current = obj_proposed
+
+            if obj_current < obj_best
+                static_ctr = 0
+                soln_best = deepcopy(soln_current)
+                obj_best = obj_current
                 @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
             end
+        end
 
-            if iteration >= min_iters && static_ctr >= static_limit
-                @info """$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))
-                \tEarly exit at iteration $iteration."""
-                break
-            end
+        temp *= cooling_rate
+
+        if iteration % 100 == 0
+            @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
+        end
+
+        if iteration >= min_iters && static_ctr >= static_limit
+            @info """$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))
+            \tEarly exit at iteration $iteration."""
+            break
         end
     end
 
