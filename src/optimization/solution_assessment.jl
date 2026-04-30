@@ -665,10 +665,7 @@ function simulated_annealing(
     shuffled_clusters = Vector{Int}(undef, no_clusts)
     perturbation_type::Symbol = :none
 
-    @info """
-    Cluster: \t$(cluster_set[clust_idx].id)
-    \tIteration\tBest Value\tTemp
-    \t0\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"""
+    @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
 
     for iteration in 1:max_iterations
         shuffled_clusters = shuffle(1:no_clusts)
@@ -728,9 +725,11 @@ function simulated_annealing(
                 static_ctr = 0
                 soln_best = deepcopy(soln_current)
                 obj_best = obj_current
-                @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
             end
         end
+
+        perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
+        @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $(round(temp, digits=4))\t"
 
         # Record after accept/reject so current/best reflect the updated state
         push!(trace_iters, iteration)
@@ -741,13 +740,9 @@ function simulated_annealing(
 
         temp *= cooling_rate
 
-        if iteration % 100 == 0
-            @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
-        end
-
         if iteration >= min_iters && static_ctr >= static_limit
-            @info """$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))
-            \tEarly exit at iteration $iteration."""
+            @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $(round(temp, digits=4))\t"
+
             # Display trace after each cluster's SA run completes
             display(Plot.sa_trace(
                 trace_iters, trace_best, trace_current, trace_proposed, trace_temps
@@ -756,6 +751,6 @@ function simulated_annealing(
         end
     end
 
-    @info "\nFinal Value: $obj_best\nΔ: $(obj_init - obj_best)"
+    @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
     return soln_best, obj_best
 end
