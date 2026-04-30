@@ -660,13 +660,20 @@ function simulated_annealing(
     trace_proposed = Float64[]
     trace_temps = Float64[]
 
+    clust_idx = Int(0)
+    clust_alt_idx = Int(0)
+    shuffled_clusters = Vector{Int}(undef, no_clusts)
+
     @info """
     Cluster: \t$(cluster_set[clust_idx].id)
     \tIteration\tBest Value\tTemp
     \t0\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"""
 
     for iteration in 1:max_iterations
-        clust_idx = shuffle(1:no_clusts)
+        shuffled_clusters = shuffle(1:no_clusts)
+        clust_idx = shuffled_clusters[1]
+        clust_alt_idx = 0
+
         if !cross_cluster_flag || rand() < 0.5
             # SUB-cluster perturbation
             # Swap/move within the same cluster @ 50/50
@@ -679,7 +686,7 @@ function simulated_annealing(
             end
         else
             # CROSS-cluster perturbation
-            clust_alt_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
+            clust_alt_idx = shuffled_clusters[2]
 
             if rand() < 0.5
                 # Swap 2 nodes between a sortie in one cluster to another
