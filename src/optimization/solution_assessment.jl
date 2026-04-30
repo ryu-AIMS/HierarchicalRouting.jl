@@ -393,10 +393,8 @@ function _find_longest_feasible_sortie(
     longest_sortie_nodes = soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
 
     # Critical segment feasibility
-    critical_sortie = 0
-    if longest_sortie_time ≥ ms_cross_segment_time
-        critical_sortie = argmax(sortie_lengths)
-    end
+    critical_sortie = longest_sortie_time ≥ ms_cross_segment_time ? longest_sortie_idx : 0
+
     return critical_sortie, longest_sortie_nodes
 end
 
