@@ -639,30 +639,30 @@ function simulated_annealing(
     @info "  - Cross-Cluster Flag: $cross_cluster_flag"
 
     # Initialize best solution as initial
-    soln_best = deepcopy(soln_init)
-    soln_current = deepcopy(soln_best)
-    soln_proposed = MSTSolution([], [], [])
-    obj_best = objective_function(soln_init, vessel_weightings)
-    obj_init = obj_best
-    obj_current = obj_best
-    obj_proposed = obj_best
+    soln_best::MSTSolution = deepcopy(soln_init)
+    soln_current::MSTSolution = deepcopy(soln_best)
+    soln_proposed::MSTSolution = MSTSolution([], [], [])
+    obj_best::Float64 = objective_function(soln_init, vessel_weightings)
+    obj_init::Float64 = obj_best
+    obj_current::Float64 = obj_best
+    obj_proposed::Float64 = obj_best
     cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
     no_clusts::Int = length(cluster_set)
 
     # Initialize current solution as best, reset temp
-    temp = temp_init
-    static_ctr = 0
+    temp::Float64 = temp_init
+    static_ctr::Int = 0
 
     # Trace vectors for logging
-    trace_iters = Int[]
-    trace_best = Float64[]
-    trace_current = Float64[]
-    trace_proposed = Float64[]
-    trace_temps = Float64[]
+    trace_iters::Vector{Int} = Int[]
+    trace_best::Vector{Float64} = Float64[]
+    trace_current::Vector{Float64} = Float64[]
+    trace_proposed::Vector{Float64} = Float64[]
+    trace_temps::Vector{Float64} = Float64[]
 
-    clust_idx = Int(0)
-    clust_alt_idx = Int(0)
-    shuffled_clusters = Vector{Int}(undef, no_clusts)
+    clust_idx::Int = Int(0)
+    clust_alt_idx::Int = Int(0)
+    shuffled_clusters::Vector{Int} = Vector{Int}(undef, no_clusts)
     perturbation_type::Symbol = :none
 
     @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
