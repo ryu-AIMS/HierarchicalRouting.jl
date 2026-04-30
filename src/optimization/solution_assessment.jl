@@ -716,6 +716,8 @@ function simulated_annealing(
                 total_distance(soln_current, vessel_weightings)
         end
 
+        display(Plot.solution(problem, soln_proposed; title="Proposed Solution at Iteration $iteration", highlight_critical_path_flag=true,))
+
         # If the new solution is improved OR meets acceptance prob criteria
         if Δ < 0 || rand() < exp(-Δ / temp)
             soln_current = soln_proposed
@@ -725,6 +727,7 @@ function simulated_annealing(
                 static_ctr = 0
                 soln_best = deepcopy(soln_current)
                 obj_best = obj_current
+                display(Plot.solution(problem, soln_best; title="New Best Solution at Iteration $iteration", highlight_critical_path_flag=true,))
             end
         end
 
