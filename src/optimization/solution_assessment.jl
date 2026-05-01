@@ -745,15 +745,14 @@ function simulated_annealing(
 
         if iteration >= min_iters && static_ctr >= static_limit
             @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $(round(temp, digits=4))\t"
-
-            # Display trace after each cluster's SA run completes
-            display(Plot.sa_trace(
-                trace_iters, trace_best, trace_current, trace_proposed, trace_temps
-            ))
             break
         end
     end
 
+    # Display trace after each cluster's SA run completes
+    display(Plot.sa_trace(
+        trace_iters, trace_best, trace_current, trace_proposed, trace_temps
+    ))
     @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
     return soln_best, obj_best
 end
