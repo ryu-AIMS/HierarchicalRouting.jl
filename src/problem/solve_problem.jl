@@ -294,7 +294,7 @@ end
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         cross_cluster_flag::Bool=true,
-        max_iterations::Int=1_000,
+        max_iterations::Int=typemax(Int),
         temp_init::Float64=2.0,
         cooling_rate::Float64=0.9,
         min_iters::Int=50,
@@ -306,7 +306,7 @@ end
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
         cross_cluster_flag::Bool=true,
-        max_iterations::Int=1_000,
+        max_iterations::Int=typemax(Int),
         temp_init::Float64=2.0,
         cooling_rate::Float64=0.9,
         min_iters::Int=50,
@@ -325,7 +325,7 @@ function `objective_function` to improve full and partial solutions.
 - `objective_function`: Objective function to quantify and evaluate the solution
 - `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
     considered. Default = true.
-- `max_iterations`: Maximum number of iterations
+- `max_iterations`: Maximum number of iterations. Default = typemax(Int).
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
 - `min_iters`: Minimum number of iterations to perform before allowing early exit
@@ -343,7 +343,7 @@ function improve_solution(
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     cross_cluster_flag::Bool=true,
-    max_iterations::Int=1_000,
+    max_iterations::Int=typemax(Int),
     temp_init::Float64=2.0,
     cooling_rate::Float64=0.9,
     min_iters::Int=50,
@@ -415,7 +415,7 @@ function improve_solution(
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
     cross_cluster_flag::Bool=true,
-    max_iterations::Int=1_000,
+    max_iterations::Int=typemax(Int),
     temp_init::Float64=2.0,
     cooling_rate::Float64=0.9,
     min_iters::Int=50,
