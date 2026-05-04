@@ -295,10 +295,10 @@ end
         objective_function::Function=critical_path,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=typemax(Int),
-        temp_init::Float64=2.0,
-        cooling_rate::Float64=0.9,
-        min_iters::Int=50,
-        static_limit::Int=20,
+        temp_init::Float64=1.5,
+        cooling_rate::Float64=0.95,
+        min_iters::Int=500,
+        static_limit::Int=100,
     )::Tuple{MSTSolution,Float64}
     improve_solution(
         init_solution::MSTSolution,
@@ -307,10 +307,10 @@ end
         objective_function::Function=critical_path,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=typemax(Int),
-        temp_init::Float64=2.0,
-        cooling_rate::Float64=0.9,
-        min_iters::Int=50,
-        static_limit::Int=20,
+        temp_init::Float64=1.5,
+        cooling_rate::Float64=0.95,
+        min_iters::Int=500,
+        static_limit::Int=100,
     )
 
 Improve the solution using the optimization function `opt_function` with the objective
@@ -344,10 +344,10 @@ function improve_solution(
     objective_function::Function=critical_path,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=typemax(Int),
-    temp_init::Float64=2.0,
-    cooling_rate::Float64=0.9,
-    min_iters::Int=50,
-    static_limit::Int=20,
+    temp_init::Float64=1.5,
+    cooling_rate::Float64=0.95,
+    min_iters::Int=500,
+    static_limit::Int=100,
 )::Tuple{MSTSolution,Float64}
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
@@ -416,10 +416,10 @@ function improve_solution(
     objective_function::Function=critical_path,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=typemax(Int),
-    temp_init::Float64=2.0,
-    cooling_rate::Float64=0.9,
-    min_iters::Int=50,
-    static_limit::Int=20,
+    temp_init::Float64=1.5,
+    cooling_rate::Float64=0.95,
+    min_iters::Int=500,
+    static_limit::Int=100,
 )
     current_cluster_idx::Int64 = 1
     next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
