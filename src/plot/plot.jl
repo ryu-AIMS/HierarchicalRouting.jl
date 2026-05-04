@@ -1016,7 +1016,6 @@ function sa_trace(
     lines!(ax, iters, obj_proposed; color=(:orange, 0.4), linewidth=1, label="Proposed")
     lines!(ax, iters, obj_current; color=:steelblue, linewidth=1.5, label="Current")
     lines!(ax, iters, obj_best; color=:green, linewidth=2, label="Best")
-    axislegend(ax; position=:rt)
 
     # Right axis: temperature
     axt = Axis(fig[1, 1];
@@ -1026,9 +1025,9 @@ function sa_trace(
         backgroundcolor=:transparent,
     )
     lines!(axt, iters, temps; color=(:red, 0.5), linewidth=1, label="Temperature")
-    axislegend(axt; position=:rb)
 
     linkxaxes!(ax, axt)
+    axislegend(ax; position=:rt)
 
     return fig
 end
