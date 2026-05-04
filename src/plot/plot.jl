@@ -990,6 +990,48 @@ function solution_disturbances(
     return fig
 end
 
+"""
+    Plot the objective value trace for a simulated annealing run, showing the temp with
+    best, current, and proposed values at each iteration.
+"""
+function sa_trace(
+    iters::Vector{Int},
+    obj_best::Vector{Float64},
+    obj_current::Vector{Float64},
+    obj_proposed::Vector{Float64},
+    temps::Vector{Float64};
+    cluster_id::Int=0,
+    title::String="",
+)::Figure
+    fig = Figure()
+    cluster_str = cluster_id > 0 ? " — Cluster $cluster_id" : ""
+
+    # Left axis: objective values
+    ax = Axis(fig[1, 1];
+        title=isempty(title) ? "SA Objective Trace$cluster_str" : title,
+        xlabel="Iteration",
+        ylabel="Objective Value",
+        xgridvisible=false,
+    )
+    lines!(ax, iters, obj_proposed; color=(:orange, 0.4), linewidth=1, label="Proposed")
+    lines!(ax, iters, obj_current; color=:steelblue, linewidth=1.5, label="Current")
+    lines!(ax, iters, obj_best; color=:green, linewidth=2, label="Best")
+
+    # Right axis: temperature
+    axt = Axis(fig[1, 1];
+        yaxisposition=:right, ylabel="Temperature",
+        xticklabelsvisible=false, xticksvisible=false,
+        ygridvisible=false, xgridvisible=false,
+        backgroundcolor=:transparent,
+    )
+    lines!(axt, iters, temps; color=(:red, 0.5), linewidth=1, label="Temperature")
+
+    linkxaxes!(ax, axt)
+    axislegend(ax; position=:rt)
+
+    return fig
+end
+
 function trace(
     iters::Vector{Int},
     fvals::Vector{Float64},

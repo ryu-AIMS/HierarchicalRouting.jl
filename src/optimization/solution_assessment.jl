@@ -11,8 +11,9 @@ function _recompute_sortie_routes(
     exclusions::POLY_VEC
 )::Vector{Route}
     new_sorties = Vector{Route}(undef, length(original_sorties))
-    for s_idx in eachindex(original_sorties)
-        nodes_new = s_idx == modified_sortie_idx ? modified_nodes : copy(original_sorties[s_idx].nodes)
+
+    for (s_idx, old_sortie) in enumerate(original_sorties)
+        nodes_new = s_idx == modified_sortie_idx ? modified_nodes : copy(old_sortie.nodes)
         tender_tour = [[start_point]; nodes_new; [finish_point]]
         dist_mat = get_feasible_matrix(tender_tour, exclusions)[1]
         path_vec = get_feasible_vector(tender_tour, exclusions)[2]
@@ -43,19 +44,119 @@ function _build_sortie_route(
     finish_pt::Point{2,Float64},
     exclusions::POLY_VEC
 )::Route
-    full_tour = [[start_pt]; sortie_nodes; [finish_pt]]
+    full_tour::Vector{Point{2,Float64}} = [[start_pt]; sortie_nodes; [finish_pt]]
     dist_vec, path_vec = get_feasible_vector(full_tour, exclusions)
     return Route(sortie_nodes, dist_vec, vcat(path_vec...))
 end
 
+""" Resolve new waypoints for tenders affected by a cross-cluster perturbation. """
+function _resolve_tender_endpoints(
+    updated_waypoints::DataFrame,
+    cluster_a_idx::Int,
+    cluster_b_idx::Int
+)::NTuple{4,Point}
+    # Identify new start/finish waypoints for the two modified tenders
+    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
+    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
+
+    tender_a_new_start_idx::Int = findlast(cc_last .== cluster_a_idx)
+    tender_a_new_finish_idx::Int = findfirst(cc_first .== cluster_a_idx)
+    tender_b_new_start_idx::Int = findlast(cc_last .== cluster_b_idx)
+    tender_b_new_finish_idx::Int = findfirst(cc_first .== cluster_b_idx)
+
+    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
+    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
+    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
+    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+
+    return tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish
+end
+
+""" Rebuild mothership solution after a cross-cluster perturbation."""
+function _rebuild_mothership_solution(
+    soln,
+    new_clusters,
+    exclusions_mothership
+)::Tuple{DataFrame,MothershipSolution}
+    # Update mothership route and waypoints based on updated clusters
+    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
+    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
+    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
+    cluster_sequence::DataFrame = get_cluster_sequence_df(
+        depot,
+        cluster_seq_ids,
+        cluster_centroids
+    )
+    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
+
+    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
+        updated_waypoints.waypoint,
+        exclusions_mothership
+    )
+
+    updated_ms_solution = MothershipSolution(
+        cluster_sequence,
+        Route(
+            updated_waypoints.waypoint,
+            waypoint_dist_vector,
+            vcat(waypoint_path_vector...)
+        )
+    )
+    return updated_waypoints, updated_ms_solution
+end
+
+""" Finalise modified tender solutions for cross-cluster perturbations by rebuilding
+    modified sorties with new waypoints and swapped nodes."""
+function _finalise_cross_cluster_tenders(
+    sorties_a::Vector{Route},
+    sorties_b::Vector{Route},
+    source_nodes::Vector{Point{2,Float64}},
+    dest_nodes::Vector{Point{2,Float64}},
+    tender_a_new_start::Point{2,Float64},
+    tender_a_new_finish::Point{2,Float64},
+    tender_b_new_start::Point{2,Float64},
+    tender_b_new_finish::Point{2,Float64},
+    exclusions_tender::POLY_VEC,
+    cluster_a_idx::Int64,
+    cluster_b_idx::Int64,
+    source_sortie_idx::Int64,
+    dest_sortie_idx::Int64
+)::Tuple{TenderSolution,TenderSolution}
+    sorties_a[source_sortie_idx], sorties_b[dest_sortie_idx] = _build_sortie_route.(
+        [source_nodes, dest_nodes],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
+        Ref(exclusions_tender)
+    )
+
+    # Rebuild tender solutions, preserving cluster identity but updating sorties to reflect:
+    # (1) swapped node membership, and (2) updated mothership launch/rendezvous waypoints
+    tenders_a_new, tenders_b_new = TenderSolution.(
+        [cluster_a_idx, cluster_b_idx],
+        [tender_a_new_start, tender_b_new_start],
+        [tender_a_new_finish, tender_b_new_finish],
+        [sorties_a, sorties_b]
+    )
+
+    # Waypoints must not appear as interior sortie nodes
+    (tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
+     tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
+     tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...)) &&
+        throw(ArgumentError(
+            "Tender start/end point wrongly included in sortie nodes after perturbation"
+        ))
+    return tenders_a_new, tenders_b_new
+end
+
 """
-    perturb_swap_solution(
+    perturb_swap(
         soln::MSTSolution,
-        clust_seq_idx_target::Int64=-1,
+        clust_seq_idx::Int64,
         exclusions_tender::POLY_VEC=POLY_VEC();
         enforce_diff_sortie::Bool=false
     )::MSTSolution
-    perturb_swap_solution(
+    perturb_swap(
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
         problem::Problem,
@@ -67,8 +168,7 @@ Perturb the solution by swapping two nodes:
 
 # Arguments
 - `soln`: Solution to perturb.
-- `clust_seq_idx_target`: Sequence index of cluster to perturb. Default = -1: randomly
-    selects cluster.
+- `clust_seq_idx`: Sequence index of cluster to perturb.
 - `cluster_pair`: Tuple of two cluster sequence indices to swap nodes between.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `exclusions_tender`: Exclusion zone polygons for tender. Default = DataFrame().
@@ -77,36 +177,29 @@ Perturb the solution by swapping two nodes:
 # Returns
 Perturbed full solution.
 """
-function perturb_swap_solution(
+function perturb_swap(
     soln::MSTSolution,
-    clust_seq_idx_target::Int64=-1,
+    clust_seq_idx::Int64,
     exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
-    clust_seq_idx = clust_seq_idx_target == -1 ?
-                    rand(1:length(soln.tenders[end])) :
-                    clust_seq_idx_target
-
     tender = deepcopy(soln.tenders[end][clust_seq_idx])
     sorties = deepcopy(tender.sorties)
 
     # If < 2 sorties in cluster, no perturbation possible
-    if length(sorties) < 2
-        return soln
-    end
+    no_sorties = length(sorties)
+    no_sorties < 2 && return soln
 
     # Choose two random sorties to swap nodes between
     # if enforce_diff_sortie is true: ensure different sorties are selected
     sortie_a_idx, sortie_b_idx = enforce_diff_sortie ?
-                                 shuffle(1:length(sorties))[1:2] :
-                                 rand(1:length(sorties), 2)
+                                 shuffle(1:no_sorties)[1:2] :
+                                 rand(1:no_sorties, 2)
 
     sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
     # No perturbation possible if a sortie has no nodes
-    if isempty(sortie_a.nodes) || isempty(sortie_b.nodes)
-        return soln
-    end
+    isempty(sortie_a.nodes) || isempty(sortie_b.nodes) && return soln
 
     # Determine node indices to swap
     if sortie_a_idx == sortie_b_idx
@@ -167,13 +260,9 @@ function perturb_swap_solution(
     tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
     tenders_all[clust_seq_idx] = tender_improved
 
-    tenders_full_updated::Vector{Vector{TenderSolution}} = [
-        copy(soln.tenders[end]),
-        tenders_all
-    ]
-    return MSTSolution(soln.cluster_sets, soln.mothership_routes, tenders_full_updated)
+    return MSTSolution(soln.cluster_sets, soln.mothership_routes, [tenders_all])
 end
-function perturb_swap_solution(
+function perturb_swap(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
@@ -239,28 +328,10 @@ function perturb_swap_solution(
     )
 
     # Update mothership route and waypoints based on updated clusters
-    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
-    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
-    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
-    cluster_sequence::DataFrame = get_cluster_sequence_df(
-        depot,
-        cluster_seq_ids,
-        cluster_centroids
-    )
-    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
-
-    waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
-        updated_waypoints.waypoint,
+    updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
+        soln,
+        new_clusters,
         exclusions_mothership
-    )
-
-    updated_ms_solution = MothershipSolution(
-        cluster_sequence,
-        Route(
-            updated_waypoints.waypoint,
-            waypoint_dist_vector,
-            vcat(waypoint_path_vector...)
-        )
     )
 
     # Update tender solutions with the new (start/finish) waypoints based on perturbation
@@ -270,53 +341,25 @@ function perturb_swap_solution(
         exclusions_tender
     )
 
-    # Identify new start/finish waypoints based on updated clusters and ms sequence
-    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
-    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
-
-    tender_a_new_start_idx = findlast(cc_last .== cluster_a_idx)
-    tender_a_new_finish_idx = findfirst(cc_first .== cluster_a_idx)
-    tender_b_new_start_idx = findlast(cc_last .== cluster_b_idx)
-    tender_b_new_finish_idx = findfirst(cc_first .== cluster_b_idx)
-
-    (tender_a_new_start_idx === nothing || tender_a_new_finish_idx === nothing ||
-     tender_b_new_start_idx === nothing || tender_b_new_finish_idx === nothing) &&
-        error("Could not resolve tender start/finish indices from connecting_clusters")
-
-    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
-    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
-    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
-    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
-
-    # Rebuild the modified sorties with the new start/finish waypoints and swapped nodes
-    sorties_a::Vector{Route} = copy(tenders_all[clust_a_seq_idx].sorties)
-    sorties_b::Vector{Route} = copy(tenders_all[clust_b_seq_idx].sorties)
+    tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
+        _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
 
     # Build new routes for modified sorties based on updated waypoints and swapped nodes
-    sorties_a[sortie_a_idx], sorties_b[sortie_b_idx] = _build_sortie_route.(
-        [sortie_a_nodes, sortie_b_nodes],
-        [tender_a_new_start, tender_b_new_start],
-        [tender_a_new_finish, tender_b_new_finish],
-        Ref(exclusions_tender)
+    tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
+        copy(tenders_all[clust_a_seq_idx].sorties),
+        copy(tenders_all[clust_b_seq_idx].sorties),
+        sortie_a_nodes,
+        sortie_b_nodes,
+        tender_a_new_start,
+        tender_a_new_finish,
+        tender_b_new_start,
+        tender_b_new_finish,
+        exclusions_tender,
+        cluster_a_idx,
+        cluster_b_idx,
+        sortie_a_idx,
+        sortie_b_idx
     )
-
-    # Rebuild tender solutions, preserving cluster identity but updating sorties to reflect:
-    # (1) swapped node membership, and (2) updated mothership launch/rendezvous waypoints
-    tenders_a_new, tenders_b_new = TenderSolution.(
-        [cluster_a_idx, cluster_b_idx],
-        [tender_a_new_start, tender_b_new_start],
-        [tender_a_new_finish, tender_b_new_finish],
-        [sorties_a, sorties_b]
-    )
-
-    # Waypoints must not appear as interior sortie nodes
-    (tender_a_new_start ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-     tender_b_new_start ∈ vcat(getfield.(sorties_b, :nodes)...) ||
-     tender_a_new_finish ∈ vcat(getfield.(sorties_a, :nodes)...) ||
-     tender_b_new_finish ∈ vcat(getfield.(sorties_b, :nodes)...)) &&
-        throw(ArgumentError(
-            "Tender start/end point wrongly included in sortie nodes after perturbation"
-        ))
 
     # Re-run two-opt on the modified tender solutions
     tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
@@ -327,297 +370,217 @@ function perturb_swap_solution(
     return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
 end
 
-"""
-    find_unallocated_nodes(
-        soln::MSTSolution
-    )::Set{Point{2,Float64}}
-    find_unallocated_nodes(
-        clusters::Vector{Cluster},
-        tenders::Vector{TenderSolution}
-    )::Set{Point{2,Float64}}
+""" Finds longest sortie in a cluster and determines if it's on the critical path."""
+function _find_longest_feasible_sortie(
+    soln::MSTSolution,
+    clust_seq_idx::Int64,
+)::Tuple{Int,Vector{Point{2,Float64}}}
+    #! Find THE LONGEST sortie with 2+ nodes: so 1 can be moved and remain feasible
+    sortie_lengths = tender_clust_dist(soln.tenders[end][clust_seq_idx])
+    longest_sortie_idx = argmax(sortie_lengths)
+    longest_sortie_nodes = soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
 
-Find nodes that are not allocated to any sortie in the solution.
+    return longest_sortie_idx, longest_sortie_nodes
+end
+
+function _any_feasible_sortie(
+    sorties::Vector{Route},
+)::Tuple{Int,Vector{Point{2,Float64}}}
+    sortie_lengths = length.(getfield.(sorties, :nodes))
+
+    # Filter sorties with length > 2 so a move is feasibile
+    feasible_sorties = findall(x -> x >= 2, sortie_lengths)
+    isempty(feasible_sorties) && return 0, Vector{Point{2,Float64}}()
+
+    # Return a random feasible sortie
+    sortie_idx = rand(feasible_sorties)
+    sortie_nodes = copy(sorties[sortie_idx].nodes)
+    return sortie_idx, sortie_nodes
+end
+
+""" Moves a random node from source to destination node list for perturb_move."""
+function _move_node!(
+    source_nodes::Vector{Point{2,Float64}},
+    dest_nodes::Vector{Point{2,Float64}}
+)::Point{2,Float64}
+    node_idx = rand(1:length(source_nodes))
+    node = source_nodes[node_idx]
+    deleteat!(source_nodes, node_idx)
+    insert_pos = rand(1:(length(dest_nodes)+1))
+    insert!(dest_nodes, insert_pos, node)
+    return node
+end
+
+"""
+    perturb_move(
+        soln::MSTSolution,
+        clust_seq_idx::Int64,
+        problem::Problem,
+    )::MSTSolution
+    perturb_move(
+        soln::MSTSolution,
+        cluster_pair::Tuple{Int,Int},
+        problem::Problem,
+    )::MSTSolution
+
+Perturb the solution by moving a single node from one sortie to another:
+- within a cluster, or
+- between two clusters.
 
 # Arguments
-- `soln`: Solution to find unallocated nodes in.
-- `clusters`: Vector of clusters.
-- `tenders`: Vector of tender solutions.
+- `soln`: Solution to perturb.
+- `clust_seq_idx`: Sequence index of cluster to perturb.
+- `cluster_pair`: Tuple of two cluster sequence indices to move a node between.
+- `problem`: Problem instance used to access exclusion zones and other problem parameters.
 
 # Returns
- A set of unallocated nodes.
+Perturbed full solution.
 """
-function find_unallocated_nodes(
-    soln::MSTSolution
-)::Set{Point{2,Float64}}
-    clusters = soln.cluster_sets[end]
-    tenders = soln.tenders[end]
-    return find_unallocated_nodes(clusters, tenders)
-end
-function find_unallocated_nodes(
-    clusters::Vector{Cluster},
-    tenders::Vector{TenderSolution}
-)::Set{Point{2,Float64}}
-    cluster_sorties = getfield.(tenders, :sorties)
-
-    all_nodes::Set{Point{2,Float64}} = Set(vcat(getfield.(clusters, :nodes)...))
-    allocated_nodes::Set{Point{2,Float64}} = Set(
-        collect(Base.Iterators.flatten(
-            getfield.(Base.Iterators.flatten(cluster_sorties), :nodes))
-        )
-    )
-    return setdiff(all_nodes, allocated_nodes)
-end
-
-"""
-    insert_unallocated_node(
-        soln::MSTSolution,
-        exclusions::Vector{IGeometry{wkbPolygon}}
-        max_dist::Int64=15000;
-        t_cap::Int16,
-        current_cluster_seq_idx::Int=-1,
-    )::MSTSolution
-    insert_unallocated_node(
-        clusters_ex::Vector{Cluster},
-        tenders_ex::Vector{TenderSolution},
-        exclusions::Vector{IGeometry{wkbPolygon}},
-        max_dist::Float64=15000;
-        t_cap::Int16,
-        current_cluster_seq_idx::Int=-1,
-    )::Vector{Cluster}
-
-Insert unallocated nodes into the solution.
-
-# Arguments
-- `soln`: Solution to insert unallocated nodes into.
-- `clusters_ex`: Vector of existing clusters.
-- `tenders_ex`: Vector of existing tender solutions.
-- `exclusions`: Exclusion zone polygon zones to avoid.
-- `max_dist`: Maximum distance to consider for cluster assignment - feasible distance (m)
-    from start and finish waypoints to the unallocated node. Default = 15000.
-- `t_cap`: Tender capacity.
-- `current_cluster_seq_idx`: Sequence index of the current cluster.
-    Default = -1: randomly selects cluster.
-"""
-function insert_unallocated_node(
+function perturb_move(
     soln::MSTSolution,
-    exclusions::POLY_VEC,
-    max_dist::Int64=15000;
-    t_cap::Int16,
-    current_cluster_seq_idx::Int=-1,
+    clust_seq_idx::Int64,
+    problem::Problem,
 )::MSTSolution
-    clusters = deepcopy(soln.cluster_sets[end])
-    tenders = deepcopy(soln.tenders[end])
-    unallocated_nodes = find_unallocated_nodes(soln)
+    #! WITHIN CLUSTER MOVE
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
 
-    waypoints = soln.mothership_routes[end].route.nodes[2:end-1]
-    min_tender_sorties = [minimum(length.(getfield.(t.sorties, :nodes))) for t in tenders]
-    updated_tenders = copy(tenders)
+    tender = deepcopy(soln.tenders[end][clust_seq_idx])
+    sorties = deepcopy(tender.sorties)
 
-    for node in unallocated_nodes
-        centroids = getfield.(clusters, :centroid)
+    # No perturbation possible if < 2 sorties in cluster
+    no_sorties::Int = length(sorties)
+    no_sorties < 2 && return soln
 
-        # Find the closest cluster by shortest distance to ms path
-        waypoint_distances = getindex.(shortest_feasible_path.(
-                Ref(node),
-                waypoints,
-                Ref(exclusions)
-            ), 1)
-        @views cluster_waypoint_distances =
-            waypoint_distances[1:2:end] .+
-            waypoint_distances[2:2:end]
-
-        cluster_mask = (min_tender_sorties .< t_cap) .&
-                       (cluster_waypoint_distances .< max_dist)
-
-        if isempty(cluster_mask)
-            break
-        end
-
-        # Find the closest cluster with available tender capacity to the unallocated node
-        valid_idxs = findall(cluster_mask)
-        cluster_seq_idx = valid_idxs[argmin(cluster_waypoint_distances[cluster_mask])]
-        cluster_idx = tenders[cluster_seq_idx].id
-
-        # Update cluster: Insert unallocated node
-        cluster_nodes = vcat(clusters[cluster_idx].nodes, [node])
-        cluster_centroid = Point{2,Float64}(
-            mean(getindex.(cluster_nodes, 1)),
-            mean(getindex.(cluster_nodes, 2))
-        )
-        clusters[cluster_idx] = Cluster(
-            id=clusters[cluster_idx].id,
-            centroid=cluster_centroid,
-            nodes=cluster_nodes
-        )
-
-        # Update tender sortie: Add unallocated node to an available tender sortie
-        sorties = updated_tenders[cluster_seq_idx].sorties
-        sortie_mask = length.(getfield.(sorties, :nodes)) .< t_cap
-        if !any(sortie_mask)
-            break
-        end
-
-        # Find the closest available sortie to the unallocated node
-        allocated_sortie_nodes = collect(Base.Iterators.flatten(
-            getfield.(sorties[sortie_mask], :nodes)
-        ))
-        sortie_distances = getindex.(shortest_feasible_path.(
-                Ref(node),
-                allocated_sortie_nodes,
-                Ref(exclusions)
-            ), 1)
-        closest_available_sortie_node = allocated_sortie_nodes[argmin(sortie_distances)]
-
-        closest_available_sortie_idx = findfirst(
-            x -> closest_available_sortie_node in x,
-            getfield.(sorties, :nodes)
-        )
-
-        # Create updated sortie::Route
-        updated_sortie_nodes = vcat(sorties[closest_available_sortie_idx].nodes, [node])
-        updated_full_tour = [
-            [tenders[cluster_seq_idx].start];
-            updated_sortie_nodes;
-            [tenders[cluster_seq_idx].finish]
-        ]
-        updated_sortie_matrix = get_feasible_matrix(updated_full_tour, exclusions)[1]
-        #? Check these linestrings from get_feasible_vector() vs get_feasible_matrix()[2]
-        updated_sortie_linestrings = get_feasible_vector(updated_full_tour, exclusions)[2]
-        updated_sortie_linestrings_flat = vcat(updated_sortie_linestrings...)
-
-        updated_sortie = Route(
-            updated_sortie_nodes,
-            updated_sortie_matrix,
-            updated_sortie_linestrings_flat
-        )
-
-        # Update the sortie in the tender solution
-        updated_sorties = [
-            i == closest_available_sortie_idx ? updated_sortie : s
-            for (i, s) in enumerate(sorties)
-        ]
-
-        #? Does this modify the original solution in-place?
-        updated_tenders[cluster_seq_idx] = TenderSolution(
-            tenders[cluster_seq_idx].id,
-            tenders[cluster_seq_idx].start,
-            tenders[cluster_seq_idx].finish,
-            updated_sorties,
-        )
-
-        #! update min_tender_sorties
-        min_tender_sorties[cluster_seq_idx] = minimum(
-            length.(getfield.(sorties, :nodes))
-        )
-    end
-    tenders_full_updated::Vector{Vector{TenderSolution}} = [
-        copy(soln.tenders[end]),
-        updated_tenders
-    ]
-    soln_new = MSTSolution(
-        [copy(soln.cluster_sets[end]), clusters],
-        [
-            deepcopy(soln.mothership_routes[end]),
-            deepcopy(soln.mothership_routes[end])  # TODO: recompute if needed
-        ],
-        tenders_full_updated
+    # Choose a random feasible (2+ nodes) sortie, and get its nodes
+    source_idx, source_nodes = _any_feasible_sortie(
+        sorties,
     )
-    return soln_new
-end
-function insert_unallocated_node(
-    clusters_ex::Vector{Cluster},
-    tenders_ex::Vector{TenderSolution},
-    exclusions::POLY_VEC;
-    max_dist::Int64=15000,
-    t_cap::Int16,
-    current_cluster_seq_idx::Int=-1,
-)::Vector{Cluster}
-    clusters = deepcopy(clusters_ex)
-    tenders = deepcopy(tenders_ex)
-    unallocated_nodes = find_unallocated_nodes(clusters_ex, tenders)
 
-    min_tender_sorties = [
-        minimum(length.(getfield.(t.sorties, :nodes)))
-        for t in tenders
+    # If no feasible sortie found, exit
+    source_idx == 0 && return soln
+
+    dest_idx::Int = rand(setdiff(1:no_sorties, source_idx))
+    dest_nodes = copy(sorties[dest_idx].nodes)
+
+    # Remove a random node from source, insert at random position in destination
+    _move_node!(source_nodes, dest_nodes)
+
+    # Recompute routes for both modified sorties
+    updated_tours::Vector{Vector{Point{2,Float64}}} = [
+        [[tender.start]; source_nodes; [tender.finish]],
+        [[tender.start]; dest_nodes; [tender.finish]]
     ]
 
-    for node in unallocated_nodes
-        waypoint_distances = [
-            sum(getindex.(shortest_feasible_path.(
-                    Ref(node),
-                    [t.start, t.finish],
-                    Ref(exclusions)
-                ),
-                1))
-            for t in tenders
-        ]
+    linestrings::Vector{Vector{Vector{LineString{2,Float64}}}} = getindex.(
+        get_feasible_vector.(updated_tours, Ref(exclusions_tender)),
+        2
+    )
+    updated_matrices::Vector{Matrix{Float64}} = getindex.(
+        get_feasible_matrix.(updated_tours, Ref(exclusions_tender)),
+        1
+    )
 
-        cluster_mask = (min_tender_sorties .< t_cap) .& (waypoint_distances .< max_dist)
+    sorties[source_idx] = Route(source_nodes, updated_matrices[1], vcat(linestrings[1]...))
+    sorties[dest_idx] = Route(dest_nodes, updated_matrices[2], vcat(linestrings[2]...))
 
-        if isempty(cluster_mask)
-            continue
-        end
-        # Select cluster closest by centroid distance (not waypoint this time)
-        valid_idxs = getfield.(tenders[findall(cluster_mask)], :id)
-        cluster_idx = valid_idxs[argmin(waypoint_distances[cluster_mask])]
-        cluster_nodes = vcat(clusters[cluster_idx].nodes, [node])
-        cluster_centroid = Point{2,Float64}(
-            mean(getindex.(cluster_nodes, 1)),
-            mean(getindex.(cluster_nodes, 2))
-        )
+    tender_new = TenderSolution(tender, sorties)
+    tender_improved = two_opt(tender_new, exclusions_tender)
 
-        clusters[cluster_idx] = Cluster(
-            id=clusters[cluster_idx].id,
-            centroid=cluster_centroid,
-            nodes=cluster_nodes
-        )
+    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
+    tenders_all[clust_seq_idx] = tender_improved
 
-        # Update tender sortie: Add unallocated node to an available tender sortie
-        cluster_seq_idx = findfirst(==(cluster_idx), getfield.(tenders, :id))
-        sorties = tenders[cluster_seq_idx].sorties
-        sortie_mask = length.(getfield.(sorties, :nodes)) .< t_cap
+    soln_proposed = MSTSolution(soln.cluster_sets, soln.mothership_routes, [tenders_all])
+    return soln_proposed
+end
+function perturb_move(
+    soln::MSTSolution,
+    cluster_pair::Tuple{Int,Int},
+    problem::Problem,
+)::MSTSolution
+    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
 
-        # Find the closest available sortie to the unallocated node
-        allocated_sortie_nodes = collect(Base.Iterators.flatten(
-            getfield.(sorties[sortie_mask], :nodes)
-        ))
-        sortie_distances = getindex.(shortest_feasible_path.(
-                Ref(node),
-                allocated_sortie_nodes,
-                Ref(exclusions)
-            ), 1)
-        closest_available_sortie_node = allocated_sortie_nodes[argmin(sortie_distances)]
+    clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
-        closest_available_sortie_idx = findfirst(
-            x -> closest_available_sortie_node in x,
-            getfield.(sorties, :nodes)
-        )
+    tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
+    tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
-        updated_full_tour = [
-            [tenders[cluster_seq_idx].start];
-            vcat(sorties[closest_available_sortie_idx].nodes, [node]);
-            [tenders[cluster_seq_idx].finish]
-        ]
+    # Choose a random feasible (2+ nodes) sortie, and get its nodes
+    source_sortie_idx, source_nodes = _any_feasible_sortie(
+        tender_a.sorties,
+    )
 
-        updated_sortie_matrix = get_feasible_matrix(updated_full_tour, exclusions)[1]
-        updated_sortie_linestrings = get_feasible_vector(updated_full_tour, exclusions)[2]
-        updated_sortie_linestrings_flat = vcat(updated_sortie_linestrings...)
-        updated_sortie = Route(
-            updated_full_tour[2:end-1],
-            updated_sortie_matrix,
-            updated_sortie_linestrings_flat
-        )
+    # If no feasible sortie found, exit
+    source_sortie_idx == 0 && return soln
 
-        # Update the sortie in the tender solution
-        tenders[cluster_seq_idx].sorties[closest_available_sortie_idx] = updated_sortie
+    dest_sortie_idx::Int = rand(eachindex(tender_b.sorties))
+    dest_nodes = copy(tender_b.sorties[dest_sortie_idx].nodes)
 
-        # Update capacity tracker
-        min_tender_sorties[cluster_seq_idx] = minimum(
-            length.(getfield.(tenders[cluster_seq_idx].sorties, :nodes))
-        )
-    end
+    # Remove a random node from source, insert at random position in destination
+    node::Point{2,Float64} = _move_node!(source_nodes, dest_nodes)
 
-    return clusters
+    # Update cluster membership
+    new_clusters::Vector{Cluster} = copy(soln.cluster_sets[end])
+    cluster_a_idx::Int = tender_a.id
+    cluster_b_idx::Int = tender_b.id
+
+    nodes_a::Vector{Point{2,Float64}} = copy(new_clusters[cluster_a_idx].nodes)
+    nodes_b::Vector{Point{2,Float64}} = copy(new_clusters[cluster_b_idx].nodes)
+
+    node_a_idx_clust::Union{Int,Nothing} = findfirst(isequal(node), nodes_a)
+    node_a_idx_clust === nothing &&
+        throw(ArgumentError("Move node not found in source cluster nodes"))
+
+    deleteat!(nodes_a, node_a_idx_clust)
+    push!(nodes_b, node)
+
+    centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
+    centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
+
+    new_clusters[cluster_a_idx] = Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a)
+    new_clusters[cluster_b_idx] = Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
+
+    # Update mothership route and waypoints based on updated clusters
+    updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
+        soln,
+        new_clusters,
+        exclusions_mothership
+    )
+
+    # Update tender solutions with the new (start/finish) waypoints based on perturbation
+    tenders_all::Vector{TenderSolution} = generate_tender_sorties(
+        MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
+        updated_waypoints.waypoint,
+        exclusions_tender
+    )
+
+    tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
+        _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
+
+    # Build new routes for modified sorties based on updated waypoints and swapped nodes
+    tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
+        copy(tenders_all[clust_a_seq_idx].sorties),
+        copy(tenders_all[clust_b_seq_idx].sorties),
+        source_nodes,
+        dest_nodes,
+        tender_a_new_start,
+        tender_a_new_finish,
+        tender_b_new_start,
+        tender_b_new_finish,
+        exclusions_tender,
+        cluster_a_idx,
+        cluster_b_idx,
+        source_sortie_idx,
+        dest_sortie_idx
+    )
+
+    tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
+        [tenders_a_new, tenders_b_new],
+        Ref(exclusions_tender)
+    )
+
+    soln_proposed = MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
+    return soln_proposed
 end
 
 """
@@ -625,7 +588,6 @@ end
         problem::Problem,
         soln_init::MSTSolution,
         objective_function::Function,
-        perturb_function::Function,
         max_iterations::Int,
         temp_init::Float64,
         cooling_rate::Float64,
@@ -640,7 +602,6 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `soln_init`: Initial solution.
 - `objective_function`: Function to evaluate the solution.
-- `perturb_function`: Function to perturb the solution.
 - `max_iterations`: Maximum number of iterations.
 - `temp_init`: Initial temperature.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
@@ -656,7 +617,6 @@ function simulated_annealing(
     problem::Problem,
     soln_init::MSTSolution,
     objective_function::Function,
-    perturb_function::Function,
     max_iterations::Int,
     temp_init::Float64,
     cooling_rate::Float64,
@@ -685,21 +645,39 @@ function simulated_annealing(
 
         @info """
         Cluster: \t$(cluster_set[clust_idx].id)
-        \tIteration \tBest Value \t\tTemp
-        \t0\t\t$obj_best\t$temp"""
+        \tIteration\tBest Value\tTemp
+        \t0\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"""
 
         for iteration in 1:max_iterations
             if !cross_cluster_flag || rand() < 0.5
-                # swap two nodes within the same cluster
-                soln_proposed = perturb_function(soln_current, clust_idx, exclusions_tender)
+                # SUB-cluster perturbation
+                # Swap/move within the same cluster @ 50/50
+                if rand() < 0.5
+                    # Swap 2 nodes across sorties within the same cluster
+                    soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
+                else
+                    # Move a node across sorties within the same cluster
+                    soln_proposed = perturb_move(soln_current, clust_idx, problem)
+                end
             else
-                # swap two nodes between two different random clusters
-                clust_swap_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
-                soln_proposed = perturb_function(
-                    soln_current,
-                    (clust_idx, clust_swap_idx),
-                    problem
-                )
+                # CROSS-cluster perturbation
+                clust_alt_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
+
+                if rand() < 0.5
+                    # Swap 2 nodes between a sortie in one cluster to another
+                    soln_proposed = perturb_swap(
+                        soln_current,
+                        (clust_idx, clust_alt_idx),
+                        problem
+                    )
+                else
+                    # Move a node from a sortie in one cluster to another
+                    soln_proposed = perturb_move(
+                        soln_current,
+                        (clust_idx, clust_alt_idx),
+                        problem
+                    )
+                end
             end
 
             obj_proposed = objective_function(soln_proposed, vessel_weightings)
@@ -715,19 +693,19 @@ function simulated_annealing(
                     static_ctr = 0
                     soln_best = deepcopy(soln_current)
                     obj_best = obj_current
-                    @info "$iteration\t\t$obj_best\t$temp"
+                    @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
                 end
             end
 
             temp *= cooling_rate
 
             if iteration % 100 == 0
-                @info "$iteration\t\t$obj_best\t$temp"
+                @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
             end
 
             if iteration >= min_iters && static_ctr >= static_limit
-                @info """$iteration\t\t$obj_best\t$temp
-                \tEarly exit at iteration $iteration due to stagnation."""
+                @info """$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))
+                \tEarly exit at iteration $iteration."""
                 break
             end
         end

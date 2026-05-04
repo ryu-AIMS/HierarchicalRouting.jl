@@ -293,7 +293,6 @@ end
         next_cluster_idx::Int;
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
-        perturb_function::Function=perturb_swap_solution,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
         temp_init::Float64=2.0,
@@ -306,7 +305,6 @@ end
         problem::Problem;
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
-        perturb_function::Function=perturb_swap_solution,
         cross_cluster_flag::Bool=true,
         max_iterations::Int=1_000,
         temp_init::Float64=2.0,
@@ -316,8 +314,7 @@ end
     )
 
 Improve the solution using the optimization function `opt_function` with the objective
-function `objective_function` and the perturbation function `perturb_function`.\n
-Multiple dispatch to improve full and partial solutions (respectively).
+function `objective_function` to improve full and partial solutions.
 
 # Arguments
 - `initial_solution`: Initial solution to improve
@@ -326,7 +323,6 @@ Multiple dispatch to improve full and partial solutions (respectively).
 - `next_cluster_idx`: Index of the next cluster in the sequence
 - `opt_function`: Optimization function to improve the solution
 - `objective_function`: Objective function to quantify and evaluate the solution
-- `perturb_function`: Perturbation function to generate changes in the solution
 - `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
     considered. Default = true.
 - `max_iterations`: Maximum number of iterations
@@ -346,7 +342,6 @@ function improve_solution(
     next_cluster_idx::Int;
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-    perturb_function::Function=perturb_swap_solution,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
     temp_init::Float64=2.0,
@@ -387,7 +382,6 @@ function improve_solution(
         problem,
         current_solution,
         objective_function,
-        perturb_function,
         max_iterations,
         temp_init,
         cooling_rate,
@@ -420,7 +414,6 @@ function improve_solution(
     problem::Problem;
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-    perturb_function::Function=perturb_swap_solution,
     cross_cluster_flag::Bool=true,
     max_iterations::Int=1_000,
     temp_init::Float64=2.0,
@@ -439,7 +432,6 @@ function improve_solution(
         cross_cluster_flag=cross_cluster_flag,
         opt_function,
         objective_function,
-        perturb_function,
         max_iterations,
         temp_init,
         cooling_rate,
