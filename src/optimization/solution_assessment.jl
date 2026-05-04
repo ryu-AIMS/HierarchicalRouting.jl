@@ -383,6 +383,21 @@ function _find_longest_feasible_sortie(
     return longest_sortie_idx, longest_sortie_nodes
 end
 
+function _any_feasible_sortie(
+    sorties::Vector{Route},
+)::Tuple{Int,Vector{Point{2,Float64}}}
+    sortie_lengths = length.(getfield.(sorties, :nodes))
+
+    # Filter sorties with length > 2 so a move is feasibile
+    feasible_sorties = findall(x -> x >= 2, sortie_lengths)
+    isempty(feasible_sorties) && return 0, Vector{Point{2,Float64}}()
+
+    # Return a random feasible sortie
+    sortie_idx = rand(feasible_sorties)
+    sortie_nodes = copy(sorties[sortie_idx].nodes)
+    return sortie_idx, sortie_nodes
+end
+
 """ Moves a random node from source to destination node list for perturb_move."""
 function _move_node!(
     source_nodes::Vector{Point{2,Float64}},
@@ -436,19 +451,15 @@ function perturb_move(
     no_sorties::Int = length(sorties)
     no_sorties < 2 && return soln
 
-    # Find longest (critical) sortie, and get its nodes
-    critical_sortie, longest_sortie_nodes = _find_longest_feasible_sortie(
-        soln,
-        clust_seq_idx,
+    # Choose a random feasible (2+ nodes) sortie, and get its nodes
+    source_idx, source_nodes = _any_feasible_sortie(
+        sorties,
     )
 
-    # If infeasible (only 1 node in longest sortie), exit
-    length(longest_sortie_nodes) < 2 && return soln
+    # If no feasible sortie found, exit
+    source_idx == 0 && return soln
 
-    source_idx::Int = critical_sortie
     dest_idx::Int = rand(setdiff(1:no_sorties, source_idx))
-
-    source_nodes = copy(sorties[source_idx].nodes)
     dest_nodes = copy(sorties[dest_idx].nodes)
 
     # Remove a random node from source, insert at random position in destination
@@ -494,19 +505,15 @@ function perturb_move(
     tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
     tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
-    #?! ONLY MOVE FROM CRITICAL SEGMENT?
-    critical_sortie, longest_sortie_nodes = _find_longest_feasible_sortie(
-        soln,
-        clust_a_seq_idx,
+    # Choose a random feasible (2+ nodes) sortie, and get its nodes
+    source_sortie_idx, source_nodes = _any_feasible_sortie(
+        tender_a.sorties,
     )
 
-    # If infeasible (only 1 node in longest sortie), exit
-    length(longest_sortie_nodes) < 2 && return soln
+    # If no feasible sortie found, exit
+    source_sortie_idx == 0 && return soln
 
-    source_sortie_idx::Int = critical_sortie
     dest_sortie_idx::Int = rand(eachindex(tender_b.sorties))
-
-    source_nodes = copy(tender_a.sorties[source_sortie_idx].nodes)
     dest_nodes = copy(tender_b.sorties[dest_sortie_idx].nodes)
 
     # Remove a random node from source, insert at random position in destination
