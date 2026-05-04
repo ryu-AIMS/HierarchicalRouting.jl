@@ -732,7 +732,7 @@ function simulated_annealing(
         end
 
         perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
-        @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $(round(temp, digits=4))\t"
+        @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
 
         # Record after accept/reject so current/best reflect the updated state
         push!(trace_iters, iteration)
@@ -744,7 +744,7 @@ function simulated_annealing(
         temp *= cooling_rate
 
         if iteration >= min_iters && static_ctr >= static_limit
-            @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $(round(temp, digits=4))\t"
+            @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
             break
         end
     end
