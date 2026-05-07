@@ -56,7 +56,6 @@ end
         do_improve::Bool=true,
         time_limit::Real=200.0,
         wpt_optim_plot_flag::Bool=false,
-        cross_cluster_flag::Bool=false,
         soln_progress_plot_flag::Bool=false,
     )::MSTSolution
 
@@ -77,7 +76,6 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `do_improve`: Whether to improve the initial solution by optimization tender sorties
 - `time_limit`: Time limit for waypoint optimization, in seconds
 - `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
-- `cross_cluster_flag`: Flag to allow perturbations across clusters in solution improvement
 - `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
 
 # Returns
@@ -93,7 +91,6 @@ function solve(
     do_improve::Bool=true,
     time_limit::Real=200.0,
     wpt_optim_plot_flag::Bool=false,
-    cross_cluster_flag::Bool=false,
     soln_progress_plot_flag::Bool=false,
 )::MSTSolution
     if !isnothing(seed)
@@ -150,7 +147,6 @@ function solve(
             problem,
             1,
             next_cluster_idx;
-            cross_cluster_flag
         )
 
         # Update cluster sequence after improvement
@@ -293,7 +289,6 @@ end
         next_cluster_idx::Int;
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
-        cross_cluster_flag::Bool=true,
         max_iterations::Int=typemax(Int),
         temp_init::Float64=3.0,
         cooling_rate::Float64=0.925,
@@ -305,7 +300,6 @@ end
         problem::Problem;
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
-        cross_cluster_flag::Bool=true,
         max_iterations::Int=typemax(Int),
         temp_init::Float64=3.0,
         cooling_rate::Float64=0.925,
@@ -323,8 +317,6 @@ function `objective_function` to improve full and partial solutions.
 - `next_cluster_idx`: Index of the next cluster in the sequence
 - `opt_function`: Optimization function to improve the solution
 - `objective_function`: Objective function to quantify and evaluate the solution
-- `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
-    considered. Default = true.
 - `max_iterations`: Maximum number of iterations. Default = typemax(Int).
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
@@ -342,7 +334,6 @@ function improve_solution(
     next_cluster_idx::Int;
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-    cross_cluster_flag::Bool=true,
     max_iterations::Int=typemax(Int),
     temp_init::Float64=3.0,
     cooling_rate::Float64=0.925,
@@ -387,7 +378,6 @@ function improve_solution(
         cooling_rate,
         min_iters,
         static_limit;
-        cross_cluster_flag,
     )
 
     merged_clusters = vcat(
@@ -414,7 +404,6 @@ function improve_solution(
     problem::Problem;
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-    cross_cluster_flag::Bool=true,
     max_iterations::Int=typemax(Int),
     temp_init::Float64=3.0,
     cooling_rate::Float64=0.925,
@@ -429,7 +418,6 @@ function improve_solution(
         problem,
         current_cluster_idx,
         next_cluster_idx;
-        cross_cluster_flag=cross_cluster_flag,
         opt_function,
         objective_function,
         max_iterations,

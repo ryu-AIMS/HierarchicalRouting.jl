@@ -595,7 +595,6 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int;
-        cross_cluster_flag::Bool,
     )::Tuple{MSTSolution,Float64}
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -609,7 +608,6 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
 - `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
-- `cross_cluster_flag`: Boolean to indicate consideration of cross-cluster perturbations.
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.
@@ -624,7 +622,6 @@ function simulated_annealing(
     cooling_rate::Float64,
     min_iters::Int,
     static_limit::Int;
-    cross_cluster_flag::Bool,
 )::Tuple{MSTSolution,Float64}
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
     vessel_weightings::NTuple{2,AbstractFloat} = (
@@ -638,7 +635,6 @@ function simulated_annealing(
     @info "  - Cooling Rate: $cooling_rate"
     @info "  - Minimum Iterations: $min_iters"
     @info "  - Static Limit: $static_limit"
-    @info "  - Cross-Cluster Flag: $cross_cluster_flag"
 
     # Initialize best solution as initial
     soln_best::MSTSolution = deepcopy(soln_init)
@@ -674,7 +670,7 @@ function simulated_annealing(
         clust_idx = shuffled_clusters[1]
         clust_alt_idx = 0
 
-        if !cross_cluster_flag || rand() < 0.5
+        if rand() < 0.5
             # SUB-cluster perturbation
             # Swap/move within the same cluster @ 50/50
             if rand() < 0.5
