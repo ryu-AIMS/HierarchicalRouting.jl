@@ -630,10 +630,10 @@ function simulated_annealing(
     )
 
     @info "Starting Simulated Annealing Optimization with parameters:"
-    @info "  - Max Iterations: $max_iterations"
+    max_iterations == typemax(Int) || @info "  - Max Iterations: $max_iterations"
+    @info "  - Minimum Iterations: $min_iters"
     @info "  - Initial Temperature: $temp_init"
     @info "  - Cooling Rate: $cooling_rate"
-    @info "  - Minimum Iterations: $min_iters"
     @info "  - Static Limit: $static_limit"
 
     # Initialize best solution as initial
