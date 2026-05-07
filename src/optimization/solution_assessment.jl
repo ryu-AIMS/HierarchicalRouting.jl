@@ -716,9 +716,7 @@ function simulated_annealing(
 
         Δ = obj_proposed - obj_current
 
-        if Δ == 0
-            Δ = total_dist_proposed - total_dist_current
-        end
+        Δ = Δ == 0 ? total_dist_proposed - total_dist_current : Δ
 
         # If the new solution is improved OR meets acceptance prob criteria
         if Δ < 0 || rand() < exp(-Δ / temp)
