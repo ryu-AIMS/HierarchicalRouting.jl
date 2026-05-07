@@ -644,6 +644,11 @@ function simulated_annealing(
     obj_init::Float64 = obj_best
     obj_current::Float64 = obj_best
     obj_proposed::Float64 = obj_best
+
+    total_dist_current::Float64 = total_distance(soln_current, vessel_weightings)
+    total_dist_proposed::Float64 = total_dist_current
+    total_dist_best::Float64 = total_dist_current
+
     cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
     no_clusts::Int = length(cluster_set)
 
@@ -707,22 +712,25 @@ function simulated_annealing(
 
         static_ctr += 1
         obj_proposed = objective_function(soln_proposed, vessel_weightings)
+        total_dist_proposed = total_distance(soln_proposed, vessel_weightings)
+
         Δ = obj_proposed - obj_current
 
         if Δ == 0
-            Δ = total_distance(soln_proposed, vessel_weightings) -
-                total_distance(soln_current, vessel_weightings)
+            Δ = total_dist_proposed - total_dist_current
         end
 
         # If the new solution is improved OR meets acceptance prob criteria
         if Δ < 0 || rand() < exp(-Δ / temp)
             soln_current = soln_proposed
             obj_current = obj_proposed
+            total_dist_current = total_dist_proposed
 
             if obj_current < obj_best
                 static_ctr = 0
                 soln_best = deepcopy(soln_current)
                 obj_best = obj_current
+                total_dist_best = total_dist_current
                 display(Plot.solution(problem, soln_best; title="New Best Solution at Iteration $iteration", highlight_critical_path_flag=true,))
             end
         end
