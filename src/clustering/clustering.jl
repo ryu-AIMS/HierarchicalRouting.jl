@@ -434,8 +434,9 @@ function capacity_constrained_kmeans(
         max(ceil(Int, n_reefs / max_cluster_size), min_k) :
         min_k
     # Run k-means multiple times to find best result
-    best_clustering_assignment::Vector{Int} = zeros(Int, n_reefs)
+    best_clustering_assignment::Vector{Int} = mod1.(1:n_reefs, initial_k)
     best_score::Float64 = Inf
+
     for _ in 1:n_restarts
         # Reset k <- initial_k every restart
         clustering_assignment::Vector{Int64} = _constrained_kmeans_single_iteration(
