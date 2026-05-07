@@ -724,7 +724,8 @@ function simulated_annealing(
             obj_current = obj_proposed
             total_dist_current = total_dist_proposed
 
-            if obj_current < obj_best
+            if obj_current < obj_best ||
+               (obj_current == obj_best && total_dist_current < total_dist_best)
                 static_ctr = 0
                 soln_best = deepcopy(soln_current)
                 obj_best = obj_current
