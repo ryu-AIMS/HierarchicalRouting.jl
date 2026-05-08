@@ -595,7 +595,6 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int;
-        cross_cluster_flag::Bool,
     )::Tuple{MSTSolution,Float64}
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -609,7 +608,6 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
 - `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
-- `cross_cluster_flag`: Boolean to indicate consideration of cross-cluster perturbations.
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.
@@ -624,7 +622,6 @@ function simulated_annealing(
     cooling_rate::Float64,
     min_iters::Int,
     static_limit::Int;
-    cross_cluster_flag::Bool,
 )::Tuple{MSTSolution,Float64}
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
     vessel_weightings::NTuple{2,AbstractFloat} = (
@@ -632,87 +629,133 @@ function simulated_annealing(
         problem.tenders.weighting
     )
 
+    @info "Starting Simulated Annealing Optimization with parameters:"
+    max_iterations == typemax(Int) || @info "  - Max Iterations: $max_iterations"
+    @info "  - Minimum Iterations: $min_iters"
+    @info "  - Initial Temperature: $temp_init"
+    @info "  - Cooling Rate: $cooling_rate"
+    @info "  - Static Limit: $static_limit"
+
     # Initialize best solution as initial
-    soln_best = deepcopy(soln_init)
-    obj_init = objective_function(soln_init, vessel_weightings)
-    obj_best = obj_init
+    soln_best::MSTSolution = deepcopy(soln_init)
+    soln_current::MSTSolution = deepcopy(soln_best)
+    soln_proposed::MSTSolution = MSTSolution([], [], [])
+    obj_best::Float64 = objective_function(soln_init, vessel_weightings)
+    obj_init::Float64 = obj_best
+    obj_current::Float64 = obj_best
+    obj_proposed::Float64 = obj_best
+
+    total_dist_current::Float64 = total_distance(soln_current, vessel_weightings)
+    total_dist_proposed::Float64 = total_dist_current
+    total_dist_best::Float64 = total_dist_current
+
     cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
-    # TODO: Display cost values for each cluster, rather than total solution cost
-    for clust_idx in 1:length(cluster_set)
-        # Initialize current solution as best, reset temp
-        temp = temp_init
-        soln_current = deepcopy(soln_best)
-        obj_current = obj_best
-        static_ctr = 0
+    no_clusts::Int = length(cluster_set)
 
-        @info """
-        Cluster: \t$(cluster_set[clust_idx].id)
-        \tIteration\tBest Value\tTemp
-        \t0\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"""
+    # Initialize current solution as best, reset temp
+    temp::Float64 = temp_init
+    static_ctr::Int = 0
 
-        for iteration in 1:max_iterations
-            if !cross_cluster_flag || rand() < 0.5
-                # SUB-cluster perturbation
-                # Swap/move within the same cluster @ 50/50
-                if rand() < 0.5
-                    # Swap 2 nodes across sorties within the same cluster
-                    soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
-                else
-                    # Move a node across sorties within the same cluster
-                    soln_proposed = perturb_move(soln_current, clust_idx, problem)
-                end
+    # Trace vectors for logging
+    trace_iters::Vector{Int} = Int[]
+    trace_best::Vector{Float64} = Float64[]
+    trace_current::Vector{Float64} = Float64[]
+    trace_proposed::Vector{Float64} = Float64[]
+    trace_temps::Vector{Float64} = Float64[]
+
+    clust_idx::Int = Int(0)
+    clust_alt_idx::Int = Int(0)
+    shuffled_clusters::Vector{Int} = Vector{Int}(undef, no_clusts)
+    perturbation_type::Symbol = :none
+
+    @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
+
+    for iteration in 1:max_iterations
+        shuffled_clusters = shuffle(1:no_clusts)
+        clust_idx = shuffled_clusters[1]
+        clust_alt_idx = 0
+
+        if rand() < 0.5
+            # SUB-cluster perturbation
+            # Swap/move within the same cluster @ 50/50
+            if rand() < 0.5
+                # Swap 2 nodes across sorties within the same cluster
+                soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
+                perturbation_type = :SWAP
             else
-                # CROSS-cluster perturbation
-                clust_alt_idx = shuffle(setdiff(1:length(cluster_set), clust_idx))[1]
-
-                if rand() < 0.5
-                    # Swap 2 nodes between a sortie in one cluster to another
-                    soln_proposed = perturb_swap(
-                        soln_current,
-                        (clust_idx, clust_alt_idx),
-                        problem
-                    )
-                else
-                    # Move a node from a sortie in one cluster to another
-                    soln_proposed = perturb_move(
-                        soln_current,
-                        (clust_idx, clust_alt_idx),
-                        problem
-                    )
-                end
+                # Move a node across sorties within the same cluster
+                soln_proposed = perturb_move(soln_current, clust_idx, problem)
+                perturbation_type = :MOVE
             end
+        else
+            # CROSS-cluster perturbation
+            clust_alt_idx = shuffled_clusters[2]
 
-            obj_proposed = objective_function(soln_proposed, vessel_weightings)
-            Δ = obj_proposed - obj_current
-            static_ctr += 1
-
-            # If the new solution is improved OR meets acceptance prob criteria
-            if Δ < 0 || rand() < exp(-Δ / temp)
-                soln_current = soln_proposed
-                obj_current = obj_proposed
-
-                if obj_current < obj_best
-                    static_ctr = 0
-                    soln_best = deepcopy(soln_current)
-                    obj_best = obj_current
-                    @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
-                end
-            end
-
-            temp *= cooling_rate
-
-            if iteration % 100 == 0
-                @info "$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))"
-            end
-
-            if iteration >= min_iters && static_ctr >= static_limit
-                @info """$iteration\t\t$(round(obj_best, digits=4))\t\t$(round(temp, digits=4))
-                \tEarly exit at iteration $iteration."""
-                break
+            if rand() < 0.5
+                # Swap 2 nodes between a sortie in one cluster to another
+                soln_proposed = perturb_swap(
+                    soln_current,
+                    (clust_idx, clust_alt_idx),
+                    problem
+                )
+                perturbation_type = :SWAP
+            else
+                # Move a node from a sortie in one cluster to another
+                soln_proposed = perturb_move(
+                    soln_current,
+                    (clust_idx, clust_alt_idx),
+                    problem
+                )
+                perturbation_type = :MOVE
             end
         end
+
+        obj_proposed = objective_function(soln_proposed, vessel_weightings)
+        Δ = obj_proposed - obj_current
+
+        if Δ == 0
+            total_dist_proposed = total_distance(soln_proposed, vessel_weightings)
+            Δ = total_dist_proposed - total_dist_current
+        end
+
+        # If the new solution is improved OR meets acceptance prob criteria
+        if Δ < 0 || rand() < exp(-Δ / temp)
+            soln_current = soln_proposed
+            total_dist_current = obj_proposed == obj_current ? total_dist_proposed : total_distance(soln_proposed, vessel_weightings)
+            obj_current = obj_proposed
+
+            if obj_current < obj_best ||
+               (obj_current == obj_best && total_dist_current < total_dist_best)
+                static_ctr = 0
+                soln_best = deepcopy(soln_current)
+                obj_best = obj_current
+                total_dist_best = total_dist_current
+                display(Plot.solution(problem, soln_best; title="New Best Solution at Iteration $iteration", highlight_critical_path_flag=true,))
+            end
+        end
+
+        perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
+        @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
+
+        # Record after accept/reject so current/best reflect the updated state
+        push!(trace_iters, iteration)
+        push!(trace_proposed, obj_proposed)
+        push!(trace_current, obj_current)
+        push!(trace_best, obj_best)
+        push!(trace_temps, temp)
+
+        if iteration >= min_iters && static_ctr >= static_limit
+            @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
+            break
+        end
+        temp *= cooling_rate
+        static_ctr += 1
     end
 
-    @info "\nFinal Value: $obj_best\nΔ: $(obj_init - obj_best)"
+    # Display trace after each cluster's SA run completes
+    display(Plot.sa_trace(
+        trace_iters, trace_best, trace_current, trace_proposed, trace_temps
+    ))
+    @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
     return soln_best, obj_best
 end

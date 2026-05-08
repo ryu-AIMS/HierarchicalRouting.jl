@@ -213,7 +213,6 @@ function _apply_disturbance_events!(
                 problem,
                 disturb_clust_idx,
                 next_disturbance_cluster_idx,
-                cross_cluster_flag=false
             )
             # Overwrite with improved
             clusters = optimized_current_solution.cluster_sets[end]

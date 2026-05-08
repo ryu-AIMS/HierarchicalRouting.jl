@@ -56,8 +56,14 @@ end
         do_improve::Bool=true,
         time_limit::Real=200.0,
         wpt_optim_plot_flag::Bool=false,
-        cross_cluster_flag::Bool=false,
         soln_progress_plot_flag::Bool=false,
+        cluster_iterations::Int=1000,
+        cluster_restarts::Int=20,
+        temp_init::Float64=0.25,
+        cooling_rate::Float64=0.9,
+        min_iters::Int=1000,
+        static_limit::Int=1,
+        max_iterations::Int=1000,
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -77,8 +83,9 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `do_improve`: Whether to improve the initial solution by optimization tender sorties
 - `time_limit`: Time limit for waypoint optimization, in seconds
 - `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
-- `cross_cluster_flag`: Flag to allow perturbations across clusters in solution improvement
 - `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
+- `cluster_iterations`: Number of iterations to perform in clustering step
+- `cluster_restarts`: Number of restarts to perform in clustering step
 
 # Returns
 Best total MSTSolution found
@@ -93,15 +100,26 @@ function solve(
     do_improve::Bool=true,
     time_limit::Real=200.0,
     wpt_optim_plot_flag::Bool=false,
-    cross_cluster_flag::Bool=false,
     soln_progress_plot_flag::Bool=false,
+    cluster_iterations::Int=1000,
+    cluster_restarts::Int=20,
+    temp_init::Float64=0.25,
+    cooling_rate::Float64=0.9,
+    min_iters::Int=1000,
+    static_limit::Int=1,
+    max_iterations::Int=1000,
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
     end
 
     # Cluster the problem data
-    clusters::Vector{Cluster} = cluster_problem(problem; k)
+    clusters::Vector{Cluster} = cluster_problem(
+        problem;
+        k,
+        max_iter=cluster_iterations,
+        n_restarts=cluster_restarts,
+    )
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     n_clusters::Int = length(clusters)
@@ -150,7 +168,11 @@ function solve(
             problem,
             1,
             next_cluster_idx;
-            cross_cluster_flag
+            temp_init,
+            cooling_rate,
+            min_iters,
+            static_limit,
+            max_iterations,
         )
 
         # Update cluster sequence after improvement
@@ -291,27 +313,25 @@ end
         problem::Problem,
         current_cluster_idx::Int,
         next_cluster_idx::Int;
+        temp_init::Float64,
+        cooling_rate::Float64,
+        min_iters::Int,
+        static_limit::Int,
+        max_iterations::Int,
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
-        cross_cluster_flag::Bool=true,
-        max_iterations::Int=1_000,
-        temp_init::Float64=2.0,
-        cooling_rate::Float64=0.9,
-        min_iters::Int=50,
-        static_limit::Int=20,
     )::Tuple{MSTSolution,Float64}
-    improve_solution(
+        improve_solution(
         init_solution::MSTSolution,
         problem::Problem;
+        temp_init::Float64,
+        cooling_rate::Float64,
+        min_iters::Int,
+        static_limit::Int,
+        max_iterations::Int=typemax(Int),
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
-        cross_cluster_flag::Bool=true,
-        max_iterations::Int=1_000,
-        temp_init::Float64=2.0,
-        cooling_rate::Float64=0.9,
-        min_iters::Int=50,
-        static_limit::Int=20,
-    )
+    )::Tuple{MSTSolution,Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective
 function `objective_function` to improve full and partial solutions.
@@ -321,15 +341,15 @@ function `objective_function` to improve full and partial solutions.
 - `problem`: Problem instance to solve
 - `current_cluster_idx`: Index of the current cluster in the sequence
 - `next_cluster_idx`: Index of the next cluster in the sequence
-- `opt_function`: Optimization function to improve the solution
-- `objective_function`: Objective function to quantify and evaluate the solution
-- `cross_cluster_flag`: Boolean flag to indicate if perturbation across clusters should be
-    considered. Default = true.
-- `max_iterations`: Maximum number of iterations
 - `temp_init`: Initial temperature for simulated annealing
 - `cooling_rate`: Cooling rate for simulated annealing
 - `min_iters`: Minimum number of iterations to perform before allowing early exit
 - `static_limit`: Number of iterations to allow stagnation before early exit
+- `max_iterations`: Maximum number of iterations. Default = typemax(Int).
+- `opt_function`: Optimization function to improve the solution.
+    Default = `simulated_annealing`
+- `objective_function`: Objective function to quantify and evaluate the solution.
+    Default = `critical_path`
 
 # Returns
 - `soln_best`: Solution with lowest objective value found
@@ -340,14 +360,13 @@ function improve_solution(
     problem::Problem,
     current_cluster_idx::Int,
     next_cluster_idx::Int;
+    temp_init::Float64,
+    cooling_rate::Float64,
+    min_iters::Int,
+    static_limit::Int,
+    max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-    cross_cluster_flag::Bool=true,
-    max_iterations::Int=1_000,
-    temp_init::Float64=2.0,
-    cooling_rate::Float64=0.9,
-    min_iters::Int=50,
-    static_limit::Int=20,
 )::Tuple{MSTSolution,Float64}
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
@@ -387,7 +406,6 @@ function improve_solution(
         cooling_rate,
         min_iters,
         static_limit;
-        cross_cluster_flag,
     )
 
     merged_clusters = vcat(
@@ -412,14 +430,13 @@ end
 function improve_solution(
     init_solution::MSTSolution,
     problem::Problem;
+    temp_init::Float64,
+    cooling_rate::Float64,
+    min_iters::Int,
+    static_limit::Int,
+    max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-    cross_cluster_flag::Bool=true,
-    max_iterations::Int=1_000,
-    temp_init::Float64=2.0,
-    cooling_rate::Float64=0.9,
-    min_iters::Int=50,
-    static_limit::Int=20,
 )
     current_cluster_idx::Int64 = 1
     next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
@@ -429,7 +446,6 @@ function improve_solution(
         problem,
         current_cluster_idx,
         next_cluster_idx;
-        cross_cluster_flag=cross_cluster_flag,
         opt_function,
         objective_function,
         max_iterations,
