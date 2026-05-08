@@ -57,6 +57,8 @@ end
         time_limit::Real=200.0,
         wpt_optim_plot_flag::Bool=false,
         soln_progress_plot_flag::Bool=false,
+        cluster_iterations::Int=1000,
+        cluster_restarts::Int=20,
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -77,6 +79,8 @@ Optionally, optimize waypoints using a set or provided optimization method.
 - `time_limit`: Time limit for waypoint optimization, in seconds
 - `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
 - `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
+- `cluster_iterations`: Number of iterations to perform in clustering step
+- `cluster_restarts`: Number of restarts to perform in clustering step
 
 # Returns
 Best total MSTSolution found
@@ -92,13 +96,20 @@ function solve(
     time_limit::Real=200.0,
     wpt_optim_plot_flag::Bool=false,
     soln_progress_plot_flag::Bool=false,
+    cluster_iterations::Int=1000,
+    cluster_restarts::Int=20,
 )::MSTSolution
     if !isnothing(seed)
         Random.seed!(rng, seed)
     end
 
     # Cluster the problem data
-    clusters::Vector{Cluster} = cluster_problem(problem; k)
+    clusters::Vector{Cluster} = cluster_problem(
+        problem;
+        k,
+        max_iter=cluster_iterations,
+        n_restarts=cluster_restarts,
+    )
     cluster_centroids_df::DataFrame = generate_cluster_df(clusters, problem.depot)
 
     n_clusters::Int = length(clusters)
