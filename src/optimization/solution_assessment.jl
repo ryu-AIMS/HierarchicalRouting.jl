@@ -710,7 +710,6 @@ function simulated_annealing(
             end
         end
 
-        static_ctr += 1
         obj_proposed = objective_function(soln_proposed, vessel_weightings)
         Δ = obj_proposed - obj_current
 
@@ -745,12 +744,12 @@ function simulated_annealing(
         push!(trace_best, obj_best)
         push!(trace_temps, temp)
 
-        temp *= cooling_rate
-
         if iteration >= min_iters && static_ctr >= static_limit
             @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
             break
         end
+        temp *= cooling_rate
+        static_ctr += 1
     end
 
     # Display trace after each cluster's SA run completes
