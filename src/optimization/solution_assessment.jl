@@ -183,6 +183,7 @@ function perturb_swap(
     exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
+    #! WITHIN CLUSTER SWAP
     tender = deepcopy(soln.tenders[end][clust_seq_idx])
     sorties = deepcopy(tender.sorties)
 
@@ -267,6 +268,7 @@ function perturb_swap(
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
 )::MSTSolution
+    #! CROSS-CLUSTER SWAP
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
 
@@ -375,7 +377,6 @@ function _find_longest_feasible_sortie(
     soln::MSTSolution,
     clust_seq_idx::Int64,
 )::Tuple{Int,Vector{Point{2,Float64}}}
-    #! Find THE LONGEST sortie with 2+ nodes: so 1 can be moved and remain feasible
     sortie_lengths = tender_clust_dist(soln.tenders[end][clust_seq_idx])
     longest_sortie_idx = argmax(sortie_lengths)
     longest_sortie_nodes = soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
@@ -497,6 +498,7 @@ function perturb_move(
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
 )::MSTSolution
+    #! CROSS-CLUSTER MOVE
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
 
