@@ -1029,6 +1029,18 @@ function sa_trace(
     linkxaxes!(ax, axt)
     axislegend(ax; position=:rt)
 
+    cooling_rate = temps[2] / temps[1]
+    text!(
+        ax,
+        0.95, 0.5,
+        text="""Temp init: $(round(temps[1], digits=3))
+        Cooling rate: $(round(cooling_rate, digits=3))""",
+        align=(:right, :bottom),
+        space=:relative,
+        fontsize=12,
+        color=:black
+    )
+
     return fig
 end
 
