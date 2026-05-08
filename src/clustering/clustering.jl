@@ -97,7 +97,9 @@ end
         problem::Problem;
         k::Int=0,
         dist_weighting::Float64=5E-6
-        tol::Float64=0.01
+        tol::Float64=0.01,
+        max_iter::Int,
+        n_restarts::Int,
     )::Vector{Cluster}
 
 Cluster the problem data into groups based on the target locations and the depot location.
@@ -111,6 +113,8 @@ The clustering is done using k-means clustering, and the centroids of the cluste
     with lat/lons at first 2 dimensions. Higher values will give more weight to distance
     from current location (depot). Default = 5E-6.
 - `tol`: Tolerance for k-means convergence. Default = 0.01.
+- `max_iter`: Maximum number of iterations for k-means.
+- `n_restarts`: Number of times to run k-means with different initial centroids.
 
 # Returns
 Vector of clustered locations.
@@ -119,7 +123,9 @@ function cluster_problem(
     problem::Problem;
     k::Int=0,
     dist_weighting::Float64=5E-6,
-    tol::Float64=0.01
+    tol::Float64=0.01,
+    max_iter::Int,
+    n_restarts::Int,
 )::Vector{Cluster}
     points::Vector{Point{2,Float64}} = problem.targets.points.geometry
     current_location::Point{2,Float64} = problem.depot
@@ -145,6 +151,8 @@ function cluster_problem(
         coordinates_array;
         max_cluster_size=total_tender_capacity,
         min_k_spec=k,
+        max_iter,
+        n_restarts,
         tol
     )
 
