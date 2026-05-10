@@ -61,7 +61,7 @@ end
         cluster_restarts::Int=20,
         temp_init::Float64=0.25,
         cooling_rate::Float64=0.9,
-        min_iters::Int=1000,
+        min_iters::Int=500,
         static_limit::Int=1,
         max_iterations::Int=1000,
     )::MSTSolution
@@ -105,7 +105,7 @@ function solve(
     cluster_restarts::Int=20,
     temp_init::Float64=0.25,
     cooling_rate::Float64=0.9,
-    min_iters::Int=1000,
+    min_iters::Int=500,
     static_limit::Int=1,
     max_iterations::Int=1000,
 )::MSTSolution
