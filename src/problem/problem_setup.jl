@@ -230,22 +230,27 @@ end
 
 """
     is_within_bbox(geom, min_x, max_x, min_y, max_y)::Bool
+    is_within_bbox(point::Point{2,Float64}, min_x, max_x, min_y, max_y)::Bool
 
 Checks if the geometry is within the bounding box defined by the given coordinates.
 
 # Arguments
 - `geom`: The geometry to check.
+- `point`: The point to check.
 - `min_x`: The minimum x-coordinate of the bounding box.
 - `max_x`: The maximum x-coordinate of the bounding box.
 - `min_y`: The minimum y-coordinate of the bounding box.
 - `max_y`: The maximum y-coordinate of the bounding box.
 
 # Returns
-True if the geometry is within the bounding box, false otherwise.
+True if the geometry/point is within the bounding box, false otherwise.
 """
 function is_within_bbox(geom, min_x, max_x, min_y, max_y)::Bool
     env = AG.envelope(geom)
     return env.MinX ≥ min_x && env.MaxX ≤ max_x && env.MinY ≥ min_y && env.MaxY ≤ max_y
+end
+function is_within_bbox(point::Point{2,Float64}, min_x, max_x, min_y, max_y)::Bool
+    return point[1] ≥ min_x && point[1] ≤ max_x && point[2] ≥ min_y && point[2] ≤ max_y
 end
 
 """
