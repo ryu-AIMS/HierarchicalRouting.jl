@@ -58,7 +58,7 @@ Convert a raster to a GeoDataFrame by extracting the coordinates of the raster c
 # Returns
 A GeoDataFrame containing the coordinates of the raster cells where the value is 1.
 """
-function raster_to_gdf(raster::Raster{Int,2})
+function raster_to_gdf(raster::Raster{Int,2})::DataFrame
     indices::Vector{CartesianIndex{2}} = findall(x -> x == 1, raster)
 
     lons = raster.dims[1][getindex.(indices, 1)]
