@@ -4,11 +4,16 @@
         geometries::Vector{IGeometry{wkbPolygon}},
         resolution::Float64=0.0001
     )::Raster{Int}
+    process_geometry_targets(
+        points::Vector{Point{2,Float64}},
+        resolution::Float64=0.0001
+    )::Raster{Int}
 
 Read and process target location geometries to generate a rasterized representation.
 
 # Arguments
 - `geometries`: A vector of geometries representing target locations.
+- `points`: A vector of points representing target locations.
 - `resolution`: The resolution for the rasterization process.
 
 # Returns
@@ -24,7 +29,13 @@ function process_geometry_targets(
         p -> Point{2,Float64}(p[1:2])).(
         AG.getpoint.(target_centroids, 0)
     )
-    targets_pts_tuple = [(t[1], t[2]) for t in target_centroid_pts]
+    return process_geometry_targets(target_centroid_pts, resolution)
+end
+function process_geometry_targets(
+    points::Vector{Point{2,Float64}},
+    resolution::Float64=0.0001
+)::Raster{Int}
+    targets_pts_tuple = [(t[1], t[2]) for t in points]
 
     return Rasters.rasterize(
         last,
