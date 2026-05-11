@@ -84,7 +84,7 @@ end
     read_and_polygonize_exclusions(
         bathy_fullset_path::String,
         vessel_draft::Float64,
-        subset::DataFrame,
+        subset::DataFrame;
         min_area::Float64=3E-5,
         buffer_dist::Float64=0.0,
     )::DataFrame
@@ -155,7 +155,7 @@ end
 function read_and_polygonize_exclusions(
     bathy_fullset_path::String,
     vessel_draft::Float64,
-    subset::DataFrame,
+    subset::DataFrame;
     min_area::Float64=3E-5,
     buffer_dist::Float64=0.0,
 )::DataFrame
