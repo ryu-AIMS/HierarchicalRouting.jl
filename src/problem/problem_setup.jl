@@ -428,3 +428,188 @@ function adjust_exclusions(
 
     return geometries
 end
+
+"""
+    generate_randomised_problem(
+        subset_path::AbstractString,
+        env_data_path::AbstractString,
+        env_disturbance_path::AbstractString,
+        depot::NTuple{2,Float64},
+        draft_ms::Real,
+        draft_t::Real,
+        weight_ms::Real,
+        weight_t::Real,
+        n_tenders::Integer,
+        t_cap::Integer;
+        points_buffer_dist::Float64,
+        seed::Union{Integer,Nothing}=nothing,
+        output_dir::AbstractString="outputs/",
+        debug_mode::Bool=false,
+    )::Problem
+
+Generates a randomised problem instance based on the given parameters.
+Points are randomly generated within a buffered distance of tender exclusion zones.
+"""
+function generate_randomised_problem(
+    subset_path::AbstractString,
+    env_data_path::AbstractString,
+    env_disturbance_path::AbstractString,
+    depot::NTuple{2,Float64},
+    draft_ms::Real,
+    draft_t::Real,
+    weight_ms::Real,
+    weight_t::Real,
+    n_tenders::Integer,
+    t_cap::Integer;
+    points_buffer_dist::Float64,
+    seed::Union{Integer,Nothing}=nothing,
+    output_dir::AbstractString="outputs/",
+    debug_mode::Bool=false,
+)::Problem
+    depot = Point{2,Float64}(depot)
+    draft_ms = Float64(draft_ms)
+    draft_t = Float64(draft_t)
+    points_buffer_dist = Float64(points_buffer_dist)
+    weight_ms = Float16(weight_ms)
+    weight_t = Float16(weight_t)
+    n_tenders = Int8(n_tenders)
+    t_cap = Int16(t_cap)
+    subset = GDF.read(subset_path)
+
+    # Process exclusions
+    if !(debug_mode)
+        case_study_name = splitext(basename(subset_path))[1]
+        ms_exclusions = read_and_polygonize_exclusions(
+            env_data_path,
+            draft_ms,
+            subset,
+            "ms_exclusions_$(draft_ms)m_$(case_study_name)",
+            output_dir,
+            buffer_dist=1E-4,
+        )
+        t_exclusions = read_and_polygonize_exclusions(
+            env_data_path,
+            draft_t,
+            subset,
+            "t_exclusions_$(draft_t)m_$(case_study_name)",
+            output_dir,
+            min_area=1E-7
+        )
+    else
+        ms_exclusions = read_and_polygonize_exclusions(
+            env_data_path,
+            draft_ms,
+            subset,
+        )
+        t_exclusions = read_and_polygonize_exclusions(
+            env_data_path,
+            draft_t,
+            subset,
+        )
+    end
+
+    # Ensure mothership is excluded from tender zones by combining and merging exclusions
+    exclusions_all::POLY_VEC = vcat(
+        ms_exclusions.geometry,
+        t_exclusions.geometry)
+
+    while exclusions_all != unionize_overlaps(exclusions_all)
+        unionize_overlaps!(exclusions_all)
+    end
+    ms_exclusions::DataFrame = DataFrame(geometry=exclusions_all)
+
+    mothership = Vessel(
+        exclusion=ms_exclusions,
+        weighting=weight_ms
+    )
+    tenders = Vessel(
+        exclusion=t_exclusions,
+        capacity=t_cap,
+        number=n_tenders,
+        weighting=weight_t
+    )
+
+    # Write exclusions to output directory
+    !(debug_mode) &&
+        write_exclusions(
+            ms_exclusions,
+            t_exclusions,
+            draft_ms,
+            draft_t,
+            subset_path,
+            output_dir
+        )
+
+    rng = isnothing(seed) ? Random.default_rng() : MersenneTwister(seed)
+
+    if "geom" ∉ names(subset) && "geometry" ∈ names(subset)
+        rename!(subset, "geometry" => "geom")
+    end
+    subset_bbox = get_bbox_bounds_from_df(subset)
+
+    # Buffer exclusions to create area for targets to lie within
+    buffered_exclusions::DataFrame = prepare_exclusion_geoms(
+        t_exclusions.geometry;
+        buffer_dist=points_buffer_dist,
+        min_area=0.0
+    )
+
+    # Randomly generate points within the buffered and unbuffered exclusion bounds
+    target_points::Vector{Point{2,Float64}} = generate_random_points_within_buffered_exclusions(
+        t_exclusions.geometry,
+        buffered_exclusions.geometry,
+        29,
+        subset_bbox
+    )
+    targets_gdf = DataFrame(ID=1:length(target_points), geometry=target_points)
+
+    env_disturbance = GDF.read(env_disturbance_path)
+    disturbance_data_subset = filter_within_bbox(env_disturbance, subset_bbox)
+    suitable_targets_subset = process_geometry_targets(targets_gdf.geometry)
+    indices::Vector{CartesianIndex{2}} = findall(
+        x -> x != suitable_targets_subset.missingval,
+        suitable_targets_subset
+    )
+    coords::Vector{Point{2,Float64}} = [
+        Point{2,Float64}(
+            suitable_targets_subset.dims[1][idx[1]],
+            suitable_targets_subset.dims[2][idx[2]]
+        )
+        for idx in indices
+    ]
+    disturbance_df = create_disturbance_data_dataframe(coords, disturbance_data_subset)
+
+    if length(targets_gdf.geometry) > 28
+        n = Int(floor(length(targets_gdf.geometry) / 28))
+        targets_gdf = targets_gdf[1:n:end, :]
+    end
+
+    target_path_string = seed === nothing ? "randomised_targets" : "randomised_targets_$(seed)"
+
+    targets = Targets(targets_gdf, target_path_string, disturbance_df)
+
+    return Problem(depot, targets, mothership, tenders)
+end
+
+""" Randomly generate points within the buffered and unbuffered exclusion bounds """
+function generate_random_points_within_buffered_exclusions(
+    exclusions::POLY_VEC,
+    buffered_exclusions::POLY_VEC,
+    no_pts::Int,
+    subset_bbox::NTuple{4,Float64}
+)::Vector{Point{2,Float64}}
+    min_x, max_x, min_y, max_y = subset_bbox
+    points = Vector{Point{2,Float64}}()
+    while length(points) < no_pts
+        x = rand() * (max_x - min_x) + min_x
+        y = rand() * (max_y - min_y) + min_y
+        proposed_point = Point{2,Float64}(x, y)
+
+        if point_in_exclusion(proposed_point, buffered_exclusions) &&
+           !point_in_exclusion(proposed_point, exclusions) &&
+           is_within_bbox(proposed_point, min_x, max_x, min_y, max_y)
+            push!(points, proposed_point)
+        end
+    end
+    return points
+end
