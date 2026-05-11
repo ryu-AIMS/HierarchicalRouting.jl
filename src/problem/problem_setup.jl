@@ -441,6 +441,7 @@ end
         weight_t::Real,
         n_tenders::Integer,
         t_cap::Integer;
+        no_target_pts::Int,
         points_buffer_dist::Float64,
         seed::Union{Integer,Nothing}=nothing,
         output_dir::AbstractString="outputs/",
@@ -461,6 +462,7 @@ function generate_randomised_problem(
     weight_t::Real,
     n_tenders::Integer,
     t_cap::Integer;
+    no_target_pts::Int,
     points_buffer_dist::Float64,
     seed::Union{Integer,Nothing}=nothing,
     output_dir::AbstractString="outputs/",
@@ -557,7 +559,7 @@ function generate_randomised_problem(
     target_points::Vector{Point{2,Float64}} = generate_random_points_within_buffered_exclusions(
         t_exclusions.geometry,
         buffered_exclusions.geometry,
-        29,
+        no_target_pts,
         subset_bbox,
         seed
     )
