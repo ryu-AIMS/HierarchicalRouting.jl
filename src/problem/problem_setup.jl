@@ -540,7 +540,6 @@ function generate_randomised_problem(
             output_dir
         )
 
-    rng = isnothing(seed) ? Random.default_rng() : MersenneTwister(seed)
 
     if "geom" ∉ names(subset) && "geometry" ∈ names(subset)
         rename!(subset, "geometry" => "geom")
@@ -559,7 +558,8 @@ function generate_randomised_problem(
         t_exclusions.geometry,
         buffered_exclusions.geometry,
         29,
-        subset_bbox
+        subset_bbox,
+        seed
     )
     targets_gdf = DataFrame(ID=1:length(target_points), geometry=target_points)
 
@@ -596,8 +596,12 @@ function generate_random_points_within_buffered_exclusions(
     exclusions::POLY_VEC,
     buffered_exclusions::POLY_VEC,
     no_pts::Int,
-    subset_bbox::NTuple{4,Float64}
+    subset_bbox::NTuple{4,Float64},
+    seed::Union{Integer,Nothing}=nothing
 )::Vector{Point{2,Float64}}
+    if seed !== nothing
+        Random.seed!(seed)
+    end
     min_x, max_x, min_y, max_y = subset_bbox
     points = Vector{Point{2,Float64}}()
     while length(points) < no_pts
