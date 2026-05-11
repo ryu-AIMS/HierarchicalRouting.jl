@@ -581,11 +581,6 @@ function generate_randomised_problem(
     ]
     disturbance_df = create_disturbance_data_dataframe(coords, disturbance_data_subset)
 
-    if length(targets_gdf.geometry) > 28
-        n = Int(floor(length(targets_gdf.geometry) / 28))
-        targets_gdf = targets_gdf[1:n:end, :]
-    end
-
     target_path_string = seed === nothing ? "randomised_targets" : "randomised_targets_$(seed)"
 
     targets = Targets(targets_gdf, target_path_string, disturbance_df)
