@@ -729,6 +729,8 @@ function simulated_annealing(
             Δ = total_dist_proposed - total_dist_current
         end
 
+        perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
+
         # If the new solution is improved OR meets acceptance prob criteria
         if Δ < 0 || rand() < exp(-Δ / temp)
             soln_current = soln_proposed
@@ -752,8 +754,6 @@ function simulated_annealing(
                 ))
             end
         end
-
-        perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
 
         # Record after accept/reject so current/best reflect the updated state
         push!(trace_iters, iteration)
