@@ -251,12 +251,14 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    info_log::Bool=true,
+    output_dir::String,
     plot_flag::Bool,
 )::MSTSolution
     if isnothing(opt_method)
         return soln
-        # else
-        #     @info "$(output_dir): Optimizing full waypoint subset using $(opt_method)"
+    elseif info_log
+        @info "$(output_dir) Optimizing full waypoint subset using $(opt_method)"
     end
 
     # Optimize all interior waypoints by default
@@ -274,7 +276,9 @@ function optimize_waypoints(
         gradient_tol=gradient_tol,
         iterations=iterations,
         time_limit=time_limit,
-        plot_flag=plot_flag
+        info_log,
+        output_dir,
+        plot_flag=plot_flag,
     )
 end
 function optimize_waypoints(
@@ -286,8 +290,12 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    info_log::Bool=true,
+    output_dir::String="",
     plot_flag::Bool,
 )::MSTSolution
+    output_to_file::Bool = output_dir == "" ? false : true
+    generate_plots::Bool = plot_flag || output_to_file ? true : false
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
     vessel_weightings::NTuple{2,AbstractFloat} = (
@@ -321,7 +329,9 @@ function optimize_waypoints(
     best_count::Int64 = 0
     soln_proposed::MSTSolution = soln
 
-    fig_wpts = plot_flag ? Plot.debug_waypoints(problem, waypoints_initial) : nothing
+    fig_wpts = generate_plots ?
+               Plot.debug_waypoints(problem, waypoints_initial, title="Waypoint Optim Plot") :
+               nothing
 
     # Objective from x -> critical_path
     function obj(
@@ -361,7 +371,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count += 1
         end
-        plot_flag && Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
+        generate_plots && Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
 
         return score
     end
@@ -425,20 +435,22 @@ function optimize_waypoints(
         exclusions_tender
     )
 
-    # @info "Type:" summary(result)
-    # @info "Minimum value:" minimum(result)
-    # if Optim.converged(result)
-    #     @info "Converged at: "
-    #     Optim.x_converged(result) && @info "x"
-    #     Optim.f_converged(result) && @info "f(x)"
-    #     Optim.g_converged(result) && @info "∇f(x)"
-    #     @info "\nConverged after $(Optim.iterations(result)) iterations"
-    # else
-    #     @info "Did not converge after $(Optim.iterations(result)) iterations"
-    # end
-    # @info "Best critical path score found: $best_score"
+    if info_log
+        @info "Type:" summary(result)
+        @info "Minimum value:" minimum(result)
+        if Optim.converged(result)
+            @info "Converged at: "
+            Optim.x_converged(result) && @info "x"
+            Optim.f_converged(result) && @info "f(x)"
+            Optim.g_converged(result) && @info "∇f(x)"
+            @info "\nConverged after $(Optim.iterations(result)) iterations"
+        else
+            @info "Did not converge after $(Optim.iterations(result)) iterations"
+        end
+        @info "Best critical path score found: $best_score"
+    end
 
-    if plot_flag
+    if generate_plots
         Plot.route!(
             fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
         )
@@ -446,17 +458,26 @@ function optimize_waypoints(
         Plot.scatter!(
             fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
         )
-        display(fig_wpts)
         Plot.solution!(
             fig_wpts.current_axis[],
             problem,
             best_soln;
             highlight_critical_path=true,
         )
-        CairoMakie.save("$output_dir/3_wpt_optim.png", fig_wpts)
+
+        result_trace = Optim.trace(result)
+
+        if plot_flag
+            display(fig_wpts)
+            display(result_trace)
+        end
+        if output_to_file
+            CairoMakie.save("$output_dir/3_wpt_optim.png", fig_wpts)
+            CairoMakie.save(
+                "$output_dir/3_wpt_optim_trace.png", Plot.trace(result_trace, opt_method)
+            )
+        end
     end
-    result_trace = Optim.trace(result)
-    CairoMakie.save("$output_dir/3_wpt_optim_trace.png", Plot.trace(result_trace, opt_method))
 
     return best_soln
 end

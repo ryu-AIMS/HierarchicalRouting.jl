@@ -92,25 +92,32 @@ Best total MSTSolution found
 """
 function solve(
     problem::Problem;
-    k::Int=1,
-    disturbance_clusters::Set{Int64}=Set{Int64}(),
     seed::Union{Nothing,Int64}=nothing,
     rng::AbstractRNG=Random.GLOBAL_RNG,
-    waypoint_optim_method=nothing,
-    do_improve::Bool=true,
-    time_limit::Real=200.0,
-    wpt_optim_plot_flag::Bool=false,
-    soln_progress_plot_flag::Bool=false,
+    k::Int=1,
     cluster_iterations::Int=1000,
     cluster_restarts::Int=20,
+    disturbance_clusters::Set{Int64}=Set{Int64}(),
+    do_improve::Bool=true,
+    info_log::Bool=true,
+    soln_progress_plot_flag::Bool=false,
+    waypoint_optim_method=nothing,
+    time_limit::Real=200.0,
+    wpt_optim_plot_flag::Bool=false,
     temp_init::Float64=0.25,
     cooling_rate::Float64=0.9,
     min_iters::Int=500,
     static_limit::Int=1,
     max_iterations::Int=1000,
+    sa_improve_plot_flag::Bool=true,
+    output_dir::String="",
 )::MSTSolution
-    if !isnothing(seed)
-        Random.seed!(rng, seed)
+    !isnothing(seed) && Random.seed!(rng, seed)
+    output_to_file::Bool = output_dir == "" ? false : true
+
+    if output_to_file
+        output_dir = output_dir == "" ? "$seed" : output_dir
+        mkpath("$output_dir")
     end
 
     # Cluster the problem data
@@ -147,8 +154,8 @@ function solve(
     ]
 
     solution::MSTSolution = MSTSolution([clusters], [ms_route], [initial_tenders])
-    @info "Initial solution generated with objective value: $(critical_path(solution, problem))"
-    if soln_progress_plot_flag
+    info_log && @info "$(output_dir) Initial solution generated with objective value: $(critical_path(solution, problem))"
+    if soln_progress_plot_flag || output_to_file
         fig_initial = Plot.solution(
             problem,
             solution;
@@ -156,11 +163,12 @@ function solve(
             title="Initial",
             size=(700, 875)
         )
-        CairoMakie.save("$output_dir/1_initial_solution.png", fig_initial)
+        soln_progress_plot_flag && display(fig_initial)
+        output_to_file && CairoMakie.save("$output_dir/1_initial_solution.png", fig_initial)
     end
 
     if do_improve
-        # @info "$(output_dir): Improving initial solution using simulated annealing"
+        info_log && @info "$(output_dir) Improving initial solution using simulated annealing"
         # Optimize the initial tenders solution up to the first disturbance
         next_cluster_idx::Int64 = !isempty(ordered_disturbances) ?
                                   ordered_disturbances[1] :
@@ -176,6 +184,9 @@ function solve(
             min_iters,
             static_limit,
             max_iterations,
+            output_dir,
+            info_log,
+            sa_improve_plot_flag
         )
 
         # Update cluster sequence after improvement
@@ -183,7 +194,7 @@ function solve(
             c -> c != 0 && c <= length(solution.cluster_sets[end]),
             solution.mothership_routes[end].cluster_sequence.id
         )
-        if soln_progress_plot_flag
+        if soln_progress_plot_flag || output_to_file
             fig_sa_opt = Plot.solution(
                 problem,
                 solution;
@@ -191,20 +202,23 @@ function solve(
                 title="SA Optimized",
                 size=(700, 875)
             )
-            CairoMakie.save("$output_dir/2_sa_optimized_solution.png", fig_sa_opt)
+            soln_progress_plot_flag && display(fig_sa_opt)
+            output_to_file && CairoMakie.save("$output_dir/2_sa_optimized_solution.png", fig_sa_opt)
         end
     end
 
     # Apply solution to the first set of clusters pre-disturbance
-    # @info "$(output_dir): Optimizing waypoints using PSO"
+    info_log && @info "$(output_dir) Optimizing waypoints using PSO"
     solution = optimize_waypoints(
         solution,
         problem,
         waypoint_optim_method;
         time_limit=Float64(time_limit),
-        plot_flag=wpt_optim_plot_flag
+        plot_flag=wpt_optim_plot_flag,
+        output_dir,
+        info_log
     )
-    if soln_progress_plot_flag
+    if soln_progress_plot_flag || output_to_file
         fig_pso_opt = Plot.solution(
             problem,
             solution;
@@ -212,7 +226,8 @@ function solve(
             title="PSO Optimized",
             size=(700, 875)
         )
-        CairoMakie.save("$output_dir/3_pso_optimized_solution.png", fig_pso_opt)
+        soln_progress_plot_flag && display(fig_pso_opt)
+        output_to_file && CairoMakie.save("$output_dir/3_pso_optimized_solution.png", fig_pso_opt)
     end
 
     isempty(disturbance_clusters) && return solution
@@ -376,6 +391,9 @@ function improve_solution(
     max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
+    output_dir::String="",
+    info_log::Bool=true,
+    sa_improve_plot_flag::Bool=true,
 )::Tuple{MSTSolution,Float64}
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
@@ -415,6 +433,9 @@ function improve_solution(
         cooling_rate,
         min_iters,
         static_limit;
+        output_dir,
+        info_log,
+        plot_flag=sa_improve_plot_flag,
     )
 
     merged_clusters = vcat(
@@ -446,7 +467,10 @@ function improve_solution(
     max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-)
+    output_dir::String="",
+    info_log::Bool=true,
+    sa_improve_plot_flag::Bool=true,
+)::Tuple{MSTSolution,Float64}
     current_cluster_idx::Int64 = 1
     next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
 
@@ -461,6 +485,9 @@ function improve_solution(
         temp_init,
         cooling_rate,
         min_iters,
-        static_limit
+        static_limit,
+        output_dir,
+        info_log,
+        sa_improve_plot_flag
     )
 end
