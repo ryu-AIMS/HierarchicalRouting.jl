@@ -160,7 +160,7 @@ function solve(
     end
 
     if do_improve
-        @info "Improving initial solution using simulated annealing"
+        # @info "$(output_dir): Improving initial solution using simulated annealing"
         # Optimize the initial tenders solution up to the first disturbance
         next_cluster_idx::Int64 = !isempty(ordered_disturbances) ?
                                   ordered_disturbances[1] :
@@ -196,7 +196,7 @@ function solve(
     end
 
     # Apply solution to the first set of clusters pre-disturbance
-    @info "Optimizing waypoints using PSO"
+    # @info "$(output_dir): Optimizing waypoints using PSO"
     solution = optimize_waypoints(
         solution,
         problem,

@@ -255,8 +255,8 @@ function optimize_waypoints(
 )::MSTSolution
     if isnothing(opt_method)
         return soln
-    else
-        @info "Optimizing full waypoint subset using $(opt_method)"
+        # else
+        #     @info "$(output_dir): Optimizing full waypoint subset using $(opt_method)"
     end
 
     # Optimize all interior waypoints by default
@@ -425,18 +425,18 @@ function optimize_waypoints(
         exclusions_tender
     )
 
-    @info "Type:" summary(result)
-    @info "Minimum value:" minimum(result)
-    if Optim.converged(result)
-        @info "Converged at: "
-        Optim.x_converged(result) && @info "x"
-        Optim.f_converged(result) && @info "f(x)"
-        Optim.g_converged(result) && @info "∇f(x)"
-        @info "\nConverged after $(Optim.iterations(result)) iterations"
-    else
-        @info "Did not converge after $(Optim.iterations(result)) iterations"
-    end
-    @info "Best critical path score found: $best_score"
+    # @info "Type:" summary(result)
+    # @info "Minimum value:" minimum(result)
+    # if Optim.converged(result)
+    #     @info "Converged at: "
+    #     Optim.x_converged(result) && @info "x"
+    #     Optim.f_converged(result) && @info "f(x)"
+    #     Optim.g_converged(result) && @info "∇f(x)"
+    #     @info "\nConverged after $(Optim.iterations(result)) iterations"
+    # else
+    #     @info "Did not converge after $(Optim.iterations(result)) iterations"
+    # end
+    # @info "Best critical path score found: $best_score"
 
     if plot_flag
         Plot.route!(

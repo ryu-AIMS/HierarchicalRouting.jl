@@ -629,12 +629,12 @@ function simulated_annealing(
         problem.tenders.weighting
     )
 
-    @info "Starting Simulated Annealing Optimization with parameters:"
-    max_iterations == typemax(Int) || @info "  - Max Iterations: $max_iterations"
-    @info "  - Minimum Iterations: $min_iters"
-    @info "  - Initial Temperature: $temp_init"
-    @info "  - Cooling Rate: $cooling_rate"
-    @info "  - Static Limit: $static_limit"
+    # @info "Starting Simulated Annealing Optimization with parameters:"
+    # max_iterations == typemax(Int) || @info "  - Max Iterations: $max_iterations"
+    # @info "  - Minimum Iterations: $min_iters"
+    # @info "  - Initial Temperature: $temp_init"
+    # @info "  - Cooling Rate: $cooling_rate"
+    # @info "  - Static Limit: $static_limit"
 
     # Initialize best solution as initial
     soln_best::MSTSolution = deepcopy(soln_init)
@@ -668,7 +668,7 @@ function simulated_annealing(
     shuffled_clusters::Vector{Int} = Vector{Int}(undef, no_clusts)
     perturbation_type::Symbol = :none
 
-    @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
+    # @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
 
     for iteration in 1:max_iterations
         shuffled_clusters = shuffle(1:no_clusts)
@@ -730,12 +730,12 @@ function simulated_annealing(
                 soln_best = deepcopy(soln_current)
                 obj_best = obj_current
                 total_dist_best = total_dist_current
-                display(Plot.solution(problem, soln_best; title="New Best Solution at Iteration $iteration", highlight_critical_path_flag=true,))
+                # @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
+                # display(Plot.solution(problem, soln_best; title="New Best Solution at Iteration $iteration", highlight_critical_path_flag=true,))
             end
         end
 
         perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
-        @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
 
         # Record after accept/reject so current/best reflect the updated state
         push!(trace_iters, iteration)
@@ -745,7 +745,7 @@ function simulated_annealing(
         push!(trace_temps, temp)
 
         if iteration >= min_iters && static_ctr >= static_limit
-            @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
+            # @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
             break
         end
         temp *= cooling_rate
@@ -757,6 +757,6 @@ function simulated_annealing(
         trace_iters, trace_best, trace_current, trace_proposed, trace_temps
     )
     CairoMakie.save("$output_dir/2_sa_trace.png", fig_trace)
-    @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
+    # @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
     return soln_best, obj_best
 end
