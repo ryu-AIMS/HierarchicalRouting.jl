@@ -418,8 +418,8 @@ are assigned to a cluster.
     the number of reefs and `max_cluster_size`, allowing more clusters to be spawned.
 - `max_iter`: The maximum number of iterations to run the k-means algorithm.
 - `n_restarts`: The number of times to run k-means with different initial centroids.
-- `min_k_spec`: The minimum number of clusters to create. If `k_spec` is 0, this will be used to
-    calculate the initial number of clusters.
+- `min_k_spec`: The minimum number of clusters to create. If `k_spec` is 0, this will be
+    used to calculate the initial number of clusters.
 - `tol`: Tolerance for k-means convergence.
 
 # Returns

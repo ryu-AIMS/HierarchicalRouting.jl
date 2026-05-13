@@ -37,7 +37,8 @@ function disturb_clusters(
     filtered_df = filter(row -> row.node in remaining_nodes, disturbance_df)
 
     if nrow(filtered_df) != length(remaining_nodes)
-        @warn "Warning: Expected $(length(remaining_nodes)) nodes, but filtered df contains $(nrow(filtered_df))"
+        @warn "Warning: Expected $(length(remaining_nodes)) nodes, " *
+              "but filtered df contains $(nrow(filtered_df))"
     end
 
     disturbed_targets = disturb_remaining_clusters(
@@ -77,13 +78,13 @@ end
 
 Simulates and applies disturbance events to the solution.
 Shared disturbance-handling loop used by `initial_solution` and `solve`.
-Updates the `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each disturbance event.
+Updates `cluster_sets`, `ms_soln_sets`, and `tender_soln_sets` at each disturbance event.
 - If `do_improve=true`, additionally runs `improve_solution(...)` at each disturbance, using
   vessel_weightings derived from the `problem` instance.
 - Assumes index 1 (pre-disturbance state) has already been written into the *_sets vectors.
 - `waypoint_optim_method` can be provided to optimize waypoints between disturbance events.
-    - NB: Currently, partial optimization perturbs ALL future/unvisited waypoints, rather than
-    just those appearing in `candidate_wpt_idxs` and/or between disturbance events.
+    - NB: Currently, partial optimization perturbs ALL future/unvisited waypoints, rather
+    than just those appearing in `candidate_wpt_idxs` and/or between disturbance events.
 """
 function _apply_disturbance_events!(
     solution::MSTSolution,

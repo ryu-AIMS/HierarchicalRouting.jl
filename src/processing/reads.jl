@@ -206,7 +206,8 @@ function process_targets(
     suitable_targets_all = process_geometry_targets(
         target_geometries,
     )
-    suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
+    suitable_targets_subset::Raster{Int} =
+        Rasters.crop(suitable_targets_all, to=subset.geom)
     if !isempty(target_subset_path) && !isfile(target_subset_path)
         write(target_subset_path, suitable_targets_subset; force=true)
     end

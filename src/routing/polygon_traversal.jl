@@ -366,7 +366,7 @@ Check if a point is visible from another point, given a vector of, or single exc
 - `final_point`: The final point marking end of line.
 - `exclusion_poly`: The exclusion polygon.
 - `exclusions`: The dataframe containing the polygon exclusions.
-- `current_exclusions_idx`: The indices of the exclusion zones that have already been crossed.
+- `current_exclusions_idx`: Indices of the exclusion zones that have already been crossed.
 
 # Returns
 `true` if the line between the two points is visible, `false` otherwise.

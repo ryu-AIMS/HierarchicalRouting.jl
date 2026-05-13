@@ -140,9 +140,9 @@ end
 """
     mothership_dist_between_clusts(route::Route, num_clusters::Int=0)::Float64
 
-Compute the cost of the mothership route between clusters, not including across each cluster.
-Optionally, the number of clusters can be specified to limit the calculation to the first
-`num_clusters` clusters.
+Compute the cost of the mothership route between clusters, not including across each
+cluster. Optionally, the number of clusters can be specified to limit the calculation to the
+first `num_clusters` clusters.
 
 # Arguments
 - `route`: Full mothership route between waypoints.
@@ -187,8 +187,9 @@ end
 
 Compute the critical path cost (time) of the solution.
 This is the longest path for a return trip, quantified as the sum of:
-- the sum (`cluster_cost_total`) of the longest path within each cluster (`cluster_cost_each`),
-    i.e., the sum of the maximum(sortie, mothership) cost within each cluster, and
+- the sum (`cluster_cost_total`) of the longest path within each cluster
+    (`cluster_cost_each`), i.e., the sum of the maximum(sortie, mothership) cost within each
+    cluster, and
 - the sum of the mothership cost between clusters: `tow_cost`.
 
 # Arguments

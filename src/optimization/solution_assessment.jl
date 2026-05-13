@@ -379,7 +379,8 @@ function _find_longest_feasible_sortie(
 )::Tuple{Int,Vector{Point{2,Float64}}}
     sortie_lengths = tender_clust_dist(soln.tenders[end][clust_seq_idx])
     longest_sortie_idx = argmax(sortie_lengths)
-    longest_sortie_nodes = soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
+    longest_sortie_nodes =
+        soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
 
     return longest_sortie_idx, longest_sortie_nodes
 end
@@ -539,8 +540,9 @@ function perturb_move(
     centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
     centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
-    new_clusters[cluster_a_idx] = Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a)
-    new_clusters[cluster_b_idx] = Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
+    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] =
+        Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a),
+        Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
 
     # Update mothership route and waypoints based on updated clusters
     updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
@@ -729,12 +731,16 @@ function simulated_annealing(
             Δ = total_dist_proposed - total_dist_current
         end
 
-        perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
+        perturbed_clusters = clust_alt_idx == 0 ?
+                             " $clust_idx" :
+                             "$clust_idx -> $clust_alt_idx"
 
         # If the new solution is improved OR meets acceptance prob criteria
         if Δ < 0 || rand() < exp(-Δ / temp)
             soln_current = soln_proposed
-            total_dist_current = obj_proposed == obj_current ? total_dist_proposed : total_distance(soln_proposed, vessel_weightings)
+            total_dist_current = obj_proposed == obj_current ?
+                                 total_dist_proposed :
+                                 total_distance(soln_proposed, vessel_weightings)
             obj_current = obj_proposed
 
             if obj_current < obj_best ||

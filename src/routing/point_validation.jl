@@ -1,7 +1,7 @@
 
 """
     point_in_exclusion(point::Point{2,Float64}, exclusion::IGeometry{wkbPolygon})::Bool
-    point_in_exclusion(point::Point{2,Float64}, exclusions::Vector{IGeometry{wkbPolygon}})::Bool
+    point_in_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Bool
 
 Check if a point is within an exclusion zone.
 
@@ -21,7 +21,7 @@ function point_in_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Bool
 end
 
 """
-    containing_exclusion(point::Point{2,Float64}, exclusions::Vector{IGeometry{wkbPolygon}})::Int
+    containing_exclusion(point::Point{2,Float64}, exclusions::POLY_VEC)::Int
 
 Return the index of the exclusion zone that contains the point.
 

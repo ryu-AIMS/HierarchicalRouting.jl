@@ -156,7 +156,16 @@ function clusters!(
     sequence_ids = getfield.(clusters, :id)
     centroids = getfield.(clusters, :centroid)
 
-    return clusters!(ax, cluster_radius, sequence_ids, centroids, centers, labels; nodes, clusters)
+    return clusters!(
+        ax,
+        cluster_radius,
+        sequence_ids,
+        centroids,
+        centers,
+        labels;
+        nodes,
+        clusters
+    )
 end
 function clusters!(
     ax::Axis,
@@ -199,11 +208,24 @@ function clusters!(
             circle_lons = center_lon .+ circle_offsets[1]
             circle_lats = center_lat .+ circle_offsets[2]
 
-            poly!(ax, hcat(circle_lons, circle_lats), color=(color, 0.2), strokecolor=color, label="Cluster Centroids")
+            poly!(
+                ax,
+                hcat(circle_lons, circle_lats),
+                color=(color, 0.2),
+                strokecolor=color,
+                label="Cluster Centroids"
+            )
         end
 
         if centers
-            scatter!(ax, [center_lon], [center_lat], markersize=10, color=(color, 0.2), strokewidth=0)
+            scatter!(
+                ax,
+                [center_lon],
+                [center_lat],
+                markersize=10,
+                color=(color, 0.2),
+                strokewidth=0
+            )
         end
 
         if labels
@@ -289,7 +311,14 @@ function exclusions!(
 
             if labels
                 centroid_x, centroid_y = mean(xs), mean(ys)
-                text!(ax, centroid_x, centroid_y, text=string(i), align=(:center, :center), color=:grey)
+                text!(
+                    ax,
+                    centroid_x,
+                    centroid_y,
+                    text=string(i),
+                    align=(:center, :center),
+                    color=:grey
+                )
             end
         end
     end
@@ -785,8 +814,10 @@ function solution!(
     highlight_critical_path::Bool=false,
 )::Axis
     # Exclusions
-    show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
-    show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
+    ms_exclusions = problem.mothership.exclusion
+    tender_exclusions = problem.tenders.exclusion
+    show_mothership_exclusions && exclusions!(ax, ms_exclusions; labels=false)
+    show_tenders_exclusions && exclusions!(ax, tender_exclusions; labels=false)
 
     # Tender sorties/routes
     show_tenders && route!(ax, soln.tenders[end])
@@ -833,8 +864,10 @@ function solution!(
     highlight_critical_path::Bool=false,
 )::Axis
     # Exclusions
-    show_mothership_exclusions && exclusions!(ax, problem.mothership.exclusion; labels=false)
-    show_tenders_exclusions && exclusions!(ax, problem.tenders.exclusion; labels=false)
+    ms_exclusions = problem.mothership.exclusion
+    tender_exclusions = problem.tenders.exclusion
+    show_mothership_exclusions && exclusions!(ax, ms_exclusions; labels=false)
+    show_tenders_exclusions && exclusions!(ax, tender_exclusions; labels=false)
 
     # Tender sorties/routes
     show_tenders && route!(ax, soln.tenders[end])
@@ -970,8 +1003,18 @@ function solution_disturbances(
     end
 
     if highlight_critical_path_flag
-        highlight_critical_path_partial!(ax1, solution_disturbed, problem, [1:ordered_disturbances[1]-1])
-        highlight_critical_path_partial!(ax2, solution_disturbed, problem, [1:ordered_disturbances[2]-1])
+        highlight_critical_path_partial!(
+            ax1,
+            solution_disturbed,
+            problem,
+            [1:ordered_disturbances[1]-1]
+        )
+        highlight_critical_path_partial!(
+            ax2,
+            solution_disturbed,
+            problem,
+            [1:ordered_disturbances[2]-1]
+        )
         highlight_critical_path!(ax3, solution_disturbed, problem)
     end
 
@@ -1057,7 +1100,8 @@ function trace(
         xgridvisible=false
     )
     if opt_method isa Optim.SAMIN
-        ax.title = "SAMIN Optimization Trace: nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
+        ax.title = "SAMIN Optimization Trace: " *
+                   "nt=$(opt_method.nt), ns=$(opt_method.ns), rt=$(opt_method.rt)"
     elseif opt_method isa Optim.ParticleSwarm
         ax.title = "Particle Swarm Optimization Trace"
     end
@@ -1215,7 +1259,9 @@ function _highlight_critical_core!(
     start_idxs::Vector{Int} = findfirst.(.==(start_pts), Ref(first_points))
     end_idxs::Vector{Int} = findfirst.(.==(end_pts), Ref(second_points))
 
-    segments::Vector{Vector{LineString{2,Float64}}} = [ms_route.line_strings[i:j] for (i, j) in zip(start_idxs, end_idxs)]
+    segments::Vector{Vector{LineString{2,Float64}}} = [
+        ms_route.line_strings[i:j] for (i, j) in zip(start_idxs, end_idxs)
+    ]
 
     lines!.(Ref(ax), segments; color, linewidth)
 
@@ -1302,8 +1348,12 @@ function scatter_by_id!(ax, pts::Vector{Point{2,Float64}}; ids=eachindex(pts))
 end
 
 """
-    debug_waypoints(problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}}; title="")
-    debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")
+    debug_waypoints(
+        problem::Problem,
+        wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}};
+        title=""
+    )::Figure
+    debug_waypoints(problem::Problem, wpts::Vector{Float64}; title="")::Figure
 
 Plots the exclusion zones alongside indicative waypoints.
 
@@ -1317,7 +1367,8 @@ HR.Plot.debug_waypoints(problem, x)
 ```
 """
 function debug_waypoints(
-    problem::Problem, wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}};
+    problem::Problem,
+    wpts::Union{Vector{GeometryBasics.Point{2,Float64}},Vector{Float64}};
     title=""
 )::Figure
     fig = Figure(size=(750, 880))

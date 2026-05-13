@@ -69,8 +69,8 @@ Load the problem data to create a `Problem` object from given parameters.
     depth of the vessel below the surface.
 - `draft_t`: The draft of the tenders (in metres), given as a negative value, indicating
     depth of the vessel below the surface.
-- `weight_ms`: The weighting factor for the mothership, as a multiplier of distance travelled to
-    quantify cost.
+- `weight_ms`: The weighting factor for the mothership, as a multiplier of distance
+    travelled to quantify cost.
 - `weight_t`: The weighting factor for the tenders, as a multiplier of distance travelled to
     quantify cost.
 - `n_tenders`: The number of tenders available to use for deployment.
@@ -217,12 +217,20 @@ function prepare_exclusion_geoms(
     min_area::Float64,
     simplify_tol::Float64=5E-4
 )::DataFrame
-    geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
+    geoms = filter_and_simplify_exclusions(
+        geoms;
+        min_area=min_area,
+        simplify_tol=simplify_tol
+    )
     buffer_exclusions!(geoms; buffer_dist=buffer_dist)
     unionize_overlaps!(geoms)
 
     # Re-filter and de-duplicate after operations to ensure no overlaps
-    geoms = filter_and_simplify_exclusions(geoms; min_area=min_area, simplify_tol=simplify_tol)
+    geoms = filter_and_simplify_exclusions(
+        geoms;
+        min_area=min_area,
+        simplify_tol=simplify_tol
+    )
     unionize_overlaps!(geoms)
 
     return DataFrame(geometry=geoms)
@@ -556,13 +564,14 @@ function generate_randomised_problem(
     )
 
     # Randomly generate points within the buffered and unbuffered exclusion bounds
-    target_points::Vector{Point{2,Float64}} = generate_random_points_within_buffered_exclusions(
-        t_exclusions.geometry,
-        buffered_exclusions.geometry,
-        no_target_pts,
-        subset_bbox,
-        seed
-    )
+    target_points::Vector{Point{2,Float64}} =
+        generate_random_points_within_buffered_exclusions(
+            t_exclusions.geometry,
+            buffered_exclusions.geometry,
+            no_target_pts,
+            subset_bbox,
+            seed
+        )
     targets_gdf = DataFrame(ID=1:length(target_points), geometry=target_points)
 
     env_disturbance = GDF.read(env_disturbance_path)
@@ -581,7 +590,9 @@ function generate_randomised_problem(
     ]
     disturbance_df = create_disturbance_data_dataframe(coords, disturbance_data_subset)
 
-    target_path_string = seed === nothing ? "randomised_targets" : "randomised_targets_$(seed)"
+    target_path_string = seed === nothing ?
+                         "randomised_targets" :
+                         "randomised_targets_$(seed)"
 
     targets = Targets(targets_gdf, target_path_string, disturbance_df)
 

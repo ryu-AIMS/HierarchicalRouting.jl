@@ -83,7 +83,9 @@ function nearest_neighbour(
     total_distance += dist_matrix[current_location, 1]
     tour .-= 1
 
-    ordered_centroids = cluster_centroids[[findfirst(==(id), cluster_centroids.id) for id in tour], :]
+    ordered_centroids = cluster_centroids[[
+        findfirst(==(id), cluster_centroids.id) for id in tour
+    ], :]
 
     # combine exclusions for mothership and tenders
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
@@ -154,11 +156,12 @@ function nearest_neighbour(
 
     sequenced_remaining_centroids = cluster_centroids[tour.+1, :]
 
-    # combine exclusions for mothership and tenders
+    # Combine exclusions for mothership and tenders
     exclusions_all = vcat(exclusions_mothership, exclusions_tender)
+    ex_ms_clust_sequence = ex_ms_route.cluster_sequence[cluster_seq_idx, :]
     waypoints = get_waypoints(
         current_point,
-        vcat(DataFrame(ex_ms_route.cluster_sequence[cluster_seq_idx, :]), sequenced_remaining_centroids),
+        vcat(DataFrame(ex_ms_clust_sequence), sequenced_remaining_centroids),
         exclusions_all
     )
 
@@ -213,7 +216,9 @@ function two_opt(
     centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
     push!(centroid_nodes, first(centroid_nodes))  # return to depot
 
-    dist_matrix::Matrix{Float64} = get_feasible_matrix(centroid_nodes, exclusions_mothership)[1]
+    dist_matrix::Matrix{Float64} = get_feasible_matrix(
+        centroid_nodes, exclusions_mothership
+    )[1]
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -261,7 +266,9 @@ function two_opt(
     centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
     push!(centroid_nodes, first(centroid_nodes))  # return to depot
 
-    dist_matrix::Matrix{Float64} = get_feasible_matrix(centroid_nodes, exclusions_mothership)[1]
+    dist_matrix::Matrix{Float64} = get_feasible_matrix(
+        centroid_nodes, exclusions_mothership
+    )[1]
 
     # If depot is last row, remove
     if cluster_centroids.id[1] == cluster_centroids.id[end]
@@ -318,7 +325,9 @@ function two_opt(
             continue
         end
 
-        nodes = vcat([tender_soln_current.start], sortie.nodes, [tender_soln_current.finish])
+        nodes = vcat(
+            [tender_soln_current.start], sortie.nodes, [tender_soln_current.finish]
+        )
         n = length(nodes)
         initial_sequence = collect(1:n)
 

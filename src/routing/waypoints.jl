@@ -153,7 +153,7 @@ function get_waypoints(
             2 / 3 * current_lon + 1 / 3 * next_lon,
             2 / 3 * current_lat + 1 / 3 * next_lat
         )
-        #! prev_waypoint in exclusion calls adjust_waypoint() to find closest point outside exclusion
+
         # Adjust waypoints if they are inside exclusion polygons
         prev_waypoint = point_in_exclusion(prev_waypoint, exclusions) ?
                         adjust_waypoint(prev_waypoint, exclusions) :
@@ -221,9 +221,9 @@ Optimize waypoint positions in the final mothership route using `opt_method` pro
 to minimize the critical path time while avoiding exclusion zones.
 
 This function optimizes the waypoints from the last mothership route (excluding depot start/
-end points)by perturbing their positions within a constrained search space. The optimization
-minimizes the critical path score while penalizing waypoints that fall within exclusion
-zones.
+end points) by perturbing their positions within a constrained search space. The
+optimization minimizes the critical path score while penalizing waypoints that fall within
+exclusion zones.
 
 Disturbance scenarios can be handled by optimizing only a subset of waypoints corresponding
 to clusters affected by disturbances. `candidate_wpt_idxs` specifies the indices of
@@ -321,7 +321,9 @@ function optimize_waypoints(
     """
     Pack waypoints into optimization vector x, and unpack back into waypoints
     """
-    @inline function pack_x(pts::Vector{Point{2,Float64}}, idxs::Vector{Int})::Vector{Float64}
+    @inline function pack_x(
+        pts::Vector{Point{2,Float64}}, idxs::Vector{Int}
+    )::Vector{Float64}
         x = Vector{Float64}(undef, 2 * length(idxs))
         @inbounds for (j, i) in enumerate(idxs)
             x[2j-1] = pts[i][1]
@@ -349,7 +351,9 @@ function optimize_waypoints(
         end
 
         # Exit early here if any waypoints are inside exclusion zones
-        has_bad_waypoint::Vector{Bool} = point_in_exclusion.(wpts, Ref(exclusions_mothership))
+        has_bad_waypoint::Vector{Bool} = point_in_exclusion.(
+            wpts, Ref(exclusions_mothership)
+        )
         exclusion_count::Int = count(has_bad_waypoint)
         if exclusion_count > 0
             naive_score = maximum(vessel_weightings) *
@@ -457,8 +461,9 @@ function optimize_waypoints(
     end
 
     if generate_plots
+        best_ms_route = best_soln.mothership_routes[end]
         Plot.route!(
-            fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
+            fig_wpts.current_axis[], best_ms_route, labels=true, color=:black
         )
         target_points = problem.targets.points.geometry
         Plot.scatter!(

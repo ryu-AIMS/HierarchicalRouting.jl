@@ -165,7 +165,8 @@ function solve(
     ]
 
     solution::MSTSolution = MSTSolution([clusters], [ms_route], [initial_tenders])
-    info_log && @info "$(output_dir) Initial solution generated with objective value: $(critical_path(solution, problem))"
+    info_log && (@info "$(output_dir) Initial solution generated with objective value: " *
+                       "$(critical_path(solution, problem))")
     if soln_progress_plot_flag || output_to_file
         fig_initial = Plot.solution(
             problem,
@@ -179,7 +180,7 @@ function solve(
     end
 
     if do_improve
-        info_log && @info "$(output_dir) Improving initial solution using simulated annealing"
+        info_log && @info "$(output_dir) Improving solution by perturbing initial sorties"
         # Optimize the initial tenders solution up to the first disturbance
         next_cluster_idx::Int64 = !isempty(ordered_disturbances) ?
                                   ordered_disturbances[1] :
@@ -214,7 +215,8 @@ function solve(
                 size=(700, 875)
             )
             soln_progress_plot_flag && display(fig_sa_opt)
-            output_to_file && CairoMakie.save("$output_dir/2_sa_optimized_solution.png", fig_sa_opt)
+            output_to_file &&
+                CairoMakie.save("$output_dir/2_sa_optimized_solution.png", fig_sa_opt)
         end
     end
 
@@ -238,7 +240,8 @@ function solve(
             size=(700, 875)
         )
         soln_progress_plot_flag && display(fig_pso_opt)
-        output_to_file && CairoMakie.save("$output_dir/3_pso_optimized_solution.png", fig_pso_opt)
+        output_to_file &&
+            CairoMakie.save("$output_dir/3_pso_optimized_solution.png", fig_pso_opt)
     end
 
     isempty(disturbance_clusters) && return solution
@@ -433,7 +436,8 @@ function improve_solution(
     sort!(current_clusters, by=c -> c.id)
 
     tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
-    current_tender_routes::Vector{TenderSolution} = tender_set[current_cluster_idx:final_cluster_idx]
+    current_tender_routes::Vector{TenderSolution} =
+        tender_set[current_cluster_idx:final_cluster_idx]
     noncurrent_tender_routes::Vector{TenderSolution} = setdiff(
         tender_set,
         current_tender_routes

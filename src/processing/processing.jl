@@ -74,7 +74,8 @@ Return the segment of line strings that contains the specified point, either fro
 or to the end of the line strings.
 
 # Arguments
-- `section`: A symbol indicating whether to keep the segment from the start (`:from`) or to the end (`:to`).
+- `section`: A symbol indicating whether to keep the segment from the start (`:from`) or to
+    the end (`:to`).
 - `point`: The point to check against the line strings.
 - `line_strings`: A vector of line strings to search through.
 
