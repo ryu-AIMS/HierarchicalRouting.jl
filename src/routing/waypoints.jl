@@ -453,10 +453,10 @@ function optimize_waypoints(
             best_soln;
             highlight_critical_path=true,
         )
-        display(fig_wpts)
+        CairoMakie.save("$output_dir/3_wpt_optim.png", fig_wpts)
     end
     result_trace = Optim.trace(result)
-    display(Plot.trace(result_trace, opt_method))
+    CairoMakie.save("$output_dir/3_wpt_optim_trace.png", Plot.trace(result_trace, opt_method))
 
     return best_soln
 end

@@ -148,13 +148,16 @@ function solve(
 
     solution::MSTSolution = MSTSolution([clusters], [ms_route], [initial_tenders])
     @info "Initial solution generated with objective value: $(critical_path(solution, problem))"
-    soln_progress_plot_flag && display(Plot.solution(
-        problem,
-        solution;
-        highlight_critical_path_flag=true,
-        title="Initial",
-        size=(700, 875)
-    ))
+    if soln_progress_plot_flag
+        fig_initial = Plot.solution(
+            problem,
+            solution;
+            highlight_critical_path_flag=true,
+            title="Initial",
+            size=(700, 875)
+        )
+        CairoMakie.save("$output_dir/1_initial_solution.png", fig_initial)
+    end
 
     if do_improve
         @info "Improving initial solution using simulated annealing"
@@ -180,13 +183,16 @@ function solve(
             c -> c != 0 && c <= length(solution.cluster_sets[end]),
             solution.mothership_routes[end].cluster_sequence.id
         )
-        soln_progress_plot_flag && display(Plot.solution(
-            problem,
-            solution;
-            highlight_critical_path_flag=true,
-            title="SA Optimized",
-            size=(700, 875)
-        ))
+        if soln_progress_plot_flag
+            fig_sa_opt = Plot.solution(
+                problem,
+                solution;
+                highlight_critical_path_flag=true,
+                title="SA Optimized",
+                size=(700, 875)
+            )
+            CairoMakie.save("$output_dir/2_sa_optimized_solution.png", fig_sa_opt)
+        end
     end
 
     # Apply solution to the first set of clusters pre-disturbance
@@ -198,13 +204,16 @@ function solve(
         time_limit=Float64(time_limit),
         plot_flag=wpt_optim_plot_flag
     )
-    soln_progress_plot_flag && display(Plot.solution(
-        problem,
-        solution;
-        highlight_critical_path_flag=true,
-        title="PSO Optimized",
-        size=(700, 875)
-    ))
+    if soln_progress_plot_flag
+        fig_pso_opt = Plot.solution(
+            problem,
+            solution;
+            highlight_critical_path_flag=true,
+            title="PSO Optimized",
+            size=(700, 875)
+        )
+        CairoMakie.save("$output_dir/3_pso_optimized_solution.png", fig_pso_opt)
+    end
 
     isempty(disturbance_clusters) && return solution
 

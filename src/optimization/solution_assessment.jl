@@ -753,9 +753,10 @@ function simulated_annealing(
     end
 
     # Display trace after each cluster's SA run completes
-    display(Plot.sa_trace(
+    fig_trace = Plot.sa_trace(
         trace_iters, trace_best, trace_current, trace_proposed, trace_temps
-    ))
+    )
+    CairoMakie.save("$output_dir/2_sa_trace.png", fig_trace)
     @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
     return soln_best, obj_best
 end
