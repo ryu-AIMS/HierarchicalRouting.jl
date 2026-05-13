@@ -48,22 +48,25 @@ end
 """
     solve(
         problem::Problem;
-        k::Int=1,
-        disturbance_clusters::Set{Int64}=Set{Int64}(),
         seed::Union{Nothing,Int64}=nothing,
         rng::AbstractRNG=Random.GLOBAL_RNG,
-        waypoint_optim_method=nothing,
-        do_improve::Bool=true,
-        time_limit::Real=200.0,
-        wpt_optim_plot_flag::Bool=false,
-        soln_progress_plot_flag::Bool=false,
+        k::Int=1,
         cluster_iterations::Int=1000,
         cluster_restarts::Int=20,
+        disturbance_clusters::Set{Int64}=Set{Int64}(),
+        do_improve::Bool=true,
+        info_log::Bool=true,
+        soln_progress_plot_flag::Bool=false,
+        waypoint_optim_method=nothing,
+        time_limit::Real=200.0,
+        wpt_optim_plot_flag::Bool=false,
         temp_init::Float64=0.25,
         cooling_rate::Float64=0.9,
         min_iters::Int=500,
         static_limit::Int=1,
         max_iterations::Int=1000,
+        sa_improve_plot_flag::Bool=true,
+        output_dir::String="",
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -75,17 +78,25 @@ Optionally, optimize waypoints using a set or provided optimization method.
 
 # Arguments
 - `problem`: Problem instance to solve
-- `k`: Number of clusters to generate
-- `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 - `seed`: Optional seed for random number generation
 - `rng`: AbstractRNG for random number generation
-- `waypoint_optim_method`: Function to use in waypoint optimization.
-- `do_improve`: Whether to improve the initial solution by optimization tender sorties
-- `time_limit`: Time limit for waypoint optimization, in seconds
-- `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
-- `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
+- `k`: Number of clusters to generate
 - `cluster_iterations`: Number of iterations to perform in clustering step
 - `cluster_restarts`: Number of restarts to perform in clustering step
+- `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
+- `do_improve`: Whether to improve the initial solution by optimization tender sorties
+- `info_log::Bool`: Flag to switch info statement logging
+- `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
+- `waypoint_optim_method`: Function to use in waypoint optimization.
+- `time_limit`: Time limit for waypoint optimization, in seconds
+- `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
+- `temp_init`: Initial temperature for simulated annealing
+- `cooling_rate`: Cooling rate for simulated annealing
+- `min_iters`: Minimum number of iterations to perform before allowing early exit
+- `static_limit`: Number of iterations to allow stagnation before early exit
+- `max_iterations`: Maximum number of iterations. Default = typemax(Int).
+- `sa_improve_plot_flag`: Flag to plot simulated annealing iteratively improved solutions
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
 
 # Returns
 Best total MSTSolution found
@@ -341,11 +352,14 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int,
-        max_iterations::Int,
+        max_iterations::Int=typemax(Int),
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
+        output_dir::String="",
+        info_log::Bool=true,
+        sa_improve_plot_flag::Bool=true,
     )::Tuple{MSTSolution,Float64}
-        improve_solution(
+    improve_solution(
         init_solution::MSTSolution,
         problem::Problem;
         temp_init::Float64,
@@ -355,6 +369,9 @@ end
         max_iterations::Int=typemax(Int),
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
+        output_dir::String="",
+        info_log::Bool=true,
+        sa_improve_plot_flag::Bool=true,
     )::Tuple{MSTSolution,Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective
@@ -374,6 +391,9 @@ function `objective_function` to improve full and partial solutions.
     Default = `simulated_annealing`
 - `objective_function`: Objective function to quantify and evaluate the solution.
     Default = `critical_path`
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
+- `info_log::Bool`: Flag to switch info statement logging
+- `sa_improve_plot_flag`: Flag to plot simulated annealing solution perturbations
 
 # Returns
 - `soln_best`: Solution with lowest objective value found

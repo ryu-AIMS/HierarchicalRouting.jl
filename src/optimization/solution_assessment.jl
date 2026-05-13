@@ -595,6 +595,9 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int;
+        output_dir::String="",
+        info_log::Bool,
+        plot_flag::Bool,
     )::Tuple{MSTSolution,Float64}
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -608,6 +611,9 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
 - `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
+- `info_log::Bool`: Flag to switch info statement logging
+- `plot_flag`: Flag to plot solution progress for debugging/visualization
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.

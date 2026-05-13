@@ -199,6 +199,8 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        info_log::Bool=true,
+        output_dir::String,
         plot_flag::Bool,
     )::MSTSolution
     optimize_waypoints(
@@ -210,6 +212,8 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        info_log::Bool=true,
+        output_dir::String="",
         plot_flag::Bool,
     )::MSTSolution
 
@@ -237,6 +241,8 @@ this value.
 gradient norm falls below this value
 - `iterations::Int64`: Maximum number of optimization iterations
 - `time_limit::Float64`: Soft limit on the time spent optimizing
+- `info_log::Bool`: Flag to switch info statement logging
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
 - `plot_flag::Bool`: Flag to enable plotting during waypoint optimization.
 
 # Returns
