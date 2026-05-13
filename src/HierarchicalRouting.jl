@@ -16,6 +16,7 @@ import GeoDataFrames as GDF
 
 using Distances
 using Graphs, SimpleWeightedGraphs
+using CairoMakie
 
 const POLY_VEC = Vector{IGeometry{wkbPolygon}}
 
