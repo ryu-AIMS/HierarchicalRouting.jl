@@ -454,9 +454,9 @@ function optimize_waypoints(
             highlight_critical_path=true,
         )
         display(fig_wpts)
-        result_trace = Optim.trace(result)
-        display(Plot.trace(result_trace, opt_method))
     end
+    result_trace = Optim.trace(result)
+    display(Plot.trace(result_trace, opt_method))
 
     return best_soln
 end
