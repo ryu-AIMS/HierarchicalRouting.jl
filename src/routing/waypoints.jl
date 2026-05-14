@@ -304,6 +304,7 @@ function optimize_waypoints(
     generate_plots::Bool = plot_flag || output_to_file ? true : false
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(exclusions_mothership, exclusions_tender)
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting, problem.tenders.weighting
     )
@@ -352,7 +353,7 @@ function optimize_waypoints(
 
         # Exit early here if any waypoints are inside exclusion zones
         has_bad_waypoint::Vector{Bool} = point_in_exclusion.(
-            wpts, Ref(exclusions_mothership)
+            wpts, Ref(exclusions_all)
         )
         exclusion_count::Int = count(has_bad_waypoint)
         if exclusion_count > 0
@@ -403,8 +404,7 @@ function optimize_waypoints(
 
     # Ensure bounds are within lat/lon limits
     (lon_min, lon_max, lat_min, lat_max) = get_bbox_bounds([
-        exclusions_mothership,
-        exclusions_tender,
+        exclusions_all,
         problem.targets.points.geometry,
         [problem.depot]
     ])
