@@ -76,7 +76,7 @@ end
 function _rebuild_mothership_solution(
     soln,
     new_clusters,
-    exclusions_mothership
+    exclusions
 )::Tuple{DataFrame,MothershipSolution}
     # Update mothership route and waypoints based on updated clusters
     depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
@@ -87,11 +87,11 @@ function _rebuild_mothership_solution(
         cluster_seq_ids,
         cluster_centroids
     )
-    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
+    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions)
 
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
         updated_waypoints.waypoint,
-        exclusions_mothership
+        exclusions
     )
 
     updated_ms_solution = MothershipSolution(
@@ -269,8 +269,11 @@ function perturb_swap(
     problem::Problem,
 )::MSTSolution
     #! CROSS-CLUSTER SWAP
-    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(
+        problem.mothership.exclusion.geometry,
+        exclusions_tender
+    )
 
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
@@ -333,7 +336,7 @@ function perturb_swap(
     updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
         soln,
         new_clusters,
-        exclusions_mothership
+        exclusions_all
     )
 
     # Update tender solutions with the new (start/finish) waypoints based on perturbation
@@ -500,8 +503,11 @@ function perturb_move(
     problem::Problem,
 )::MSTSolution
     #! CROSS-CLUSTER MOVE
-    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(
+        problem.mothership.exclusion.geometry,
+        exclusions_tender
+    )
 
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
@@ -548,7 +554,7 @@ function perturb_move(
     updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
         soln,
         new_clusters,
-        exclusions_mothership
+        exclusions_all
     )
 
     # Update tender solutions with the new (start/finish) waypoints based on perturbation
