@@ -64,7 +64,7 @@ end
         cooling_rate::Float64=0.9,
         min_iters::Int=500,
         static_limit::Int=1,
-        max_iterations::Int=1000,
+        max_iterations::Int=typemax(Int),
         sa_improve_plot_flag::Bool=true,
         output_dir::String="",
     )::MSTSolution
@@ -119,7 +119,7 @@ function solve(
     cooling_rate::Float64=0.9,
     min_iters::Int=500,
     static_limit::Int=1,
-    max_iterations::Int=1000,
+    max_iterations::Int=typemax(Int),
     sa_improve_plot_flag::Bool=true,
     output_dir::String="",
 )::MSTSolution
