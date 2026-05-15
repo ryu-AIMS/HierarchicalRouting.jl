@@ -273,7 +273,9 @@ function shortest_feasible_path(
             _tried_reverse=true
         )
         # Flip segments original forward direction (and order)
-        segs_fwd = reverse([LineString([last(ls), first(ls)]) for ls in getfield.(segs_rev, :points)])
+        segs_fwd = reverse(
+            [LineString([last(ls), first(ls)]) for ls in getfield.(segs_rev, :points)]
+        )
         return dist_rev, segs_fwd
     elseif iszero(length(path))
         throw(ErrorException(
@@ -290,14 +292,17 @@ function shortest_feasible_path(
 end
 
 """
-    build_network!(
+        build_network!(
         points_from::Vector{Point{2,Float64}},
         points_to::Vector{Point{2,Float64}},
-        exclusion_idxs::Vector{Int},
+        exclusion_idxs::Vector{Int64},
         current_point::Point{2,Float64},
         final_point::Point{2,Float64},
-        exclusions::Vector{IGeometry{wkbPolygon}},
-        final_exclusion_idx::Int
+        exclusions::POLY_VEC,
+        final_exclusion_idx::Int64;
+        visited::Set{Point{2,Float64}}=Set{Point{2,Float64}}(),
+        existing_edges::Set{Tuple{Point{2,Float64},Point{2,Float64}}}=
+        Set{Tuple{Point{2,Float64},Point{2,Float64}}}()
     )::Nothing
 
 Build a network of points to connect to each other.
@@ -321,7 +326,8 @@ function build_network!(
     exclusions::POLY_VEC,
     final_exclusion_idx::Int64;
     visited::Set{Point{2,Float64}}=Set{Point{2,Float64}}(),
-    existing_edges::Set{Tuple{Point{2,Float64},Point{2,Float64}}}=Set{Tuple{Point{2,Float64},Point{2,Float64}}}()
+    existing_edges::Set{Tuple{Point{2,Float64},Point{2,Float64}}}=
+    Set{Tuple{Point{2,Float64},Point{2,Float64}}}()
 )::Nothing
     if current_point == final_point
         return nothing
@@ -373,7 +379,6 @@ function build_network!(
             )
         end
     end
-    # TODO: check if path from current_point to next/intermediate point is feasible (no intersecting polygons in between)
 end
 
 """
@@ -501,7 +506,9 @@ function build_graph(
 
     # Create the graph with one vertex per unique point.
     graph::SimpleWeightedGraph{Int64,Float64} = SimpleWeightedGraph(n_points)
-    visible_mask::Vector{Bool} = is_visible.(chain_points, Ref(final_point), Ref(exclusions))
+    visible_mask::Vector{Bool} = is_visible.(
+        chain_points, Ref(final_point), Ref(exclusions)
+    )
     visible_idx::Vector{Int64} = findall(visible_mask)
     initial_pnt_idx::Vector{Int64} = findall(chain_points .== initial_point)
     final_pnt_idx::Vector{Int64} = findall(chain_points .== final_point)

@@ -48,22 +48,25 @@ end
 """
     solve(
         problem::Problem;
-        k::Int=1,
-        disturbance_clusters::Set{Int64}=Set{Int64}(),
         seed::Union{Nothing,Int64}=nothing,
         rng::AbstractRNG=Random.GLOBAL_RNG,
-        waypoint_optim_method=nothing,
-        do_improve::Bool=true,
-        time_limit::Real=200.0,
-        wpt_optim_plot_flag::Bool=false,
-        soln_progress_plot_flag::Bool=false,
+        k::Int=1,
         cluster_iterations::Int=1000,
         cluster_restarts::Int=20,
+        disturbance_clusters::Set{Int64}=Set{Int64}(),
+        do_improve::Bool=true,
+        info_log::Bool=true,
+        soln_progress_plot_flag::Bool=false,
+        waypoint_optim_method=nothing,
+        time_limit::Real=200.0,
+        wpt_optim_plot_flag::Bool=false,
         temp_init::Float64=0.25,
         cooling_rate::Float64=0.9,
         min_iters::Int=500,
         static_limit::Int=1,
         max_iterations::Int=1000,
+        sa_improve_plot_flag::Bool=true,
+        output_dir::String="",
     )::MSTSolution
 
 Generate a solution to the problem for:
@@ -75,42 +78,57 @@ Optionally, optimize waypoints using a set or provided optimization method.
 
 # Arguments
 - `problem`: Problem instance to solve
-- `k`: Number of clusters to generate
-- `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
 - `seed`: Optional seed for random number generation
 - `rng`: AbstractRNG for random number generation
-- `waypoint_optim_method`: Function to use in waypoint optimization.
-- `do_improve`: Whether to improve the initial solution by optimization tender sorties
-- `time_limit`: Time limit for waypoint optimization, in seconds
-- `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
-- `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
+- `k`: Number of clusters to generate
 - `cluster_iterations`: Number of iterations to perform in clustering step
 - `cluster_restarts`: Number of restarts to perform in clustering step
+- `disturbance_clusters`: Set of sequenced clusters to simulate disturbances before.
+- `do_improve`: Whether to improve the initial solution by optimization tender sorties
+- `info_log::Bool`: Flag to switch info statement logging
+- `soln_progress_plot_flag`: Flag to plot solution progress for debugging/visualization
+- `waypoint_optim_method`: Function to use in waypoint optimization.
+- `time_limit`: Time limit for waypoint optimization, in seconds
+- `wpt_optim_plot_flag`: Flag to plot waypoint optimization for debugging/visualization
+- `temp_init`: Initial temperature for simulated annealing
+- `cooling_rate`: Cooling rate for simulated annealing
+- `min_iters`: Minimum number of iterations to perform before allowing early exit
+- `static_limit`: Number of iterations to allow stagnation before early exit
+- `max_iterations`: Maximum number of iterations. Default = typemax(Int).
+- `sa_improve_plot_flag`: Flag to plot simulated annealing iteratively improved solutions
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
 
 # Returns
 Best total MSTSolution found
 """
 function solve(
     problem::Problem;
-    k::Int=1,
-    disturbance_clusters::Set{Int64}=Set{Int64}(),
     seed::Union{Nothing,Int64}=nothing,
     rng::AbstractRNG=Random.GLOBAL_RNG,
-    waypoint_optim_method=nothing,
-    do_improve::Bool=true,
-    time_limit::Real=200.0,
-    wpt_optim_plot_flag::Bool=false,
-    soln_progress_plot_flag::Bool=false,
+    k::Int=1,
     cluster_iterations::Int=1000,
     cluster_restarts::Int=20,
+    disturbance_clusters::Set{Int64}=Set{Int64}(),
+    do_improve::Bool=true,
+    info_log::Bool=true,
+    soln_progress_plot_flag::Bool=false,
+    waypoint_optim_method=nothing,
+    time_limit::Real=200.0,
+    wpt_optim_plot_flag::Bool=false,
     temp_init::Float64=0.25,
     cooling_rate::Float64=0.9,
     min_iters::Int=500,
     static_limit::Int=1,
     max_iterations::Int=1000,
+    sa_improve_plot_flag::Bool=true,
+    output_dir::String="",
 )::MSTSolution
-    if !isnothing(seed)
-        Random.seed!(rng, seed)
+    !isnothing(seed) && Random.seed!(rng, seed)
+    output_to_file::Bool = output_dir == "" ? false : true
+
+    if output_to_file
+        output_dir = output_dir == "" ? "$seed" : output_dir
+        mkpath("$output_dir")
     end
 
     # Cluster the problem data
@@ -147,17 +165,22 @@ function solve(
     ]
 
     solution::MSTSolution = MSTSolution([clusters], [ms_route], [initial_tenders])
-    @info "Initial solution generated with objective value: $(critical_path(solution, problem))"
-    soln_progress_plot_flag && display(Plot.solution(
-        problem,
-        solution;
-        highlight_critical_path_flag=true,
-        title="Initial",
-        size=(700, 875)
-    ))
+    info_log && (@info "$(output_dir) Initial solution generated with objective value: " *
+                       "$(critical_path(solution, problem))")
+    if soln_progress_plot_flag || output_to_file
+        fig_initial = Plot.solution(
+            problem,
+            solution;
+            highlight_critical_path_flag=true,
+            title="Initial",
+            size=(700, 875)
+        )
+        soln_progress_plot_flag && display(fig_initial)
+        output_to_file && CairoMakie.save("$output_dir/1_initial_solution.png", fig_initial)
+    end
 
     if do_improve
-        @info "Improving initial solution using simulated annealing"
+        info_log && @info "$(output_dir) Improving solution by perturbing initial sorties"
         # Optimize the initial tenders solution up to the first disturbance
         next_cluster_idx::Int64 = !isempty(ordered_disturbances) ?
                                   ordered_disturbances[1] :
@@ -173,6 +196,9 @@ function solve(
             min_iters,
             static_limit,
             max_iterations,
+            output_dir,
+            info_log,
+            sa_improve_plot_flag
         )
 
         # Update cluster sequence after improvement
@@ -180,31 +206,43 @@ function solve(
             c -> c != 0 && c <= length(solution.cluster_sets[end]),
             solution.mothership_routes[end].cluster_sequence.id
         )
-        soln_progress_plot_flag && display(Plot.solution(
-            problem,
-            solution;
-            highlight_critical_path_flag=true,
-            title="SA Optimized",
-            size=(700, 875)
-        ))
+        if soln_progress_plot_flag || output_to_file
+            fig_sa_opt = Plot.solution(
+                problem,
+                solution;
+                highlight_critical_path_flag=true,
+                title="SA Optimized",
+                size=(700, 875)
+            )
+            soln_progress_plot_flag && display(fig_sa_opt)
+            output_to_file &&
+                CairoMakie.save("$output_dir/2_sa_optimized_solution.png", fig_sa_opt)
+        end
     end
 
     # Apply solution to the first set of clusters pre-disturbance
-    @info "Optimizing waypoints using PSO"
+    info_log && @info "$(output_dir) Optimizing waypoints using PSO"
     solution = optimize_waypoints(
         solution,
         problem,
         waypoint_optim_method;
         time_limit=Float64(time_limit),
-        plot_flag=wpt_optim_plot_flag
+        plot_flag=wpt_optim_plot_flag,
+        output_dir,
+        info_log
     )
-    soln_progress_plot_flag && display(Plot.solution(
-        problem,
-        solution;
-        highlight_critical_path_flag=true,
-        title="PSO Optimized",
-        size=(700, 875)
-    ))
+    if soln_progress_plot_flag || output_to_file
+        fig_pso_opt = Plot.solution(
+            problem,
+            solution;
+            highlight_critical_path_flag=true,
+            title="PSO Optimized",
+            size=(700, 875)
+        )
+        soln_progress_plot_flag && display(fig_pso_opt)
+        output_to_file &&
+            CairoMakie.save("$output_dir/3_pso_optimized_solution.png", fig_pso_opt)
+    end
 
     isempty(disturbance_clusters) && return solution
 
@@ -317,11 +355,14 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int,
-        max_iterations::Int,
+        max_iterations::Int=typemax(Int),
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
+        output_dir::String="",
+        info_log::Bool=true,
+        sa_improve_plot_flag::Bool=true,
     )::Tuple{MSTSolution,Float64}
-        improve_solution(
+    improve_solution(
         init_solution::MSTSolution,
         problem::Problem;
         temp_init::Float64,
@@ -331,6 +372,9 @@ end
         max_iterations::Int=typemax(Int),
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
+        output_dir::String="",
+        info_log::Bool=true,
+        sa_improve_plot_flag::Bool=true,
     )::Tuple{MSTSolution,Float64}
 
 Improve the solution using the optimization function `opt_function` with the objective
@@ -350,6 +394,9 @@ function `objective_function` to improve full and partial solutions.
     Default = `simulated_annealing`
 - `objective_function`: Objective function to quantify and evaluate the solution.
     Default = `critical_path`
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
+- `info_log::Bool`: Flag to switch info statement logging
+- `sa_improve_plot_flag`: Flag to plot simulated annealing solution perturbations
 
 # Returns
 - `soln_best`: Solution with lowest objective value found
@@ -367,6 +414,9 @@ function improve_solution(
     max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
+    output_dir::String="",
+    info_log::Bool=true,
+    sa_improve_plot_flag::Bool=true,
 )::Tuple{MSTSolution,Float64}
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
@@ -386,7 +436,8 @@ function improve_solution(
     sort!(current_clusters, by=c -> c.id)
 
     tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
-    current_tender_routes::Vector{TenderSolution} = tender_set[current_cluster_idx:final_cluster_idx]
+    current_tender_routes::Vector{TenderSolution} =
+        tender_set[current_cluster_idx:final_cluster_idx]
     noncurrent_tender_routes::Vector{TenderSolution} = setdiff(
         tender_set,
         current_tender_routes
@@ -406,6 +457,9 @@ function improve_solution(
         cooling_rate,
         min_iters,
         static_limit;
+        output_dir,
+        info_log,
+        plot_flag=sa_improve_plot_flag,
     )
 
     merged_clusters = vcat(
@@ -437,7 +491,10 @@ function improve_solution(
     max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
-)
+    output_dir::String="",
+    info_log::Bool=true,
+    sa_improve_plot_flag::Bool=true,
+)::Tuple{MSTSolution,Float64}
     current_cluster_idx::Int64 = 1
     next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
 
@@ -452,6 +509,9 @@ function improve_solution(
         temp_init,
         cooling_rate,
         min_iters,
-        static_limit
+        static_limit,
+        output_dir,
+        info_log,
+        sa_improve_plot_flag
     )
 end

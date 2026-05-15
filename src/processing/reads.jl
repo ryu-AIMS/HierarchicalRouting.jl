@@ -4,11 +4,16 @@
         geometries::Vector{IGeometry{wkbPolygon}},
         resolution::Float64=0.0001
     )::Raster{Int}
+    process_geometry_targets(
+        points::Vector{Point{2,Float64}},
+        resolution::Float64=0.0001
+    )::Raster{Int}
 
 Read and process target location geometries to generate a rasterized representation.
 
 # Arguments
 - `geometries`: A vector of geometries representing target locations.
+- `points`: A vector of points representing target locations.
 - `resolution`: The resolution for the rasterization process.
 
 # Returns
@@ -24,7 +29,13 @@ function process_geometry_targets(
         p -> Point{2,Float64}(p[1:2])).(
         AG.getpoint.(target_centroids, 0)
     )
-    targets_pts_tuple = [(t[1], t[2]) for t in target_centroid_pts]
+    return process_geometry_targets(target_centroid_pts, resolution)
+end
+function process_geometry_targets(
+    points::Vector{Point{2,Float64}},
+    resolution::Float64=0.0001
+)::Raster{Int}
+    targets_pts_tuple = [(t[1], t[2]) for t in points]
 
     return Rasters.rasterize(
         last,
@@ -47,7 +58,7 @@ Convert a raster to a GeoDataFrame by extracting the coordinates of the raster c
 # Returns
 A GeoDataFrame containing the coordinates of the raster cells where the value is 1.
 """
-function raster_to_gdf(raster::Raster{Int,2})
+function raster_to_gdf(raster::Raster{Int,2})::DataFrame
     indices::Vector{CartesianIndex{2}} = findall(x -> x == 1, raster)
 
     lons = raster.dims[1][getindex.(indices, 1)]
@@ -73,7 +84,7 @@ end
     read_and_polygonize_exclusions(
         bathy_fullset_path::String,
         vessel_draft::Float64,
-        subset::DataFrame,
+        subset::DataFrame;
         min_area::Float64=3E-5,
         buffer_dist::Float64=0.0,
     )::DataFrame
@@ -144,7 +155,7 @@ end
 function read_and_polygonize_exclusions(
     bathy_fullset_path::String,
     vessel_draft::Float64,
-    subset::DataFrame,
+    subset::DataFrame;
     min_area::Float64=3E-5,
     buffer_dist::Float64=0.0,
 )::DataFrame
@@ -195,7 +206,8 @@ function process_targets(
     suitable_targets_all = process_geometry_targets(
         target_geometries,
     )
-    suitable_targets_subset::Raster{Int} = Rasters.crop(suitable_targets_all, to=subset.geom)
+    suitable_targets_subset::Raster{Int} =
+        Rasters.crop(suitable_targets_all, to=subset.geom)
     if !isempty(target_subset_path) && !isfile(target_subset_path)
         write(target_subset_path, suitable_targets_subset; force=true)
     end

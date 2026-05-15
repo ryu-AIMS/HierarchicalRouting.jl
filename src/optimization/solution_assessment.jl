@@ -76,7 +76,7 @@ end
 function _rebuild_mothership_solution(
     soln,
     new_clusters,
-    exclusions_mothership
+    exclusions
 )::Tuple{DataFrame,MothershipSolution}
     # Update mothership route and waypoints based on updated clusters
     depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
@@ -87,11 +87,11 @@ function _rebuild_mothership_solution(
         cluster_seq_ids,
         cluster_centroids
     )
-    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions_mothership)
+    updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions)
 
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
         updated_waypoints.waypoint,
-        exclusions_mothership
+        exclusions
     )
 
     updated_ms_solution = MothershipSolution(
@@ -269,8 +269,11 @@ function perturb_swap(
     problem::Problem,
 )::MSTSolution
     #! CROSS-CLUSTER SWAP
-    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(
+        problem.mothership.exclusion.geometry,
+        exclusions_tender
+    )
 
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
@@ -333,7 +336,7 @@ function perturb_swap(
     updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
         soln,
         new_clusters,
-        exclusions_mothership
+        exclusions_all
     )
 
     # Update tender solutions with the new (start/finish) waypoints based on perturbation
@@ -379,7 +382,8 @@ function _find_longest_feasible_sortie(
 )::Tuple{Int,Vector{Point{2,Float64}}}
     sortie_lengths = tender_clust_dist(soln.tenders[end][clust_seq_idx])
     longest_sortie_idx = argmax(sortie_lengths)
-    longest_sortie_nodes = soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
+    longest_sortie_nodes =
+        soln.tenders[end][clust_seq_idx].sorties[longest_sortie_idx].nodes
 
     return longest_sortie_idx, longest_sortie_nodes
 end
@@ -499,8 +503,11 @@ function perturb_move(
     problem::Problem,
 )::MSTSolution
     #! CROSS-CLUSTER MOVE
-    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(
+        problem.mothership.exclusion.geometry,
+        exclusions_tender
+    )
 
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
@@ -539,14 +546,15 @@ function perturb_move(
     centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
     centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
-    new_clusters[cluster_a_idx] = Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a)
-    new_clusters[cluster_b_idx] = Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
+    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] =
+        Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a),
+        Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
 
     # Update mothership route and waypoints based on updated clusters
     updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
         soln,
         new_clusters,
-        exclusions_mothership
+        exclusions_all
     )
 
     # Update tender solutions with the new (start/finish) waypoints based on perturbation
@@ -595,6 +603,9 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int;
+        output_dir::String="",
+        info_log::Bool,
+        plot_flag::Bool,
     )::Tuple{MSTSolution,Float64}
 
 Simulated Annealing optimization algorithm to optimize the solution.
@@ -608,6 +619,9 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
 - `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
+- `info_log::Bool`: Flag to switch info statement logging
+- `plot_flag`: Flag to plot solution progress for debugging/visualization
 
 # Returns
 - `soln_best`: Best solution::MSTSolution found.
@@ -622,6 +636,9 @@ function simulated_annealing(
     cooling_rate::Float64,
     min_iters::Int,
     static_limit::Int;
+    output_dir::String="",
+    info_log::Bool,
+    plot_flag::Bool,
 )::Tuple{MSTSolution,Float64}
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
     vessel_weightings::NTuple{2,AbstractFloat} = (
@@ -629,12 +646,14 @@ function simulated_annealing(
         problem.tenders.weighting
     )
 
-    @info "Starting Simulated Annealing Optimization with parameters:"
-    max_iterations == typemax(Int) || @info "  - Max Iterations: $max_iterations"
-    @info "  - Minimum Iterations: $min_iters"
-    @info "  - Initial Temperature: $temp_init"
-    @info "  - Cooling Rate: $cooling_rate"
-    @info "  - Static Limit: $static_limit"
+    if info_log
+        @info "Starting Simulated Annealing Optimization with parameters:"
+        max_iterations == typemax(Int) || @info "  - Max Iterations: $max_iterations"
+        @info "  - Minimum Iterations: $min_iters"
+        @info "  - Initial Temperature: $temp_init"
+        @info "  - Cooling Rate: $cooling_rate"
+        @info "  - Static Limit: $static_limit"
+    end
 
     # Initialize best solution as initial
     soln_best::MSTSolution = deepcopy(soln_init)
@@ -668,7 +687,7 @@ function simulated_annealing(
     shuffled_clusters::Vector{Int} = Vector{Int}(undef, no_clusts)
     perturbation_type::Symbol = :none
 
-    @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
+    info_log && @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
 
     for iteration in 1:max_iterations
         shuffled_clusters = shuffle(1:no_clusts)
@@ -718,10 +737,16 @@ function simulated_annealing(
             Δ = total_dist_proposed - total_dist_current
         end
 
+        perturbed_clusters = clust_alt_idx == 0 ?
+                             " $clust_idx" :
+                             "$clust_idx -> $clust_alt_idx"
+
         # If the new solution is improved OR meets acceptance prob criteria
         if Δ < 0 || rand() < exp(-Δ / temp)
             soln_current = soln_proposed
-            total_dist_current = obj_proposed == obj_current ? total_dist_proposed : total_distance(soln_proposed, vessel_weightings)
+            total_dist_current = obj_proposed == obj_current ?
+                                 total_dist_proposed :
+                                 total_distance(soln_proposed, vessel_weightings)
             obj_current = obj_proposed
 
             if obj_current < obj_best ||
@@ -730,12 +755,17 @@ function simulated_annealing(
                 soln_best = deepcopy(soln_current)
                 obj_best = obj_current
                 total_dist_best = total_dist_current
-                display(Plot.solution(problem, soln_best; title="New Best Solution at Iteration $iteration", highlight_critical_path_flag=true,))
+                info_log && @info "$iteration\t| $perturbation_type: $perturbed_clusters" *
+                                  "\t| $(round(obj_best, digits=4))\t| " *
+                                  "$(round(obj_current, digits=4))\t| " *
+                                  "$(round(obj_proposed, digits=4))\t| $temp"
+                plot_flag && display(Plot.solution(
+                    problem, soln_best;
+                    title="New Best Solution at Iteration $iteration",
+                    highlight_critical_path_flag=true,
+                ))
             end
         end
-
-        perturbed_clusters = clust_alt_idx == 0 ? " $clust_idx" : "$clust_idx -> $clust_alt_idx"
-        @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
 
         # Record after accept/reject so current/best reflect the updated state
         push!(trace_iters, iteration)
@@ -744,18 +774,17 @@ function simulated_annealing(
         push!(trace_best, obj_best)
         push!(trace_temps, temp)
 
-        if iteration >= min_iters && static_ctr >= static_limit
-            @info "$iteration\t| $perturbation_type: $perturbed_clusters\t| $(round(obj_best, digits=4))\t| $(round(obj_current, digits=4))\t| $(round(obj_proposed, digits=4))\t| $temp"
-            break
-        end
+        (iteration >= min_iters && static_ctr >= static_limit) && break
         temp *= cooling_rate
         static_ctr += 1
     end
 
     # Display trace after each cluster's SA run completes
-    display(Plot.sa_trace(
+    fig_trace = Plot.sa_trace(
         trace_iters, trace_best, trace_current, trace_proposed, trace_temps
-    ))
-    @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
+    )
+    plot_flag && display(fig_trace)
+    !isempty(output_dir) && CairoMakie.save("$output_dir/2_sa_trace.png", fig_trace)
+    info_log && @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
     return soln_best, obj_best
 end

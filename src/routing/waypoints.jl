@@ -153,7 +153,7 @@ function get_waypoints(
             2 / 3 * current_lon + 1 / 3 * next_lon,
             2 / 3 * current_lat + 1 / 3 * next_lat
         )
-        #! prev_waypoint in exclusion calls adjust_waypoint() to find closest point outside exclusion
+
         # Adjust waypoints if they are inside exclusion polygons
         prev_waypoint = point_in_exclusion(prev_waypoint, exclusions) ?
                         adjust_waypoint(prev_waypoint, exclusions) :
@@ -199,6 +199,8 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        info_log::Bool=true,
+        output_dir::String,
         plot_flag::Bool,
     )::MSTSolution
     optimize_waypoints(
@@ -210,6 +212,8 @@ end
         gradient_tol::Float64=3e4,
         iterations::Int64=typemax(Int64),
         time_limit::Float64=200.0,
+        info_log::Bool=true,
+        output_dir::String="",
         plot_flag::Bool,
     )::MSTSolution
 
@@ -217,9 +221,9 @@ Optimize waypoint positions in the final mothership route using `opt_method` pro
 to minimize the critical path time while avoiding exclusion zones.
 
 This function optimizes the waypoints from the last mothership route (excluding depot start/
-end points)by perturbing their positions within a constrained search space. The optimization
-minimizes the critical path score while penalizing waypoints that fall within exclusion
-zones.
+end points) by perturbing their positions within a constrained search space. The
+optimization minimizes the critical path score while penalizing waypoints that fall within
+exclusion zones.
 
 Disturbance scenarios can be handled by optimizing only a subset of waypoints corresponding
 to clusters affected by disturbances. `candidate_wpt_idxs` specifies the indices of
@@ -237,6 +241,8 @@ this value.
 gradient norm falls below this value
 - `iterations::Int64`: Maximum number of optimization iterations
 - `time_limit::Float64`: Soft limit on the time spent optimizing
+- `info_log::Bool`: Flag to switch info statement logging
+- `output_dir::String`: Path to output directory. If empty, do not save outputs.
 - `plot_flag::Bool`: Flag to enable plotting during waypoint optimization.
 
 # Returns
@@ -251,12 +257,14 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    info_log::Bool=true,
+    output_dir::String,
     plot_flag::Bool,
 )::MSTSolution
     if isnothing(opt_method)
         return soln
-    else
-        @info "Optimizing full waypoint subset using $(opt_method)"
+    elseif info_log
+        @info "$(output_dir) Optimizing full waypoint subset using $(opt_method)"
     end
 
     # Optimize all interior waypoints by default
@@ -274,7 +282,9 @@ function optimize_waypoints(
         gradient_tol=gradient_tol,
         iterations=iterations,
         time_limit=time_limit,
-        plot_flag=plot_flag
+        info_log,
+        output_dir,
+        plot_flag=plot_flag,
     )
 end
 function optimize_waypoints(
@@ -286,10 +296,15 @@ function optimize_waypoints(
     gradient_tol::Float64=3e4,
     iterations::Int64=typemax(Int64),
     time_limit::Float64=200.0,
+    info_log::Bool=true,
+    output_dir::String="",
     plot_flag::Bool,
 )::MSTSolution
+    output_to_file::Bool = output_dir == "" ? false : true
+    generate_plots::Bool = plot_flag || output_to_file ? true : false
     exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(exclusions_mothership, exclusions_tender)
     vessel_weightings::NTuple{2,AbstractFloat} = (
         problem.mothership.weighting, problem.tenders.weighting
     )
@@ -307,7 +322,9 @@ function optimize_waypoints(
     """
     Pack waypoints into optimization vector x, and unpack back into waypoints
     """
-    @inline function pack_x(pts::Vector{Point{2,Float64}}, idxs::Vector{Int})::Vector{Float64}
+    @inline function pack_x(
+        pts::Vector{Point{2,Float64}}, idxs::Vector{Int}
+    )::Vector{Float64}
         x = Vector{Float64}(undef, 2 * length(idxs))
         @inbounds for (j, i) in enumerate(idxs)
             x[2j-1] = pts[i][1]
@@ -321,7 +338,9 @@ function optimize_waypoints(
     best_count::Int64 = 0
     soln_proposed::MSTSolution = soln
 
-    fig_wpts = plot_flag ? Plot.debug_waypoints(problem, waypoints_initial) : nothing
+    fig_wpts = generate_plots ?
+               Plot.debug_waypoints(problem, waypoints_initial, title="Waypoint Optim Plot") :
+               nothing
 
     # Objective from x -> critical_path
     function obj(
@@ -333,7 +352,9 @@ function optimize_waypoints(
         end
 
         # Exit early here if any waypoints are inside exclusion zones
-        has_bad_waypoint::Vector{Bool} = point_in_exclusion.(wpts, Ref(exclusions_mothership))
+        has_bad_waypoint::Vector{Bool} = point_in_exclusion.(
+            wpts, Ref(exclusions_all)
+        )
         exclusion_count::Int = count(has_bad_waypoint)
         if exclusion_count > 0
             naive_score = maximum(vessel_weightings) *
@@ -361,7 +382,7 @@ function optimize_waypoints(
             # For debugging and tracking
             best_count += 1
         end
-        plot_flag && Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
+        generate_plots && Plot.scatter_by_id!(fig_wpts.current_axis[], wpts[2:end-1])
 
         return score
     end
@@ -383,8 +404,7 @@ function optimize_waypoints(
 
     # Ensure bounds are within lat/lon limits
     (lon_min, lon_max, lat_min, lat_max) = get_bbox_bounds([
-        exclusions_mothership,
-        exclusions_tender,
+        exclusions_all,
         problem.targets.points.geometry,
         [problem.depot]
     ])
@@ -425,37 +445,49 @@ function optimize_waypoints(
         exclusions_tender
     )
 
-    @info "Type:" summary(result)
-    @info "Minimum value:" minimum(result)
-    if Optim.converged(result)
-        @info "Converged at: "
-        Optim.x_converged(result) && @info "x"
-        Optim.f_converged(result) && @info "f(x)"
-        Optim.g_converged(result) && @info "∇f(x)"
-        @info "\nConverged after $(Optim.iterations(result)) iterations"
-    else
-        @info "Did not converge after $(Optim.iterations(result)) iterations"
+    if info_log
+        @info "Type:" summary(result)
+        @info "Minimum value:" minimum(result)
+        if Optim.converged(result)
+            @info "Converged at: "
+            Optim.x_converged(result) && @info "x"
+            Optim.f_converged(result) && @info "f(x)"
+            Optim.g_converged(result) && @info "∇f(x)"
+            @info "\nConverged after $(Optim.iterations(result)) iterations"
+        else
+            @info "Did not converge after $(Optim.iterations(result)) iterations"
+        end
+        @info "Best critical path score found: $best_score"
     end
-    @info "Best critical path score found: $best_score"
 
-    if plot_flag
+    if generate_plots
+        best_ms_route = best_soln.mothership_routes[end]
         Plot.route!(
-            fig_wpts.current_axis[], best_soln.mothership_routes[end], labels=true, color=:black
+            fig_wpts.current_axis[], best_ms_route, labels=true, color=:black
         )
         target_points = problem.targets.points.geometry
         Plot.scatter!(
             fig_wpts.current_axis[], target_points, color=:black, markersize=10, marker=:x
         )
-        display(fig_wpts)
         Plot.solution!(
             fig_wpts.current_axis[],
             problem,
             best_soln;
             highlight_critical_path=true,
         )
-        display(fig_wpts)
+
         result_trace = Optim.trace(result)
-        display(Plot.trace(result_trace, opt_method))
+
+        if plot_flag
+            display(fig_wpts)
+            display(result_trace)
+        end
+        if output_to_file
+            CairoMakie.save("$output_dir/3_wpt_optim.png", fig_wpts)
+            CairoMakie.save(
+                "$output_dir/3_wpt_optim_trace.png", Plot.trace(result_trace, opt_method)
+            )
+        end
     end
 
     return best_soln
