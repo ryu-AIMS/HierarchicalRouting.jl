@@ -301,6 +301,7 @@ function closest_crossed_polygon(
            (GO.touches(current_point, geom) && GO.touches(final_point, geom))
             intersections::IGeometry = AG.intersection(line, geom)
             pts::Vector{IGeometry} = get_pts(intersections)
+            isempty(pts) && continue
             dist::Float64 = minimum(
                 GO.distance.(
                     Ref{Point{2,Float64}}(current_point),
