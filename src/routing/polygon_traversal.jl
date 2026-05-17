@@ -323,7 +323,7 @@ end
 
 """
     get_pts(intersections::IGeometry{wkbPoint})::Vector{IGeometry{wkbPoint}}
-    get_pts(intersections::IGeometry)
+    get_pts(intersections::IGeometry)::Vector{IGeometry}
 
 Get the points from the intersection geometry.
 
@@ -336,7 +336,7 @@ A vector of points from the intersection geometry.
 function get_pts(intersections::IGeometry{wkbPoint})::Vector{IGeometry{wkbPoint}}
     return [intersections]
 end
-function get_pts(intersections::IGeometry)
+function get_pts(intersections::IGeometry)::Vector{IGeometry}
     n = AG.ngeom(intersections)
     return AG.getgeom.(Ref(intersections), 0:n-1)
 end
