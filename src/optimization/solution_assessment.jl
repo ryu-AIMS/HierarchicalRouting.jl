@@ -1,32 +1,5 @@
 
 """
-    Recompute the routes for sorties in a cluster after a perturbation.
-"""
-function _recompute_sortie_routes(
-    original_sorties::Vector{Route},
-    modified_sortie_idx::Int,
-    modified_nodes::Vector{Point{2,Float64}},
-    start_point::Point{2,Float64},
-    finish_point::Point{2,Float64},
-    exclusions::POLY_VEC
-)::Vector{Route}
-    new_sorties = Vector{Route}(undef, length(original_sorties))
-
-    for (s_idx, old_sortie) in enumerate(original_sorties)
-        nodes_new = s_idx == modified_sortie_idx ? modified_nodes : copy(old_sortie.nodes)
-        tender_tour = [[start_point]; nodes_new; [finish_point]]
-        dist_mat = get_feasible_matrix(tender_tour, exclusions)[1]
-        path_vec = get_feasible_vector(tender_tour, exclusions)[2]
-        new_sorties[s_idx] = Route(
-            nodes_new,
-            dist_mat,
-            vcat(path_vec...)
-        )
-    end
-    return new_sorties
-end
-
-"""
     _build_sortie_route(
         sortie_nodes::Vector{Point{2,Float64}},
         start_pt::Point{2,Float64},
