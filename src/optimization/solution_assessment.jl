@@ -467,6 +467,9 @@ function perturb_move(
     dest_idx::Int = rand(setdiff(1:no_sorties, source_idx))
     dest_nodes = copy(sorties[dest_idx].nodes)
 
+    # Reject move if destination sortie is already at capacity
+    length(dest_nodes) >= problem.tenders.capacity && return soln
+
     # Remove a random node from source, insert at random position in destination
     _move_node!(source_nodes, dest_nodes)
 
@@ -524,6 +527,9 @@ function perturb_move(
 
     dest_sortie_idx::Int = rand(eachindex(tender_b.sorties))
     dest_nodes = copy(tender_b.sorties[dest_sortie_idx].nodes)
+
+    # Reject move if destination sortie is already at capacity
+    length(dest_nodes) >= problem.tenders.capacity && return soln
 
     # Remove a random node from source, insert at random position in destination
     node::Point{2,Float64} = _move_node!(source_nodes, dest_nodes)
