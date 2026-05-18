@@ -457,9 +457,7 @@ function perturb_move(
     no_sorties < 2 && return soln
 
     # Choose a random feasible (2+ nodes) sortie, and get its nodes
-    source_idx, source_nodes = _any_feasible_sortie(
-        sorties,
-    )
+    source_idx, source_nodes = _any_feasible_sortie(sorties)
 
     # If no feasible sortie found, exit
     source_idx == 0 && return soln
