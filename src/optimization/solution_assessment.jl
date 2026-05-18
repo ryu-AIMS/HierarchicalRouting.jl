@@ -269,12 +269,6 @@ function perturb_swap(
     problem::Problem,
 )::MSTSolution
     #! CROSS-CLUSTER SWAP
-    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
-    exclusions_all::POLY_VEC = vcat(
-        problem.mothership.exclusion.geometry,
-        exclusions_tender
-    )
-
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
     tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
@@ -332,47 +326,19 @@ function perturb_swap(
         nodes=nodes_b
     )
 
-    # Update mothership route and waypoints based on updated clusters
-    updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
+    return _apply_cross_cluster_perturbation(
         soln,
         new_clusters,
-        exclusions_all
-    )
-
-    # Update tender solutions with the new (start/finish) waypoints based on perturbation
-    tenders_all::Vector{TenderSolution} = generate_tender_sorties(
-        MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
-        updated_waypoints.waypoint,
-        exclusions_tender
-    )
-
-    tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
-        _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
-
-    # Build new routes for modified sorties based on updated waypoints and swapped nodes
-    tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
-        copy(tenders_all[clust_a_seq_idx].sorties),
-        copy(tenders_all[clust_b_seq_idx].sorties),
-        sortie_a_nodes,
-        sortie_b_nodes,
-        tender_a_new_start,
-        tender_a_new_finish,
-        tender_b_new_start,
-        tender_b_new_finish,
-        exclusions_tender,
+        problem,
+        clust_a_seq_idx,
+        clust_b_seq_idx,
         cluster_a_idx,
         cluster_b_idx,
+        sortie_a_nodes,
+        sortie_b_nodes,
         sortie_a_idx,
         sortie_b_idx
     )
-
-    # Re-run two-opt on the modified tender solutions
-    tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
-        [tenders_a_new, tenders_b_new],
-        Ref(exclusions_tender)
-    )
-
-    return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
 end
 
 """ Finds longest sortie in a cluster and determines if it's on the critical path."""
@@ -504,12 +470,6 @@ function perturb_move(
     problem::Problem,
 )::MSTSolution
     #! CROSS-CLUSTER MOVE
-    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
-    exclusions_all::POLY_VEC = vcat(
-        problem.mothership.exclusion.geometry,
-        exclusions_tender
-    )
-
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
 
     tender_a::TenderSolution = soln.tenders[end][clust_a_seq_idx]
@@ -554,15 +514,46 @@ function perturb_move(
         Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a),
         Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
 
-    # Update mothership route and waypoints based on updated clusters
-    updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
+    return _apply_cross_cluster_perturbation(
         soln,
         new_clusters,
-        exclusions_all
+        problem,
+        clust_a_seq_idx,
+        clust_b_seq_idx,
+        cluster_a_idx,
+        cluster_b_idx,
+        source_nodes,
+        dest_nodes,
+        source_sortie_idx,
+        dest_sortie_idx
+    )
+end
+
+"""
+Rebuild mothership, waypoints, and tender sorties after any cross-cluster perturbation.
+Shared body for cross-cluster perturb_move and perturb_swap.
+"""
+function _apply_cross_cluster_perturbation(
+    soln::MSTSolution,
+    new_clusters::Vector{Cluster},
+    problem::Problem,
+    clust_a_seq_idx::Int,
+    clust_b_seq_idx::Int,
+    cluster_a_idx::Int,
+    cluster_b_idx::Int,
+    nodes_a::Vector{Point{2,Float64}},
+    nodes_b::Vector{Point{2,Float64}},
+    sortie_a_idx::Int,
+    sortie_b_idx::Int,
+)::MSTSolution
+    exclusions_tender = problem.tenders.exclusion.geometry
+    exclusions_all = vcat(problem.mothership.exclusion.geometry, exclusions_tender)
+
+    updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
+        soln, new_clusters, exclusions_all
     )
 
-    # Update tender solutions with the new (start/finish) waypoints based on perturbation
-    tenders_all::Vector{TenderSolution} = generate_tender_sorties(
+    tenders_all = generate_tender_sorties(
         MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
         updated_waypoints.waypoint,
         exclusions_tender
@@ -571,12 +562,11 @@ function perturb_move(
     tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
         _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
 
-    # Build new routes for modified sorties based on updated waypoints and swapped nodes
     tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
         copy(tenders_all[clust_a_seq_idx].sorties),
         copy(tenders_all[clust_b_seq_idx].sorties),
-        source_nodes,
-        dest_nodes,
+        nodes_a,
+        nodes_b,
         tender_a_new_start,
         tender_a_new_finish,
         tender_b_new_start,
@@ -584,17 +574,15 @@ function perturb_move(
         exclusions_tender,
         cluster_a_idx,
         cluster_b_idx,
-        source_sortie_idx,
-        dest_sortie_idx
+        sortie_a_idx,
+        sortie_b_idx
     )
 
     tenders_all[clust_a_seq_idx], tenders_all[clust_b_seq_idx] = two_opt.(
-        [tenders_a_new, tenders_b_new],
-        Ref(exclusions_tender)
+        [tenders_a_new, tenders_b_new], Ref(exclusions_tender)
     )
 
-    soln_proposed = MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
-    return soln_proposed
+    return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
 end
 
 """
