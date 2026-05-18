@@ -35,8 +35,7 @@ end
     )::Route
 
 Compute a feasible `Route` for a sortie given its interior nodes and start/finish waypoints.
-Used when sortie node membership changes (cross-cluster swap), for which `rebuild_sortie`
-is insufficient (it only updates the terminal legs, assuming interior nodes are unchanged).
+Used when sortie node membership changes.
 """
 function _build_sortie_route(
     sortie_nodes::Vector{Point{2,Float64}},
@@ -221,47 +220,17 @@ function perturb_swap(
     sortie_a.nodes[node_a_idx] = node_b
     sortie_b.nodes[node_b_idx] = node_a
 
-    # TODO:Re-run two-opt on the modified sorties
-    # Recompute the feasible paths for the modified sorties
-    updated_tender_tours::Vector{Vector{Point{2,Float64}}} = [
-        [[tender.start]; sortie_a.nodes; [tender.finish]],
-        [[tender.start]; sortie_b.nodes; [tender.finish]]
-    ]
-
-    # Get new linestrings
-    linestrings::Vector{Vector{Vector{LineString{2,Float64}}}} = getindex.(
-        get_feasible_vector.(updated_tender_tours, Ref(exclusions_tender)),
-        2
-    )
-
-    # Get the new feasible distance matrices for the modified sorties
-    updated_tender_matrices::Vector{Matrix{Float64}} = getindex.(get_feasible_matrix.(
-            updated_tender_tours,
-            Ref(exclusions_tender)
-        ), 1)
-
-    # Update the modified sorties
-    sorties[sortie_a_idx] = Route(
+    return _finalise_within_cluster_soln(
+        soln,
+        clust_seq_idx,
+        tender,
+        sorties,
+        sortie_a_idx,
         sortie_a.nodes,
-        updated_tender_matrices[1],
-        vcat(linestrings[1]...)
-    )
-    sorties[sortie_b_idx] = Route(
+        sortie_b_idx,
         sortie_b.nodes,
-        updated_tender_matrices[2],
-        vcat(linestrings[2]...)
-    )
-
-    tender_new = TenderSolution(tender, sorties)
-    tender_improved = two_opt(
-        tender_new,
         exclusions_tender
     )
-
-    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
-    tenders_all[clust_seq_idx] = tender_improved
-
-    return MSTSolution(soln.cluster_sets, soln.mothership_routes, [tenders_all])
 end
 function perturb_swap(
     soln::MSTSolution,
@@ -437,32 +406,17 @@ function perturb_move(
     # Remove a random node from source, insert at random position in destination
     _move_node!(source_nodes, dest_nodes)
 
-    # Recompute routes for both modified sorties
-    updated_tours::Vector{Vector{Point{2,Float64}}} = [
-        [[tender.start]; source_nodes; [tender.finish]],
-        [[tender.start]; dest_nodes; [tender.finish]]
-    ]
-
-    linestrings::Vector{Vector{Vector{LineString{2,Float64}}}} = getindex.(
-        get_feasible_vector.(updated_tours, Ref(exclusions_tender)),
-        2
+    return _finalise_within_cluster_soln(
+        soln,
+        clust_seq_idx,
+        tender,
+        sorties,
+        source_idx,
+        source_nodes,
+        dest_idx,
+        dest_nodes,
+        exclusions_tender
     )
-    updated_matrices::Vector{Matrix{Float64}} = getindex.(
-        get_feasible_matrix.(updated_tours, Ref(exclusions_tender)),
-        1
-    )
-
-    sorties[source_idx] = Route(source_nodes, updated_matrices[1], vcat(linestrings[1]...))
-    sorties[dest_idx] = Route(dest_nodes, updated_matrices[2], vcat(linestrings[2]...))
-
-    tender_new = TenderSolution(tender, sorties)
-    tender_improved = two_opt(tender_new, exclusions_tender)
-
-    tenders_all::Vector{TenderSolution} = copy(soln.tenders[end])
-    tenders_all[clust_seq_idx] = tender_improved
-
-    soln_proposed = MSTSolution(soln.cluster_sets, soln.mothership_routes, [tenders_all])
-    return soln_proposed
 end
 function perturb_move(
     soln::MSTSolution,
@@ -583,6 +537,35 @@ function _apply_cross_cluster_perturbation(
     )
 
     return MSTSolution([new_clusters], [updated_ms_solution], [tenders_all])
+end
+
+"""
+Rebuild two modified sorties, apply two-opt, and return an updated solution.
+"""
+function _finalise_within_cluster_soln(
+    soln::MSTSolution,
+    clust_seq_idx::Int,
+    tender::TenderSolution,
+    sorties::Vector{Route},
+    idx_a::Int,
+    nodes_a::Vector{Point{2,Float64}},
+    idx_b::Int,
+    nodes_b::Vector{Point{2,Float64}},
+    exclusions::POLY_VEC,
+)::MSTSolution
+    # Update modified sorties
+    sorties[idx_a], sorties[idx_b] = _build_sortie_route.(
+        [nodes_a, nodes_b],
+        Ref(tender.start),
+        Ref(tender.finish),
+        Ref(exclusions),
+    )
+
+    tender_improved = two_opt(TenderSolution(tender, sorties), exclusions)
+
+    tenders_all = copy(soln.tenders[end])
+    tenders_all[clust_seq_idx] = tender_improved
+    return MSTSolution(soln.cluster_sets, soln.mothership_routes, [tenders_all])
 end
 
 """
