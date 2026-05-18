@@ -317,7 +317,9 @@ function optimize_waypoints(
     free_idxs::Vector{Int} = sort!(unique!(collect(candidate_wpt_idxs)))
 
     isempty(free_idxs) && return soln
-    @assert all(1 .<= free_idxs .<= n_wpts) "Free waypoint indices must be within 1:$n_wpts"
+    all(1 .<= free_idxs .<= n_wpts) || throw(ArgumentError(
+        "Free waypoint indices must be within 1:$n_wpts"
+    ))
 
     """
     Pack waypoints into optimization vector x, and unpack back into waypoints
