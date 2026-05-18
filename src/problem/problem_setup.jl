@@ -108,9 +108,7 @@ function load_problem(
     n_tenders = Int8(n_tenders)
     t_cap = Int16(t_cap)
     subset = GDF.read(subset_path)
-    if "geom" ∉ names(subset) && "geometry" ∈ names(subset)
-        rename!(subset, "geometry" => "geom")
-    end
+
     subset_bbox = get_bbox_bounds_from_df(subset)
     target_gdf_subset = filter_within_bbox(GDF.read(target_path), subset_bbox)
 
@@ -277,6 +275,10 @@ A tuple containing the bounding box coordinates:
 - max_y.
 """
 function get_bbox_bounds_from_df(df::DataFrame)::NTuple{4,Float64}
+    if "geom" ∉ names(df) && "geometry" ∈ names(df)
+        rename!(df, "geometry" => "geom")
+    end
+
     min_x = minimum(getfield.(AG.envelope.(df.geom), 1))
     max_x = maximum(getfield.(AG.envelope.(df.geom), 2))
     min_y = minimum(getfield.(AG.envelope.(df.geom), 3))
@@ -550,10 +552,6 @@ function generate_randomised_problem(
             output_dir
         )
 
-
-    if "geom" ∉ names(subset) && "geometry" ∈ names(subset)
-        rename!(subset, "geometry" => "geom")
-    end
     subset_bbox = get_bbox_bounds_from_df(subset)
 
     # Buffer exclusions to create area for targets to lie within
