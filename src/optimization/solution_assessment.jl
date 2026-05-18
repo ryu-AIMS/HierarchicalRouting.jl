@@ -172,7 +172,7 @@ function perturb_swap(
     sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
     # No perturbation possible if a sortie has no nodes
-    isempty(sortie_a.nodes) || isempty(sortie_b.nodes) && return soln
+    (isempty(sortie_a.nodes) || isempty(sortie_b.nodes)) && return soln
 
     # Determine node indices to swap
     if sortie_a_idx == sortie_b_idx
@@ -220,11 +220,10 @@ function perturb_swap(
     sortie_a_idx = rand(eachindex(tender_a.sorties))
     sortie_b_idx = rand(eachindex(tender_b.sorties))
 
-    # Assert chosen sorties not empty
-    @assert(!isempty(tender_a.sorties[sortie_a_idx].nodes),
-        "Empty sortie in tender_a during cross-cluster swap")
-    @assert(!isempty(tender_b.sorties[sortie_b_idx].nodes),
-        "Empty sortie in tender_b during cross-cluster swap")
+    # Ensure chosen sorties not empty
+    (isempty(tender_a.sorties[sortie_a_idx].nodes) ||
+     isempty(tender_b.sorties[sortie_b_idx].nodes)) &&
+        return soln
 
     sortie_a_nodes = copy(tender_a.sorties[sortie_a_idx].nodes)
     sortie_b_nodes = copy(tender_b.sorties[sortie_b_idx].nodes)
