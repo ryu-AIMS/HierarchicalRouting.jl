@@ -78,6 +78,7 @@ end
         subset::DataFrame,
         file_name::String,
         output_dir::String="";
+        simplify_tol::Float64,
         min_area::Float64=3E-5,
         buffer_dist::Float64=0.0,
     )::DataFrame
@@ -85,6 +86,7 @@ end
         bathy_fullset_path::String,
         vessel_draft::Float64,
         subset::DataFrame;
+        simplify_tol::Float64,
         min_area::Float64=3E-5,
         buffer_dist::Float64=0.0,
     )::DataFrame
@@ -107,6 +109,7 @@ function read_and_polygonize_exclusions(
     subset::DataFrame,
     file_name::String,
     output_dir::String="";
+    simplify_tol::Float64,
     min_area::Float64=3E-5,
     buffer_dist::Float64=0.0,
 )::DataFrame
@@ -172,6 +175,7 @@ function read_and_polygonize_exclusions(
         exclusion_zones_df.geometry;
         min_area=min_area,
         buffer_dist=buffer_dist,
+        simplify_tol=simplify_tol
     )
     if !isempty(output_dir) && !isfile(exclusion_gpkg_path)
         GDF.write(exclusion_gpkg_path, exclusion_zones_df; force=true)
@@ -182,6 +186,7 @@ function read_and_polygonize_exclusions(
     bathy_fullset_path::String,
     vessel_draft::Float64,
     subset::DataFrame;
+    simplify_tol::Float64,
     min_area::Float64=3E-5,
     buffer_dist::Float64=0.0,
 )::DataFrame
@@ -193,7 +198,8 @@ function read_and_polygonize_exclusions(
     exclusion_zones_df = prepare_exclusion_geoms(
         exclusion_zones_df.geometry;
         min_area=min_area,
-        buffer_dist=buffer_dist
+        buffer_dist=buffer_dist,
+        simplify_tol=simplify_tol
     )
     return exclusion_zones_df
 end

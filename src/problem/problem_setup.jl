@@ -77,6 +77,8 @@ Load the problem data to create a `Problem` object from given parameters.
 - `t_cap`: The capacity of the tenders, determining the maximum number of targets that can
     be visited/deployed by a tender in a single trip.
 - `target_subset_path`: The path to save the target subset raster. Default is "".
+- `simplify_tol`: The tolerance value for simplifying the exclusion polygons, \n
+    i.e., larger tol = more aggressive simplification.
 - `output_dir`: The directory to save output files. Default is "outputs/".
 - `debug_mode`: A boolean flag to enable debug mode. Default = false.
      - If `debug_mode=true`, the function will not write to the output directory.
@@ -97,6 +99,7 @@ function load_problem(
     n_tenders::Integer,
     t_cap::Integer;
     target_subset_path::AbstractString="",
+    simplify_tol::Float64=5E-4,
     output_dir::AbstractString="outputs/",
     debug_mode::Bool=false,
 )::Problem
@@ -147,6 +150,7 @@ function load_problem(
             "ms_exclusions_$(draft_ms)m_$(case_study_name)",
             output_dir,
             buffer_dist=1E-4,
+            simplify_tol=simplify_tol,
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
@@ -154,18 +158,21 @@ function load_problem(
             subset,
             "t_exclusions_$(draft_t)m_$(case_study_name)",
             output_dir,
-            min_area=1E-7
+            min_area=1E-7,
+            simplify_tol=simplify_tol,
         )
     else
         ms_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
             subset,
+            simplify_tol=simplify_tol,
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_t,
             subset,
+            simplify_tol=simplify_tol,
         )
     end
 
@@ -213,7 +220,7 @@ function prepare_exclusion_geoms(
     geoms::POLY_VEC;
     buffer_dist::Float64,
     min_area::Float64,
-    simplify_tol::Float64=5E-4
+    simplify_tol::Float64
 )::DataFrame
     geoms = filter_and_simplify_exclusions(
         geoms;
@@ -475,6 +482,7 @@ function generate_randomised_problem(
     no_target_pts::Int,
     points_buffer_dist::Float64,
     seed::Union{Integer,Nothing}=nothing,
+    simplify_tol::Float64=5E-4,
     output_dir::AbstractString="outputs/",
     debug_mode::Bool=false,
 )::Problem
@@ -498,6 +506,7 @@ function generate_randomised_problem(
             "ms_exclusions_$(draft_ms)m_$(case_study_name)",
             output_dir,
             buffer_dist=1E-4,
+            simplify_tol=simplify_tol,
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
@@ -505,18 +514,21 @@ function generate_randomised_problem(
             subset,
             "t_exclusions_$(draft_t)m_$(case_study_name)",
             output_dir,
-            min_area=1E-7
+            min_area=1E-7,
+            simplify_tol=simplify_tol,
         )
     else
         ms_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_ms,
             subset,
+            simplify_tol=simplify_tol,
         )
         t_exclusions = read_and_polygonize_exclusions(
             env_data_path,
             draft_t,
             subset,
+            simplify_tol=simplify_tol,
         )
     end
 
@@ -558,7 +570,8 @@ function generate_randomised_problem(
     buffered_exclusions::DataFrame = prepare_exclusion_geoms(
         t_exclusions.geometry;
         buffer_dist=points_buffer_dist,
-        min_area=0.0
+        min_area=0.0,
+        simplify_tol=simplify_tol
     )
 
     # Randomly generate points within the buffered and unbuffered exclusion bounds
