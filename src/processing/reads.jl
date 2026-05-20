@@ -120,35 +120,61 @@ function read_and_polygonize_exclusions(
     # TODO: Generalize for ms and tender vessels
     # Create exclusion zones from environmental constraints
     if isfile(exclusion_gpkg_path)
-        exclusion_zones_df = GDF.read(exclusion_gpkg_path)
-    else
-        exclusion_tif_path::String = joinpath(output_dir, "$(file_name).tif")
-        if isfile(exclusion_tif_path)
-            exclusion_zones_int::Raster = Raster(exclusion_tif_path)
-            exclusion_zones_bool = exclusion_zones_int .!= 0
-        else
-            # Load environmental constraints
-            # Bathymetry
-            bathy_subset_path = joinpath(output_dir, "bathy_subset_$(subset_name).tif")
-            if isfile(bathy_subset_path)
-                bathy_subset = Raster(bathy_subset_path)
-            else
-                bathy_dataset = Raster(bathy_fullset_path; lazy=true)
-                bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
-                write(bathy_subset_path, bathy_subset; force=true)
-            end
+        exclusion_zones_df = try
+            GDF.read(exclusion_gpkg_path)
+        catch e
+            @warn "Cached exclusion gpkg unreadable, regenerating: $exclusion_gpkg_path\n$e"
+            rm(exclusion_gpkg_path; force=true)
+            nothing
+        end
+        !isnothing(exclusion_zones_df) && return exclusion_zones_df
+    end
 
-            exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
-            write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
+    exclusion_tif_path::String = joinpath(output_dir, "$(file_name).tif")
+    exclusion_zones_bool = if isfile(exclusion_tif_path)
+        try
+            exclusion_zones_int::Raster = Raster(exclusion_tif_path)
+            exclusion_zones_int .!= 0
+        catch e
+            @warn "Cached exclusion tif unreadable, regenerating: $exclusion_tif_path\n$e"
+            rm(exclusion_tif_path; force=true)
+            nothing
+        end
+    end
+
+    if isnothing(exclusion_zones_bool)
+        # Load environmental constraints
+        # Bathymetry
+        bathy_subset_path = joinpath(output_dir, "bathy_subset_$(subset_name).tif")
+        bathy_subset = if isfile(bathy_subset_path)
+            try
+                Raster(bathy_subset_path)
+            catch e
+                @warn "Cached bathy subset unreadable, regenerating: $bathy_subset_path\n$e"
+                rm(bathy_subset_path; force=true)
+                nothing
+            end
         end
 
-        exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
+        if isnothing(bathy_subset)
+            bathy_dataset = Raster(bathy_fullset_path; lazy=true)
+            bathy_subset = read(Rasters.crop(bathy_dataset; to=subset.geom))
+            write(bathy_subset_path, bathy_subset; force=true)
+        end
 
-        exclusion_zones_df = prepare_exclusion_geoms(
-            exclusion_zones_df.geometry;
-            min_area=min_area,
-            buffer_dist=buffer_dist
-        )
+        exclusion_zones_bool = create_exclusion_zones(bathy_subset, vessel_draft)
+        write(exclusion_tif_path, convert.(Int8, exclusion_zones_bool); force=true)
+    end
+
+    exclusion_zones_df = polygonize_binary(exclusion_zones_bool)
+
+    exclusion_zones_df = prepare_exclusion_geoms(
+        exclusion_zones_df.geometry;
+        min_area=min_area,
+        buffer_dist=buffer_dist,
+    )
+    if !isempty(output_dir) && !isfile(exclusion_gpkg_path)
+        GDF.write(exclusion_gpkg_path, exclusion_zones_df; force=true)
     end
     return exclusion_zones_df
 end
