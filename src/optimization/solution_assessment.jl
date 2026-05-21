@@ -53,12 +53,15 @@ function _rebuild_mothership_solution(
     # Update mothership route and waypoints based on updated clusters
     depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
     cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
-    cluster_centroids::Vector{Point{2,Float64}} = getfield.(new_clusters, :centroid)
-    cluster_sequence::DataFrame = get_cluster_sequence_df(
-        depot,
-        cluster_seq_ids,
-        cluster_centroids
+    centroid_map::Dict = Dict(c.id => c.centroid for c in new_clusters)
+    ordered_centroids = [centroid_map[id] for id in cluster_seq_ids]
+    full_pts = [[depot]; ordered_centroids; [depot]]
+    cluster_sequence = DataFrame(
+        id=[0; cluster_seq_ids; 0],
+        lon=getindex.(full_pts, 1),
+        lat=getindex.(full_pts, 2),
     )
+
     updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions)
 
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
@@ -241,8 +244,10 @@ function perturb_swap(
 
     cluster_a_idx::Int, cluster_b_idx::Int = tender_a.id, tender_b.id
 
-    nodes_a::Vector{Point{2,Float64}} = copy(new_clusters[cluster_a_idx].nodes)
-    nodes_b::Vector{Point{2,Float64}} = copy(new_clusters[cluster_b_idx].nodes)
+    new_clust_a_pos::Int = findfirst(c -> c.id == cluster_a_idx, new_clusters)
+    new_clust_b_pos::Int = findfirst(c -> c.id == cluster_b_idx, new_clusters)
+    nodes_a::Vector{Point{2,Float64}} = copy(new_clusters[new_clust_a_pos].nodes)
+    nodes_b::Vector{Point{2,Float64}} = copy(new_clusters[new_clust_b_pos].nodes)
 
     # Swap nodes between clusters
     node_a_idx_clust::Union{Int,Nothing} = findfirst(isequal(node_a), nodes_a)
@@ -256,12 +261,12 @@ function perturb_swap(
     centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
     centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
-    new_clusters[cluster_a_idx] = Cluster(
+    new_clusters[new_clust_a_pos] = Cluster(
         id=cluster_a_idx,
         centroid=centroid_a,
         nodes=nodes_a
     )
-    new_clusters[cluster_b_idx] = Cluster(
+    new_clusters[new_clust_b_pos] = Cluster(
         id=cluster_b_idx,
         centroid=centroid_b,
         nodes=nodes_b
@@ -423,8 +428,10 @@ function perturb_move(
     cluster_a_idx::Int = tender_a.id
     cluster_b_idx::Int = tender_b.id
 
-    nodes_a::Vector{Point{2,Float64}} = copy(new_clusters[cluster_a_idx].nodes)
-    nodes_b::Vector{Point{2,Float64}} = copy(new_clusters[cluster_b_idx].nodes)
+    new_clust_a_pos::Int = findfirst(c -> c.id == cluster_a_idx, new_clusters)
+    new_clust_b_pos::Int = findfirst(c -> c.id == cluster_b_idx, new_clusters)
+    nodes_a::Vector{Point{2,Float64}} = copy(new_clusters[new_clust_a_pos].nodes)
+    nodes_b::Vector{Point{2,Float64}} = copy(new_clusters[new_clust_b_pos].nodes)
 
     node_a_idx_clust::Union{Int,Nothing} = findfirst(isequal(node), nodes_a)
     node_a_idx_clust === nothing &&
@@ -436,7 +443,7 @@ function perturb_move(
     centroid_a = Point{2,Float64}(mean(getindex.(nodes_a, 1)), mean(getindex.(nodes_a, 2)))
     centroid_b = Point{2,Float64}(mean(getindex.(nodes_b, 1)), mean(getindex.(nodes_b, 2)))
 
-    new_clusters[cluster_a_idx], new_clusters[cluster_b_idx] =
+    new_clusters[new_clust_a_pos], new_clusters[new_clust_b_pos] =
         Cluster(id=cluster_a_idx, centroid=centroid_a, nodes=nodes_a),
         Cluster(id=cluster_b_idx, centroid=centroid_b, nodes=nodes_b)
 
