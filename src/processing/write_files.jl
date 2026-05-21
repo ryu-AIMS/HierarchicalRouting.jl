@@ -106,23 +106,22 @@ function write_exclusions(
     t_exclusions::DataFrame,
     draft_ms::Float64,
     draft_t::Float64,
+    simplify_tol::Float64,
     subset_path::String,
     output_dir::String="outputs",
 )
-    !isdir(output_dir) && mkpath(output_dir)
+    isdir(output_dir) || mkpath(output_dir)
     case_study_name = splitext(basename(subset_path))[1]
-    if !isfile(joinpath(output_dir, "ms_exclusions_$(draft_ms)m_$(case_study_name).gpkg"))
-        GDF.write(
-            joinpath(output_dir, "ms_exclusions_$(draft_ms)m_$(case_study_name).gpkg"),
-            ms_exclusions
-        )
-    end
-    if !isfile(joinpath(output_dir, "t_exclusions_$(draft_t)m_$(case_study_name).gpkg"))
-        GDF.write(
-            joinpath(output_dir, "t_exclusions_$(draft_t)m_$(case_study_name).gpkg"),
-            t_exclusions
-        )
-    end
+    ms_path = joinpath(
+        output_dir,
+        "ms_exclusions_$(draft_ms)m_tol$(simplify_tol)_$(case_study_name).gpkg"
+    )
+    t_path = joinpath(
+        output_dir,
+        "t_exclusions_$(draft_t)m_tol$(simplify_tol)_$(case_study_name).gpkg"
+    )
+    isfile(ms_path) || GDF.write(ms_path, ms_exclusions)
+    isfile(t_path) || GDF.write(t_path, t_exclusions)
 end
 
 """

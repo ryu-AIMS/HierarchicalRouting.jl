@@ -147,7 +147,7 @@ function load_problem(
             env_data_path,
             draft_ms,
             subset,
-            "ms_exclusions_$(draft_ms)m_$(case_study_name)",
+            "ms_exclusions_$(draft_ms)m_tol$(simplify_tol)_$(case_study_name)",
             output_dir,
             buffer_dist=1E-4,
             simplify_tol=simplify_tol,
@@ -156,7 +156,7 @@ function load_problem(
             env_data_path,
             draft_t,
             subset,
-            "t_exclusions_$(draft_t)m_$(case_study_name)",
+            "t_exclusions_$(draft_t)m_tol$(simplify_tol)_$(case_study_name)",
             output_dir,
             min_area=1E-7,
             simplify_tol=simplify_tol,
@@ -209,6 +209,7 @@ function load_problem(
             t_exclusions,
             draft_ms,
             draft_t,
+            simplify_tol,
             subset_path,
             output_dir
         )
@@ -503,7 +504,7 @@ function generate_randomised_problem(
             env_data_path,
             draft_ms,
             subset,
-            "ms_exclusions_$(draft_ms)m_$(case_study_name)",
+            "ms_exclusions_$(draft_ms)m_tol$(simplify_tol)_$(case_study_name)",
             output_dir,
             buffer_dist=1E-4,
             simplify_tol=simplify_tol,
@@ -512,7 +513,7 @@ function generate_randomised_problem(
             env_data_path,
             draft_t,
             subset,
-            "t_exclusions_$(draft_t)m_$(case_study_name)",
+            "t_exclusions_$(draft_t)m_tol$(simplify_tol)_$(case_study_name)",
             output_dir,
             min_area=1E-7,
             simplify_tol=simplify_tol,
@@ -560,6 +561,7 @@ function generate_randomised_problem(
             t_exclusions,
             draft_ms,
             draft_t,
+            simplify_tol,
             subset_path,
             output_dir
         )
