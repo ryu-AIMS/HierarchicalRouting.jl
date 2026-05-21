@@ -72,8 +72,16 @@ end
         total_tender_capacity::Int,
         time_limit::Float64;
         do_improve::Bool=false,
+        info_log::Bool=true,
         waypoint_optim_method=nothing,
         wpt_optim_plot_flag::Bool=false,
+        temp_init,
+        cooling_rate,
+        min_iters,
+        static_limit,
+        max_iterations::Int,
+        sa_improve_plot_flag::Bool,
+        output_dir::String,
     )::MSTSolution
 
 Simulates and applies disturbance events to the solution.
@@ -94,8 +102,16 @@ function _apply_disturbance_events!(
     total_tender_capacity::Int,
     time_limit::Float64;
     do_improve::Bool=false,
+    info_log::Bool=true,
     waypoint_optim_method=nothing,
     wpt_optim_plot_flag::Bool=false,
+    temp_init,
+    cooling_rate,
+    min_iters,
+    static_limit,
+    max_iterations::Int,
+    sa_improve_plot_flag::Bool,
+    output_dir::String,
 )::MSTSolution
     @info "Apply disturbance events at clusters $(ordered_disturbances)"
     n_events = length(ordered_disturbances)
@@ -213,7 +229,15 @@ function _apply_disturbance_events!(
                 MSTSolution([clusters], [ms_route], [current_tender_soln]),
                 problem,
                 disturb_clust_idx,
-                next_disturbance_cluster_idx,
+                next_disturbance_cluster_idx;
+                temp_init,
+                cooling_rate,
+                min_iters,
+                static_limit,
+                max_iterations,
+                output_dir,
+                info_log,
+                sa_improve_plot_flag
             )
             # Overwrite with improved
             clusters = optimized_current_solution.cluster_sets[end]
