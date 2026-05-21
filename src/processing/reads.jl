@@ -37,9 +37,17 @@ function process_geometry_targets(
 )::Raster{Int}
     targets_pts_tuple = [(t[1], t[2]) for t in points]
 
+    lons = getindex.(points, 1)
+    lats = getindex.(points, 2)
+    extent = Rasters.Extents.Extent(
+        X=(minimum(lons) - resolution, maximum(lons) + resolution),
+        Y=(minimum(lats) - resolution, maximum(lats) + resolution),
+    )
+
     return Rasters.rasterize(
         last,
         targets_pts_tuple;
+        to=extent,
         res=resolution,
         missingval=0,
         fill=1,
