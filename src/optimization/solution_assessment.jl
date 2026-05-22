@@ -660,7 +660,7 @@ function simulated_annealing(
                 soln_proposed = perturb_move(soln_current, clust_idx, problem)
                 perturbation_type = :MOVE
             end
-        else
+        elseif no_clusts >= 2
             # CROSS-cluster perturbation
             clust_alt_idx = shuffled_clusters[2]
 
@@ -681,6 +681,10 @@ function simulated_annealing(
                 )
                 perturbation_type = :MOVE
             end
+        else
+            # Only 1 cluster — fall back to within-cluster swap
+            soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
+            perturbation_type = :SWAP
         end
 
         obj_proposed = objective_function(soln_proposed, vessel_weightings)
