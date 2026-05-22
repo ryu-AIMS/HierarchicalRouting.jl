@@ -451,9 +451,20 @@ function improve_solution(
         current_tender_routes
     )
 
-    current_solution = MSTSolution(
+    exclusions_all = vcat(
+        problem.mothership.exclusion.geometry,
+        problem.tenders.exclusion.geometry,
+    )
+    tmp = MSTSolution(
         [current_clusters],
         [current_mothership_route],
+        [current_tender_routes]
+    )
+    _, partial_ms_soln = _rebuild_mothership_solution(tmp, current_clusters, exclusions_all)
+
+    current_solution = MSTSolution(
+        [current_clusters],
+        [partial_ms_soln],
         [current_tender_routes]
     )
     soln_best_partial, z_best = opt_function(
@@ -483,7 +494,7 @@ function improve_solution(
 
     soln_best = MSTSolution(
         [merged_clusters],
-        [soln_best_partial.mothership_routes[end]],
+        [initial_solution.mothership_routes[end]],
         [ordered_tenders]
     )
 
