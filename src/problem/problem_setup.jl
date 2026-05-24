@@ -599,7 +599,9 @@ function generate_randomised_problem(
 
     #! Output the generated target points as a GeoJSON for reference
     if !(debug_mode)
-        GDF.write(joinpath(output_dir, "randomised_targets_$(seed).geojson"), targets_gdf)
+        path = joinpath(output_dir, "randomised_targets_$(seed).geojson")
+        isfile(path) && rm(path)
+        GDF.write(path, targets_gdf)
     end
 
     return Problem(depot, targets, mothership, tenders)
