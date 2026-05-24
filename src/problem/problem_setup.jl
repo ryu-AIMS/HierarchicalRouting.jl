@@ -451,7 +451,6 @@ end
     generate_randomised_problem(
         subset_path::AbstractString,
         env_data_path::AbstractString,
-        env_disturbance_path::AbstractString,
         depot::NTuple{2,Float64},
         draft_ms::Real,
         draft_t::Real,
@@ -468,11 +467,11 @@ end
 
 Generates a randomised problem instance based on the given parameters.
 Points are randomly generated within a buffered distance of tender exclusion zones.
+Disturbance values are drawn from random uniform disturbution (0, 1) for each target point.
 """
 function generate_randomised_problem(
     subset_path::AbstractString,
     env_data_path::AbstractString,
-    env_disturbance_path::AbstractString,
     depot::NTuple{2,Float64},
     draft_ms::Real,
     draft_t::Real,
@@ -587,21 +586,10 @@ function generate_randomised_problem(
         )
     targets_gdf = DataFrame(ID=1:length(target_points), geometry=target_points)
 
-    env_disturbance = GDF.read(env_disturbance_path)
-    disturbance_data_subset = filter_within_bbox(env_disturbance, subset_bbox)
-    suitable_targets_subset = process_geometry_targets(targets_gdf.geometry)
-    indices::Vector{CartesianIndex{2}} = findall(
-        x -> x != suitable_targets_subset.missingval,
-        suitable_targets_subset
+    disturbance_df = DataFrame(
+        node=target_points,
+        disturbance_value=rand(length(target_points))
     )
-    coords::Vector{Point{2,Float64}} = [
-        Point{2,Float64}(
-            suitable_targets_subset.dims[1][idx[1]],
-            suitable_targets_subset.dims[2][idx[2]]
-        )
-        for idx in indices
-    ]
-    disturbance_df = create_disturbance_data_dataframe(coords, disturbance_data_subset)
 
     target_path_string = seed === nothing ?
                          "randomised_targets" :
