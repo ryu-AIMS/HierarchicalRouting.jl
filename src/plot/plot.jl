@@ -980,9 +980,12 @@ function solution_disturbances(
         labels=true,
     )
 
+    if show_tenders || show_mothership
+        ordered_disturbances = sort(collect(disturbance_clusters))
+    end
+
     # Tender sorties/routes
     if show_tenders
-        ordered_disturbances = sort(unique(disturbance_clusters))
         tenders!.(
             [ax1, ax2, ax3],
             [
@@ -998,7 +1001,8 @@ function solution_disturbances(
     if show_mothership
         route!.(
             [ax1, ax2, ax3],
-            getfield.(solution_disturbed.mothership_routes, :route);
+            getfield.(solution_disturbed.mothership_routes, :route),
+            [1, 2 * ordered_disturbances[1] - 1, 2 * ordered_disturbances[2] - 1];
             labels=true,
             color=:black
         )
