@@ -588,7 +588,7 @@ function generate_randomised_problem(
 
     disturbance_df = DataFrame(
         node=target_points,
-        disturbance_value=rand(length(target_points))
+        disturbance_value=Ref(0)
     )
 
     target_path_string = seed === nothing ?
