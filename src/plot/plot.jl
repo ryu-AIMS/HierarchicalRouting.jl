@@ -1157,25 +1157,6 @@ function annotate_cost!(
     return ax
 end
 
-"""Annotate waypoint labels on top of routes"""
-function waypoint_labels!(
-    ax::Axis,
-    soln::MSTSolution,
-)::Axis
-    waypoints = soln.mothership_routes[end].route.nodes[1:end-1]
-    waypoint_matrix = hcat(getindex.(waypoints, 1), getindex.(waypoints, 2))
-    text!(
-        ax,
-        waypoint_matrix[:, 1],
-        waypoint_matrix[:, 2] .+ 0.003,
-        text=string.(0:size(waypoint_matrix, 1)-1),
-        fontsize=18,
-        align=(:center, :center),
-        color=:black
-    )
-    return ax
-end
-
 function annotate_vessel_speeds!(
     ax::Axis,
     vessel_weightings::NTuple{2,AbstractFloat};
@@ -1264,9 +1245,6 @@ function _highlight_critical_core!(
     ]
 
     lines!.(Ref(ax), segments; color, linewidth)
-
-    # Annotate waypoints by sequence on top of routes
-    waypoint_labels!(ax, soln)
 
     return
 end
