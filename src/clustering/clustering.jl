@@ -343,7 +343,7 @@ function disturb_remaining_clusters(
             mean(coordinates_3d[3, disturbance_clusters.assignments.==i])
             for i in 1:k_d
         ] .+
-        t * rand(-1.0:0.01:1.0, k_d)
+        t * 2 .* rand(k_d) .- 1
 
     # Assign the disturbance value to every node in the cluster
     disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
