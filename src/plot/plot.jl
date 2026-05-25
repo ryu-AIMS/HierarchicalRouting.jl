@@ -1009,17 +1009,11 @@ function solution_disturbances(
     end
 
     if highlight_critical_path_flag
-        highlight_critical_path_partial!(
-            ax1,
-            solution_disturbed,
-            problem,
-            [1:ordered_disturbances[1]-1]
-        )
-        highlight_critical_path_partial!(
-            ax2,
-            solution_disturbed,
-            problem,
-            [1:ordered_disturbances[2]-1]
+        highlight_critical_path_partial!.(
+            [ax1, ax2],
+            Ref(solution_disturbed),
+            Ref(problem),
+            [[1:ordered_disturbances[1]-1], [1:ordered_disturbances[2]-1]]
         )
         highlight_critical_path!(ax3, solution_disturbed, problem)
     end
