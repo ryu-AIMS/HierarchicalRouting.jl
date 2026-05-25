@@ -195,15 +195,15 @@ function clusters!(
     colormap = create_colormap(sequence_ids)
     circle_offsets = _calc_radius_offset(cluster_radius)
 
-    for seq in sequence_ids
+    for (pos, seq) in enumerate(sequence_ids)
         color = colormap[seq]
 
         # Plot nodes
         if !isnothing(clusters) && nodes
-            scatter!(ax, clusters[seq].nodes, color=color, markersize=10, marker=:x)
+            scatter!(ax, clusters[pos].nodes, color=color, markersize=10, marker=:x)
         end
 
-        center_lon, center_lat = centroids[seq]
+        center_lon, center_lat = centroids[pos]
         if cluster_radius > 0
             circle_lons = center_lon .+ circle_offsets[1]
             circle_lats = center_lat .+ circle_offsets[2]
@@ -413,7 +413,8 @@ end
 """
     route!(
         ax::Axis,
-        route::Route;
+        route::Route,
+        label_from_idx::Int=1;
         markers::Bool=false,
         labels::Bool=false,
         color=nothing
@@ -443,7 +444,8 @@ Plot LineStrings for mothership route.
 """
 function route!(
     ax::Axis,
-    route::Route;
+    route::Route,
+    label_from_idx::Int=1;
     markers::Bool=false,
     labels::Bool=false,
     color=nothing
@@ -477,9 +479,9 @@ function route!(
         # Annotate waypoints by sequence
         text!(
             ax,
-            waypoint_matrix[:, 1],
-            waypoint_matrix[:, 2] .+ 0.003,
-            text=string.(0:size(waypoint_matrix, 1)-1),
+            waypoint_matrix[label_from_idx:end, 1],
+            waypoint_matrix[label_from_idx:end, 2] .+ 0.003,
+            text=string.(label_from_idx-1:size(waypoint_matrix, 1)-1),
             fontsize=18,
             align=(:center, :center),
             color=:black
@@ -978,9 +980,12 @@ function solution_disturbances(
         labels=true,
     )
 
+    if show_tenders || show_mothership
+        ordered_disturbances = sort(collect(disturbance_clusters))
+    end
+
     # Tender sorties/routes
     if show_tenders
-        ordered_disturbances = sort(unique(disturbance_clusters))
         tenders!.(
             [ax1, ax2, ax3],
             [
@@ -996,24 +1001,19 @@ function solution_disturbances(
     if show_mothership
         route!.(
             [ax1, ax2, ax3],
-            getfield.(solution_disturbed.mothership_routes, :route);
+            getfield.(solution_disturbed.mothership_routes, :route),
+            [1, 2 * ordered_disturbances[1] - 1, 2 * ordered_disturbances[2] - 1];
             labels=true,
             color=:black
         )
     end
 
     if highlight_critical_path_flag
-        highlight_critical_path_partial!(
-            ax1,
-            solution_disturbed,
-            problem,
-            [1:ordered_disturbances[1]-1]
-        )
-        highlight_critical_path_partial!(
-            ax2,
-            solution_disturbed,
-            problem,
-            [1:ordered_disturbances[2]-1]
+        highlight_critical_path_partial!.(
+            [ax1, ax2],
+            Ref(solution_disturbed),
+            Ref(problem),
+            [[1:ordered_disturbances[1]-1], [1:ordered_disturbances[2]-1]]
         )
         highlight_critical_path!(ax3, solution_disturbed, problem)
     end
@@ -1157,25 +1157,6 @@ function annotate_cost!(
     return ax
 end
 
-"""Annotate waypoint labels on top of routes"""
-function waypoint_labels!(
-    ax::Axis,
-    soln::MSTSolution,
-)::Axis
-    waypoints = soln.mothership_routes[end].route.nodes[1:end-1]
-    waypoint_matrix = hcat(getindex.(waypoints, 1), getindex.(waypoints, 2))
-    text!(
-        ax,
-        waypoint_matrix[:, 1],
-        waypoint_matrix[:, 2] .+ 0.003,
-        text=string.(0:size(waypoint_matrix, 1)-1),
-        fontsize=18,
-        align=(:center, :center),
-        color=:black
-    )
-    return ax
-end
-
 function annotate_vessel_speeds!(
     ax::Axis,
     vessel_weightings::NTuple{2,AbstractFloat};
@@ -1264,9 +1245,6 @@ function _highlight_critical_core!(
     ]
 
     lines!.(Ref(ax), segments; color, linewidth)
-
-    # Annotate waypoints by sequence on top of routes
-    waypoint_labels!(ax, soln)
 
     return
 end
