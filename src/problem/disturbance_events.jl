@@ -113,7 +113,7 @@ function _apply_disturbance_events!(
     sa_improve_plot_flag::Bool,
     output_dir::String,
 )::MSTSolution
-    @info "Apply disturbance events at clusters $(ordered_disturbances)"
+    info_log && @info "Apply disturbance events at clusters $(ordered_disturbances)"
     n_events = length(ordered_disturbances)
 
     cluster_sets = Vector{Vector{Cluster}}(undef, n_events + 1)
@@ -132,7 +132,7 @@ function _apply_disturbance_events!(
     for disturb_clust_idx ∈ ordered_disturbances
         cluster_id = clust_seq[disturb_clust_idx]
         cluster_letter = generate_letter_id(cluster_id)
-        @info """Disturbance event #$disturb_idx at
+        info_log && @info """Disturbance event #$disturb_idx at
         \t$(ms_route.route.nodes[2*disturb_clust_idx-1])
         \tbefore $(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)"""
 
@@ -154,8 +154,8 @@ function _apply_disturbance_events!(
             vcat([c.nodes for c in clusters]...)
         )
         if !isempty(removed_nodes)
-            @info """Removed nodes due to disturbance event (since previous cluster):
-            \t$(join(removed_nodes, "\n\t"))"""
+            info_log && @info "Removed nodes due to disturbance event (since previous " *
+                              "cluster):\n\t$(join(removed_nodes, "\n\t"))"
         end
 
         # Re-generate the cluster centroids to route mothership
@@ -201,8 +201,8 @@ function _apply_disturbance_events!(
             clust_selection = (ordered_disturbances[disturb_idx-1]:length(clusters)+1)
             candidate_wpt_idxs = 2*clust_selection[1]:2*clust_selection[end]-1
 
-            @info """Optimizing waypoints $candidate_wpt_idxs for clusters $clust_selection
-                    using $waypoint_optim_method"""
+            info_log && @info "Optimizing waypoints $candidate_wpt_idxs for clusters " *
+                              "$clust_selection \nusing $waypoint_optim_method"
 
             solution_tmp::MSTSolution = optimize_waypoints(
                 MSTSolution([clusters], [ms_route], [current_tender_soln]),
@@ -210,6 +210,7 @@ function _apply_disturbance_events!(
                 waypoint_optim_method,
                 candidate_wpt_idxs;
                 time_limit,
+                info_log,
                 plot_flag=wpt_optim_plot_flag,
             )
 
