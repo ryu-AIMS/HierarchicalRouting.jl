@@ -210,6 +210,7 @@ function _apply_disturbance_events!(
                 waypoint_optim_method,
                 candidate_wpt_idxs;
                 time_limit,
+                info_log,
                 plot_flag=wpt_optim_plot_flag,
             )
 
