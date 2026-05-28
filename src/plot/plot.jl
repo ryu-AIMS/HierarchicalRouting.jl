@@ -479,9 +479,9 @@ function route!(
         # Annotate waypoints by sequence
         text!(
             ax,
-            waypoint_matrix[label_from_idx:end, 1],
-            waypoint_matrix[label_from_idx:end, 2] .+ 0.003,
-            text=string.(label_from_idx-1:size(waypoint_matrix, 1)-1),
+            waypoint_matrix[:, 1],
+            waypoint_matrix[:, 2] .+ 0.003,
+            text=string.(0:size(waypoint_matrix, 1)-1),
             fontsize=18,
             align=(:center, :center),
             color=:black
