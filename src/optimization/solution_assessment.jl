@@ -23,23 +23,17 @@ end
 
 """ Resolve new waypoints for tenders affected by a cross-cluster perturbation. """
 function _resolve_tender_endpoints(
-    updated_waypoints::DataFrame,
+    ms_nodes::Vector{Point{2,Float64}},
+    connecting_clusters::Vector{NTuple{2,Int64}},
     cluster_a_idx::Int,
     cluster_b_idx::Int
 )::NTuple{4,Point}
-    # Identify new start/finish waypoints for the two modified tenders
-    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
-    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
+    cc_first, cc_last = first.(connecting_clusters), last.(connecting_clusters)
 
-    tender_a_new_start_idx::Int = findlast(cc_last .== cluster_a_idx)
-    tender_a_new_finish_idx::Int = findfirst(cc_first .== cluster_a_idx)
-    tender_b_new_start_idx::Int = findlast(cc_last .== cluster_b_idx)
-    tender_b_new_finish_idx::Int = findfirst(cc_first .== cluster_b_idx)
-
-    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
-    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
-    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
-    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+    tender_a_new_start = ms_nodes[findlast(cc_last .== cluster_a_idx)]
+    tender_a_new_finish = ms_nodes[findfirst(cc_first .== cluster_a_idx)]
+    tender_b_new_start = ms_nodes[findlast(cc_last .== cluster_b_idx)]
+    tender_b_new_finish = ms_nodes[findfirst(cc_first .== cluster_b_idx)]
 
     return tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish
 end
@@ -497,12 +491,13 @@ function _apply_cross_cluster_perturbation(
 
     tender_ids = getfield.(soln.tenders[end], :id)
     cc = updated_waypoints.connecting_clusters
+    ms_nodes = updated_ms_solution.route.nodes
     partial_waypoints = vcat(
-        [updated_waypoints.waypoint[1]],
-        [[updated_waypoints.waypoint[findlast(last.(cc) .== id)],
-            updated_waypoints.waypoint[findfirst(first.(cc) .== id)]]
+        [ms_nodes[1]],
+        [[ms_nodes[findlast(last.(cc) .== id)],
+            ms_nodes[findfirst(first.(cc) .== id)]]
          for id in tender_ids]...,
-        [updated_waypoints.waypoint[end]]
+        [ms_nodes[end]]
     )
 
     tenders_all = generate_tender_sorties(
@@ -512,7 +507,7 @@ function _apply_cross_cluster_perturbation(
     )
 
     tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
-        _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
+        _resolve_tender_endpoints(ms_nodes, updated_waypoints.connecting_clusters, cluster_a_idx, cluster_b_idx)
 
     tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
         copy(tenders_all[clust_a_seq_idx].sorties),
