@@ -512,7 +512,7 @@ function improve_solution(
     sa_improve_plot_flag::Bool=true,
 )::Tuple{MSTSolution,Float64}
     current_cluster_idx::Int64 = 1
-    next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
+    next_cluster_idx::Int64 = length(init_solution.cluster_sets[end]) + 1
 
     return improve_solution(
         init_solution,
