@@ -495,9 +495,19 @@ function _apply_cross_cluster_perturbation(
         soln, new_clusters, exclusions_all
     )
 
+    tender_ids = getfield.(soln.tenders[end], :id)
+    cc = updated_waypoints.connecting_clusters
+    partial_waypoints = vcat(
+        [updated_waypoints.waypoint[1]],
+        [[updated_waypoints.waypoint[findlast(last.(cc) .== id)],
+            updated_waypoints.waypoint[findfirst(first.(cc) .== id)]]
+         for id in tender_ids]...,
+        [updated_waypoints.waypoint[end]]
+    )
+
     tenders_all = generate_tender_sorties(
         MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
-        updated_waypoints.waypoint,
+        partial_waypoints,
         exclusions_tender
     )
 
