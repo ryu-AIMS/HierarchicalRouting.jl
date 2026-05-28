@@ -534,3 +534,15 @@ function improve_solution(
         sa_improve_plot_flag
     )
 end
+
+function _reconcile_tender(
+    t::TenderSolution,
+    start::Point{2,Float64},
+    finish::Point{2,Float64},
+    exclusions::POLY_VEC
+)::TenderSolution
+    t.start == start && t.finish == finish && return t
+    return TenderSolution(t.id, start, finish,
+        [_build_sortie_route(s.nodes, start, finish, exclusions) for s in t.sorties]
+    )
+end
