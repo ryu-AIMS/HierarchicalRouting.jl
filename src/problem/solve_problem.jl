@@ -455,16 +455,10 @@ function improve_solution(
         problem.mothership.exclusion.geometry,
         problem.tenders.exclusion.geometry,
     )
-    tmp = MSTSolution(
-        [current_clusters],
-        [current_mothership_route],
-        [current_tender_routes]
-    )
-    _, partial_ms_soln = _rebuild_mothership_solution(tmp, current_clusters, exclusions_all)
 
     current_solution = MSTSolution(
         [current_clusters],
-        [partial_ms_soln],
+        [current_mothership_route],
         [current_tender_routes]
     )
     soln_best_partial, z_best = opt_function(
@@ -490,11 +484,37 @@ function improve_solution(
     merged_tenders = vcat(soln_best_partial.tenders[end], noncurrent_tender_routes)
     sort!(merged_tenders, by=t -> t.id)
     interior_ids = @view cluster_seq_ids[2:end-1]
-    ordered_tenders = merged_tenders[interior_ids]
+
+    # Update full mothership route with the optimized partial route
+    depot = current_mothership_route.route.nodes[1]
+    cluster_seq_df = get_cluster_sequence_df(
+        depot, collect(interior_ids), getfield.(merged_clusters, :centroid)
+    )
+    updated_wpts_df = get_waypoints(cluster_seq_df, exclusions_all)
+    wpt_dists, wpt_paths = get_feasible_vector(
+        updated_wpts_df.waypoint, problem.mothership.exclusion.geometry
+    )
+    updated_ms_soln = MothershipSolution(
+        cluster_seq_df,
+        Route(updated_wpts_df.waypoint, wpt_dists, vcat(wpt_paths...))
+    )
+
+    # ordered_tenders = merged_tenders[interior_ids]
+    starts = updated_ms_soln.route.nodes[2 .* eachindex(interior_ids)]
+    finishes = updated_ms_soln.route.nodes[2 .* eachindex(interior_ids).+1]
+    ordered_merged_tenders = merged_tenders[interior_ids]
+
+    ordered_tenders = [
+        _reconcile_tender(
+            ordered_merged_tenders[k], starts[k], finishes[k],
+            problem.tenders.exclusion.geometry
+        )
+        for k in eachindex(interior_ids)
+    ]
 
     soln_best = MSTSolution(
         [merged_clusters],
-        [initial_solution.mothership_routes[end]],
+        [updated_ms_soln],
         [ordered_tenders]
     )
 
