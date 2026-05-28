@@ -195,30 +195,6 @@ function _apply_disturbance_events!(
         # Increment event index
         disturb_idx += 1
 
-        # Optimize mothership waypoints between disturbance events
-        if !isnothing(waypoint_optim_method)
-            # Optimize ALL future wpts #! NOTE: not just to next disturbance event
-            clust_selection = (ordered_disturbances[disturb_idx-1]:length(clusters)+1)
-            candidate_wpt_idxs = 2*clust_selection[1]:2*clust_selection[end]-1
-
-            info_log && @info "Optimizing waypoints $candidate_wpt_idxs for clusters " *
-                              "$clust_selection \nusing $waypoint_optim_method"
-
-            solution_tmp::MSTSolution = optimize_waypoints(
-                MSTSolution([clusters], [ms_route], [current_tender_soln]),
-                problem,
-                waypoint_optim_method,
-                candidate_wpt_idxs;
-                time_limit,
-                info_log,
-                plot_flag=wpt_optim_plot_flag,
-            )
-
-            clusters = solution_tmp.cluster_sets[end]
-            ms_route = solution_tmp.mothership_routes[end]
-            current_tender_soln = solution_tmp.tenders[end]
-        end
-
         # Solution improvement step (used by `solve`, not by `initial_solution`)
         if do_improve
             next_disturbance_cluster_idx =
@@ -249,6 +225,30 @@ function _apply_disturbance_events!(
                 c -> c != 0 && c <= length(clusters),
                 ms_route.cluster_sequence.id
             )
+        end
+
+        # Optimize mothership waypoints between disturbance events
+        if !isnothing(waypoint_optim_method)
+            # Optimize ALL future wpts #! NOTE: not just to next disturbance event
+            clust_selection = (ordered_disturbances[disturb_idx-1]:length(clusters)+1)
+            candidate_wpt_idxs = 2*clust_selection[1]:2*clust_selection[end]-1
+
+            info_log && @info "Optimizing waypoints $candidate_wpt_idxs for clusters " *
+                              "$clust_selection \nusing $waypoint_optim_method"
+
+            solution_tmp::MSTSolution = optimize_waypoints(
+                MSTSolution([clusters], [ms_route], [current_tender_soln]),
+                problem,
+                waypoint_optim_method,
+                candidate_wpt_idxs;
+                time_limit,
+                info_log,
+                plot_flag=wpt_optim_plot_flag,
+            )
+
+            clusters = solution_tmp.cluster_sets[end]
+            ms_route = solution_tmp.mothership_routes[end]
+            current_tender_soln = solution_tmp.tenders[end]
         end
 
         # Update solution sets
