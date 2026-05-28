@@ -439,10 +439,6 @@ function improve_solution(
     clust_seq_noncurrent::Vector{Int64} = setdiff(cluster_seq_ids, clust_seq_current)
     filter!(!=(0), clust_seq_noncurrent)
 
-    cluster_set::Vector{Cluster} = initial_solution.cluster_sets[end]
-    current_clusters::Vector{Cluster} = cluster_set[clust_seq_current]
-    sort!(current_clusters, by=c -> c.id)
-
     tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
     current_tender_routes::Vector{TenderSolution} =
         tender_set[current_cluster_idx:final_cluster_idx]
@@ -456,14 +452,9 @@ function improve_solution(
         problem.tenders.exclusion.geometry,
     )
 
-    current_solution = MSTSolution(
-        [current_clusters],
-        [current_mothership_route],
-        [current_tender_routes]
-    )
     soln_best_partial, z_best = opt_function(
         problem,
-        current_solution,
+        initial_solution,
         objective_function,
         max_iterations,
         temp_init,
