@@ -50,11 +50,20 @@ function _rebuild_mothership_solution(
     new_clusters,
     exclusions
 )::Tuple{DataFrame,MothershipSolution}
-    # Update mothership route and waypoints based on updated clusters
-    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
-    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
-    centroid_map::Dict = Dict(c.id => c.centroid for c in new_clusters)
+    # Use FULL cluster sequence from existing MS route
+    existing_seq = soln.mothership_routes[end].cluster_sequence
+    cluster_seq_ids = filter(!=(0), existing_seq.id)
+
+    # Merge existing centroids as base, new_clusters to override modified ones
+    existing_centroid_map = Dict(
+        row.id => Point{2,Float64}(row.lon, row.lat)
+        for row in eachrow(existing_seq) if row.id != 0
+    )
+    updated_centroid_map = Dict(c.id => c.centroid for c in new_clusters)
+    centroid_map = merge(existing_centroid_map, updated_centroid_map)
+
     ordered_centroids = [centroid_map[id] for id in cluster_seq_ids]
+    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
     full_pts = [[depot]; ordered_centroids; [depot]]
     cluster_sequence = DataFrame(
         id=[0; cluster_seq_ids; 0],
