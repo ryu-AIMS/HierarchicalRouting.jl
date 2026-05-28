@@ -42,7 +42,8 @@ end
 function _rebuild_mothership_solution(
     soln,
     new_clusters,
-    exclusions
+    exclusions,
+    perturb_idxs::UnitRange{Int}
 )::Tuple{DataFrame,MothershipSolution}
     # Use FULL cluster sequence from existing MS route
     existing_seq = soln.mothership_routes[end].cluster_sequence
@@ -67,15 +68,24 @@ function _rebuild_mothership_solution(
 
     updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions)
 
+    n_fixed = 2 * (first(perturb_idxs) - 1) + 1  # depot + 2 per visited cluster
+
+    final_waypoints::Vector{Point{2,Float64}} = updated_waypoints.waypoint
+    if n_fixed > 1
+        final_waypoints = vcat(
+            soln.mothership_routes[end].route.nodes[1:n_fixed],
+            updated_waypoints.waypoint[n_fixed+1:end]
+        )
+    end
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
-        updated_waypoints.waypoint,
+        final_waypoints,
         exclusions
     )
 
     updated_ms_solution = MothershipSolution(
         cluster_sequence,
         Route(
-            updated_waypoints.waypoint,
+            final_waypoints,
             waypoint_dist_vector,
             vcat(waypoint_path_vector...)
         )
@@ -215,6 +225,7 @@ function perturb_swap(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
+    perturb_idxs::UnitRange{Int},
 )::MSTSolution
     #! CROSS-CLUSTER SWAP
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
@@ -286,7 +297,8 @@ function perturb_swap(
         sortie_a_nodes,
         sortie_b_nodes,
         sortie_a_idx,
-        sortie_b_idx
+        sortie_b_idx,
+        perturb_idxs,
     )
 end
 
@@ -402,6 +414,7 @@ function perturb_move(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
+    perturb_idxs::UnitRange{Int},
 )::MSTSolution
     #! CROSS-CLUSTER MOVE
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
@@ -461,7 +474,8 @@ function perturb_move(
         source_nodes,
         dest_nodes,
         source_sortie_idx,
-        dest_sortie_idx
+        dest_sortie_idx,
+        perturb_idxs,
     )
 end
 
@@ -481,12 +495,13 @@ function _apply_cross_cluster_perturbation(
     nodes_b::Vector{Point{2,Float64}},
     sortie_a_idx::Int,
     sortie_b_idx::Int,
+    perturb_idxs::UnitRange{Int}
 )::MSTSolution
     exclusions_tender = problem.tenders.exclusion.geometry
     exclusions_all = vcat(problem.mothership.exclusion.geometry, exclusions_tender)
 
     updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
-        soln, new_clusters, exclusions_all
+        soln, new_clusters, exclusions_all, perturb_idxs
     )
 
     tender_ids = getfield.(soln.tenders[end], :id)
@@ -571,6 +586,7 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int;
+        perturb_idxs::UnitRange{Int}=1:length(soln_init.cluster_sets[end]),
         output_dir::String="",
         info_log::Bool,
         plot_flag::Bool,
@@ -587,6 +603,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
 - `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
+- `perturb_idxs`: Range of cluster sequence indices to consider for perturbations.
 - `output_dir::String`: Path to output directory. If empty, do not save outputs.
 - `info_log::Bool`: Flag to switch info statement logging
 - `plot_flag`: Flag to plot solution progress for debugging/visualization
@@ -604,6 +621,7 @@ function simulated_annealing(
     cooling_rate::Float64,
     min_iters::Int,
     static_limit::Int;
+    perturb_idxs::UnitRange{Int}=1:length(soln_init.cluster_sets[end]),
     output_dir::String="",
     info_log::Bool,
     plot_flag::Bool,
@@ -636,8 +654,7 @@ function simulated_annealing(
     total_dist_proposed::Float64 = total_dist_current
     total_dist_best::Float64 = total_dist_current
 
-    cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
-    no_clusts::Int = length(cluster_set)
+    no_clusts::Int = length(perturb_idxs)
 
     # Initialize current solution as best, reset temp
     temp::Float64 = temp_init
@@ -658,7 +675,7 @@ function simulated_annealing(
     info_log && @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
 
     for iteration in 1:max_iterations
-        shuffled_clusters = shuffle(1:no_clusts)
+        shuffled_clusters = shuffle(perturb_idxs)
         clust_idx = shuffled_clusters[1]
         clust_alt_idx = 0
 
@@ -683,7 +700,8 @@ function simulated_annealing(
                 soln_proposed = perturb_swap(
                     soln_current,
                     (clust_idx, clust_alt_idx),
-                    problem
+                    problem,
+                    perturb_idxs
                 )
                 perturbation_type = :SWAP
             else
@@ -691,7 +709,8 @@ function simulated_annealing(
                 soln_proposed = perturb_move(
                     soln_current,
                     (clust_idx, clust_alt_idx),
-                    problem
+                    problem,
+                    perturb_idxs
                 )
                 perturbation_type = :MOVE
             end

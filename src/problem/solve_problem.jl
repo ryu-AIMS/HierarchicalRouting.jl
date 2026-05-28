@@ -470,6 +470,7 @@ function improve_solution(
         cooling_rate,
         min_iters,
         static_limit;
+        perturb_idxs=current_cluster_idx:(next_cluster_idx-1),
         output_dir,
         info_log,
         plot_flag=sa_improve_plot_flag,
