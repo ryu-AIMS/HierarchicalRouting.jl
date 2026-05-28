@@ -199,7 +199,7 @@ function _apply_disturbance_events!(
         if do_improve
             next_disturbance_cluster_idx =
                 disturb_clust_idx <= n_events ?
-                ordered_disturbances[disturb_clust_idx] :
+                ordered_disturbances[disturb_idx] :
                 length(clusters) + 1
 
             optimized_current_solution, _ = improve_solution(
