@@ -429,23 +429,6 @@ function improve_solution(
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
     cluster_seq_ids::Vector{Int64} = current_mothership_route.cluster_sequence.id
-    final_cluster_idx = next_cluster_idx == length(cluster_seq_ids) - 1 ?
-                        next_cluster_idx - 1 :
-                        next_cluster_idx
-
-    clust_seq_current::Vector{Int64} = cluster_seq_ids[
-        current_cluster_idx+1:final_cluster_idx+1
-    ]
-    clust_seq_noncurrent::Vector{Int64} = setdiff(cluster_seq_ids, clust_seq_current)
-    filter!(!=(0), clust_seq_noncurrent)
-
-    tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
-    current_tender_routes::Vector{TenderSolution} =
-        tender_set[current_cluster_idx:final_cluster_idx]
-    noncurrent_tender_routes::Vector{TenderSolution} = setdiff(
-        tender_set,
-        current_tender_routes
-    )
 
     exclusions_all = vcat(
         problem.mothership.exclusion.geometry,
@@ -467,38 +450,40 @@ function improve_solution(
         plot_flag=sa_improve_plot_flag,
     )
 
-    merged_clusters = vcat(
-        cluster_set[clust_seq_noncurrent],
-        soln_best_partial.cluster_sets[end]
-    )
+    merged_clusters = soln_best_partial.cluster_sets[end]
     sort!(merged_clusters, by=c -> c.id)
-
-    merged_tenders = vcat(soln_best_partial.tenders[end], noncurrent_tender_routes)
-    sort!(merged_tenders, by=t -> t.id)
-    interior_ids = @view cluster_seq_ids[2:end-1]
 
     # Update full mothership route with the optimized partial route
     depot = current_mothership_route.route.nodes[1]
+    interior_ids = @view cluster_seq_ids[2:end-1]
     cluster_seq_df = get_cluster_sequence_df(
         depot, collect(interior_ids), merged_clusters
     )
-    updated_wpts_df = get_waypoints(cluster_seq_df, exclusions_all)
+    all_wpts_df = get_waypoints(cluster_seq_df, exclusions_all)
+
+    # Preserve pre-visited waypoints exactly; only recompute from current_cluster_idx onwards
+    n_fixed = 2 * (current_cluster_idx - 1) + 1
+    fixed_waypoints = current_mothership_route.route.nodes[1:n_fixed]
+    new_waypoints = all_wpts_df.waypoint[2*current_cluster_idx:end]
+
+    final_waypoints = current_cluster_idx > 1 ?
+                      vcat(fixed_waypoints, new_waypoints) :
+                      all_wpts_df.waypoint
+
     wpt_dists, wpt_paths = get_feasible_vector(
-        updated_wpts_df.waypoint, problem.mothership.exclusion.geometry
+        final_waypoints, problem.mothership.exclusion.geometry
     )
     updated_ms_soln = MothershipSolution(
         cluster_seq_df,
-        Route(updated_wpts_df.waypoint, wpt_dists, vcat(wpt_paths...))
+        Route(final_waypoints, wpt_dists, vcat(wpt_paths...))
     )
 
-    # ordered_tenders = merged_tenders[interior_ids]
     starts = updated_ms_soln.route.nodes[2 .* eachindex(interior_ids)]
     finishes = updated_ms_soln.route.nodes[2 .* eachindex(interior_ids).+1]
-    ordered_merged_tenders = merged_tenders[interior_ids]
 
     ordered_tenders = [
         _reconcile_tender(
-            ordered_merged_tenders[k], starts[k], finishes[k],
+            soln_best_partial.tenders[end][k], starts[k], finishes[k],
             problem.tenders.exclusion.geometry
         )
         for k in eachindex(interior_ids)
