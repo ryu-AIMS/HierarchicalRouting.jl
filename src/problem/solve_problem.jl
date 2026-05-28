@@ -488,7 +488,7 @@ function improve_solution(
     # Update full mothership route with the optimized partial route
     depot = current_mothership_route.route.nodes[1]
     cluster_seq_df = get_cluster_sequence_df(
-        depot, collect(interior_ids), getfield.(merged_clusters, :centroid)
+        depot, collect(interior_ids), merged_clusters
     )
     updated_wpts_df = get_waypoints(cluster_seq_df, exclusions_all)
     wpt_dists, wpt_paths = get_feasible_vector(

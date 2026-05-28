@@ -178,9 +178,10 @@ end
 function get_cluster_sequence_df(
     depot::Point{2,Float64},
     sequence_ids::Vector{Int64},
-    centroids::Vector{Point{2,Float64}},
+    clusters::Vector{Cluster}
 )::DataFrame
-    ordered_centroids = centroids[sequence_ids]
+    centroid_map = Dict(c.id => c.centroid for c in clusters)
+    ordered_centroids = [centroid_map[id] for id in sequence_ids]
     full_ms_route_pts = [[depot]; ordered_centroids; [depot]]
 
     return DataFrame(
