@@ -776,6 +776,7 @@ function simulated_annealing(
     )
     plot_flag && display(fig_trace)
     !isempty(output_dir) && CairoMakie.save("$output_dir/2_sa_trace.png", fig_trace)
-    info_log && @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
+    info_log && @info ("Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)\n" *
+                       "Iterations: $(trace_iters[end])")
     return soln_best, obj_best
 end
