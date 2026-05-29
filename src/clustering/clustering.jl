@@ -173,6 +173,7 @@ end
         current_location::Point{2,Float64},
         exclusions::POLY_VEC,
         total_tender_capacity::Int;
+        rng::AbstractRNG,
         tol::Float64=0.01,
         dist_weighting::Float64=2E-5
     )::DataFrame
@@ -199,6 +200,7 @@ function disturb_remaining_clusters(
     current_location::Point{2,Float64},
     exclusions::POLY_VEC,
     total_tender_capacity::Int;
+    rng::AbstractRNG,
     tol::Float64=0.01,
     dist_weighting::Float64=2E-5
 )::DataFrame
@@ -218,7 +220,7 @@ function disturb_remaining_clusters(
     # Create k_d clusters to create disturbance on subset
     k_d_lower = k + 1
     k_d_upper = max(ceil(Int, n_sites / 2), k_d_lower)
-    k_d = rand(k_d_lower:k_d_upper)
+    k_d = rand(rng, k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
         coordinates_3d,

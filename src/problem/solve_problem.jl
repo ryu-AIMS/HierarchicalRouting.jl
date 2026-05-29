@@ -256,6 +256,7 @@ function solve(
         problem,
         total_tender_capacity,
         time_limit_pso_disturbed;
+        rng,
         temp_init,
         cooling_rate,
         min_iters,

@@ -6,6 +6,7 @@
         current_location::Point{2,Float64},
         exclusions::POLY_VEC,
         total_tender_capacity::Int;
+        rng::AbstractRNG=Random.GLOBAL_RNG,
         tol::Float64=0.01
     )::Vector{Cluster}
 
@@ -28,6 +29,7 @@ function disturb_clusters(
     current_location::Point{2,Float64},
     exclusions::POLY_VEC,
     total_tender_capacity::Int;
+    rng::AbstractRNG=Random.GLOBAL_RNG,
     tol::Float64=0.01
 )::Vector{Cluster}
     num_clusters = length(remaining_clusters)
@@ -47,6 +49,7 @@ function disturb_clusters(
         current_location,
         exclusions,
         total_tender_capacity;
+        rng,
         tol
     )
 
@@ -71,6 +74,7 @@ end
         problem::Problem,
         total_tender_capacity::Int,
         time_limit::Float64;
+        rng::AbstractRNG=Random.GLOBAL_RNG,
         do_improve::Bool=false,
         info_log::Bool=true,
         waypoint_optim_method=nothing,
@@ -101,6 +105,7 @@ function _apply_disturbance_events!(
     problem::Problem,
     total_tender_capacity::Int,
     time_limit::Float64;
+    rng::AbstractRNG=Random.GLOBAL_RNG,
     do_improve::Bool=false,
     info_log::Bool=true,
     waypoint_optim_method=nothing,
@@ -144,7 +149,8 @@ function _apply_disturbance_events!(
                 problem.targets.disturbance_gdf,
                 ms_route.route.nodes[2*disturb_clust_idx-1],
                 problem.tenders.exclusion.geometry,
-                total_tender_capacity
+                total_tender_capacity;
+                rng,
             )
         )
         sort!(clusters, by=x -> x.id)
