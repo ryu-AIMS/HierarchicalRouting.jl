@@ -265,3 +265,10 @@ function _apply_disturbance_events!(
 
     return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
 end
+
+function _extract_clust_seq(ms_route::MothershipSolution, clusters::Vector{Cluster})
+    return filter(
+        c -> c != 0 && c ∈ Set(getfield.(clusters, :id)),
+        ms_route.cluster_sequence.id
+    )
+end
