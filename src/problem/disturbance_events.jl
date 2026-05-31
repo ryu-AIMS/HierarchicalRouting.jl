@@ -175,10 +175,7 @@ function _apply_disturbance_events!(
             ms_route,
             getfield.(clusters[clust_seq][1:disturb_clust_idx-1], :id)
         )
-        clust_seq = filter(
-            c -> c != 0 && c <= length(clusters),
-            ms_route.cluster_sequence.id
-        )
+        clust_seq = _extract_clust_seq(ms_route, clusters)
 
         # Update tender solutions (reuse before the disturbance, recompute at/after)
         current_tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
@@ -227,10 +224,7 @@ function _apply_disturbance_events!(
             ms_route = optimized_current_solution.mothership_routes[end]
             current_tender_soln = optimized_current_solution.tenders[end]
             # Update clust_seq in case that it has changed post-improvement
-            clust_seq = filter(
-                c -> c != 0 && c <= length(clusters),
-                ms_route.cluster_sequence.id
-            )
+            clust_seq = _extract_clust_seq(ms_route, clusters)
         end
 
         # Optimize mothership waypoints between disturbance events
