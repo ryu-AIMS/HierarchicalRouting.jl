@@ -174,10 +174,11 @@ function clusters!(
     centers::Bool=false,
     labels::Bool=false
 )::Axis
-    sequence_ids = cluster_sequence.id[2:end-1]
+    remove_depot_filter = cluster_sequence.id .!= 0
+    sequence_ids = cluster_sequence.id[remove_depot_filter]
 
-    centroids = collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
-    ordered_centroids = centroids[sortperm(sequence_ids)]
+    centroids = collect(zip(cluster_sequence.lon, cluster_sequence.lat))[remove_depot_filter]
+    ordered_centroids = Point.(centroids[sortperm(sequence_ids)])
     ordered_ids = sort(sequence_ids)
 
     return clusters!(ax, cluster_radius, ordered_ids, ordered_centroids, centers, labels)
