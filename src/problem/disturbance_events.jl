@@ -190,7 +190,12 @@ function _apply_disturbance_events!(
         # Generate tender solutions for the current disturbance cluster set
         for j in 1:length(clust_seq)
             if j < disturb_clust_idx
-                current_tender_soln[j] = tender_soln_sets[disturb_idx][j]
+                current_tender_soln[j] = _reconcile_tender(
+                    tender_soln_sets[disturb_idx][j],
+                    ms_route.route.nodes[2j],
+                    ms_route.route.nodes[2j+1],
+                    tender_exclusions
+                )
             else
                 current_tender_soln[j] = tender_sequential_nearest_neighbour(
                     clusters[clust_seq][j],
