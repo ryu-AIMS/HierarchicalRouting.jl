@@ -278,13 +278,6 @@ end
         problem::Problem,
         cluster_centroids_df::DataFrame
     )::MothershipSolution
-    optimize_mothership_route(
-        problem::Problem,
-        cluster_centroids_df::DataFrame,
-        cluster_seq_idx::Int64,
-        ms_route::MothershipSolution,
-        cluster_ids_visited::Vector{Int64}
-    )::MothershipSolution
 
 Generate an optimized mothership route using the nearest neighbour heuristic and 2-opt for:
 - the whole mothership route to/from the depot, or
@@ -293,9 +286,6 @@ Generate an optimized mothership route using the nearest neighbour heuristic and
 # Arguments
 - `problem`: Problem instance to solve
 - `cluster_centroids_df`: DataFrame containing cluster centroids
-- `cluster_seq_idx`: Index of the cluster sequence
-- `ms_route`: Current mothership route
-- `cluster_ids_visited`: Vector of cluster IDs that have been visited
 
 # Returns
 - The optimized mothership route as a `MothershipSolution` object.
@@ -319,39 +309,66 @@ function optimize_mothership_route(
     )
     return ms_soln_2opt
 end
-function optimize_mothership_route(
+
+"""
+    update_mothership_waypoints(
+        problem::Problem,
+        cluster_centroids_df::DataFrame,
+        disturb_clust_idx::Int64,
+        ms_route::MothershipSolution,
+    )::MothershipSolution
+
+Update unvisited mothership waypoints after a disturbance event, wrt fixed visited segment.
+
+# Arguments
+- `problem`: Problem instance to solve
+- `cluster_centroids_df`: DataFrame containing cluster centroids
+- `disturb_clust_idx`: Index of the disturbance cluster
+- `ms_route`: Current mothership route
+
+# Returns
+- The updated mothership route as a `MothershipSolution` object.
+"""
+function update_mothership_waypoints(
     problem::Problem,
     cluster_centroids_df::DataFrame,
-    cluster_seq_idx::Int64,
+    disturb_clust_idx::Int64,
     ms_route::MothershipSolution,
-    cluster_ids_visited::Vector{Int64}
 )::MothershipSolution
-    start_point::Point{2,Float64} = ms_route.route.nodes[2*cluster_seq_idx-1]
+    # Rebuild waypoints from existing cluster sequence with updated centroids
+    cluster_seq_ids::Vector{Int64} = filter(!=(0), ms_route.cluster_sequence.id)
 
-    remaining_clusters_df::DataFrame = filter(
-        row -> row.id ∉ cluster_ids_visited,
-        cluster_centroids_df
+    # Construct vector of Clusters
+    clusters::Vector{Cluster} = [
+        Cluster(r.id, Point{2,Float64}(r.lon, r.lat), [Point{2,Float64}(r.lon, r.lat)])
+        for r in eachrow(cluster_centroids_df) if r.id != 0
+    ]
+    cluster_seq_df::DataFrame = get_cluster_sequence_df(
+        problem.depot,
+        cluster_seq_ids,
+        clusters
     )
 
-    # Nearest Neighbour to generate initial mothership route & matrix
-    ms_soln_NN::MothershipSolution = nearest_neighbour(
-        remaining_clusters_df,
-        problem.mothership.exclusion.geometry,
-        problem.tenders.exclusion.geometry,
-        start_point,
-        ms_route,
-        cluster_seq_idx
+    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(exclusions_mothership, exclusions_tender)
+
+    waypoints::DataFrame = get_waypoints(cluster_seq_df, exclusions_all)
+
+    # Preserve fixed visited route, recompute rest
+    n_fixed_wpts::Int64 = 2 * (disturb_clust_idx - 1)
+    final_wpts::Vector{Point{2,Float64}} = vcat(
+        ms_route.route.nodes[1:n_fixed_wpts],
+        waypoints.waypoint[n_fixed_wpts+1:end]
+    )
+    wpt_dists, wpt_paths = get_feasible_vector(
+        final_wpts, exclusions_mothership
     )
 
-    # 2-opt to improve the NN soln
-    ms_soln_2opt::MothershipSolution = two_opt(
-        ms_soln_NN,
-        problem.mothership.exclusion.geometry,
-        problem.tenders.exclusion.geometry,
-        cluster_seq_idx
+    return MothershipSolution(
+        cluster_seq_df,
+        Route(final_wpts, wpt_dists, vcat(wpt_paths...))
     )
-
-    return ms_soln_2opt
 end
 
 """

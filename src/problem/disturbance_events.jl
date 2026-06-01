@@ -167,13 +167,12 @@ function _apply_disturbance_events!(
         # Re-generate the cluster centroids to route mothership
         cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
 
-        # Re-route mothership (respecting pre-existing portion as fixed)
-        ms_route = optimize_mothership_route(
+        # Update mothership waypoints (respecting pre-existing portion as fixed)
+        ms_route = update_mothership_waypoints(
             problem,
             cluster_centroids_df,
             disturb_clust_idx,
             ms_route,
-            getfield.(clusters[clust_seq][1:disturb_clust_idx-1], :id)
         )
         clust_seq = _extract_clust_seq(ms_route, clusters)
 
