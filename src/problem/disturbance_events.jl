@@ -133,12 +133,20 @@ function _apply_disturbance_events!(
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
 
+    # Declare local problem variables
+    depot::Point{2,Float64} = problem.depot
+    tender_exclusions::POLY_VEC = problem.tenders.exclusion.geometry
+    no_tenders::Int8 = problem.tenders.number
+    tender_capacity::Int16 = problem.tenders.capacity
+    disturbance_gdf::DataFrame = problem.targets.disturbance_gdf
+
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
         cluster_id = clust_seq[disturb_clust_idx]
         cluster_letter = generate_letter_id(cluster_id)
+        current_location::Point{2,Float64} = ms_route.route.nodes[2*disturb_clust_idx-1]
         info_log && @info """Disturbance event #$disturb_idx at
-        \t$(ms_route.route.nodes[2*disturb_clust_idx-1])
+        \t$(current_location)
         \tbefore $(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)"""
 
         # Update clusters based on the impact of disturbance event on future points/clusters
@@ -146,9 +154,9 @@ function _apply_disturbance_events!(
             clusters[clust_seq][1:disturb_clust_idx-1],
             disturb_clusters(
                 clusters[clust_seq][disturb_clust_idx:end],
-                problem.targets.disturbance_gdf,
-                ms_route.route.nodes[2*disturb_clust_idx-1],
-                problem.tenders.exclusion.geometry,
+                disturbance_gdf,
+                current_location,
+                tender_exclusions,
                 total_tender_capacity;
                 rng,
             )
@@ -165,20 +173,16 @@ function _apply_disturbance_events!(
         end
 
         # Re-generate the cluster centroids to route mothership
-        cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
+        cluster_centroids_df = generate_cluster_df(clusters, depot)
 
-        # Re-route mothership (respecting pre-existing portion as fixed)
-        ms_route = optimize_mothership_route(
+        # Update mothership waypoints (respecting pre-existing portion as fixed)
+        ms_route = update_mothership_waypoints(
             problem,
             cluster_centroids_df,
             disturb_clust_idx,
             ms_route,
-            getfield.(clusters[clust_seq][1:disturb_clust_idx-1], :id)
         )
-        clust_seq = filter(
-            c -> c != 0 && c <= length(clusters),
-            ms_route.cluster_sequence.id
-        )
+        clust_seq = _extract_clust_seq(ms_route, clusters)
 
         # Update tender solutions (reuse before the disturbance, recompute at/after)
         current_tender_soln = Vector{TenderSolution}(undef, length(clust_seq))
@@ -186,14 +190,19 @@ function _apply_disturbance_events!(
         # Generate tender solutions for the current disturbance cluster set
         for j in 1:length(clust_seq)
             if j < disturb_clust_idx
-                current_tender_soln[j] = tender_soln_sets[disturb_idx][j]
+                current_tender_soln[j] = _reconcile_tender(
+                    tender_soln_sets[disturb_idx][j],
+                    ms_route.route.nodes[2j],
+                    ms_route.route.nodes[2j+1],
+                    tender_exclusions
+                )
             else
                 current_tender_soln[j] = tender_sequential_nearest_neighbour(
                     clusters[clust_seq][j],
                     (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
-                    problem.tenders.number,
-                    problem.tenders.capacity,
-                    problem.tenders.exclusion.geometry
+                    no_tenders,
+                    tender_capacity,
+                    tender_exclusions
                 )
             end
         end
@@ -227,10 +236,7 @@ function _apply_disturbance_events!(
             ms_route = optimized_current_solution.mothership_routes[end]
             current_tender_soln = optimized_current_solution.tenders[end]
             # Update clust_seq in case that it has changed post-improvement
-            clust_seq = filter(
-                c -> c != 0 && c <= length(clusters),
-                ms_route.cluster_sequence.id
-            )
+            clust_seq = _extract_clust_seq(ms_route, clusters)
         end
 
         # Optimize mothership waypoints between disturbance events
@@ -264,4 +270,11 @@ function _apply_disturbance_events!(
     end
 
     return MSTSolution(cluster_sets, ms_soln_sets, tender_soln_sets)
+end
+
+function _extract_clust_seq(ms_route::MothershipSolution, clusters::Vector{Cluster})
+    return filter(
+        c -> c != 0 && c ∈ Set(getfield.(clusters, :id)),
+        ms_route.cluster_sequence.id
+    )
 end
