@@ -137,8 +137,9 @@ function _apply_disturbance_events!(
     for disturb_clust_idx ∈ ordered_disturbances
         cluster_id = clust_seq[disturb_clust_idx]
         cluster_letter = generate_letter_id(cluster_id)
+        current_location::Point{2,Float64} = ms_route.route.nodes[2*disturb_clust_idx-1]
         info_log && @info """Disturbance event #$disturb_idx at
-        \t$(ms_route.route.nodes[2*disturb_clust_idx-1])
+        \t$(current_location)
         \tbefore $(disturb_clust_idx)th cluster_id=$(cluster_letter)=$(cluster_id)"""
 
         # Update clusters based on the impact of disturbance event on future points/clusters
@@ -147,7 +148,7 @@ function _apply_disturbance_events!(
             disturb_clusters(
                 clusters[clust_seq][disturb_clust_idx:end],
                 problem.targets.disturbance_gdf,
-                ms_route.route.nodes[2*disturb_clust_idx-1],
+                current_location,
                 problem.tenders.exclusion.geometry,
                 total_tender_capacity;
                 rng,
