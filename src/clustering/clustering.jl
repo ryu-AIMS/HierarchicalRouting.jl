@@ -175,7 +175,8 @@ end
         total_tender_capacity::Int;
         rng::AbstractRNG,
         tol::Float64=0.01,
-        dist_weighting::Float64=2E-5
+        dist_weighting::Float64=2E-5,
+        k_d_upper_frac::Float64=0.4,
     )::DataFrame
 
 - Disturb remaining clusters by simulating a disturbance event to remove nodes.
@@ -190,7 +191,9 @@ end
 - `tol`: Tolerance for kmeans convergence.
 - `dist_weighting`: Weighting factor for the distances (in kms) to be stored in 3d array,
     compared against lat/lons.
-
+- `k_d_upper_frac`: The upper fractional limit of the number of unvisited points to bound
+    the random number of clusters to create for disturbance clustering.
+    E.g., 10 unvisited points with `k_d_upper_frac=0.4` gives a max 4 disturbance clusters.
 # Returns
 A DataFrame containing new disturbed clusters. Cluster ID assigned to each target location.
 """
@@ -202,7 +205,8 @@ function disturb_remaining_clusters(
     total_tender_capacity::Int;
     rng::AbstractRNG,
     tol::Float64=0.01,
-    dist_weighting::Float64=2E-5
+    dist_weighting::Float64=2E-5,
+    k_d_upper_frac::Float64=0.4,
 )::DataFrame
     n_sites::Int = size(unvisited_pts, 1) # number of target sites remaining
 
@@ -219,7 +223,7 @@ function disturb_remaining_clusters(
 
     # Create k_d clusters to create disturbance on subset
     k_d_lower = k + 1
-    k_d_upper = max(ceil(Int, n_sites / 2), k_d_lower)
+    k_d_upper = max(ceil(Int, k_d_upper_frac * n_sites), k_d_lower)
     k_d = rand(rng, k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
