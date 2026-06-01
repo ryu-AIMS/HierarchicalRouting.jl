@@ -133,6 +133,13 @@ function _apply_disturbance_events!(
     clusters::Vector{Cluster} = cluster_sets[disturb_idx]
     ms_route::MothershipSolution = ms_soln_sets[disturb_idx]
 
+    # Declare local problem variables
+    depot::Point{2,Float64} = problem.depot
+    tender_exclusions::POLY_VEC = problem.tenders.exclusion.geometry
+    no_tenders::Int8 = problem.tenders.number
+    tender_capacity::Int16 = problem.tenders.capacity
+    disturbance_gdf::DataFrame = problem.targets.disturbance_gdf
+
     # Iterate through each disturbance event and update solution
     for disturb_clust_idx ∈ ordered_disturbances
         cluster_id = clust_seq[disturb_clust_idx]
@@ -147,9 +154,9 @@ function _apply_disturbance_events!(
             clusters[clust_seq][1:disturb_clust_idx-1],
             disturb_clusters(
                 clusters[clust_seq][disturb_clust_idx:end],
-                problem.targets.disturbance_gdf,
+                disturbance_gdf,
                 current_location,
-                problem.tenders.exclusion.geometry,
+                tender_exclusions,
                 total_tender_capacity;
                 rng,
             )
@@ -166,7 +173,7 @@ function _apply_disturbance_events!(
         end
 
         # Re-generate the cluster centroids to route mothership
-        cluster_centroids_df = generate_cluster_df(clusters, problem.depot)
+        cluster_centroids_df = generate_cluster_df(clusters, depot)
 
         # Update mothership waypoints (respecting pre-existing portion as fixed)
         ms_route = update_mothership_waypoints(
@@ -188,9 +195,9 @@ function _apply_disturbance_events!(
                 current_tender_soln[j] = tender_sequential_nearest_neighbour(
                     clusters[clust_seq][j],
                     (ms_route.route.nodes[2j], ms_route.route.nodes[2j+1]),
-                    problem.tenders.number,
-                    problem.tenders.capacity,
-                    problem.tenders.exclusion.geometry
+                    no_tenders,
+                    tender_capacity,
+                    tender_exclusions
                 )
             end
         end
