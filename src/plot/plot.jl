@@ -18,7 +18,7 @@ using Rasters
 using Statistics
 
 using GeometryBasics
-using GLMakie, GeoMakie
+using CairoMakie, GeoMakie
 
 """
     clusters(
