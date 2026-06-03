@@ -251,6 +251,7 @@ function solve(
     # Simulate disturbance events
     total_tender_capacity::Int = Int(problem.tenders.number * problem.tenders.capacity)
     time_limit_pso_disturbed = Float64(time_limit / length(ordered_disturbances))
+    max_iterations_disturbed = max_iterations ÷ length(ordered_disturbances)
     solution = _apply_disturbance_events!(
         solution,
         clust_seq,
@@ -263,7 +264,7 @@ function solve(
         cooling_rate,
         min_iters,
         static_limit,
-        max_iterations,
+        max_iterations=max_iterations_disturbed,
         output_dir,
         info_log,
         sa_improve_plot_flag,
