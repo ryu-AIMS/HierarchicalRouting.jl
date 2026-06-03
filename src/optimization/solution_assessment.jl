@@ -141,6 +141,7 @@ end
     perturb_swap(
         soln::MSTSolution,
         clust_seq_idx::Int64,
+        rng::AbstractRNG,
         exclusions_tender::POLY_VEC=POLY_VEC();
         enforce_diff_sortie::Bool=false
     )::MSTSolution
@@ -148,6 +149,8 @@ end
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
         problem::Problem,
+        perturb_idxs::UnitRange{Int},
+        rng::AbstractRNG,
     )::MSTSolution
 
 Perturb the solution by swapping two nodes:
@@ -160,6 +163,7 @@ Perturb the solution by swapping two nodes:
 - `cluster_pair`: Tuple of two cluster sequence indices to swap nodes between.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
 - `exclusions_tender`: Exclusion zone polygons for tender. Default = DataFrame().
+- `rng`: Random number generator.
 - `enforce_diff_sortie`: Boolean flag to enforce different sorties for node swaps.
 
 # Returns
@@ -168,6 +172,7 @@ Perturbed full solution.
 function perturb_swap(
     soln::MSTSolution,
     clust_seq_idx::Int64,
+    rng::AbstractRNG=Random.GLOBAL_RNG,
     exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
@@ -182,8 +187,8 @@ function perturb_swap(
     # Choose two random sorties to swap nodes between
     # if enforce_diff_sortie is true: ensure different sorties are selected
     sortie_a_idx, sortie_b_idx = enforce_diff_sortie ?
-                                 shuffle(1:no_sorties)[1:2] :
-                                 rand(1:no_sorties, 2)
+                                 shuffle(rng, 1:no_sorties)[1:2] :
+                                 rand(rng, 1:no_sorties, 2)
 
     sortie_a, sortie_b = sorties[sortie_a_idx], sorties[sortie_b_idx]
 
@@ -200,8 +205,8 @@ function perturb_swap(
         node_a_idx, node_b_idx = sortie_length == 2 ? (1, 2) : shuffle(1:sortie_length)[1:2]
     else
         # Chose two random node indices from different sorties
-        node_a_idx = rand(1:length(sortie_a.nodes))
-        node_b_idx = rand(1:length(sortie_b.nodes))
+        node_a_idx = rand(rng, 1:length(sortie_a.nodes))
+        node_b_idx = rand(rng, 1:length(sortie_b.nodes))
     end
 
     # Swap the nodes between the two sorties
@@ -226,6 +231,7 @@ function perturb_swap(
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
     perturb_idxs::UnitRange{Int},
+    rng::AbstractRNG,
 )::MSTSolution
     #! CROSS-CLUSTER SWAP
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
@@ -234,8 +240,8 @@ function perturb_swap(
     tender_b::TenderSolution = soln.tenders[end][clust_b_seq_idx]
 
     # Pick random sorties and ensure both have nodes
-    sortie_a_idx = rand(eachindex(tender_a.sorties))
-    sortie_b_idx = rand(eachindex(tender_b.sorties))
+    sortie_a_idx = rand(rng, eachindex(tender_a.sorties))
+    sortie_b_idx = rand(rng, eachindex(tender_b.sorties))
 
     # Ensure chosen sorties not empty
     (isempty(tender_a.sorties[sortie_a_idx].nodes) ||
@@ -246,7 +252,7 @@ function perturb_swap(
     sortie_b_nodes = copy(tender_b.sorties[sortie_b_idx].nodes)
 
     # Pick two random nodes across the two sorties
-    node_a_idx, node_b_idx = rand(1:length(sortie_a_nodes)), rand(1:length(sortie_b_nodes))
+    node_a_idx, node_b_idx = rand(rng, 1:length(sortie_a_nodes)), rand(rng, 1:length(sortie_b_nodes))
     node_a, node_b = sortie_a_nodes[node_a_idx], sortie_b_nodes[node_b_idx]
 
     # Swap the nodes between the two sorties
@@ -317,6 +323,7 @@ end
 
 function _any_feasible_sortie(
     sorties::Vector{Route},
+    rng::AbstractRNG,
 )::Tuple{Int,Vector{Point{2,Float64}}}
     sortie_lengths = length.(getfield.(sorties, :nodes))
 
@@ -325,7 +332,7 @@ function _any_feasible_sortie(
     isempty(feasible_sorties) && return 0, Vector{Point{2,Float64}}()
 
     # Return a random feasible sortie
-    sortie_idx = rand(feasible_sorties)
+    sortie_idx = rand(rng, feasible_sorties)
     sortie_nodes = copy(sorties[sortie_idx].nodes)
     return sortie_idx, sortie_nodes
 end
@@ -333,12 +340,13 @@ end
 """ Moves a random node from source to destination node list for perturb_move."""
 function _move_node!(
     source_nodes::Vector{Point{2,Float64}},
-    dest_nodes::Vector{Point{2,Float64}}
+    dest_nodes::Vector{Point{2,Float64}},
+    rng::AbstractRNG,
 )::Point{2,Float64}
-    node_idx = rand(1:length(source_nodes))
+    node_idx = rand(rng, 1:length(source_nodes))
     node = source_nodes[node_idx]
     deleteat!(source_nodes, node_idx)
-    insert_pos = rand(1:(length(dest_nodes)+1))
+    insert_pos = rand(rng, 1:(length(dest_nodes)+1))
     insert!(dest_nodes, insert_pos, node)
     return node
 end
@@ -348,11 +356,13 @@ end
         soln::MSTSolution,
         clust_seq_idx::Int64,
         problem::Problem,
+        rng::AbstractRNG,
     )::MSTSolution
     perturb_move(
         soln::MSTSolution,
         cluster_pair::Tuple{Int,Int},
         problem::Problem,
+        rng::AbstractRNG,
     )::MSTSolution
 
 Perturb the solution by moving a single node from one sortie to another:
@@ -364,6 +374,7 @@ Perturb the solution by moving a single node from one sortie to another:
 - `clust_seq_idx`: Sequence index of cluster to perturb.
 - `cluster_pair`: Tuple of two cluster sequence indices to move a node between.
 - `problem`: Problem instance used to access exclusion zones and other problem parameters.
+- `rng`: Random number generator.
 
 # Returns
 Perturbed full solution.
@@ -372,6 +383,7 @@ function perturb_move(
     soln::MSTSolution,
     clust_seq_idx::Int64,
     problem::Problem,
+    rng::AbstractRNG,
 )::MSTSolution
     #! WITHIN CLUSTER MOVE
     exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
@@ -384,19 +396,19 @@ function perturb_move(
     no_sorties < 2 && return soln
 
     # Choose a random feasible (2+ nodes) sortie, and get its nodes
-    source_idx, source_nodes = _any_feasible_sortie(sorties)
+    source_idx, source_nodes = _any_feasible_sortie(sorties, rng)
 
     # If no feasible sortie found, exit
     source_idx == 0 && return soln
 
-    dest_idx::Int = rand(setdiff(1:no_sorties, source_idx))
+    dest_idx::Int = rand(rng, setdiff(1:no_sorties, source_idx))
     dest_nodes = copy(sorties[dest_idx].nodes)
 
     # Reject move if destination sortie is already at capacity
     length(dest_nodes) >= problem.tenders.capacity && return soln
 
     # Remove a random node from source, insert at random position in destination
-    _move_node!(source_nodes, dest_nodes)
+    _move_node!(source_nodes, dest_nodes, rng)
 
     return _finalise_within_cluster_soln(
         soln,
@@ -415,6 +427,7 @@ function perturb_move(
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
     perturb_idxs::UnitRange{Int},
+    rng::AbstractRNG,
 )::MSTSolution
     #! CROSS-CLUSTER MOVE
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
@@ -424,20 +437,20 @@ function perturb_move(
 
     # Choose a random feasible (2+ nodes) sortie, and get its nodes
     source_sortie_idx, source_nodes = _any_feasible_sortie(
-        tender_a.sorties,
+        tender_a.sorties, rng
     )
 
     # If no feasible sortie found, exit
     source_sortie_idx == 0 && return soln
 
-    dest_sortie_idx::Int = rand(eachindex(tender_b.sorties))
+    dest_sortie_idx::Int = rand(rng, eachindex(tender_b.sorties))
     dest_nodes = copy(tender_b.sorties[dest_sortie_idx].nodes)
 
     # Reject move if destination sortie is already at capacity
     length(dest_nodes) >= problem.tenders.capacity && return soln
 
     # Remove a random node from source, insert at random position in destination
-    node::Point{2,Float64} = _move_node!(source_nodes, dest_nodes)
+    node::Point{2,Float64} = _move_node!(source_nodes, dest_nodes, rng)
 
     # Update cluster membership
     new_clusters::Vector{Cluster} = copy(soln.cluster_sets[end])
@@ -585,7 +598,8 @@ end
         temp_init::Float64,
         cooling_rate::Float64,
         min_iters::Int,
-        static_limit::Int;
+        static_limit::Int,
+        rng::AbstractRNG;
         perturb_idxs::UnitRange{Int}=1:length(soln_init.cluster_sets[end]),
         output_dir::String="",
         info_log::Bool,
@@ -603,6 +617,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
 - `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
+- `rng`: Random number generator for reproducibility.
 - `perturb_idxs`: Range of cluster sequence indices to consider for perturbations.
 - `output_dir::String`: Path to output directory. If empty, do not save outputs.
 - `info_log::Bool`: Flag to switch info statement logging
@@ -620,7 +635,8 @@ function simulated_annealing(
     temp_init::Float64,
     cooling_rate::Float64,
     min_iters::Int,
-    static_limit::Int;
+    static_limit::Int,
+    rng::AbstractRNG;
     perturb_idxs::UnitRange{Int}=1:length(soln_init.cluster_sets[end]),
     output_dir::String="",
     info_log::Bool,
@@ -675,33 +691,39 @@ function simulated_annealing(
     info_log && @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
 
     for iteration in 1:max_iterations
-        shuffled_clusters = shuffle(perturb_idxs)
+        shuffled_clusters = shuffle(rng, perturb_idxs)
         clust_idx = shuffled_clusters[1]
         clust_alt_idx = 0
 
-        if rand() < 0.5
+        if rand(rng) < 0.5
             # SUB-cluster perturbation
             # Swap/move within the same cluster @ 50/50
-            if rand() < 0.5
+            if rand(rng) < 0.5
                 # Swap 2 nodes across sorties within the same cluster
-                soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
+                soln_proposed = perturb_swap(
+                    soln_current,
+                    clust_idx,
+                    rng,
+                    exclusions_tender,
+                )
                 perturbation_type = :SWAP
             else
                 # Move a node across sorties within the same cluster
-                soln_proposed = perturb_move(soln_current, clust_idx, problem)
+                soln_proposed = perturb_move(soln_current, clust_idx, problem, rng)
                 perturbation_type = :MOVE
             end
         elseif no_clusts >= 2
             # CROSS-cluster perturbation
             clust_alt_idx = shuffled_clusters[2]
 
-            if rand() < 0.5
+            if rand(rng) < 0.5
                 # Swap 2 nodes between a sortie in one cluster to another
                 soln_proposed = perturb_swap(
                     soln_current,
                     (clust_idx, clust_alt_idx),
                     problem,
-                    perturb_idxs
+                    perturb_idxs,
+                    rng,
                 )
                 perturbation_type = :SWAP
             else
@@ -710,13 +732,14 @@ function simulated_annealing(
                     soln_current,
                     (clust_idx, clust_alt_idx),
                     problem,
-                    perturb_idxs
+                    perturb_idxs,
+                    rng
                 )
                 perturbation_type = :MOVE
             end
         else
             # Only 1 cluster — fall back to within-cluster swap
-            soln_proposed = perturb_swap(soln_current, clust_idx, exclusions_tender)
+            soln_proposed = perturb_swap(soln_current, clust_idx, rng, exclusions_tender)
             perturbation_type = :SWAP
         end
 
@@ -733,7 +756,7 @@ function simulated_annealing(
                              "$clust_idx -> $clust_alt_idx"
 
         # If the new solution is improved OR meets acceptance prob criteria
-        if Δ < 0 || rand() < exp(-Δ / temp)
+        if Δ < 0 || rand(rng) < exp(-Δ / temp)
             soln_current = soln_proposed
             total_dist_current = obj_proposed == obj_current ?
                                  total_dist_proposed :

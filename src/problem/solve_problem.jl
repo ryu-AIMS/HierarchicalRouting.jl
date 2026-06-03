@@ -104,7 +104,7 @@ Best total MSTSolution found
 function solve(
     problem::Problem;
     seed::Union{Nothing,Int64}=nothing,
-    rng::AbstractRNG=Random.GLOBAL_RNG,
+    rng::Union{Nothing,AbstractRNG}=nothing,
     k::Int=1,
     cluster_iterations::Int=1000,
     cluster_restarts::Int=20,
@@ -123,7 +123,8 @@ function solve(
     sa_improve_plot_flag::Bool=true,
     output_dir::String="",
 )::MSTSolution
-    !isnothing(seed) && Random.seed!(rng, seed)
+    rng = !isnothing(seed) ? Random.MersenneTwister(seed) :
+          (!isnothing(rng) ? rng : Random.GLOBAL_RNG)
     output_to_file::Bool = output_dir == "" ? false : true
 
     if output_to_file
@@ -198,7 +199,8 @@ function solve(
             max_iterations,
             output_dir,
             info_log,
-            sa_improve_plot_flag
+            sa_improve_plot_flag,
+            rng,
         )
 
         # Update cluster sequence after improvement
@@ -381,6 +383,7 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int,
+        rng::AbstractRNG,
         max_iterations::Int=typemax(Int),
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
@@ -395,6 +398,7 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int,
+        rng::AbstractRNG,
         max_iterations::Int=typemax(Int),
         opt_function::Function=simulated_annealing,
         objective_function::Function=critical_path,
@@ -437,6 +441,7 @@ function improve_solution(
     cooling_rate::Float64,
     min_iters::Int,
     static_limit::Int,
+    rng::AbstractRNG,
     max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
@@ -461,7 +466,8 @@ function improve_solution(
         temp_init,
         cooling_rate,
         min_iters,
-        static_limit;
+        static_limit,
+        rng;
         perturb_idxs=current_cluster_idx:(next_cluster_idx-1),
         output_dir,
         info_log,
@@ -522,6 +528,7 @@ function improve_solution(
     cooling_rate::Float64,
     min_iters::Int,
     static_limit::Int,
+    rng::AbstractRNG,
     max_iterations::Int=typemax(Int),
     opt_function::Function=simulated_annealing,
     objective_function::Function=critical_path,
@@ -546,7 +553,8 @@ function improve_solution(
         static_limit,
         output_dir,
         info_log,
-        sa_improve_plot_flag
+        sa_improve_plot_flag,
+        rng,
     )
 end
 
