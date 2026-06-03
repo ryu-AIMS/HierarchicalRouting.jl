@@ -6,7 +6,7 @@
         disturbance_clusters::Set{Int64}=Set{Int64}(),
         waypoint_optim_method=nothing,
         seed::Union{Nothing,Int64}=nothing,
-        rng::AbstractRNG=Random.GLOBAL_RNG,
+        rng::Union{Nothing,AbstractRNG}=nothing,
     )::MSTSolution
 
 Generate an initial solution to the problem for:
@@ -32,7 +32,7 @@ function initial_solution(
     disturbance_clusters::Set{Int64}=Set{Int64}(),
     waypoint_optim_method=nothing,
     seed::Union{Nothing,Int64}=nothing,
-    rng::AbstractRNG=Random.GLOBAL_RNG,
+    rng::Union{Nothing,AbstractRNG}=nothing,
 )::MSTSolution
     return solve(
         problem;
