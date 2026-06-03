@@ -23,23 +23,17 @@ end
 
 """ Resolve new waypoints for tenders affected by a cross-cluster perturbation. """
 function _resolve_tender_endpoints(
-    updated_waypoints::DataFrame,
+    ms_nodes::Vector{Point{2,Float64}},
+    connecting_clusters::Vector{NTuple{2,Int64}},
     cluster_a_idx::Int,
     cluster_b_idx::Int
 )::NTuple{4,Point}
-    # Identify new start/finish waypoints for the two modified tenders
-    cc::Vector{NTuple{2,Int64}} = updated_waypoints.connecting_clusters
-    cc_first::Vector{Int64}, cc_last::Vector{Int64} = first.(cc), last.(cc)
+    cc_first, cc_last = first.(connecting_clusters), last.(connecting_clusters)
 
-    tender_a_new_start_idx::Int = findlast(cc_last .== cluster_a_idx)
-    tender_a_new_finish_idx::Int = findfirst(cc_first .== cluster_a_idx)
-    tender_b_new_start_idx::Int = findlast(cc_last .== cluster_b_idx)
-    tender_b_new_finish_idx::Int = findfirst(cc_first .== cluster_b_idx)
-
-    tender_a_new_start = updated_waypoints.waypoint[tender_a_new_start_idx]
-    tender_a_new_finish = updated_waypoints.waypoint[tender_a_new_finish_idx]
-    tender_b_new_start = updated_waypoints.waypoint[tender_b_new_start_idx]
-    tender_b_new_finish = updated_waypoints.waypoint[tender_b_new_finish_idx]
+    tender_a_new_start = ms_nodes[findlast(cc_last .== cluster_a_idx)]
+    tender_a_new_finish = ms_nodes[findfirst(cc_first .== cluster_a_idx)]
+    tender_b_new_start = ms_nodes[findlast(cc_last .== cluster_b_idx)]
+    tender_b_new_finish = ms_nodes[findfirst(cc_first .== cluster_b_idx)]
 
     return tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish
 end
@@ -48,13 +42,23 @@ end
 function _rebuild_mothership_solution(
     soln,
     new_clusters,
-    exclusions
+    exclusions,
+    perturb_idxs::UnitRange{Int}
 )::Tuple{DataFrame,MothershipSolution}
-    # Update mothership route and waypoints based on updated clusters
-    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
-    cluster_seq_ids::Vector{Int64} = getfield.(soln.tenders[end], :id)
-    centroid_map::Dict = Dict(c.id => c.centroid for c in new_clusters)
+    # Use FULL cluster sequence from existing MS route
+    existing_seq = soln.mothership_routes[end].cluster_sequence
+    cluster_seq_ids = filter(!=(0), existing_seq.id)
+
+    # Merge existing centroids as base, new_clusters to override modified ones
+    existing_centroid_map = Dict(
+        row.id => Point{2,Float64}(row.lon, row.lat)
+        for row in eachrow(existing_seq) if row.id != 0
+    )
+    updated_centroid_map = Dict(c.id => c.centroid for c in new_clusters)
+    centroid_map = merge(existing_centroid_map, updated_centroid_map)
+
     ordered_centroids = [centroid_map[id] for id in cluster_seq_ids]
+    depot::Point{2,Float64} = soln.mothership_routes[end].route.nodes[1]
     full_pts = [[depot]; ordered_centroids; [depot]]
     cluster_sequence = DataFrame(
         id=[0; cluster_seq_ids; 0],
@@ -64,15 +68,24 @@ function _rebuild_mothership_solution(
 
     updated_waypoints::DataFrame = get_waypoints(cluster_sequence, exclusions)
 
+    n_fixed = 2 * (first(perturb_idxs) - 1) + 1  # depot + 2 per visited cluster
+
+    final_waypoints::Vector{Point{2,Float64}} = updated_waypoints.waypoint
+    if n_fixed > 1
+        final_waypoints = vcat(
+            soln.mothership_routes[end].route.nodes[1:n_fixed],
+            updated_waypoints.waypoint[n_fixed+1:end]
+        )
+    end
     waypoint_dist_vector, waypoint_path_vector = get_feasible_vector(
-        updated_waypoints.waypoint,
+        final_waypoints,
         exclusions
     )
 
     updated_ms_solution = MothershipSolution(
         cluster_sequence,
         Route(
-            updated_waypoints.waypoint,
+            final_waypoints,
             waypoint_dist_vector,
             vcat(waypoint_path_vector...)
         )
@@ -212,6 +225,7 @@ function perturb_swap(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
+    perturb_idxs::UnitRange{Int},
 )::MSTSolution
     #! CROSS-CLUSTER SWAP
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
@@ -283,7 +297,8 @@ function perturb_swap(
         sortie_a_nodes,
         sortie_b_nodes,
         sortie_a_idx,
-        sortie_b_idx
+        sortie_b_idx,
+        perturb_idxs,
     )
 end
 
@@ -399,6 +414,7 @@ function perturb_move(
     soln::MSTSolution,
     cluster_pair::Tuple{Int,Int},
     problem::Problem,
+    perturb_idxs::UnitRange{Int},
 )::MSTSolution
     #! CROSS-CLUSTER MOVE
     clust_a_seq_idx, clust_b_seq_idx = cluster_pair
@@ -458,7 +474,8 @@ function perturb_move(
         source_nodes,
         dest_nodes,
         source_sortie_idx,
-        dest_sortie_idx
+        dest_sortie_idx,
+        perturb_idxs,
     )
 end
 
@@ -478,22 +495,34 @@ function _apply_cross_cluster_perturbation(
     nodes_b::Vector{Point{2,Float64}},
     sortie_a_idx::Int,
     sortie_b_idx::Int,
+    perturb_idxs::UnitRange{Int}
 )::MSTSolution
     exclusions_tender = problem.tenders.exclusion.geometry
     exclusions_all = vcat(problem.mothership.exclusion.geometry, exclusions_tender)
 
     updated_waypoints, updated_ms_solution = _rebuild_mothership_solution(
-        soln, new_clusters, exclusions_all
+        soln, new_clusters, exclusions_all, perturb_idxs
+    )
+
+    tender_ids = getfield.(soln.tenders[end], :id)
+    cc = updated_waypoints.connecting_clusters
+    ms_nodes = updated_ms_solution.route.nodes
+    partial_waypoints = vcat(
+        [ms_nodes[1]],
+        [[ms_nodes[findlast(last.(cc) .== id)],
+            ms_nodes[findfirst(first.(cc) .== id)]]
+         for id in tender_ids]...,
+        [ms_nodes[end]]
     )
 
     tenders_all = generate_tender_sorties(
         MSTSolution([new_clusters], [updated_ms_solution], [soln.tenders[end]]),
-        updated_waypoints.waypoint,
+        partial_waypoints,
         exclusions_tender
     )
 
     tender_a_new_start, tender_a_new_finish, tender_b_new_start, tender_b_new_finish =
-        _resolve_tender_endpoints(updated_waypoints, cluster_a_idx, cluster_b_idx)
+        _resolve_tender_endpoints(ms_nodes, updated_waypoints.connecting_clusters, cluster_a_idx, cluster_b_idx)
 
     tenders_a_new, tenders_b_new = _finalise_cross_cluster_tenders(
         copy(tenders_all[clust_a_seq_idx].sorties),
@@ -557,6 +586,7 @@ end
         cooling_rate::Float64,
         min_iters::Int,
         static_limit::Int;
+        perturb_idxs::UnitRange{Int}=1:length(soln_init.cluster_sets[end]),
         output_dir::String="",
         info_log::Bool,
         plot_flag::Bool,
@@ -573,6 +603,7 @@ Simulated Annealing optimization algorithm to optimize the solution.
 - `cooling_rate`: Rate of cooling to guide acceptance probability for SA algorithm.
 - `min_iters`: Minimum number of iterations to perform before allowing early exit.
 - `static_limit`: Number of iterations to allow stagnation before early exit.
+- `perturb_idxs`: Range of cluster sequence indices to consider for perturbations.
 - `output_dir::String`: Path to output directory. If empty, do not save outputs.
 - `info_log::Bool`: Flag to switch info statement logging
 - `plot_flag`: Flag to plot solution progress for debugging/visualization
@@ -590,6 +621,7 @@ function simulated_annealing(
     cooling_rate::Float64,
     min_iters::Int,
     static_limit::Int;
+    perturb_idxs::UnitRange{Int}=1:length(soln_init.cluster_sets[end]),
     output_dir::String="",
     info_log::Bool,
     plot_flag::Bool,
@@ -622,8 +654,7 @@ function simulated_annealing(
     total_dist_proposed::Float64 = total_dist_current
     total_dist_best::Float64 = total_dist_current
 
-    cluster_set::Vector{Cluster} = soln_init.cluster_sets[end]
-    no_clusts::Int = length(cluster_set)
+    no_clusts::Int = length(perturb_idxs)
 
     # Initialize current solution as best, reset temp
     temp::Float64 = temp_init
@@ -644,7 +675,7 @@ function simulated_annealing(
     info_log && @info "Iter\t| Perturbation\t| Best\t\t| Current\t| Proposed\t| Temp\t"
 
     for iteration in 1:max_iterations
-        shuffled_clusters = shuffle(1:no_clusts)
+        shuffled_clusters = shuffle(perturb_idxs)
         clust_idx = shuffled_clusters[1]
         clust_alt_idx = 0
 
@@ -669,7 +700,8 @@ function simulated_annealing(
                 soln_proposed = perturb_swap(
                     soln_current,
                     (clust_idx, clust_alt_idx),
-                    problem
+                    problem,
+                    perturb_idxs
                 )
                 perturbation_type = :SWAP
             else
@@ -677,7 +709,8 @@ function simulated_annealing(
                 soln_proposed = perturb_move(
                     soln_current,
                     (clust_idx, clust_alt_idx),
-                    problem
+                    problem,
+                    perturb_idxs
                 )
                 perturbation_type = :MOVE
             end
@@ -743,6 +776,7 @@ function simulated_annealing(
     )
     plot_flag && display(fig_trace)
     !isempty(output_dir) && CairoMakie.save("$output_dir/2_sa_trace.png", fig_trace)
-    info_log && @info "Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)"
+    info_log && @info ("Final Value:\t$obj_best\nΔ: $(obj_init - obj_best)\n" *
+                       "Iterations: $(trace_iters[end])")
     return soln_best, obj_best
 end

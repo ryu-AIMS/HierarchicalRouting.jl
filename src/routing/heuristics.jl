@@ -262,18 +262,17 @@ function two_opt(
 )::MothershipSolution
     cluster_centroids = ms_soln_current.cluster_sequence
 
-    ordered_centroids = sort(cluster_centroids[1:end-1, :], :id)  # drop last row
+    # Drop trailing depot duplicate if present
+    if cluster_centroids.id[1] == cluster_centroids.id[end]
+        cluster_centroids = cluster_centroids[1:end-1, :]
+    end
+    ordered_centroids = sort(cluster_centroids, :id)
     centroid_nodes = Point{2,Float64}.(ordered_centroids.lon, ordered_centroids.lat)
     push!(centroid_nodes, first(centroid_nodes))  # return to depot
 
     dist_matrix::Matrix{Float64} = get_feasible_matrix(
         centroid_nodes, exclusions_mothership
     )[1]
-
-    # If depot is last row, remove
-    if cluster_centroids.id[1] == cluster_centroids.id[end]
-        cluster_centroids = cluster_centroids[1:end-1, :]
-    end
 
     # Initialize route as ordered waypoints
     initial_route = cluster_centroids.id .+ 1

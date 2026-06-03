@@ -168,28 +168,21 @@ end
 
 """
     disturb_remaining_clusters(
-        raster::Raster{Float64,2},
-        k::Int8,
-        current_location::Point{2,Float64},
-        exclusions::POLY_VEC;
-        tol::Float64=0.01,
-        dist_weighting::Float64=2E-5
-    )::Raster{Int64,2}
-    disturb_remaining_clusters(
         unvisited_pts::DataFrame,
         k::Int8,
         current_location::Point{2,Float64},
         exclusions::POLY_VEC,
         total_tender_capacity::Int;
+        rng::AbstractRNG,
         tol::Float64=0.01,
-        dist_weighting::Float64=2E-5
+        dist_weighting::Float64=2E-5,
+        k_d_upper_frac::Float64=0.4,
     )::DataFrame
 
 - Disturb remaining clusters by simulating a disturbance event to remove nodes.
 - Re-cluster the remaining nodes into `k` clusters.
 
 # Arguments
-- `raster`: Raster containing the target geometries.
 - `unvisited_pts`: DataFrame containing the disturbance values for each node.
 - `k`: Number of clusters to create.
 - `current_location`: Current location of the mothership.
@@ -198,115 +191,22 @@ end
 - `tol`: Tolerance for kmeans convergence.
 - `dist_weighting`: Weighting factor for the distances (in kms) to be stored in 3d array,
     compared against lat/lons.
-
+- `k_d_upper_frac`: The upper fractional limit of the number of unvisited points to bound
+    the random number of clusters to create for disturbance clustering.
+    E.g., 10 unvisited points with `k_d_upper_frac=0.4` gives a max 4 disturbance clusters.
 # Returns
-A raster/DataFrame containing new, disturbed clusters. Cluster ID is assigned to each target
-    location.
+A DataFrame containing new disturbed clusters. Cluster ID assigned to each target location.
 """
-function disturb_remaining_clusters(
-    raster::Raster{Float64,2},
-    k::Int8,
-    current_location::Point{2,Float64},
-    exclusions::POLY_VEC;
-    tol::Float64=0.01,
-    dist_weighting::Float64=2E-5
-)::Raster{Int64,2}
-    # TODO: Split this function into two separate functions, it does more than original fn
-    #! 1st: 3D clustering to generate disturbance clusters,
-    #! 2nd: 3D clustering to generate target clusters (as above)
-    indices::Vector{CartesianIndex{2}} = findall(!=(raster.missingval), raster)
-    n_sites::Int = length(indices) # number of target sites remaining
-
-    if n_sites <= k
-        @warn "No disturbance, as (deployment targets <= clusters required)"
-        empty_raster = similar(raster, Int64, missingval=0)
-        empty_raster .= empty_raster.missingval
-        return empty_raster
-    end
-
-    # 3D coordinate matrix for disturbance clustering
-    coordinates_array_3d = Matrix{Float64}(undef, 3, n_sites)
-    coordinates_array_3d[1, :] .= raster.dims[1][getindex.(indices, 1)]
-    coordinates_array_3d[2, :] .= raster.dims[2][getindex.(indices, 2)]
-    coordinates_array_3d[3, :] .= raster[indices]
-
-    # Create k_d clusters to create disturbance on subset
-    k_d_lower = min(n_sites, k + 1)
-    k_d_upper = n_sites
-    k_d = rand(k_d_lower:k_d_upper)
-
-    disturbance_clusters = kmeans(coordinates_array_3d, k_d; tol=tol)
-
-    # Create a score based on the disturbance values for each cluster
-    disturbance_scores = Vector{Float64}(undef, n_sites)
-    # Calculate the mean disturbance value for each cluster with stochastic perturbation
-    w = 1.0 # weight for the environmental disturbance value
-    t = 1.0 # perturbation weighting factor
-    cluster_disturbance_vals =
-        w * [
-            mean(coordinates_array_3d[3, disturbance_clusters.assignments.==i])
-            for i in 1:k_d
-        ] .+
-        t * 2 .* rand(k_d) .- 1
-    # Assign the disturbance value to every node in the cluster
-    disturbance_scores .= cluster_disturbance_vals[disturbance_clusters.assignments]
-
-    # remove nodes in the cluster with the highest disturbance score
-    max_disturbance_score = maximum(disturbance_scores)
-    surviving_mask = disturbance_scores .!= max_disturbance_score
-
-    coordinates_array_2d_disturbed = coordinates_array_3d[1:2, surviving_mask]
-    indices = indices[surviving_mask]
-    n_sites = length(indices) # update number of target sites remaining
-
-    if k > n_sites
-        #! Too many nodes/clusters removed! Change threshold,
-        #! or use a different method e.g. remove cluster with highest scores
-        error(
-            "Too many nodes removed!\n$(n_sites) remaining node/s, $k clusters required."
-        )
-    end
-
-    remaining_pts = Point{2,Float64}.(
-        coordinates_array_2d_disturbed[1, :],
-        coordinates_array_2d_disturbed[2, :]
-    )
-
-    # Fill vector with feasible distance from depot to each target site
-    dist_vector = get_feasible_distances(
-        current_location,
-        remaining_pts,
-        exclusions
-    )
-
-    # Filter out infeasible points using infeasible_point_indxs
-    feasible_idxs = findall(x -> x != Inf, dist_vector)
-    coordinates_array_2d_disturbed = coordinates_array_2d_disturbed[:, feasible_idxs]
-    filtered_dists = dist_weighting .* dist_vector[feasible_idxs]
-
-    coordinates_array_3d_disturbed = [coordinates_array_2d_disturbed; filtered_dists']
-
-    #re-cluster the remaining nodes into k clusters
-    clustering = kmeans(
-        coordinates_array_3d_disturbed,
-        k;
-        tol=tol
-    )
-
-    clustered_targets = similar(raster, Int64, missingval=0)
-    clustered_targets .= clustered_targets.missingval
-    clustered_targets[indices[feasible_idxs]] .= clustering.assignments
-
-    return clustered_targets
-end
 function disturb_remaining_clusters(
     unvisited_pts::DataFrame,
     k::Int,
     current_location::Point{2,Float64},
     exclusions::POLY_VEC,
     total_tender_capacity::Int;
+    rng::AbstractRNG,
     tol::Float64=0.01,
-    dist_weighting::Float64=2E-5
+    dist_weighting::Float64=2E-5,
+    k_d_upper_frac::Float64=0.4,
 )::DataFrame
     n_sites::Int = size(unvisited_pts, 1) # number of target sites remaining
 
@@ -323,8 +223,8 @@ function disturb_remaining_clusters(
 
     # Create k_d clusters to create disturbance on subset
     k_d_lower = k + 1
-    k_d_upper = max(ceil(Int, n_sites / 2), k_d_lower)
-    k_d = rand(k_d_lower:k_d_upper)
+    k_d_upper = max(ceil(Int, k_d_upper_frac * n_sites), k_d_lower)
+    k_d = rand(rng, k_d_lower:k_d_upper)
 
     disturbance_clusters = kmeans(
         coordinates_3d,

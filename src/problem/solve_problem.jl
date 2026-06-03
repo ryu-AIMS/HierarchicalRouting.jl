@@ -256,6 +256,7 @@ function solve(
         problem,
         total_tender_capacity,
         time_limit_pso_disturbed;
+        rng,
         temp_init,
         cooling_rate,
         min_iters,
@@ -277,13 +278,6 @@ end
         problem::Problem,
         cluster_centroids_df::DataFrame
     )::MothershipSolution
-    optimize_mothership_route(
-        problem::Problem,
-        cluster_centroids_df::DataFrame,
-        cluster_seq_idx::Int64,
-        ms_route::MothershipSolution,
-        cluster_ids_visited::Vector{Int64}
-    )::MothershipSolution
 
 Generate an optimized mothership route using the nearest neighbour heuristic and 2-opt for:
 - the whole mothership route to/from the depot, or
@@ -292,9 +286,6 @@ Generate an optimized mothership route using the nearest neighbour heuristic and
 # Arguments
 - `problem`: Problem instance to solve
 - `cluster_centroids_df`: DataFrame containing cluster centroids
-- `cluster_seq_idx`: Index of the cluster sequence
-- `ms_route`: Current mothership route
-- `cluster_ids_visited`: Vector of cluster IDs that have been visited
 
 # Returns
 - The optimized mothership route as a `MothershipSolution` object.
@@ -318,39 +309,66 @@ function optimize_mothership_route(
     )
     return ms_soln_2opt
 end
-function optimize_mothership_route(
+
+"""
+    update_mothership_waypoints(
+        problem::Problem,
+        cluster_centroids_df::DataFrame,
+        disturb_clust_idx::Int64,
+        ms_route::MothershipSolution,
+    )::MothershipSolution
+
+Update unvisited mothership waypoints after a disturbance event, wrt fixed visited segment.
+
+# Arguments
+- `problem`: Problem instance to solve
+- `cluster_centroids_df`: DataFrame containing cluster centroids
+- `disturb_clust_idx`: Index of the disturbance cluster
+- `ms_route`: Current mothership route
+
+# Returns
+- The updated mothership route as a `MothershipSolution` object.
+"""
+function update_mothership_waypoints(
     problem::Problem,
     cluster_centroids_df::DataFrame,
-    cluster_seq_idx::Int64,
+    disturb_clust_idx::Int64,
     ms_route::MothershipSolution,
-    cluster_ids_visited::Vector{Int64}
 )::MothershipSolution
-    start_point::Point{2,Float64} = ms_route.route.nodes[2*cluster_seq_idx-1]
+    # Rebuild waypoints from existing cluster sequence with updated centroids
+    cluster_seq_ids::Vector{Int64} = filter(!=(0), ms_route.cluster_sequence.id)
 
-    remaining_clusters_df::DataFrame = filter(
-        row -> row.id ∉ cluster_ids_visited,
-        cluster_centroids_df
+    # Construct vector of Clusters
+    clusters::Vector{Cluster} = [
+        Cluster(r.id, Point{2,Float64}(r.lon, r.lat), [Point{2,Float64}(r.lon, r.lat)])
+        for r in eachrow(cluster_centroids_df) if r.id != 0
+    ]
+    cluster_seq_df::DataFrame = get_cluster_sequence_df(
+        problem.depot,
+        cluster_seq_ids,
+        clusters
     )
 
-    # Nearest Neighbour to generate initial mothership route & matrix
-    ms_soln_NN::MothershipSolution = nearest_neighbour(
-        remaining_clusters_df,
-        problem.mothership.exclusion.geometry,
-        problem.tenders.exclusion.geometry,
-        start_point,
-        ms_route,
-        cluster_seq_idx
+    exclusions_mothership::POLY_VEC = problem.mothership.exclusion.geometry
+    exclusions_tender::POLY_VEC = problem.tenders.exclusion.geometry
+    exclusions_all::POLY_VEC = vcat(exclusions_mothership, exclusions_tender)
+
+    waypoints::DataFrame = get_waypoints(cluster_seq_df, exclusions_all)
+
+    # Preserve fixed visited route, recompute rest
+    n_fixed_wpts::Int64 = 2 * (disturb_clust_idx - 1)
+    final_wpts::Vector{Point{2,Float64}} = vcat(
+        ms_route.route.nodes[1:n_fixed_wpts],
+        waypoints.waypoint[n_fixed_wpts+1:end]
+    )
+    wpt_dists, wpt_paths = get_feasible_vector(
+        final_wpts, exclusions_mothership
     )
 
-    # 2-opt to improve the NN soln
-    ms_soln_2opt::MothershipSolution = two_opt(
-        ms_soln_NN,
-        problem.mothership.exclusion.geometry,
-        problem.tenders.exclusion.geometry,
-        cluster_seq_idx
+    return MothershipSolution(
+        cluster_seq_df,
+        Route(final_wpts, wpt_dists, vcat(wpt_paths...))
     )
-
-    return ms_soln_2opt
 end
 
 """
@@ -429,72 +447,69 @@ function improve_solution(
     current_mothership_route::MothershipSolution = initial_solution.mothership_routes[end]
 
     cluster_seq_ids::Vector{Int64} = current_mothership_route.cluster_sequence.id
-    final_cluster_idx = next_cluster_idx == length(cluster_seq_ids) - 1 ?
-                        next_cluster_idx - 1 :
-                        next_cluster_idx
-
-    clust_seq_current::Vector{Int64} = cluster_seq_ids[
-        current_cluster_idx+1:final_cluster_idx+1
-    ]
-    clust_seq_noncurrent::Vector{Int64} = setdiff(cluster_seq_ids, clust_seq_current)
-    filter!(!=(0), clust_seq_noncurrent)
-
-    cluster_set::Vector{Cluster} = initial_solution.cluster_sets[end]
-    current_clusters::Vector{Cluster} = cluster_set[clust_seq_current]
-    sort!(current_clusters, by=c -> c.id)
-
-    tender_set::Vector{TenderSolution} = initial_solution.tenders[end]
-    current_tender_routes::Vector{TenderSolution} =
-        tender_set[current_cluster_idx:final_cluster_idx]
-    noncurrent_tender_routes::Vector{TenderSolution} = setdiff(
-        tender_set,
-        current_tender_routes
-    )
 
     exclusions_all = vcat(
         problem.mothership.exclusion.geometry,
         problem.tenders.exclusion.geometry,
     )
-    tmp = MSTSolution(
-        [current_clusters],
-        [current_mothership_route],
-        [current_tender_routes]
-    )
-    _, partial_ms_soln = _rebuild_mothership_solution(tmp, current_clusters, exclusions_all)
 
-    current_solution = MSTSolution(
-        [current_clusters],
-        [partial_ms_soln],
-        [current_tender_routes]
-    )
     soln_best_partial, z_best = opt_function(
         problem,
-        current_solution,
+        initial_solution,
         objective_function,
         max_iterations,
         temp_init,
         cooling_rate,
         min_iters,
         static_limit;
+        perturb_idxs=current_cluster_idx:(next_cluster_idx-1),
         output_dir,
         info_log,
         plot_flag=sa_improve_plot_flag,
     )
 
-    merged_clusters = vcat(
-        cluster_set[clust_seq_noncurrent],
-        soln_best_partial.cluster_sets[end]
-    )
+    merged_clusters = soln_best_partial.cluster_sets[end]
     sort!(merged_clusters, by=c -> c.id)
 
-    merged_tenders = vcat(soln_best_partial.tenders[end], noncurrent_tender_routes)
-    sort!(merged_tenders, by=t -> t.id)
+    # Update full mothership route with the optimized partial route
+    depot = current_mothership_route.route.nodes[1]
     interior_ids = @view cluster_seq_ids[2:end-1]
-    ordered_tenders = merged_tenders[interior_ids]
+    cluster_seq_df = get_cluster_sequence_df(
+        depot, collect(interior_ids), merged_clusters
+    )
+    all_wpts_df = get_waypoints(cluster_seq_df, exclusions_all)
+
+    # Preserve pre-visited waypoints exactly; only recompute from current_cluster_idx onwards
+    n_fixed = 2 * (current_cluster_idx - 1) + 1
+    fixed_waypoints = current_mothership_route.route.nodes[1:n_fixed]
+    new_waypoints = all_wpts_df.waypoint[2*current_cluster_idx:end]
+
+    final_waypoints = current_cluster_idx > 1 ?
+                      vcat(fixed_waypoints, new_waypoints) :
+                      all_wpts_df.waypoint
+
+    wpt_dists, wpt_paths = get_feasible_vector(
+        final_waypoints, problem.mothership.exclusion.geometry
+    )
+    updated_ms_soln = MothershipSolution(
+        cluster_seq_df,
+        Route(final_waypoints, wpt_dists, vcat(wpt_paths...))
+    )
+
+    starts = updated_ms_soln.route.nodes[2 .* eachindex(interior_ids)]
+    finishes = updated_ms_soln.route.nodes[2 .* eachindex(interior_ids).+1]
+
+    ordered_tenders = [
+        _reconcile_tender(
+            soln_best_partial.tenders[end][k], starts[k], finishes[k],
+            problem.tenders.exclusion.geometry
+        )
+        for k in eachindex(interior_ids)
+    ]
 
     soln_best = MSTSolution(
         [merged_clusters],
-        [initial_solution.mothership_routes[end]],
+        [updated_ms_soln],
         [ordered_tenders]
     )
 
@@ -515,7 +530,7 @@ function improve_solution(
     sa_improve_plot_flag::Bool=true,
 )::Tuple{MSTSolution,Float64}
     current_cluster_idx::Int64 = 1
-    next_cluster_idx::Int64 = length(init_solution.cluster_sets[end])
+    next_cluster_idx::Int64 = length(init_solution.cluster_sets[end]) + 1
 
     return improve_solution(
         init_solution,
@@ -532,5 +547,17 @@ function improve_solution(
         output_dir,
         info_log,
         sa_improve_plot_flag
+    )
+end
+
+function _reconcile_tender(
+    t::TenderSolution,
+    start::Point{2,Float64},
+    finish::Point{2,Float64},
+    exclusions::POLY_VEC
+)::TenderSolution
+    t.start == start && t.finish == finish && return t
+    return TenderSolution(t.id, start, finish,
+        [_build_sortie_route(s.nodes, start, finish, exclusions) for s in t.sorties]
     )
 end

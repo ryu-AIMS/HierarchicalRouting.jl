@@ -18,7 +18,7 @@ using Rasters
 using Statistics
 
 using GeometryBasics
-using GLMakie, GeoMakie
+using CairoMakie, GeoMakie
 
 """
     clusters(
@@ -174,10 +174,11 @@ function clusters!(
     centers::Bool=false,
     labels::Bool=false
 )::Axis
-    sequence_ids = cluster_sequence.id[2:end-1]
+    remove_depot_filter = cluster_sequence.id .!= 0
+    sequence_ids = cluster_sequence.id[remove_depot_filter]
 
-    centroids = collect(zip(cluster_sequence.lon, cluster_sequence.lat))[2:end-1]
-    ordered_centroids = centroids[sortperm(sequence_ids)]
+    centroids = collect(zip(cluster_sequence.lon, cluster_sequence.lat))[remove_depot_filter]
+    ordered_centroids = Point.(centroids[sortperm(sequence_ids)])
     ordered_ids = sort(sequence_ids)
 
     return clusters!(ax, cluster_radius, ordered_ids, ordered_centroids, centers, labels)
@@ -479,9 +480,9 @@ function route!(
         # Annotate waypoints by sequence
         text!(
             ax,
-            waypoint_matrix[label_from_idx:end, 1],
-            waypoint_matrix[label_from_idx:end, 2] .+ 0.003,
-            text=string.(label_from_idx-1:size(waypoint_matrix, 1)-1),
+            waypoint_matrix[:, 1],
+            waypoint_matrix[:, 2] .+ 0.003,
+            text=string.(0:size(waypoint_matrix, 1)-1),
             fontsize=18,
             align=(:center, :center),
             color=:black
@@ -1013,7 +1014,8 @@ function solution_disturbances(
             [ax1, ax2],
             Ref(solution_disturbed),
             Ref(problem),
-            [[1:ordered_disturbances[1]-1], [1:ordered_disturbances[2]-1]]
+            [[1:ordered_disturbances[1]-1], [1:ordered_disturbances[2]-1]],
+            [1, 2]
         )
         highlight_critical_path!(ax3, solution_disturbed, problem)
     end
@@ -1193,9 +1195,10 @@ function _highlight_critical_core!(
     clust_range::Vector{Int};
     linewidth::Real,
     color=:red,
+    soln_idx::Int=lastindex(soln.tenders),
 )::Nothing
-    tenders = soln.tenders[end]
-    ms_route = soln.mothership_routes[end].route
+    tenders = soln.tenders[soln_idx]
+    ms_route = soln.mothership_routes[soln_idx].route
     num_clusters = length(clust_range)
 
     clust_sorties = tender_clust_dist.(tenders)
@@ -1229,7 +1232,7 @@ function _highlight_critical_core!(
     end
 
     # Critical path BETWEEN selected clusters, including depot links to first & last clusts
-    total_num_clusters::Int = length(soln.cluster_sets[end])
+    total_num_clusters::Int = length(soln.cluster_sets[soln_idx])
     ks::Vector{Int} =
         num_clusters == 1 ? [0] :
         num_clusters == total_num_clusters ? [0; clust_range[1:end]] :
@@ -1253,7 +1256,8 @@ function highlight_critical_path_partial!(
     ax::Axis,
     soln::MSTSolution,
     problem::Problem,
-    clusters::AbstractVector{<:UnitRange{Int}};
+    clusters::AbstractVector{<:UnitRange{Int}},
+    soln_idx::Int=lastindex(soln.tenders);
     color=:red,
     linewidth::Real=8,
 )::Nothing
@@ -1262,7 +1266,7 @@ function highlight_critical_path_partial!(
 
     clust_range::Vector{Int} = collect(clusters...)
 
-    _highlight_critical_core!(ax, soln, vessel_weightings, clust_range; color, linewidth)
+    _highlight_critical_core!(ax, soln, vessel_weightings, clust_range; color, linewidth, soln_idx)
     return
 end
 
