@@ -615,14 +615,12 @@ function generate_random_points_within_buffered_exclusions(
     subset_bbox::NTuple{4,Float64},
     seed::Union{Integer,Nothing}=nothing
 )::Vector{Point{2,Float64}}
-    if seed !== nothing
-        Random.seed!(seed)
-    end
+    rng = isnothing(seed) ? Random.GLOBAL_RNG : Random.MersenneTwister(seed)
     min_x, max_x, min_y, max_y = subset_bbox
     points = Vector{Point{2,Float64}}()
     while length(points) < no_pts
-        x = rand() * (max_x - min_x) + min_x
-        y = rand() * (max_y - min_y) + min_y
+        x = rand(rng) * (max_x - min_x) + min_x
+        y = rand(rng) * (max_y - min_y) + min_y
         proposed_point = Point{2,Float64}(x, y)
 
         if point_in_exclusion(proposed_point, buffered_exclusions) &&

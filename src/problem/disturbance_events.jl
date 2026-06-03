@@ -229,7 +229,8 @@ function _apply_disturbance_events!(
                 max_iterations,
                 output_dir,
                 info_log,
-                sa_improve_plot_flag
+                sa_improve_plot_flag,
+                rng,
             )
             # Overwrite with improved
             clusters = optimized_current_solution.cluster_sets[end]
