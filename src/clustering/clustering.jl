@@ -354,8 +354,8 @@ function capacity_constrained_kmeans(
             initial_k,
             max_cluster_size,
             max_split_distance,
-            rng;
-            max_iter,
+            rng,
+            max_iter;
             k_spec,
             tol
         )
@@ -386,8 +386,8 @@ end
         k::Int64;
         max_cluster_size::Int64,
         max_split_distance::Int64,
-        rng::AbstractRNG;
-        max_iter::Int64=1000,
+        rng::AbstractRNG,
+        max_iter::Int64=1000;
         k_spec::Int=0,
         tol::Float64=0.01
     )::Vector{Int64}
@@ -416,7 +416,7 @@ function _constrained_kmeans_single_iteration(
     k::Int64,
     max_cluster_size::Int64,
     max_split_distance::Int64,
-    rng::AbstractRNG;
+    rng::AbstractRNG,
     max_iter::Int64=1000;
     k_spec::Int=0,
     tol::Float64=0.01
@@ -468,9 +468,9 @@ function _constrained_kmeans_single_iteration(
                         k,
                         max_cluster_size,
                         max_split_distance,
+                        rng,
                         max_iter;
                         tol,
-                        rng,
                     )
                 else
                     close_clusters = available_clusters
