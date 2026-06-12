@@ -94,7 +94,8 @@ end
 
 """
     cluster_problem(
-        problem::Problem;
+        problem::Problem,
+        rng::AbstractRNG;
         k::Int=0,
         dist_weighting::Float64=5E-6
         tol::Float64=0.01,
@@ -120,7 +121,8 @@ The clustering is done using k-means clustering, and the centroids of the cluste
 Vector of clustered locations.
 """
 function cluster_problem(
-    problem::Problem;
+    problem::Problem,
+    rng::AbstractRNG;
     k::Int=0,
     dist_weighting::Float64=5E-6,
     tol::Float64=0.01,
@@ -148,7 +150,8 @@ function cluster_problem(
     coordinates_array[3, :] .= dist_weighting .* dist_vector[feasible_idxs]
 
     clustering_assignments = capacity_constrained_kmeans(
-        coordinates_array;
+        coordinates_array,
+        rng;
         max_cluster_size=total_tender_capacity,
         min_k_spec=k,
         max_iter,
@@ -226,11 +229,7 @@ function disturb_remaining_clusters(
     k_d_upper = max(ceil(Int, k_d_upper_frac * n_sites), k_d_lower)
     k_d = rand(rng, k_d_lower:k_d_upper)
 
-    disturbance_clusters = kmeans(
-        coordinates_3d,
-        k_d;
-        tol=tol
-    )
+    disturbance_clusters = kmeans(coordinates_3d, k_d; tol, rng)
 
     # Create a score based on the disturbance values for each cluster
     disturbance_scores = Vector{Float64}(undef, n_sites)
@@ -282,7 +281,8 @@ function disturb_remaining_clusters(
 
     #re-cluster the remaining nodes into k clusters
     clustering_assignments = capacity_constrained_kmeans(
-        disturbed_coordinates_3d;
+        disturbed_coordinates_3d,
+        rng;
         max_cluster_size=total_tender_capacity,
         k_spec=k,
         tol
@@ -296,7 +296,8 @@ end
 
 """
     capacity_constrained_kmeans(
-        coordinates::Matrix{Float64};
+        coordinates::Matrix{Float64},
+        rng::AbstractRNG;
         max_cluster_size::Int64,
         max_split_distance::Int64=typemax(Int64),
         k_spec::Int=0,
@@ -326,7 +327,8 @@ are assigned to a cluster.
 A vector of cluster assignments for each reef.
 """
 function capacity_constrained_kmeans(
-    coordinates::Matrix{Float64};
+    coordinates::Matrix{Float64},
+    rng::AbstractRNG;
     max_cluster_size::Int64,
     max_split_distance::Int64=typemax(Int64),
     k_spec::Int=0,
@@ -352,7 +354,8 @@ function capacity_constrained_kmeans(
             initial_k,
             max_cluster_size,
             max_split_distance,
-            max_iter;
+            rng;
+            max_iter,
             k_spec,
             tol
         )
@@ -383,7 +386,8 @@ end
         k::Int64;
         max_cluster_size::Int64,
         max_split_distance::Int64,
-        max_iter::Int64=1000;
+        rng::AbstractRNG;
+        max_iter::Int64=1000,
         k_spec::Int=0,
         tol::Float64=0.01
     )::Vector{Int64}
@@ -412,11 +416,12 @@ function _constrained_kmeans_single_iteration(
     k::Int64,
     max_cluster_size::Int64,
     max_split_distance::Int64,
+    rng::AbstractRNG;
     max_iter::Int64=1000;
     k_spec::Int=0,
     tol::Float64=0.01
 )::Vector{Int64}
-    clustering = kmeans(coordinates, k; tol=tol, maxiter=max_iter)
+    clustering = kmeans(coordinates, k; tol, maxiter=max_iter, rng)
     clustering_assignment::Vector{Int64} = clustering.assignments
 
     # Build clusters & centroids
@@ -464,7 +469,8 @@ function _constrained_kmeans_single_iteration(
                         max_cluster_size,
                         max_split_distance,
                         max_iter;
-                        tol
+                        tol,
+                        rng,
                     )
                 else
                     close_clusters = available_clusters
