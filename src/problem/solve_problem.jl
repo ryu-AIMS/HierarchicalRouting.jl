@@ -134,7 +134,8 @@ function solve(
 
     # Cluster the problem data
     clusters::Vector{Cluster} = cluster_problem(
-        problem;
+        problem,
+        rng;
         k,
         max_iter=cluster_iterations,
         n_restarts=cluster_restarts,

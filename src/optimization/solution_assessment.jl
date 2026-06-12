@@ -172,7 +172,7 @@ Perturbed full solution.
 function perturb_swap(
     soln::MSTSolution,
     clust_seq_idx::Int64,
-    rng::AbstractRNG=Random.GLOBAL_RNG,
+    rng::AbstractRNG,
     exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
@@ -202,7 +202,10 @@ function perturb_swap(
         if sortie_length < 2
             return soln
         end
-        node_a_idx, node_b_idx = sortie_length == 2 ? (1, 2) : shuffle(1:sortie_length)[1:2]
+        node_a_idx, node_b_idx =
+            sortie_length == 2 ?
+            (1, 2) :
+            shuffle(rng, 1:sortie_length)[1:2]
     else
         # Chose two random node indices from different sorties
         node_a_idx = rand(rng, 1:length(sortie_a.nodes))
