@@ -172,7 +172,7 @@ Perturbed full solution.
 function perturb_swap(
     soln::MSTSolution,
     clust_seq_idx::Int64,
-    rng::AbstractRNG=Random.GLOBAL_RNG,
+    rng::AbstractRNG,
     exclusions_tender::POLY_VEC=POLY_VEC();
     enforce_diff_sortie::Bool=false
 )::MSTSolution
